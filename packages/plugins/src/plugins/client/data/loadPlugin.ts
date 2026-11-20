@@ -24,11 +24,11 @@ function readManifest(mod: PluginModule): Manifest {
   };
 }
 
+const isSetup = (value: unknown): value is Setup => typeof value === "function";
+
 export function setupOf(mod: PluginModule): Setup {
-  if (typeof mod.default !== "function")
-    throw new Error("The plugin must export a setup function.");
-  const setup: Setup = mod.default as Setup;
-  return withStyles(mod.css, setup);
+  if (!isSetup(mod.default)) throw new Error("The plugin must export a setup function.");
+  return withStyles(mod.css, mod.default);
 }
 
 function withStyles(css: unknown, setup: Setup): Setup {

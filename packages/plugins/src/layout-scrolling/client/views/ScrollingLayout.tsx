@@ -17,21 +17,24 @@ export default function ScrollingLayout<T>(props: PaneLayoutProps<T>) {
     dragIdle = setTimeout(() => setDragging(false), DRAG_IDLE_MS);
   };
 
-  createEffect(() => {
-    const id = props.activePaneId();
-    if (!id) return;
-    requestAnimationFrame(() => {
-      const cell = rowEl?.querySelector<HTMLElement>(`[data-cell="${CSS.escape(id)}"]`);
-      if (!(rowEl && cell)) return;
-      const left = cell.offsetLeft;
-      const right = left + cell.offsetWidth;
-      if (left >= rowEl.scrollLeft && right <= rowEl.scrollLeft + rowEl.clientWidth) return;
-      rowEl.scrollTo({
-        behavior: "smooth",
-        left: left - (rowEl.clientWidth - cell.offsetWidth) / 2,
+  createEffect(
+    () => props.activePaneId(),
+    (id) => {
+      if (!id) return;
+      const frame = requestAnimationFrame(() => {
+        const cell = rowEl?.querySelector<HTMLElement>(`[data-cell="${CSS.escape(id)}"]`);
+        if (!(rowEl && cell)) return;
+        const left = cell.offsetLeft;
+        const right = left + cell.offsetWidth;
+        if (left >= rowEl.scrollLeft && right <= rowEl.scrollLeft + rowEl.clientWidth) return;
+        rowEl.scrollTo({
+          behavior: "smooth",
+          left: left - (rowEl.clientWidth - cell.offsetWidth) / 2,
+        });
       });
-    });
-  });
+      return () => cancelAnimationFrame(frame);
+    },
+  );
 
   return (
     <div class="scrolling-layout" ref={rowEl}>

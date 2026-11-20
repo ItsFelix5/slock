@@ -16,6 +16,8 @@ const sessionRoutes = [
 ];
 
 const setup: Setup = (ctx) => {
+  ctx.provide("slack.inFlight", { pending: new Map() });
+  ctx.provide("slack.inFlight", { pending: new Map() });
   ctx.add(
     "http",
     (c, next) => {

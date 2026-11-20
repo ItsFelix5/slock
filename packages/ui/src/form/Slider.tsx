@@ -32,11 +32,13 @@ export default function Slider(props: SliderProps) {
         <For each={props.labels}>
           {(label, i) => (
             <span
-              class="slider-tick"
-              classList={{
-                active: Math.abs(props.value - (props.min + i() * tickSpacing())) < 0.05,
-              }}
-              onclick={() => props.onChange(props.min + i() * tickSpacing())}
+              class={[
+                "slider-tick",
+                {
+                  active: Math.abs(props.value - (props.min + i() * tickSpacing())) < 0.05,
+                },
+              ]}
+              onClick={() => props.onChange(props.min + i() * tickSpacing())}
             >
               {label}
             </span>

@@ -10,10 +10,8 @@ export interface PaneViewContextValue {
 
 const PaneViewContext = createContext<PaneViewContextValue>();
 
-export const PaneViewProvider = PaneViewContext.Provider;
+export const PaneViewProvider = PaneViewContext;
 
 export function usePaneView(): PaneViewContextValue {
-  const value = useContext(PaneViewContext);
-  if (!value) throw new Error("usePaneView() called with no PaneViewContext.Provider above it");
-  return value;
+  return useContext(PaneViewContext);
 }

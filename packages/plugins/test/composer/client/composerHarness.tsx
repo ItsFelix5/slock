@@ -1,8 +1,10 @@
 import { createHost } from "@slock/core";
 import { setHost, solidReactive } from "@slock/core/solid";
+import { createFakeEnv } from "@slock/core/testing";
+import { parseChannelId } from "@slock/slack";
 import type { Block } from "@slock/types";
 import Quill, { Delta } from "@slock/ui/editor/quill";
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import type { ComposerProps } from "../../../src/composer/client/composerTypes";
 import { type DeltaOp, mrkdwnText } from "../../../src/composer/client/lib/deltaLines";
 import { buildRichTextBlocks } from "../../../src/composer/client/lib/richTextBuild";
@@ -36,8 +38,11 @@ export const settle = async () => {
   for (let i = 0; i < 30; i++) await Promise.resolve();
 };
 
+let hostEnv = createFakeEnv();
+
 export async function bootComposerHost() {
-  const host = createHost({ reactive: solidReactive });
+  hostEnv = createFakeEnv();
+  const host = createHost({ env: hostEnv, reactive: solidReactive });
   setHost(host);
   await host.register(...composerServices(outbox));
 }
@@ -51,10 +56,10 @@ function findQuill(host: HTMLElement): Quill {
 
 export async function mountComposer(props: Partial<ComposerProps> = {}): Promise<ComposerFixture> {
   outbox.sent.length = 0;
-  const server = fakeDraftServer();
+  const server = fakeDraftServer([], hostEnv);
   const host = document.createElement("div");
   document.body.append(host);
-  const dispose = render(() => <Composer channelId="C1" {...props} />, host);
+  const dispose = render(() => <Composer channelId={parseChannelId("C1")} {...props} />, host);
   await settle();
   const quill = findQuill(host);
   quill.focus();

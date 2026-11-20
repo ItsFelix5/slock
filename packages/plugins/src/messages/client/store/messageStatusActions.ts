@@ -1,47 +1,52 @@
 import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
-import type { Message } from "@slock/types";
-import { createStore, produce } from "solid-js/store";
+import { parseTs } from "@slock/slack";
+import type { ChannelId, Message, Ts } from "@slock/types";
+import { createStore } from "solid-js";
 import { toggleThreadSubscription } from "../../../slack/client/api";
+import { tsFromMs, tsJustBefore, tsToMs } from "../lib/tsTime";
 
 const feedback = service("feedback");
+const env = service("env");
 
 export function createMessageStatusActions(deps: {
-  clearChannelUnread: (channelId: string) => void;
-  lastReadFor: (channelId: string) => number | undefined;
-  unreadDividerTsFor: (channelId: string) => number | undefined;
-  setLastReadByChannel: (channelId: string, ts: number) => void;
-  setUnreadDividerTs: (channelId: string, ts: number) => void;
-  setUnreadChannelIds: (channelId: string, unread: boolean) => void;
-  setChannelRead: (channelId: string, ts: string) => Promise<boolean>;
-  syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
-  setThreadRead: (channelId: string, threadTs: string, ts: string) => Promise<boolean>;
-  threadReadTsFor: (threadTs: string) => string | undefined;
-  hasMoreHistory: (channelId: string) => boolean;
-  hasNewerHistory: (channelId: string) => boolean;
-  messagesByChannel: Record<string, Message[]>;
-  threadMessages: Record<string, Message[]>;
-  patchMessage: (channelId: string, ts: string, patch: Partial<Message>) => void;
+  clearChannelUnread: (channelId: ChannelId) => void;
+  lastReadFor: (channelId: ChannelId) => number | undefined;
+  unreadDividerTsFor: (channelId: ChannelId) => number | undefined;
+  setLastReadByChannel: (channelId: ChannelId, ts: number) => void;
+  setUnreadDividerTs: (channelId: ChannelId, ts: number) => void;
+  setUnreadChannelIds: (channelId: ChannelId, unread: boolean) => void;
+  setChannelRead: (channelId: ChannelId, ts: Ts) => Promise<boolean>;
+  syncChannelRead: (channelId: ChannelId, ts: Ts) => Promise<boolean>;
+  setThreadRead: (channelId: ChannelId, threadTs: Ts, ts: Ts) => Promise<boolean>;
+  threadReadTsFor: (threadTs: Ts) => Ts | undefined;
+  hasMoreHistory: (channelId: ChannelId) => boolean;
+  hasNewerHistory: (channelId: ChannelId) => boolean;
+  messagesByChannel: Record<ChannelId, Message[]>;
+  threadMessages: Record<Ts, Message[]>;
+  patchMessage: (channelId: ChannelId, ts: Ts, patch: Partial<Message>) => void;
 }) {
   const { messagesByChannel, threadMessages, patchMessage } = deps;
   const [threadSubscriptionPending, setThreadSubscriptionPending] = createStore<
     Record<string, boolean>
   >({});
   const [threadUnsubscribed, setThreadUnsubscribed] = createStore<Record<string, boolean>>({});
-  const subscriptionPendingKey = (channelId: string, ts: string) => `${channelId}:${ts}`;
-  function isThreadSubscriptionPending(channelId: string, ts: string): boolean {
+  const subscriptionPendingKey = (channelId: ChannelId, ts: Ts) => `${channelId}:${ts}`;
+  function isThreadSubscriptionPending(channelId: ChannelId, ts: Ts): boolean {
     return !!threadSubscriptionPending[subscriptionPendingKey(channelId, ts)];
   }
-  function isThreadUnsubscribed(channelId: string, ts: string): boolean {
+  function isThreadUnsubscribed(channelId: ChannelId, ts: Ts): boolean {
     return !!threadUnsubscribed[subscriptionPendingKey(channelId, ts)];
   }
-  function isThreadSubscribed(ts: string): boolean {
+  function isThreadSubscribed(ts: Ts): boolean {
     return !!threadMessages[ts]?.[0]?.isSubscribed;
   }
-  async function toggleThreadSubscribed(channelId: string, ts: string) {
+  async function toggleThreadSubscribed(channelId: ChannelId, ts: Ts) {
     const pendingKey = subscriptionPendingKey(channelId, ts);
     if (threadSubscriptionPending[pendingKey]) return;
-    setThreadSubscriptionPending(pendingKey, true);
+    setThreadSubscriptionPending((s) => {
+      s[pendingKey] = true;
+    });
     const currentlySubscribed = isThreadSubscribed(ts);
     patchMessage(channelId, ts, { isSubscribed: !currentlySubscribed });
     try {
@@ -51,41 +56,43 @@ export function createMessageStatusActions(deps: {
       feedback.flash(ts, "Failed to update thread subscription.", "error");
       patchMessage(channelId, ts, { isSubscribed: currentlySubscribed });
     } finally {
-      setThreadSubscriptionPending(
-        produce((pending) => {
-          delete pending[pendingKey];
-        }),
-      );
+      setThreadSubscriptionPending((pending) => {
+        delete pending[pendingKey];
+      });
     }
   }
 
-  async function unsubscribeFromThread(channelId: string, ts: string) {
+  async function unsubscribeFromThread(channelId: ChannelId, ts: Ts) {
     const pendingKey = subscriptionPendingKey(channelId, ts);
     if (threadSubscriptionPending[pendingKey]) return;
-    setThreadSubscriptionPending(pendingKey, true);
+    setThreadSubscriptionPending((s) => {
+      s[pendingKey] = true;
+    });
     patchMessage(channelId, ts, { isSubscribed: false });
-    setThreadUnsubscribed(pendingKey, true);
+    setThreadUnsubscribed((s) => {
+      s[pendingKey] = true;
+    });
     try {
       await toggleThreadSubscription(channelId, ts, true);
     } catch (err) {
       console.error("Failed to unsubscribe from thread", err);
       feedback.flash(ts, "Failed to unsubscribe from thread.", "error");
       patchMessage(channelId, ts, { isSubscribed: true });
-      setThreadUnsubscribed(pendingKey, false);
+      setThreadUnsubscribed((s) => {
+        s[pendingKey] = false;
+      });
     } finally {
-      setThreadSubscriptionPending(
-        produce((pending) => {
-          delete pending[pendingKey];
-        }),
-      );
+      setThreadSubscriptionPending((pending) => {
+        delete pending[pendingKey];
+      });
     }
   }
-  async function markCurrentChannelRead(channelId: string): Promise<boolean> {
+  async function markCurrentChannelRead(channelId: ChannelId): Promise<boolean> {
     const loadedLatest = deps.hasNewerHistory(channelId)
       ? undefined
       : messagesByChannel[channelId]?.at(-1)?.ts;
-    const latest = loadedLatest ?? (Date.now() / 1000).toFixed(6);
-    const latestMs = parseFloat(latest) * 1000;
+    const latest = loadedLatest ?? tsFromMs(env.now());
+    const latestMs = tsToMs(latest);
     if (latestMs <= (deps.lastReadFor(channelId) ?? 0)) {
       deps.clearChannelUnread(channelId);
       return true;
@@ -95,20 +102,20 @@ export function createMessageStatusActions(deps: {
     deps.setLastReadByChannel(channelId, latestMs);
     return true;
   }
-  function isMessageUnread(channelId: string, ts: string, threadTs?: string) {
+  function isMessageUnread(channelId: ChannelId, ts: Ts, threadTs?: Ts) {
     if (threadTs) {
       const root = threadMessages[threadTs]?.[0];
       const readTs = deps.threadReadTsFor(threadTs) ?? root?.threadLastRead ?? threadTs;
-      return ts !== threadTs && parseFloat(ts) > parseFloat(readTs);
+      return ts !== threadTs && Number(ts) > Number(readTs);
     }
     const anchor = deps.unreadDividerTsFor(channelId) ?? deps.lastReadFor(channelId) ?? 0;
-    return parseFloat(ts) * 1000 > anchor;
+    return tsToMs(ts) > anchor;
   }
-  async function markMessageRead(channelId: string, ts: string): Promise<boolean> {
+  async function markMessageRead(channelId: ChannelId, ts: Ts): Promise<boolean> {
     const priorLastRead = deps.lastReadFor(channelId);
     const priorDivider = deps.unreadDividerTsFor(channelId);
-    deps.setLastReadByChannel(channelId, parseFloat(ts) * 1000);
-    deps.setUnreadDividerTs(channelId, parseFloat(ts) * 1000);
+    deps.setLastReadByChannel(channelId, tsToMs(ts));
+    deps.setUnreadDividerTs(channelId, tsToMs(ts));
     if (!(await deps.setChannelRead(channelId, ts))) {
       deps.setLastReadByChannel(channelId, priorLastRead ?? 0);
       deps.setUnreadDividerTs(channelId, priorDivider ?? Infinity);
@@ -120,23 +127,18 @@ export function createMessageStatusActions(deps: {
       deps.clearChannelUnread(channelId);
     return true;
   }
-  function toggleMessageUnread(channelId: string, ts: string, threadTs?: string) {
+  function toggleMessageUnread(channelId: ChannelId, ts: Ts, threadTs?: Ts) {
     if (isMessageUnread(channelId, ts, threadTs)) {
       if (threadTs) return deps.setThreadRead(channelId, threadTs, ts);
       return markMessageRead(channelId, ts);
     }
     return markMessageUnread(channelId, ts, threadTs);
   }
-  async function markMessageUnread(
-    channelId: string,
-    ts: string,
-    threadTs?: string,
-  ): Promise<boolean> {
+  async function markMessageUnread(channelId: ChannelId, ts: Ts, threadTs?: Ts): Promise<boolean> {
     if (threadTs) {
       const list = threadMessages[threadTs] ?? [];
       const idx = list.findIndex((m) => m.ts === ts);
-      const previousTs =
-        idx > 0 ? defined(list[idx - 1]).ts : (parseFloat(ts) - 0.000001).toFixed(6);
+      const previousTs = idx > 0 ? defined(list[idx - 1]).ts : tsJustBefore(ts);
       if (!(await deps.setThreadRead(channelId, threadTs, previousTs))) {
         feedback.flash(ts, "Failed to mark as unread.", "error");
         return false;
@@ -147,12 +149,8 @@ export function createMessageStatusActions(deps: {
     const idx = list.findIndex((m) => m.ts === ts);
     const atRealStart = idx === 0 && !deps.hasMoreHistory(channelId);
     const previousTs =
-      idx > 0
-        ? defined(list[idx - 1]).ts
-        : atRealStart
-          ? "0"
-          : (parseFloat(ts) - 0.000001).toFixed(6);
-    const previousMs = parseFloat(previousTs) * 1000;
+      idx > 0 ? defined(list[idx - 1]).ts : atRealStart ? parseTs("0") : tsJustBefore(ts);
+    const previousMs = tsToMs(previousTs);
     const priorLastRead = deps.lastReadFor(channelId);
     deps.setLastReadByChannel(channelId, previousMs);
     deps.setUnreadDividerTs(channelId, previousMs);

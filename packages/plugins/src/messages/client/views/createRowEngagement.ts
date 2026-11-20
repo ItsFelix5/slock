@@ -1,6 +1,7 @@
 import type { TimerHandle } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { createSignal, type JSX, onCleanup } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { createSignal, onCleanup } from "solid-js";
 
 const env = service("env");
 

@@ -1,6 +1,6 @@
 import { formatDayFromMs, formatTimeFromMs } from "@slock/core";
 import { service } from "@slock/core/solid";
-import type { Block, SlackFile } from "@slock/types";
+import type { Block, ChannelId, SlackFile, Ts } from "@slock/types";
 import { Avatar, DEFAULT_AVATAR_COLOR, NavRow, Tooltip } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
 import { splitReplyLink } from "../../../message-links/client/api/replyLink";
@@ -20,11 +20,11 @@ const usersStore = service("users");
 export function ActivityMessageText(props: {
   author: MessageAuthorFields;
   blocks?: Block[];
-  channelId: string;
+  channelId: ChannelId;
   files?: SlackFile[];
   text: string;
-  threadTs?: string;
-  ts: string;
+  threadTs?: Ts;
+  ts: Ts;
 }) {
   const content = createMemo(() => splitReplyLink(props));
   return (
@@ -45,7 +45,7 @@ export function ActivityMessageText(props: {
 export function ThreadMessageRow(props: {
   author: MessageAuthorFields;
   blocks?: Block[];
-  channelId: string;
+  channelId: ChannelId;
   files?: SlackFile[];
   isFirst?: boolean;
   isLast?: boolean;
@@ -53,12 +53,15 @@ export function ThreadMessageRow(props: {
   onContextMenu?: (e: MouseEvent) => void;
   onOpen: () => void;
   text: string;
-  threadTs: string;
-  ts: string;
+  threadTs: Ts;
+  ts: Ts;
   unread?: boolean;
 }) {
   const timeMs = () => parseFloat(props.ts) * 1000;
-  const user = createMemo(() => usersStore.userById(props.author.userId));
+  const user = createMemo(() => {
+    const id = props.author.userId;
+    return id ? usersStore.userById(id) : undefined;
+  });
   const displayName = createMemo(() =>
     resolveAuthorDisplayName(props.author, user()?.name, unresolvedAuthorFallback(props.author)),
   );
@@ -73,7 +76,7 @@ export function ThreadMessageRow(props: {
       user={{
         avatarColor: user()?.avatarColor ?? DEFAULT_AVATAR_COLOR,
         avatarUrl: avatarUrl(),
-        id: props.author.userId,
+        id: props.author.userId ?? "",
         name: displayName(),
         presence: user()?.presence,
       }}
@@ -81,16 +84,18 @@ export function ThreadMessageRow(props: {
   );
   return (
     <NavRow
-      class="activity-thread-message"
-      classList={{
-        "activity-thread-line-end": props.isLast,
-        "activity-thread-line-start": props.isFirst,
-        "activity-thread-root": props.isRoot,
-        unread: props.unread,
-      }}
+      class={[
+        "activity-thread-message",
+        {
+          "activity-thread-line-end": props.isLast,
+          "activity-thread-line-start": props.isFirst,
+          "activity-thread-root": props.isRoot,
+          unread: props.unread,
+        },
+      ]}
       onActivate={props.onOpen}
       onContextMenu={props.onContextMenu}
-      tabIndex={-1}
+      tabindex={-1}
     >
       <span class="activity-thread-avatar">
         <Show fallback={avatar()} when={profileUserId()}>

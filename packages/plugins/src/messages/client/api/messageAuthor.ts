@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import { isUserId, parseUserId, RELAY_BOT_ID } from "@slock/slack";
+import { ifPresent, isUserId, parseUserId, RELAY_BOT_ID } from "@slock/slack";
 import type { Attachment, Message, UserId } from "@slock/types";
 import { DEFAULT_AVATAR_COLOR } from "@slock/ui";
 
@@ -13,14 +13,16 @@ export function resolveBotProfileUserId(
 ): UserId | undefined {
   if (msg.botId?.startsWith("B") && isUserId(msg.botId)) return msg.botId;
   if (msg.botName === "Slackbot") return SLACKBOT_ID;
-  return msg.botName && msg.userId && (USER_PROFILE_ID_RE.test(msg.userId) || msg.userId.startsWith("B"))
+  return msg.botName &&
+    msg.userId &&
+    (USER_PROFILE_ID_RE.test(msg.userId) || msg.userId.startsWith("B"))
     ? msg.userId
     : undefined;
 }
 
 export function resolveRelaySenderId(msg: Pick<Message, "botId" | "botName">): UserId | undefined {
   return msg.botId === RELAY_BOT_ID && msg.botName
-    ? usersStore.userIdByName(msg.botName)
+    ? ifPresent(parseUserId, usersStore.userIdByName(msg.botName))
     : undefined;
 }
 
@@ -67,7 +69,7 @@ export function isBareLinkUnfurl(a: Attachment) {
 export function resolveAttachmentAuthorName(
   attachment: Pick<Attachment, "authorId" | "authorName">,
   userById: (id: string) => { name: string } | undefined,
-): UserId | undefined {
+): string | undefined {
   return (
     (attachment.authorId ? userById(attachment.authorId)?.name : undefined) ?? attachment.authorName
   );
@@ -90,7 +92,7 @@ export function unresolvedAuthorFallback(msg: Pick<MessageAuthorFields, "userId"
 export function resolveAuthorAvatarUrl(
   msg: MessageAuthorFields,
   userAvatarUrl: string | undefined,
-): UserId | undefined {
+): string | undefined {
   return hasRealMessageAuthor(msg)
     ? (userAvatarUrl ?? msg.botIcon)
     : (msg.botIcon ?? userAvatarUrl);

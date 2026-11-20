@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createRoot } from "solid-js";
+import { createRoot, flush } from "solid-js";
 import { createKeyedPageLoader } from "../../../src/channel-members/client/keyedPageLoader";
 
 function deferred<T>() {
@@ -25,10 +25,12 @@ describe("keyed page loader", () => {
     const pending = deferred<string>();
     const { loader, results } = setup(() => pending.promise);
     const run = loader.load("everyone");
+    flush();
     expect(loader.isLoading("everyone")).toBe(true);
     expect(loader.hasLoaded("everyone")).toBe(false);
     pending.resolve("page1");
     expect(await run).toBe(true);
+    flush();
     expect(loader.isLoading("everyone")).toBe(false);
     expect(loader.hasLoaded("everyone")).toBe(true);
     expect(results).toEqual(["everyone:page1"]);
@@ -58,6 +60,7 @@ describe("keyed page loader", () => {
     const b = loader.load("apps");
     apps.resolve("apps1");
     await b;
+    flush();
     expect(loader.isLoading("everyone")).toBe(true);
     expect(loader.hasLoaded("apps")).toBe(true);
     everyone.resolve("e1");
@@ -72,9 +75,11 @@ describe("keyed page loader", () => {
       return attempt === 1 ? Promise.reject(new Error("boom")) : Promise.resolve("ok");
     });
     expect(await loader.load("everyone")).toBe(false);
+    flush();
     expect(loader.hasError("everyone")).toBe(true);
     expect(results).toEqual([]);
     expect(await loader.load("everyone")).toBe(true);
+    flush();
     expect(loader.hasError("everyone")).toBe(false);
     expect(loader.hasLoaded("everyone")).toBe(true);
   });
@@ -89,6 +94,7 @@ describe("keyed page loader", () => {
       }),
     );
     expect(await loader.load("everyone")).toBe(false);
+    flush();
     expect(loader.hasError("everyone")).toBe(true);
   });
 });

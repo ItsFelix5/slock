@@ -1,4 +1,5 @@
-import { createEffect, createSignal } from "solid-js";
+import { createSignal } from "solid-js";
+import { ariaBoolean } from "../../ariaBoolean";
 import IconButton from "../../button/IconButton";
 import Popover from "../../overlay/Popover";
 import type { RelativeColor } from "../RelativeChannelRows";
@@ -16,14 +17,9 @@ export interface ColorFieldProps {
 }
 
 export default function ColorField(props: ColorFieldProps) {
-  const [value, setValue] = createSignal(props.value);
-  const [draft, setDraft] = createSignal(props.displayValue ?? props.value);
+  const [value, setValue] = createSignal(() => props.value);
+  const [draft, setDraft] = createSignal(() => props.displayValue ?? props.value);
   const [pickerOpen, setPickerOpen] = createSignal(false);
-
-  createEffect(() => {
-    setValue(props.value);
-    setDraft(props.displayValue ?? props.value);
-  });
 
   function commit(next: string) {
     if (!(next && CSS.supports("color", next))) return;
@@ -43,7 +39,7 @@ export default function ColorField(props: ColorFieldProps) {
         panelClass="color-field-picker-popover"
         trigger={
           <button
-            aria-expanded={pickerOpen()}
+            aria-expanded={ariaBoolean(pickerOpen())}
             aria-haspopup="dialog"
             aria-label={`Pick ${props.label.toLowerCase()}`}
             class="color-field-swatch"

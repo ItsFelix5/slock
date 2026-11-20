@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { createConnectionHarness } from "../../../../src/realtime/testing/connectionHarness";
+import { createConnectionHarness } from "../../support/connectionHarness";
 
 let harness: ReturnType<typeof createConnectionHarness>;
 

@@ -1,9 +1,8 @@
 import { loadCustomEmoji } from "@slock/blockkit";
-import { getHost } from "@slock/core/solid";
+import { getHost, service } from "@slock/core/solid";
 import { listNavigationIndex } from "@slock/ui";
 import type Quill from "@slock/ui/editor/quill";
 import type { ExtraSuggestion } from "../../api";
-import { loadSlashCommandSuggestions } from "../../lib/commands/slashCommandSuggestions";
 import {
   createStaticSuggestion,
   type SuggestionOptions,
@@ -13,6 +12,8 @@ import {
 } from "../../lib/suggestionSources";
 import { detectMentionTrigger } from "../../lib/textDetection";
 import type { CustomSuggestItem, SuggestState } from "./suggestTypes";
+
+const slashCommands = service("slash-commands");
 
 export function suggestionText(item: SuggestState["items"][number]): string {
   if (item.kind === "custom") return `${item.insert} `;
@@ -86,11 +87,14 @@ export function createSuggestionController(opts: SuggestionOptions) {
     const q = trigger.query.toLowerCase();
     const reqId = ++suggestRequestId;
     if (trigger.kind === "command" || trigger.kind === "emoji") {
-      if (trigger.kind === "command" && !opts.lineCommands) void loadSlashCommandSuggestions();
-      if (trigger.kind === "emoji") void loadCustomEmoji();
-      opts.setSuggest(
-        createStaticSuggestion(trigger.kind, trigger.start, q, opts.lineCommands?.()),
-      );
+      const { kind, start } = trigger;
+      const staticSuggestion = () => createStaticSuggestion(kind, start, q, opts.lineCommands?.());
+      if (kind === "command" && !opts.lineCommands)
+        void slashCommands.load().then(() => {
+          if (reqId === suggestRequestId) opts.setSuggest(staticSuggestion());
+        });
+      if (kind === "emoji") void loadCustomEmoji();
+      opts.setSuggest(staticSuggestion());
       return;
     }
     if (trigger.kind === "user" || trigger.kind === "userlink") {

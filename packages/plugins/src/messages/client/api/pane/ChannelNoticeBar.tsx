@@ -1,6 +1,8 @@
 import { service } from "@slock/core/solid";
+import type { ChannelId } from "@slock/types";
 import { Button, Icon, InlineFeedback } from "@slock/ui";
-import { type JSX, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { Show } from "solid-js";
 import "./ChannelNoticeBar.css";
 
 const feedback = service("feedback");
@@ -8,7 +10,7 @@ const titles = service("titles");
 
 export default function ChannelNoticeBar(props: {
   action?: { disabled: boolean; icon: "archive" | "plus"; label: string; onClick: () => void };
-  channelId: string;
+  channelId: ChannelId;
   children: JSX.Element;
   subject?: string;
 }) {

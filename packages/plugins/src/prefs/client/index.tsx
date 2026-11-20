@@ -7,7 +7,7 @@ import { createPrefsStore } from "./store";
 const setup: Setup = (ctx) => {
   const bootstrap = service("bootstrap");
   const store = createPrefsStore({
-    userPrefs: () => bootstrap.userPrefs.data,
+    userPrefs: () => bootstrap.userPrefs().data,
   });
   ctx.provide("prefs", store);
   ctx.add("realtime.handler", {

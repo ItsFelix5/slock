@@ -74,7 +74,7 @@ export interface SlackFileDetail {
 export interface Attachment {
   actions?: AttachmentAction[];
   authorIcon?: string;
-  authorId?: string;
+  authorId?: UserId;
   authorName?: string;
   authorSubname?: string;
 

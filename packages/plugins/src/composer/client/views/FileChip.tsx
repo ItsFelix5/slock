@@ -36,8 +36,7 @@ export default function FileChip(props: {
 
   return (
     <span
-      class="composer-file-chip flex-align-center"
-      classList={{ "composer-file-chip-image": isImage() }}
+      class={["composer-file-chip flex-align-center", { "composer-file-chip-image": isImage() }]}
       ref={chipRef}
     >
       <FileChipThumbnail file={props.file} fullSrc={props.fullSrc} thumbSrc={props.thumbSrc} />

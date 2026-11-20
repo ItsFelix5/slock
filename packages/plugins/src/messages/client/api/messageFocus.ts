@@ -1,6 +1,7 @@
 import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
-import type { Message } from "@slock/types";
+import { ifPresent, parseTs } from "@slock/slack";
+import type { ChannelId, Message, Ts } from "@slock/types";
 import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js";
 import { findUnreadDividerIndex } from "../lib/unreadDivider";
 import type { FeedScroll } from "./pane/scroll/feedScroll";
@@ -15,70 +16,84 @@ export function threadRootTs(msg: Message) {
   return msg.isBroadcast && msg.threadTs ? msg.threadTs : msg.ts;
 }
 
-export type OpenThreadHandler = (ts: string, opts?: OpenThreadOptions) => void;
+export type OpenThreadHandler = (ts: Ts, opts?: OpenThreadOptions) => void;
 
 export interface MessageFocusCallbacks {
   paneId?: string;
   onOpenThread?: OpenThreadHandler;
   onReplyLink?: (msg: Message) => void;
 
-  threadTs?: Accessor<string | undefined>;
+  threadTs?: Accessor<Ts | undefined>;
 }
 
 export interface ActiveMessageFocus {
   callbacks: MessageFocusCallbacks;
-  channelId: Accessor<string>;
+  channelId: Accessor<ChannelId | undefined>;
   focusEdge: (edge: "start" | "end") => void;
   focusedMessage: () => Message | undefined;
-  focusedLiveTs: Accessor<string | null>;
-  focusedTs: Accessor<string | null>;
+  focusedLiveTs: Accessor<Ts | null>;
+  focusedTs: Accessor<Ts | null>;
   isOwnEditableMessage: () => boolean;
   moveFocus: (delta: number) => void;
-  startEdit: (ts: string) => void;
-  toggleMoreMenu: (ts: string) => void;
-  toggleReactionPicker: (ts: string) => void;
+  startEdit: (ts: Ts) => void;
+  toggleMoreMenu: (ts: Ts) => void;
+  toggleReactionPicker: (ts: Ts) => void;
 }
 
-const [active, setActive] = createSignal<ActiveMessageFocus>();
-const editLastByPane = new Map<string, () => void>();
-
-export { active };
-
-export function editLastMessageInPane(paneId: string) {
-  editLastByPane.get(paneId)?.();
+export function createMessageFocusRegistry() {
+  const [active, setActive] = createSignal<ActiveMessageFocus>();
+  const editLastByPane = new Map<string, () => void>();
+  return {
+    active,
+    activate: setActive,
+    deactivate: (focus: ActiveMessageFocus) =>
+      setActive((current) => (current === focus ? undefined : current)),
+    editLastInPane: (paneId: string) => editLastByPane.get(paneId)?.(),
+    registerEditLast: (paneId: string, editLast: () => void) => {
+      editLastByPane.set(paneId, editLast);
+      return () => {
+        if (editLastByPane.get(paneId) === editLast) editLastByPane.delete(paneId);
+      };
+    },
+  };
 }
 
-export function clearActiveMessageFocus() {
-  setActive(undefined);
-}
+const focusRegistry = service("messages.focus");
 
 export function createMessageFocus(
   messages: Accessor<Message[]>,
   feed: FeedScroll,
-  channelId: Accessor<string>,
+  channelId: Accessor<ChannelId | undefined>,
   callbacks: MessageFocusCallbacks = {},
 ) {
-  const [focusedTs, setFocusedTs] = createSignal<string | null>(null);
-  const [editingTs, setEditingTs] = createSignal<string | null>(null);
+  const [focusedTs, setFocusedTs] = createSignal<Ts | null>(null);
+  const [editingTs, setEditingTs] = createSignal<Ts | null>(null);
   const [listFocused, setListFocused] = createSignal(false);
-  const [reactionPickerTs, setReactionPickerTs] = createSignal<string | null>(null);
-  const [moreMenuTs, setMoreMenuTs] = createSignal<string | null>(null);
+  const [reactionPickerTs, setReactionPickerTs] = createSignal<Ts | null>(null);
+  const [moreMenuTs, setMoreMenuTs] = createSignal<Ts | null>(null);
 
-  createEffect(() => {
-    const list = messages();
-    const current = focusedTs();
-    if (!list.length) {
-      if (current !== null) setFocusedTs(null);
-      return;
-    }
-    if (current === null || !list.some((m) => m.ts === current)) {
-      const anchor = unreadStore.unreadDividerTsForChannel(channelId());
-      const unreadIndex = findUnreadDividerIndex(list, anchor);
-      setFocusedTs(defined(list[unreadIndex >= 0 ? unreadIndex : list.length - 1]).ts);
-    }
-  });
+  createEffect(
+    () => {
+      const id = channelId();
+      return {
+        anchor: id && unreadStore.unreadDividerTsForChannel(id),
+        current: focusedTs(),
+        list: messages(),
+      };
+    },
+    ({ anchor, current, list }) => {
+      if (!list.length) {
+        if (current !== null) setFocusedTs(null);
+        return;
+      }
+      if (current === null || !list.some((m) => m.ts === current)) {
+        const unreadIndex = findUnreadDividerIndex(list, anchor);
+        setFocusedTs(defined(list[unreadIndex >= 0 ? unreadIndex : list.length - 1]).ts);
+      }
+    },
+  );
 
-  function focusRow(ts: string, opts?: { preventScroll?: boolean }) {
+  function focusRow(ts: Ts, opts?: { preventScroll?: boolean }) {
     setFocusedTs(ts);
     const row = feed.element()?.querySelector<HTMLElement>(`[data-message-ts="${CSS.escape(ts)}"]`);
     row?.focus({ preventScroll: true });
@@ -121,7 +136,7 @@ export function createMessageFocus(
     return !!msg && isEditable(msg);
   };
 
-  const startEdit = (ts: string) => {
+  const startEdit = (ts: Ts) => {
     setFocusedTs(ts);
     setEditingTs(ts);
   };
@@ -133,16 +148,13 @@ export function createMessageFocus(
       const last = messages().findLast(isEditable);
       if (last) startEdit(last.ts);
     };
-    editLastByPane.set(paneId, editLast);
-    onCleanup(() => {
-      if (editLastByPane.get(paneId) === editLast) editLastByPane.delete(paneId);
-    });
+    onCleanup(focusRegistry.registerEditLast(paneId, editLast));
   }
 
-  const toggleReactionPicker = (ts: string) =>
+  const toggleReactionPicker = (ts: Ts) =>
     setReactionPickerTs((current) => (current === ts ? null : ts));
 
-  const toggleMoreMenu = (ts: string) => {
+  const toggleMoreMenu = (ts: Ts) => {
     setMoreMenuTs((current) => (current === ts ? null : ts));
   };
 
@@ -159,22 +171,25 @@ export function createMessageFocus(
     toggleMoreMenu,
     toggleReactionPicker,
   };
-  const deactivate = () => setActive((current) => (current === self ? undefined : current));
+  const deactivate = () => focusRegistry.deactivate(self);
   onCleanup(deactivate);
 
   return {
     editingTs,
     focusEdge,
-    focusMessage: (ts: string) => focusRow(ts, { preventScroll: true }),
+    focusMessage: (ts: Ts) => focusRow(ts, { preventScroll: true }),
     focusedTs,
 
     listFocused,
     onContainerFocusIn: (e: FocusEvent) => {
       setListFocused(true);
-      setActive(self);
+      focusRegistry.activate(self);
 
       const target = e.target instanceof Element ? e.target : null;
-      const ts = target?.closest<HTMLElement>("[data-message-ts]")?.dataset.messageTs;
+      const ts = ifPresent(
+        parseTs,
+        target?.closest<HTMLElement>("[data-message-ts]")?.dataset.messageTs,
+      );
       if (ts) setFocusedTs(ts);
     },
     onContainerFocusOut: (e: FocusEvent & { currentTarget: HTMLElement }) => {

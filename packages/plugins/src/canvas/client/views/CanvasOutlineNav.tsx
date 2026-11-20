@@ -16,7 +16,7 @@ export default function CanvasOutlineNav(props: {
             {({ index, level }) => (
               <button
                 aria-hidden="true"
-                classList={{
+                class={{
                   "canvas-outline-mark": true,
                   active: index === props.activeIndex,
                 }}
@@ -32,7 +32,7 @@ export default function CanvasOutlineNav(props: {
           <For each={props.headings}>
             {({ index, level, text }) => (
               <button
-                classList={{
+                class={{
                   "canvas-outline-popout-row": true,
                   truncate: true,
                   active: index === props.activeIndex,

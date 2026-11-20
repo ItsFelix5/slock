@@ -4,6 +4,8 @@ export type AppliedPermissionChoice = "allow" | "restrict";
 export type AppliedRetentionChoice = "keep" | "delete";
 export type PermissionChoice = "" | AppliedPermissionChoice;
 
+export type MemberPermissionKey = "invite" | "purpose" | "topic";
+
 export interface PermissionDraft {
   current: PermissionChoice;
   committed: PermissionChoice;

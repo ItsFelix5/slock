@@ -1,33 +1,26 @@
 import type { Services } from "@slock/core/types";
-import { batch } from "solid-js";
+import type { ChannelId, Ts } from "@slock/types";
 import { openConversationInSplit, viewForConversation } from "../../conversations/client/api/nav";
 
 export function createMessageNavigation(deps: {
   openInNewPane: Services["shell.panes"]["openInNewPane"];
   setActiveView: Services["conversations"]["setActiveView"];
 }) {
-  function openThread(
-    channelId: string,
-    ts: string,
-    highlightTs?: string,
-    opts?: { pinned?: boolean },
-  ) {
+  function openThread(channelId: ChannelId, ts: Ts, highlightTs?: Ts, opts?: { pinned?: boolean }) {
     deps.openInNewPane({ channelId, highlightTs, kind: "thread", pinned: opts?.pinned, ts });
   }
 
-  function openChannelPeek(channelId: string, ts: string, highlightTs?: string) {
-    batch(() => {
-      deps.setActiveView(viewForConversation(channelId), { target: { channelId, ts } });
-      openThread(channelId, ts, highlightTs);
-    });
+  function openChannelPeek(channelId: ChannelId, ts: Ts, highlightTs?: Ts) {
+    deps.setActiveView(viewForConversation(channelId), { target: { channelId, ts } });
+    openThread(channelId, ts, highlightTs);
   }
 
-  function openChannelMessage(channelId: string, ts: string, threadTs?: string) {
+  function openChannelMessage(channelId: ChannelId, ts: Ts, threadTs?: Ts) {
     if (threadTs && threadTs !== ts) openChannelPeek(channelId, threadTs, ts);
     else deps.setActiveView(viewForConversation(channelId), { target: { channelId, ts } });
   }
 
-  function openMessageInSplit(channelId: string, ts: string, threadTs?: string) {
+  function openMessageInSplit(channelId: ChannelId, ts: Ts, threadTs?: Ts) {
     if (threadTs) openThread(channelId, threadTs, ts, { pinned: true });
     else openConversationInSplit(channelId, ts);
   }

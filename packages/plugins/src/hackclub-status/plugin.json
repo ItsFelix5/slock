@@ -1,1 +1,1 @@
-{ "id": "hackclub-status", "name": "Hack Club status", "requires": [] }
+{ "id": "hackclub-status", "name": "Hack Club status", "requires": ["appearance"] }

@@ -1,12 +1,13 @@
-import type { Channel } from "@slock/types";
-import { buildCategories, type SectionData } from "./categories";
+import { parseChannelId } from "@slock/slack";
+import type { Channel, ChannelId } from "@slock/types";
+import { buildCategories, type SectionData } from "../../../../src/home/client/views/categories";
 
 export type Section = SectionData;
 
 export function channel(id: string, overrides: Partial<Channel> = {}): Channel {
   return {
     archived: false,
-    id,
+    id: parseChannelId(id),
     name: id,
     private: false,
     topic: "",
@@ -21,7 +22,14 @@ export function section(
   channelIds: string[],
   overrides: Partial<Section> = {},
 ): Section {
-  return { channelIds, id, name: id, sidebar: "all", type, ...overrides };
+  return {
+    channelIds: channelIds.map(parseChannelId),
+    id,
+    name: id,
+    sidebar: "all",
+    type,
+    ...overrides,
+  };
 }
 
 export type World = {
@@ -38,10 +46,10 @@ export type World = {
 };
 
 export function build(world: World) {
-  const has = (list: string[] | undefined) => (id: string) => list?.includes(id) ?? false;
+  const has = (list: string[] | undefined) => (id: ChannelId) => list?.includes(id) ?? false;
   return buildCategories({
     allChannels: world.channels ?? [],
-    allDmIds: world.dms ?? [],
+    allDmIds: (world.dms ?? []).map(parseChannelId),
     hasDms: () => world.hasDms ?? true,
     isChannelLeft: has(world.left),
     isChannelMuted: has(world.muted),
@@ -53,4 +61,4 @@ export function build(world: World) {
   });
 }
 
-export const ids = (list: Channel[]) => list.map((c) => c.id);
+export const ids = (list: Channel[]): string[] => list.map((c) => c.id);

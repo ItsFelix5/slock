@@ -1,17 +1,13 @@
 import { isRecord } from "@slock/core";
-import { service } from "@slock/core/solid";
 import { apiPost, isRawMessage, mapVisibleMessage } from "@slock/slack";
-import type { Message, RawMessage } from "@slock/types";
-import { defineKey } from "../../../query/client/api";
+import type { ChannelId, Message, RawMessage, Ts } from "@slock/types";
+import { defineQuery } from "../../../query/client/api";
 import { createBatchedIdFetcher } from "./cache/batchedIdFetcher";
 
 type MessageIdGroup = { channel: string; timestamps: string[] };
-type MessageRef = { channelId: string; ts: string };
+type MessageRef = { channelId: ChannelId; ts: Ts };
 
 const MESSAGES_LIST_BATCH_SIZE = 25;
-
-const query = service("query");
-const messageKey = defineKey<[string, string]>("message");
 
 function rawMessagesFromMessagesListEntry(entry: unknown): RawMessage[] {
   const messages = isRecord(entry) && "messages" in entry ? entry.messages : entry;
@@ -58,6 +54,11 @@ const fetchBatched = createBatchedIdFetcher<Message | null>(async (keys) => {
   return new Map(keys.map((key) => [key, found.get(key) ?? null]));
 }, MESSAGES_LIST_BATCH_SIZE);
 
+const lookupMessage = defineQuery<MessageRef, Message | null>({
+  load: ({ channelId, ts }) => fetchBatched(`${channelId}:${ts}`),
+  name: "message",
+});
+
 export async function fetchMessagesByIds(
   entries: MessageRef[],
   onBatch?: (batch: Map<string, Message>) => void,
@@ -75,11 +76,10 @@ export async function fetchMessagesByIds(
   const refs = new Map(entries.map((entry) => [`${entry.channelId}:${entry.ts}`, entry]));
   await Promise.all(
     [...refs].map(async ([key, { channelId, ts }]) => {
-      const message = await query.client.query({
-        queryFn: () => fetchBatched(key),
-        queryKey: messageKey(channelId, ts),
-        staleTime: fresh ? 0 : Number.POSITIVE_INFINITY,
-      });
+      const message = await lookupMessage.ensure(
+        { channelId, ts },
+        fresh ? { maxAgeMs: 0 } : undefined,
+      );
       if (!message) return;
       byKey.set(key, message);
       if (!onBatch) return;

@@ -4,6 +4,8 @@ import type { ActivityItem, ChannelId, Ts, User } from "@slock/types";
 export const NO_CHANNEL = parseChannelId("C000000000");
 export const NO_USER = parseUserId("U000000000");
 
+export const hasChannel = (item: Pick<ActivityItem, "channelId">) => item.channelId !== NO_CHANNEL;
+
 export const PING_KINDS = new Set<ActivityItem["kind"]>(["mention", "dm", "keyword", "other"]);
 
 const OwnMessageFilteredKinds = new Set<ActivityItem["kind"]>([
@@ -12,7 +14,9 @@ const OwnMessageFilteredKinds = new Set<ActivityItem["kind"]>([
   "dm",
 ]);
 export function isOwnOrUnresolved(item: Pick<ActivityItem, "kind" | "userId">, me: User): boolean {
-  return OwnMessageFilteredKinds.has(item.kind) && (item.userId === NO_USER || item.userId === me.id);
+  return (
+    OwnMessageFilteredKinds.has(item.kind) && (item.userId === NO_USER || item.userId === me.id)
+  );
 }
 
 export function reactionActivityKey(item: ActivityItem): string | undefined {

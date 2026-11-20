@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { ch, stamp } from "@slock/slack/testing";
+import { flush } from "solid-js";
 import { createActivityReadSync } from "../../../../src/activity/client/store/activityReadSync";
 
 function controlled() {
@@ -19,17 +21,19 @@ function controlled() {
 describe("createActivityReadSync", () => {
   test("tracks pending while a request runs", async () => {
     const { calls, sync } = controlled();
-    const result = sync.request("C1", "1.1");
+    const result = sync.request(ch("C1"), stamp("1.1"));
+    flush();
     expect(sync.isPending()).toBe(true);
     calls[0]?.settle(true);
     expect(await result).toBe(true);
+    flush();
     expect(sync.isPending()).toBe(false);
     expect(sync.error()).toBe(false);
   });
 
   test("a failed sync raises the error and retry resends the failed ts", async () => {
     const { calls, sync } = controlled();
-    const failed = sync.request("C1", "1.1");
+    const failed = sync.request(ch("C1"), stamp("1.1"));
     calls[0]?.settle(false);
     expect(await failed).toBe(false);
     expect(sync.error()).toBe(true);
@@ -42,7 +46,7 @@ describe("createActivityReadSync", () => {
 
   test("a rejected sync counts as failed instead of throwing", async () => {
     const { calls, sync } = controlled();
-    const result = sync.request("C1", "1.1");
+    const result = sync.request(ch("C1"), stamp("1.1"));
     calls[0]?.settle(new Error("network"));
     expect(await result).toBe(false);
     expect(sync.error()).toBe(true);
@@ -51,8 +55,8 @@ describe("createActivityReadSync", () => {
 
   test("only the newest request per channel decides the outcome", async () => {
     const { calls, sync } = controlled();
-    const older = sync.request("C1", "1.1");
-    const newer = sync.request("C1", "2.2");
+    const older = sync.request(ch("C1"), stamp("1.1"));
+    const newer = sync.request(ch("C1"), stamp("2.2"));
     calls[1]?.settle(true);
     expect(await newer).toBe(true);
     expect(sync.isPending()).toBe(true);
@@ -64,8 +68,8 @@ describe("createActivityReadSync", () => {
 
   test("channels fail and recover independently", async () => {
     const { calls, sync } = controlled();
-    const a = sync.request("C1", "1.1");
-    const b = sync.request("C2", "1.1");
+    const a = sync.request(ch("C1"), stamp("1.1"));
+    const b = sync.request(ch("C2"), stamp("1.1"));
     calls[0]?.settle(false);
     calls[1]?.settle(true);
     await Promise.all([a, b]);

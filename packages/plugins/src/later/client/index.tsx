@@ -1,9 +1,9 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { isChannelId, isTs } from "@slock/slack";
 import { Icon, useShortcut } from "@slock/ui";
 import { lazy } from "solid-js";
 import { liveOnly } from "../../messages/client/api/deletedMessages";
-import { active } from "../../messages/client/api/messageFocus";
 import {
   fetchMessagesByIds,
   fetchSaved,
@@ -16,6 +16,8 @@ import SaveButton from "./views/SaveButton";
 import SavedBadge from "./views/SavedBadge";
 
 const feedback = service("feedback");
+const messageFocus = service("messages.focus");
+const active = () => messageFocus.active();
 const LaterView = lazy(() => import("./views/LaterView"));
 
 const setup: Setup = (ctx) => {
@@ -36,22 +38,8 @@ const setup: Setup = (ctx) => {
   );
   ctx.provide("later", store);
   ctx.add("realtime.handler", {
-    run: (event) => {
-      if (event.type === "saved_clear") store.applySavedEvent("clear");
-      else if (event.type === "saved_added" || event.type === "saved_deleted")
-        store.applySavedEvent(
-          event.type === "saved_added" ? "add" : "remove",
-          event.item.channel,
-          event.item.ts,
-        );
-    },
-    types: ["saved_added", "saved_deleted", "saved_clear"],
-  });
-  ctx.add("realtime.handler", {
-    run: () => {
-      if (store.laterLoaded()) void store.ensureLaterLoaded();
-    },
-    types: ["saved_updated", "saved_due"],
+    run: store.reloadIfRequested,
+    types: ["saved_added", "saved_deleted", "saved_clear", "saved_updated", "saved_due"],
   });
   useShortcut({
     combo: { key: "s" },
@@ -60,7 +48,9 @@ const setup: Setup = (ctx) => {
     handler: () => {
       const focus = active();
       const ts = focus?.focusedTs();
-      if (focus && ts != null) store.toggleSaveForLater(focus.channelId(), ts);
+      const channelId = focus?.channelId();
+      if (ts && channelId && isChannelId(channelId) && isTs(ts))
+        void store.toggleSaveForLater(channelId, ts);
     },
     id: "messages.saveForLater",
     label: "Save / unsave for later",

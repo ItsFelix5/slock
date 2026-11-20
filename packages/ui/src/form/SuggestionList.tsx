@@ -1,4 +1,4 @@
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { For } from "solid-js";
 import "./SuggestionList.css";
 
@@ -17,17 +17,15 @@ export interface SuggestionListProps<T> {
 
 export default function SuggestionList<T>(props: SuggestionListProps<T>) {
   return (
-    <div
-      class={`suggestion-list${props.class ? ` ${props.class}` : ""}`}
-      id={props.id}
-      ref={props.ref}
-    >
+    <div class={["suggestion-list", props.class]} id={props.id} ref={props.ref}>
       <For each={props.items}>
         {(item, i) => {
           const row = (
             <button
-              class="suggestion-row btn-reset flex-align-center"
-              classList={{ active: i() === props.activeIndex }}
+              class={[
+                "suggestion-row btn-reset flex-align-center",
+                { active: i() === props.activeIndex },
+              ]}
               id={props.itemId?.(i())}
               onClick={() => props.onPick(i())}
               onMouseDown={(e) => e.preventDefault()}
@@ -39,7 +37,7 @@ export default function SuggestionList<T>(props: SuggestionListProps<T>) {
           );
           const action = props.renderAction?.(item, i());
           return action ? (
-            <div class="suggestion-item" classList={{ active: i() === props.activeIndex }}>
+            <div class={["suggestion-item", { active: i() === props.activeIndex }]}>
               {row}
               {action}
             </div>

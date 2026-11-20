@@ -2,7 +2,8 @@ import { formatTimeFromMs } from "@slock/core";
 import "./mrkdwnTokens.css";
 import { decodeTextEntities } from "@slock/slack";
 import { Icon, Tooltip } from "@slock/ui";
-import { For, type JSX, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { For, Show } from "solid-js";
 import {
   useBlockKitResolver,
   useHighlightWords,
@@ -208,18 +209,24 @@ export function Mention(props: {
   const mentionData = () =>
     isUser
       ? { "data-link-url": props.url, "data-mention-id": props.id }
-      : { "data-channel-id": props.id, "data-channel-name": name(), "data-link-url": props.url };
+      : {
+          "data-channel-id": props.id,
+          "data-channel-name": name(),
+          "data-link-url": props.url,
+        };
 
   const trigger = (
     <InlineAction
-      class="bk-mention"
-      classList={{
-        "bk-mention-bold": !!props.bold,
-        "bk-mention-channel": !isUser,
-        "bk-mention-inaccessible": isInaccessible(),
-        "bk-mention-link": isUser && props.label !== undefined,
-        "bk-mention-self": isUser && !!user()?.isSelf,
-      }}
+      class={[
+        "bk-mention",
+        {
+          "bk-mention-bold": !!props.bold,
+          "bk-mention-channel": !isUser,
+          "bk-mention-inaccessible": isInaccessible(),
+          "bk-mention-link": isUser && props.label !== undefined,
+          "bk-mention-self": isUser && !!user()?.isSelf,
+        },
+      ]}
       disabled={isInaccessible()}
       onActivate={onClick}
       {...mentionData()}
@@ -242,8 +249,7 @@ export function UsergroupMention(props: { id: string; label?: string }) {
   const name = () => decodeTextEntities(props.label ?? info()?.name ?? `@${props.id}`);
   const trigger = (
     <InlineAction
-      class="bk-mention"
-      classList={{ "bk-mention-self": !!info()?.isSelf }}
+      class={["bk-mention", { "bk-mention-self": !!info()?.isSelf }]}
       data-usergroup-id={props.id}
       onActivate={(e) => {
         e.stopPropagation();

@@ -1,4 +1,5 @@
-import { type JSX, Show, splitProps } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { omit, Show } from "solid-js";
 import Icon, { type IconName } from "../../media/Icon";
 import "./Menu.css";
 
@@ -10,23 +11,12 @@ export interface MenuItemProps extends JSX.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 export default function MenuItem(props: MenuItemProps) {
-  const [local, rest] = splitProps(props, [
-    "class",
-    "danger",
-    "icon",
-    "iconSize",
-    "leading",
-    "children",
-  ]);
+  const rest = omit(props, "class", "danger", "icon", "iconSize", "leading", "children");
   return (
-    <button
-      class={["menu-item", local.danger && "danger", local.class].filter(Boolean).join(" ")}
-      type="button"
-      {...rest}
-    >
-      {local.leading}
-      <Show when={local.icon}>{(name) => <Icon name={name()} size={local.iconSize ?? 15} />}</Show>
-      {local.children}
+    <button class={["menu-item", { danger: props.danger }, props.class]} type="button" {...rest}>
+      {props.leading}
+      <Show when={props.icon}>{(name) => <Icon name={name()} size={props.iconSize ?? 15} />}</Show>
+      {props.children}
     </button>
   );
 }

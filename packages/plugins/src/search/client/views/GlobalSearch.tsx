@@ -1,30 +1,26 @@
 import { service } from "@slock/core/solid";
-import type { DirectMessage, GlobalSearchResults as SearchResults, SlackFile } from "@slock/types";
+import type { ChannelId, DirectMessage, SlackFile, UserId } from "@slock/types";
 import {
-  createDebouncedRequest,
   createListboxActiveIndex,
   Icon,
   type ListDirection,
   listNavigationIndex,
   Modal,
 } from "@slock/ui";
-import { batch, createMemo, createSignal, createUniqueId, Show } from "solid-js";
-import { seedDraft } from "../../../drafts/client/api";
-import {
-  clearPendingShare,
-  pendingShareText,
-} from "../../../message-links/client/api/incomingLinks";
-import { searchGlobal } from "../../../slack/client/api";
+import { createMemo, createSignal, createUniqueId, Show } from "solid-js";
 import "./GlobalSearch.css";
 import GlobalSearchInput from "./GlobalSearchInput";
 import GlobalSearchResults, { type GlobalSearchRow, type JumpChannel } from "./GlobalSearchResults";
 import { createGlobalSearchRows } from "./globalSearchRows";
 import { createCommittedRows, MESSAGE_SEARCH_INDEX } from "./lib/committedRows";
+import { createDirectorySearch } from "./lib/directorySearch";
 
 const searchStore = service("search");
 
 const viewStore = service("conversations");
 const dmsStore = service("dms");
+const drafts = service("drafts");
+const share = service("message-links.share");
 
 type SearchItem = { kind: "message-search" } | GlobalSearchRow;
 export default function GlobalSearch(props: {
@@ -32,41 +28,26 @@ export default function GlobalSearch(props: {
   onFile: (file: SlackFile) => void;
 }) {
   const [query, setQuery] = createSignal("");
-  const [remoteResults, setRemoteResults] = createSignal<SearchResults>({
-    channels: [],
-    files: [],
-    users: [],
-  });
-
-  const [searching, setSearching] = createSignal(false);
-  const [searchError, setSearchError] = createSignal(false);
   const listboxId = createUniqueId();
-  const searchRequest = createDebouncedRequest(searchGlobal, {
-    delay: 100,
-    onError: () => setSearchError(true),
-    onPendingChange: setSearching,
-    onReset: () => {
-      setSearchError(false);
-      setRemoteResults({ channels: [], files: [], users: [] });
-    },
-    onResult: setRemoteResults,
-  });
+  const directory = createDirectorySearch();
   const hasQuery = () => !!query().trim();
-  const { computedRows, recentRows } = createGlobalSearchRows({ hasQuery, query, remoteResults });
+  const { computedRows, recentRows } = createGlobalSearchRows({
+    hasQuery,
+    query,
+    remoteResults: directory.results,
+  });
   const committed = createCommittedRows({
     hasQuery,
     onCommit: (selectedIndex) => setActiveIndex(selectedIndex),
     onSubmit: (index) => activateItem(index),
     ranked: computedRows,
-    searching,
+    searching: directory.searching,
   });
   const searchDirectories = (value: string) => {
-    batch(() => {
-      setQuery(value);
-      setActiveIndex(MESSAGE_SEARCH_INDEX);
-      committed.restart();
-      searchRequest.run(value);
-    });
+    setQuery(value);
+    setActiveIndex(MESSAGE_SEARCH_INDEX);
+    committed.restart();
+    directory.run(value);
   };
   const rows = () => (hasQuery() ? committed.rows() : recentRows());
   const items = createMemo<SearchItem[]>(() =>
@@ -80,22 +61,22 @@ export default function GlobalSearch(props: {
   const searchStatus = createMemo(() => {
     if (!hasQuery()) return "";
     if (rows().length > 0) return "";
-    if (searching()) return "Searching people, channels, and files…";
-    if (searchError()) return "Search couldn't be completed.";
+    if (directory.searching()) return "Searching people, channels, and files…";
+    if (directory.error()) return "Search couldn't be completed.";
     return "No matching people, channels, or files.";
   });
-  const deliverPendingShare = (channelId: string) => {
-    const text = pendingShareText();
+  const deliverPendingShare = (channelId: ChannelId) => {
+    const text = share.pendingShareText();
     if (!text) return;
-    void seedDraft(channelId, undefined, text);
-    clearPendingShare();
+    void drafts.seedDraft(channelId, undefined, text);
+    share.clearPendingShare();
   };
   const goToChannel = (c: JumpChannel) => {
     viewStore.setActiveView({ id: c.id, kind: "channel" });
     deliverPendingShare(c.id);
     props.onClose();
   };
-  const goToPerson = async (userId: string) => {
+  const goToPerson = async (userId: UserId) => {
     const dm = dmsStore.directMessages().find((d) => d.userId === userId);
     if (dm) {
       viewStore.setActiveView({ id: dm.id, kind: "dm" });
@@ -148,7 +129,7 @@ export default function GlobalSearch(props: {
   const submitActiveRow = () => committed.submit(activeIndex());
   return (
     <Modal align="top" ariaLabel="Search Slack" class="global-search-card" onClose={props.onClose}>
-      <Show when={pendingShareText()}>
+      <Show when={share.pendingShareText()}>
         {(text) => (
           <div class="global-search-share-banner flex-align-center">
             <Icon class="flex-shrink-0" name="share" size={13} />

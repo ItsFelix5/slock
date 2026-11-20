@@ -65,9 +65,8 @@ export default function ReactionRow(props: {
             <>
               <Tooltip content={`${reactorNames(r.users)} reacted with :${r.name}:`}>
                 <button
-                  aria-busy={props.isPending?.(r.name) ?? false}
-                  class="reaction-pill btn-reset flex-align-center busy"
-                  classList={{ mine: mine() }}
+                  aria-busy={props.isPending?.(r.name) ? "true" : "false"}
+                  class={["reaction-pill btn-reset flex-align-center busy", { mine: mine() }]}
                   disabled={props.isPending?.(r.name) ?? false}
                   onClick={(e) => {
                     e.stopPropagation();

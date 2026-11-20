@@ -12,21 +12,28 @@ const setup: Setup = (ctx) => {
   });
   ctx.provide("conversations", conversations);
 
-  createEffect(() => {
-    if (!shell.ready()) return;
-    for (const pane of panes.panes()) {
-      const { content } = pane;
-      if (content?.kind !== "channel" && content?.kind !== "dm") continue;
-      const kind = conversations.kindOf(content.id);
-      if (kind !== content.kind) panes.setPaneContent(pane.id, { id: content.id, kind });
-    }
-  });
+  createEffect(
+    () => {
+      if (!shell.ready()) return [];
+      return panes.panes().flatMap((pane) => {
+        const { content } = pane;
+        if (content?.kind !== "channel" && content?.kind !== "dm") return [];
+        const kind = conversations.kindOf(content.id);
+        return kind === content.kind ? [] : [{ content: { id: content.id, kind }, id: pane.id }];
+      });
+    },
+    (fixes) => {
+      for (const fix of fixes) panes.setPaneContent(fix.id, fix.content);
+    },
+  );
 
-  createEffect(() => {
-    const open = new Set(panes.panes().map((pane) => pane.id));
-    for (const id of untrack(conversations.targetPaneIds))
-      if (!open.has(id)) conversations.clearMessageTarget(id);
-  });
+  createEffect(
+    () => new Set(panes.panes().map((pane) => pane.id)),
+    (open) => {
+      for (const id of untrack(conversations.targetPaneIds))
+        if (!open.has(id)) conversations.clearMessageTarget(id);
+    },
+  );
 };
 
 export default setup;

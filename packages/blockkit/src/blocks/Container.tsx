@@ -1,5 +1,6 @@
 import type { Block, ContainerBlock } from "@slock/types";
-import { createSignal, For, type JSX, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { createSignal, For, Show } from "solid-js";
 import BkText from "../BkText";
 import ImageElement from "../elements/ImageElement";
 import InlineAction from "../InlineAction";
@@ -19,7 +20,7 @@ export default function Container(props: {
       props.block.icon
     );
   const [collapsed, setCollapsed] = createSignal(
-    hasHeading() && !!props.block.is_collapsible && props.block.default_collapsed !== false,
+    () => hasHeading() && !!props.block.is_collapsible && props.block.default_collapsed !== false,
   );
 
   const heading = () => (
@@ -49,22 +50,23 @@ export default function Container(props: {
         </Show>
       </div>
       <Show when={props.block.is_collapsible}>
-        <span
-          class="bk-container-caret"
-          classList={{ "bk-container-caret--collapsed": collapsed() }}
-        />
+        <span class={["bk-container-caret", { "bk-container-caret--collapsed": collapsed() }]} />
       </Show>
     </>
   );
 
   return (
-    <section class={`bk-container bk-container--${props.block.width ?? "standard"}`}>
+    <section class={["bk-container", `bk-container--${props.block.width ?? "standard"}`]}>
       <Show when={hasHeading()}>
         <Show
           fallback={
             <div
-              class="bk-container-heading"
-              classList={{ "bk-container-heading--divided": !!props.block.has_header_divider }}
+              class={[
+                "bk-container-heading",
+                {
+                  "bk-container-heading--divided": !!props.block.has_header_divider,
+                },
+              ]}
             >
               {heading()}
             </div>
@@ -73,7 +75,9 @@ export default function Container(props: {
         >
           <InlineAction
             class="bk-container-heading bk-container-heading--collapsible"
-            onActivate={() => setCollapsed((v) => !v)}
+            onActivate={() => {
+              setCollapsed((v) => !v);
+            }}
           >
             {heading()}
           </InlineAction>

@@ -9,18 +9,21 @@ import {
   mapFile,
   mapLink,
   mapUser,
+  parseUserId,
 } from "@slock/slack";
 import type {
   BrowsableChannel,
   Channel,
   ChannelDetails,
   ChannelFilesAndLinks,
+  ChannelId,
   ChannelMembersPage,
   MemberPermissionsPatch,
   RawChannel,
   RawFile,
   RawLink,
   RawUser,
+  UserId,
 } from "@slock/types";
 import { createBatchedIdFetcher } from "./cache/batchedIdFetcher";
 import { mapBrowsableChannels } from "./search";
@@ -63,7 +66,7 @@ export async function fetchBrowsableChannels(query: string): Promise<BrowsableCh
 }
 
 export async function searchChannelFilesAndLinks(
-  channelId: string,
+  channelId: ChannelId,
   channelName: string,
   query: string,
   page = 1,
@@ -92,18 +95,18 @@ export async function searchChannelFilesAndLinks(
   };
 }
 
-export async function fetchChannelLastRead(channelId: string): Promise<number> {
+export async function fetchChannelLastRead(channelId: ChannelId): Promise<number> {
   const data = await apiGet<{ channel: RawChannel }>(`/api/channels/${channelId}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.info failed");
   return (parseFloat(data.channel.last_read ?? "") || 0) * 1000;
 }
-export async function fetchChannelDetails(channelId: string): Promise<ChannelDetails> {
+export async function fetchChannelDetails(channelId: ChannelId): Promise<ChannelDetails> {
   const data = await apiGet<{ channel: RawChannel }>(`/api/channels/${channelId}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.info failed");
   return mapChannelDetails(data.channel);
 }
 export async function fetchChannelMembers(
-  channelId: string,
+  channelId: ChannelId,
   filter: "everyone" | "apps",
   marker?: string,
   search?: string,
@@ -120,27 +123,27 @@ export async function fetchChannelMembers(
     nextCursor: data.next_marker || undefined,
   };
 }
-export async function fetchChannelManagerIds(channelId: string): Promise<string[]> {
+export async function fetchChannelManagerIds(channelId: ChannelId): Promise<UserId[]> {
   const data = await apiGet<{ userIds?: string[] }>(`/api/channels/${channelId}/managers`);
   if (!data.ok) throw new Error(data.error ?? "admin.roles.entity.listAssignments failed");
-  return data.userIds ?? [];
+  return (data.userIds ?? []).map(parseUserId);
 }
-export async function inviteToChannel(channelId: string, userIds: string[]): Promise<void> {
+export async function inviteToChannel(channelId: ChannelId, userIds: UserId[]): Promise<void> {
   const data = await apiPost(`/api/channels/${channelId}/members`, { userIds });
   if (!data.ok) throw new Error(data.error ?? "conversations.invite failed");
 }
-export async function removeFromChannel(channelId: string, userId: string): Promise<void> {
+export async function removeFromChannel(channelId: ChannelId, userId: UserId): Promise<void> {
   const data = await apiDelete(`/api/channels/${channelId}/members/${userId}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.kick failed");
 }
-export async function renameChannel(channelId: string, name: string): Promise<string> {
+export async function renameChannel(channelId: ChannelId, name: string): Promise<string> {
   const data = await apiPatch<{ channel?: { name?: string } }>(`/api/channels/${channelId}`, {
     name,
   });
   if (!data.ok) throw new Error(data.error ?? "conversations.rename failed");
   return data.channel?.name ?? name;
 }
-export async function setChannelPurpose(channelId: string, purpose: string): Promise<void> {
+export async function setChannelPurpose(channelId: ChannelId, purpose: string): Promise<void> {
   const data = await apiPut(`/api/channels/${channelId}/purpose`, { purpose });
   if (!data.ok) throw new Error(data.error ?? "conversations.setPurpose failed");
 }
@@ -152,13 +155,13 @@ export {
   setChannelPostingPrefs,
 } from "./channelPostingPrefs";
 
-export async function fetchChannelRetention(channelId: string): Promise<number | null> {
+export async function fetchChannelRetention(channelId: ChannelId): Promise<number | null> {
   const data = await apiGet<{ days?: number | null }>(`/api/channels/${channelId}/retention`);
   if (!data.ok) throw new Error(data.error ?? "conversations.getRetention failed");
   return data.days ?? null;
 }
 export async function fetchMemberPermissions(
-  channelId: string,
+  channelId: ChannelId,
 ): Promise<Required<MemberPermissionsPatch>> {
   const data = await apiGet<Required<MemberPermissionsPatch>>(
     `/api/channels/${channelId}/member-permissions`,
@@ -166,7 +169,10 @@ export async function fetchMemberPermissions(
   if (!data.ok) throw new Error(data.error ?? "conversations.permissions.accountTypes.list failed");
   return { invite: data.invite, setPurpose: data.setPurpose, setTopic: data.setTopic };
 }
-export async function setChannelRetention(channelId: string, days: number | null): Promise<void> {
+export async function setChannelRetention(
+  channelId: ChannelId,
+  days: number | null,
+): Promise<void> {
   const data = await apiPut(`/api/channels/${channelId}/retention`, { days });
   if (!data.ok) throw new Error(data.error ?? "conversations.setRetention failed");
 }
@@ -197,7 +203,7 @@ export function serializeMemberPermissionsPatch(patch: MemberPermissionsPatch): 
 }
 
 export async function setMemberPermissions(
-  channelId: string,
+  channelId: ChannelId,
   patch: MemberPermissionsPatch,
 ): Promise<void> {
   const permissions = serializeMemberPermissionsPatch(patch);
@@ -207,7 +213,7 @@ export async function setMemberPermissions(
   });
   if (!data.ok) throw new Error(data.error ?? "conversations.permissions.accountTypes.set failed");
 }
-export async function joinChannel(channelId: string): Promise<Channel> {
+export async function joinChannel(channelId: ChannelId): Promise<Channel> {
   const data = await apiPost<{ channel: RawChannel }>(`/api/channels/${channelId}/join`);
   if (!data.ok) throw new Error(data.error ?? "conversations.join failed");
   return mapChannel(data.channel);
@@ -217,29 +223,29 @@ export async function createChannel(name: string, isPrivate: boolean): Promise<C
   if (!data.ok) throw new Error(data.error ?? "conversations.create failed");
   return mapChannel(data.channel);
 }
-export async function leaveChannel(channelId: string) {
+export async function leaveChannel(channelId: ChannelId) {
   const data = await apiPost(`/api/channels/${channelId}/leave`);
   if (!data.ok) throw new Error(data.error ?? "conversations.leave failed");
   return data;
 }
-export async function archiveChannel(channelId: string): Promise<void> {
+export async function archiveChannel(channelId: ChannelId): Promise<void> {
   const data = await apiPost(`/api/channels/${channelId}/archive`);
   if (!data.ok) throw new Error(data.error ?? "conversations.archive failed");
 }
-export async function unarchiveChannel(channelId: string): Promise<void> {
+export async function unarchiveChannel(channelId: ChannelId): Promise<void> {
   const data = await apiPost(`/api/channels/${channelId}/unarchive`);
   if (!data.ok) throw new Error(data.error ?? "conversations.unarchive failed");
 }
-export async function convertChannelToPrivate(channelId: string): Promise<void> {
+export async function convertChannelToPrivate(channelId: ChannelId): Promise<void> {
   const data = await apiPost(`/api/channels/${channelId}/convert-to-private`);
   if (!data.ok) throw new Error(data.error ?? "conversations.convertToPrivate failed");
 }
-export async function closeDm(channelId: string) {
+export async function closeDm(channelId: ChannelId) {
   const data = await apiPost(`/api/channels/${channelId}/close`);
   if (!data.ok) throw new Error(data.error ?? "conversations.close failed");
   return data;
 }
-export async function setChannelTopic(channelId: string, topic: string): Promise<void> {
+export async function setChannelTopic(channelId: ChannelId, topic: string): Promise<void> {
   const data = await apiPut(`/api/channels/${channelId}/topic`, { topic });
   if (!data.ok) throw new Error(data.error ?? "conversations.setTopic failed");
 }

@@ -1,5 +1,5 @@
 import type { Env, TimerHandle } from "@slock/core";
-import { createEffect, createSignal, onCleanup } from "solid-js";
+import { createEffect, createSignal, onCleanup, onSettled } from "solid-js";
 import { createHeartbeat } from "./heartbeat";
 import { createReconnectScheduler } from "./reconnectScheduler";
 
@@ -20,16 +20,18 @@ export function createRealtimeConnection(opts: {
     online() ? "connecting" : "offline",
   );
   const [gatewayConnected, setGatewayConnectedSignal] = createSignal(false);
+  let gatewayUp = false;
   let disconnectedAt = opts.env.now();
   const writeGatewayConnected = (connected: boolean) => {
-    if (!connected && gatewayConnected()) disconnectedAt = opts.env.now();
+    if (!connected && gatewayUp) disconnectedAt = opts.env.now();
+    gatewayUp = connected;
     setGatewayConnectedSignal(connected);
   };
   const isTrulyOnline = () => online() && gatewayConnected();
   const [recentlyOnline, setRecentlyOnline] = createSignal(online());
   let onlineGraceTimer: TimerHandle | undefined;
-  createEffect(() => {
-    if (isTrulyOnline()) {
+  createEffect(isTrulyOnline, (trulyOnline) => {
+    if (trulyOnline) {
       opts.env.clearTimeout(onlineGraceTimer);
       onlineGraceTimer = undefined;
       setRecentlyOnline(true);
@@ -132,7 +134,7 @@ export function createRealtimeConnection(opts: {
   window.addEventListener("offline", handleOffline);
   window.addEventListener("online", handleOnline);
   document.addEventListener("visibilitychange", handleVisibility);
-  connect();
+  onSettled(connect);
 
   onCleanup(() => {
     disposed = true;

@@ -5,8 +5,13 @@ const viewStore = service("conversations");
 const titles = service("titles");
 
 export function installDocumentTitle() {
-  createEffect(() => {
-    const view = viewStore.activeView();
-    document.title = (view && titles.label(view.id)) || "slock";
-  });
+  createEffect(
+    () => {
+      const view = viewStore.activeView();
+      return (view && titles.label(view.id)) || "slock";
+    },
+    (title) => {
+      document.title = title;
+    },
+  );
 }

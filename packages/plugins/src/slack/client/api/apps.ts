@@ -1,9 +1,22 @@
-import { service } from "@slock/core/solid";
 import { apiGet, apiPost, replyError } from "@slock/slack";
 import type { ChannelId, MessageShortcut, Ts } from "@slock/types";
-import { defineKey } from "../../../query/client/api";
+import { defineQuery } from "../../../query/client/api";
 
-const appDescriptionKey = defineKey<[string]>("appDescription");
+interface AppDescriptionArg {
+  appId: string;
+  botId: string;
+}
+
+const appDescription = defineQuery<AppDescriptionArg, string>({
+  load: async ({ appId, botId }) => {
+    const data = await apiGet<{ desc?: string }>(
+      `/api/apps/${appId}/profile?bot=${encodeURIComponent(botId)}`,
+    );
+    if (!data.ok) throw new Error(data.error ?? "apps.profile.get failed");
+    return data.desc ?? "";
+  },
+  name: "appDescription",
+});
 
 export async function fetchMessageShortcuts(): Promise<MessageShortcut[]> {
   const data = await apiGet<{ shortcuts?: MessageShortcut[] }>("/api/message-shortcuts");
@@ -29,22 +42,9 @@ export async function runMessageShortcut(
   return data;
 }
 
-const query = service("query");
-
 export async function fetchAppDescription(
   appId: string,
   botId: string,
 ): Promise<string | undefined> {
-  const desc = await query.client.query({
-    queryFn: async () => {
-      const data = await apiGet<{ desc?: string }>(
-        `/api/apps/${appId}/profile?bot=${encodeURIComponent(botId)}`,
-      );
-      if (!data.ok) throw new Error(data.error ?? "apps.profile.get failed");
-      return data.desc ?? "";
-    },
-    queryKey: appDescriptionKey(appId),
-    staleTime: Infinity,
-  });
-  return desc || undefined;
+  return (await appDescription.ensure({ appId, botId })) || undefined;
 }

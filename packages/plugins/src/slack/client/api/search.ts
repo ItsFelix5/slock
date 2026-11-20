@@ -1,4 +1,4 @@
-import { apiGet, apiPost, canvasFileIdOf, mapFile, mapUser } from "@slock/slack";
+import { apiGet, apiPost, canvasFileIdOf, mapFile, mapUser, parseChannelId } from "@slock/slack";
 import type {
   BrowsableChannel,
   GlobalSearchResults,
@@ -24,7 +24,7 @@ export function mapBrowsableChannels(items: RawChannel[]): BrowsableChannel[] {
         ),
     )
     .map((channel) => ({
-      id: channel.id,
+      id: parseChannelId(channel.id),
       memberCount: channel.member_count,
       name: channel.name ?? channel.id,
       private: !!channel.is_private,

@@ -56,14 +56,14 @@ export function createListboxActiveIndex(
   listboxId: string,
   listboxRef?: () => HTMLElement | undefined,
 ) {
-  const [activeIndex, setActiveIndex] = createSignal<number | null>(0);
+  const [selected, setActiveIndex] = createSignal<number | null>(0);
 
-  createEffect(() => {
+  const activeIndex = () => {
     const count = itemCount();
-    const current = activeIndex();
-    if (count === 0) setActiveIndex(null);
-    else if (current === null || current >= count) setActiveIndex(0);
-  });
+    const current = selected();
+    if (count === 0) return null;
+    return current === null || current >= count ? 0 : current;
+  };
 
   const optionId = (index: number) => `${listboxId}-option-${index}`;
   const activeOptionId = () => {
@@ -72,10 +72,7 @@ export function createListboxActiveIndex(
   };
 
   if (listboxRef) {
-    createEffect(() => {
-      activeIndex();
-      scrollActiveListOption(listboxRef);
-    });
+    createEffect(activeIndex, () => scrollActiveListOption(listboxRef));
   }
 
   return { activeIndex, setActiveIndex, optionId, activeOptionId };

@@ -1,5 +1,5 @@
-import type { JSX } from "solid-js";
-import { render } from "solid-js/web";
+import type { JSX } from "@solidjs/web";
+import { render } from "@solidjs/web";
 
 const disposers: (() => void)[] = [];
 
@@ -16,7 +16,11 @@ export function unmountAll() {
 }
 
 export function pressKey(element: Element, key: string) {
-  const event = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key });
+  const event = new KeyboardEvent("keydown", {
+    bubbles: true,
+    cancelable: true,
+    key,
+  });
   element.dispatchEvent(event);
   return event;
 }

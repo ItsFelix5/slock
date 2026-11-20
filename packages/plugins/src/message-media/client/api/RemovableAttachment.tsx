@@ -1,5 +1,5 @@
 import { IconButton } from "@slock/ui";
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import "../views/AttachmentCard.css";
 
 export default function RemovableAttachment(props: {

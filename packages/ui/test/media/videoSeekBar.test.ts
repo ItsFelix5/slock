@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
+import { render } from "@solidjs/web";
 import { createComponent } from "solid-js";
-import { render } from "solid-js/web";
 import VideoSeekBar from "../../src/media/video/VideoSeekBar";
 
 let dispose: (() => void) | undefined;

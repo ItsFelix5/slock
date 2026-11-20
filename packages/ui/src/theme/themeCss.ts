@@ -1,21 +1,25 @@
+import type { Pref } from "@slock/core";
 import { createSignal } from "solid-js";
 
-const THEME_CSS_KEY = "slock-theme-css";
+export function createThemeCss(pref: Pref<string | null>, presetCss: string | undefined) {
+  const customSheet = new CSSStyleSheet();
+  document.adoptedStyleSheets = [...document.adoptedStyleSheets, customSheet];
+  const [themeCss, setThemeCssSignal] = createSignal(pref.get() ?? presetCss ?? "");
+  customSheet.replaceSync(themeCss());
 
-const customSheet = new CSSStyleSheet();
-document.adoptedStyleSheets = [...document.adoptedStyleSheets, customSheet];
+  function setThemeCss(value: string): void {
+    setThemeCssSignal(value);
+    customSheet.replaceSync(value);
+    pref.set(value);
+  }
 
-const [themeCss, setThemeCssSignal] = createSignal(localStorage.getItem(THEME_CSS_KEY) ?? "");
-customSheet.replaceSync(themeCss());
-
-export { themeCss };
-
-export function setThemeCss(value: string): void {
-  setThemeCssSignal(value);
-  customSheet.replaceSync(value);
-  localStorage.setItem(THEME_CSS_KEY, value);
-}
-
-export function initThemeCss(presetCss: string | undefined): void {
-  if (localStorage.getItem(THEME_CSS_KEY) === null) setThemeCss(presetCss ?? "");
+  return {
+    dispose: () => {
+      document.adoptedStyleSheets = document.adoptedStyleSheets.filter(
+        (sheet) => sheet !== customSheet,
+      );
+    },
+    setThemeCss,
+    themeCss,
+  };
 }

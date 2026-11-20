@@ -1,4 +1,4 @@
-import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import Icon from "../media/Icon";
 import Tooltip from "../overlay/Tooltip";
 import type { Feedback } from "./keyedFeedback";
@@ -12,23 +12,17 @@ export interface InlineFeedbackProps {
 }
 
 interface FeedbackClaim {
-  order: number;
   priority: number;
   select: (selected: boolean) => void;
 }
 
 const claimsByFeedback = new WeakMap<Feedback, Map<symbol, FeedbackClaim>>();
-let claimOrder = 0;
 
 function updateClaims(claims: Map<symbol, FeedbackClaim>) {
   let winner: symbol | undefined;
   let winningClaim: FeedbackClaim | undefined;
   for (const [owner, claim] of claims) {
-    if (
-      !winningClaim ||
-      claim.priority > winningClaim.priority ||
-      (claim.priority === winningClaim.priority && claim.order < winningClaim.order)
-    ) {
+    if (!winningClaim || claim.priority > winningClaim.priority) {
       winner = owner;
       winningClaim = claim;
     }
@@ -47,7 +41,7 @@ function claimFeedback(
     claims = new Map();
     claimsByFeedback.set(feedback, claims);
   }
-  claims.set(owner, { order: claimOrder++, priority, select });
+  claims.set(owner, { priority, select });
   updateClaims(claims);
 
   return () => {
@@ -60,19 +54,22 @@ function claimFeedback(
 
 export default function InlineFeedback(props: InlineFeedbackProps) {
   const owner = Symbol("inline-feedback");
-  const [visibleFeedback, setVisibleFeedback] = createSignal<Feedback>();
-
-  createEffect(() => {
-    const { feedback } = props;
-    if (!feedback) {
-      setVisibleFeedback(undefined);
-      return;
-    }
-    const release = claimFeedback(feedback, owner, props.priority ?? 0, (selected) => {
-      setVisibleFeedback(selected ? feedback : undefined);
-    });
-    onCleanup(release);
+  const [visibleFeedback, setVisibleFeedback] = createSignal<Feedback | undefined>(undefined, {
+    ownedWrite: true,
   });
+
+  createEffect(
+    () => ({ feedback: props.feedback, priority: props.priority ?? 0 }),
+    ({ feedback, priority }) => {
+      if (!feedback) {
+        setVisibleFeedback(undefined);
+        return;
+      }
+      return claimFeedback(feedback, owner, priority, (selected) => {
+        setVisibleFeedback(selected ? feedback : undefined);
+      });
+    },
+  );
 
   return (
     <Show when={visibleFeedback()}>

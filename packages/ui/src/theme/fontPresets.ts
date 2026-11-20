@@ -1,4 +1,4 @@
-import { DEFAULT_FONT, font, GEIST_FONT } from "./font";
+import { DEFAULT_FONT, GEIST_FONT } from "./font";
 
 export interface FontPreset {
   id: string;
@@ -24,13 +24,21 @@ export const FONT_PRESETS: FontPreset[] = [
     label: "System UI",
     value: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
   },
-  { id: "georgia", label: "Georgia", value: 'Georgia, "Times New Roman", serif' },
+  {
+    id: "georgia",
+    label: "Georgia",
+    value: 'Georgia, "Times New Roman", serif',
+  },
   {
     id: "mono",
     label: "Monospace",
     value: '"JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace',
   },
-  { id: "comic-sans", label: "Comic Sans", value: '"Comic Sans MS", "Comic Neue", cursive' },
+  {
+    id: "comic-sans",
+    label: "Comic Sans",
+    value: '"Comic Sans MS", "Comic Neue", cursive',
+  },
   {
     id: "opendyslexic",
     label: "OpenDyslexic",
@@ -38,7 +46,7 @@ export const FONT_PRESETS: FontPreset[] = [
   },
 ];
 
-export function activeFontPreset(): string {
-  const current = font().toLowerCase();
+export function activeFontPreset(font: string): string {
+  const current = font.toLowerCase();
   return FONT_PRESETS.find((p) => p.value.toLowerCase() === current)?.id ?? "custom";
 }

@@ -1,4 +1,5 @@
 import type { Services } from "@slock/core/types";
+import { ifPresent, parseChannelId, parseTs, parseUserId } from "@slock/slack";
 import { createConcurrencyQueue } from "@slock/ui";
 import { gatewayHandler } from "../../../realtime/client/api";
 import { createIncomingMessageHandler } from "./incomingMessages";
@@ -36,8 +37,8 @@ export function createMessageEvents(
     patchMessage: messages.patchMessage,
     markDeleted: messages.markDeleted,
     setClosedDmIds: dms.setClosedDmIds,
-    setMessagesByChannel: messages.setMessagesByChannel,
-    setThreadMessages: messages.setThreadMessages,
+    updateChannelMessages: messages.updateChannelMessages,
+    updateThreadMessages: messages.updateThreadMessages,
     setUnreadChannelIds: unread.setUnreadChannelIds,
     threadMessages: messages.threadMessages,
     isViewed: unread.isViewed,
@@ -46,12 +47,15 @@ export function createMessageEvents(
   const handlers = [
     gatewayHandler(["message"], handleIncomingMessage),
     gatewayHandler(["reaction_added", "reaction_removed"], (event) => {
-      if (!(event.item.channel && event.item.ts && event.reaction && event.user)) return;
+      const channel = ifPresent(parseChannelId, event.item.channel);
+      const ts = ifPresent(parseTs, event.item.ts);
+      const user = ifPresent(parseUserId, event.user);
+      if (!(channel && ts && event.reaction && user)) return;
       messages.realtimeHooks.applyReactionEvent(
-        event.item.channel,
-        event.item.ts,
+        channel,
+        ts,
         event.reaction,
-        event.user,
+        user,
         event.type === "reaction_added",
       );
     }),
@@ -63,13 +67,15 @@ export function createMessageEvents(
         "mpim_history_changed",
       ],
       (event) => {
-        if (event.channel && messages.loadedChannels.has(event.channel))
-          messages.loadRecentHistory(event.channel);
+        const channel = ifPresent(parseChannelId, event.channel);
+        if (channel && messages.loadedChannels.has(channel)) messages.loadRecentHistory(channel);
       },
     ),
     gatewayHandler(["thread_subscribed", "thread_unsubscribed"], (event) => {
-      if (event.channel && event.thread_ts)
-        messages.patchMessage(event.channel, event.thread_ts, {
+      const channel = ifPresent(parseChannelId, event.channel);
+      const threadTs = ifPresent(parseTs, event.thread_ts);
+      if (channel && threadTs)
+        messages.patchMessage(channel, threadTs, {
           isSubscribed: event.type === "thread_subscribed",
         });
     }),

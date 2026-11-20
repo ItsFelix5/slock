@@ -2,7 +2,6 @@ import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { IconButton, useShortcut } from "@slock/ui";
 import { createSignal, lazy, Show } from "solid-js";
-import { consumeShareTarget, pendingShareText } from "../../message-links/client/api/incomingLinks";
 import { createSearchStore } from "./store";
 
 const GlobalSearch = lazy(() => import("./views/GlobalSearch"));
@@ -12,8 +11,7 @@ const setup: Setup = (ctx) => {
   const sidebar = service("sidebar");
   const search = createSearchStore({ showScreen: () => sidebar.setNavView("search") });
   ctx.provide("search", search);
-  consumeShareTarget();
-  const [open, setOpen] = createSignal(!!pendingShareText());
+  const [open, setOpen] = createSignal(!!service("message-links.share").pendingShareText());
   const files = service("files");
 
   useShortcut({

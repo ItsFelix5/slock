@@ -1,16 +1,20 @@
 import { service } from "@slock/core/solid";
-import { createKeyedQuery, defineKey } from "../../../query/client/api";
-import { APP_HOME_QUERY, fetchAppHome } from "../fetch";
+import type { ChannelId } from "@slock/types";
+import { defineQuery } from "../../../query/client/api";
+import { fetchAppHome } from "../fetch";
 
-const appHomeKey = defineKey<[string]>(APP_HOME_QUERY);
 const dms = service("dms");
 const users = service("users");
 
-export function useAppHome(channelId: () => string) {
-  return createKeyedQuery(() => {
+const appHome = defineQuery<ChannelId, Awaited<ReturnType<typeof fetchAppHome>>>({
+  load: fetchAppHome,
+  name: "appHome",
+});
+
+export function useAppHome(channelId: () => ChannelId) {
+  return appHome.state(() => {
     const id = channelId();
-    const botDm = users.userById(dms.dmById(id)?.userId ?? "")?.isBot;
-    if (!botDm) return;
-    return { queryFn: () => fetchAppHome(id), queryKey: appHomeKey(id) };
+    const userId = dms.dmById(id)?.userId;
+    return userId && users.userById(userId)?.isBot ? id : undefined;
   });
 }

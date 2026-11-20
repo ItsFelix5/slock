@@ -1,4 +1,5 @@
 import { service } from "@slock/core/solid";
+import type { ChannelId } from "@slock/types";
 import { Icon } from "@slock/ui";
 import { createMemo } from "solid-js";
 import { channelDisplayName, channelIconName } from "../../../../channels/client/api";
@@ -9,14 +10,14 @@ import "./ComposeUserPicker.css";
 const channelsStore = service("channels");
 
 interface PickerChannel {
-  id: string;
+  id: ChannelId;
   name: string;
   private: boolean;
 }
 
 export default function ComposeChannelPicker(props: {
-  excludeChannelIds?: string[];
-  onSelect: (channelId: string) => void;
+  excludeChannelIds?: ChannelId[];
+  onSelect: (channelId: ChannelId) => void;
   onClose: () => void;
 }) {
   const localChannels = createMemo<PickerChannel[]>(() =>

@@ -1,7 +1,7 @@
 import { EMOJI_TOKEN_RE } from "@slock/blockkit";
 import { narrowByType } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { isRichTextSubBlock } from "@slock/slack";
+import { isChannelId, isRichTextSubBlock } from "@slock/slack";
 import type {
   Block,
   ContextBlock,
@@ -54,7 +54,7 @@ function inlineOps(
           mention: {
             id: el.channel_id,
             kind: "channel",
-            name: titles.title(el.channel_id),
+            name: isChannelId(el.channel_id) ? titles.title(el.channel_id) : el.channel_id,
           },
         },
       });

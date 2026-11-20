@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { createRoot } from "solid-js";
+import { createRoot, flush } from "solid-js";
 import { useVideoShortcuts } from "../../src/media/video/useVideoShortcuts";
 
 const disposers: (() => void)[] = [];
@@ -38,12 +38,18 @@ function mount(state = { currentTime: 20, duration: 100 }) {
       return dispose;
     }),
   );
+  flush();
   return { button, log, outside, range, seek, wrap };
 }
 
 function press(target: Element, key: string, init: KeyboardEventInit = {}) {
   target.dispatchEvent(
-    new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key, ...init }),
+    new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key,
+      ...init,
+    }),
   );
 }
 

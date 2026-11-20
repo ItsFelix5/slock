@@ -8,6 +8,7 @@ import {
   unresolvedAuthorFallback,
 } from "../../../messages/client/api/messageAuthor";
 import { formatInteractorNames } from "../../../users/client/api";
+import { hasChannel } from "../kinds";
 
 const titles = service("titles");
 const usersStore = service("users");
@@ -24,12 +25,12 @@ export function createActivityRowDisplay(deps: {
   );
   const avatarUrl = createMemo(() => resolveAuthorAvatarUrl(deps.latest(), user()?.avatarUrl));
   const channelLabel = createMemo(() => {
-    if (!deps.latest().channelId) return "Activity";
+    if (!hasChannel(deps.latest())) return "Activity";
     return titles.label(deps.latest().channelId);
   });
   const isUnread = createMemo(() => activityStore.isActivityItemUnread(deps.latest()));
   const isArchived = createMemo(() => activityStore.isActivityItemArchived(deps.latest()));
-  const isStandaloneActivity = createMemo(() => !deps.latest().channelId);
+  const isStandaloneActivity = createMemo(() => !hasChannel(deps.latest()));
   const hasKnownActor = createMemo(() => hasRealMessageAuthor(deps.latest()));
   const hasAnyActor = createMemo(
     () => hasKnownActor() || !!deps.latest().botId || !!deps.latest().botName,

@@ -1,4 +1,5 @@
 import { service } from "@slock/core/solid";
+import type { ChannelId, Ts } from "@slock/types";
 import { Button, Menu, MenuItem } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
 import {
@@ -14,10 +15,10 @@ const isFuture = (dateDue: number | null): dateDue is number =>
   dateDue !== null && dateDue > Math.floor(Date.now() / 1000);
 
 export default function RemindMenu(props: {
-  channelId: string;
+  channelId: ChannelId;
   close: () => void;
   onRemind?: () => void;
-  ts: string;
+  ts: Ts;
 }) {
   const [open, setOpen] = createSignal(false);
   const [customTime, setCustomTime] = createSignal(nextHourInputValue(new Date()));
@@ -26,7 +27,7 @@ export default function RemindMenu(props: {
   const remind = (dateDue: number) => {
     setOpen(false);
     props.close();
-    later.setReminder(props.channelId, props.ts, dateDue);
+    void later.setReminder(props.channelId, props.ts, dateDue);
     props.onRemind?.();
   };
   const remindAtCustomTime = (event: SubmitEvent) => {
@@ -71,7 +72,7 @@ export default function RemindMenu(props: {
           onClick={() => {
             setOpen(false);
             props.close();
-            later.clearReminder(props.channelId, props.ts);
+            void later.clearReminder(props.channelId, props.ts);
           }}
         >
           Clear reminder

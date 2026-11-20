@@ -9,7 +9,7 @@ import type {
   SlackFileShare,
   SlackLink,
 } from "@slock/types";
-import { ifPresent, parseChannelId, parseFileId, parseTs, parseUserId } from "../ids";
+import { ifPresent, isUserId, parseChannelId, parseFileId, parseTs, parseUserId } from "../ids";
 
 const EXTENSION_MIMETYPES = new Map(
   Object.entries({
@@ -132,7 +132,7 @@ export function mapAttachment(a: RawAttachment): Attachment {
       type === "button" && name && text ? [{ name, style, text, url, value }] : [],
     ),
     authorIcon: a.author_icon || undefined,
-    authorId: a.author_id,
+    authorId: a.author_id && isUserId(a.author_id) ? a.author_id : undefined,
     authorName: a.author_name,
     authorSubname: a.author_subname,
     blocks: a.blocks,

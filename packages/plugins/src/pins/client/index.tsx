@@ -1,9 +1,9 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { ifPresent, isChannelId, parseChannelId, parseTs } from "@slock/slack";
 import { narrowPaneContent, type Pane, useShortcut } from "@slock/ui";
 import { createEffect, lazy, Show } from "solid-js";
 import { liveOnly } from "../../messages/client/api/deletedMessages";
-import { active } from "../../messages/client/api/messageFocus";
 import type { PaneContent } from "../../shell/client/api/types";
 import type { PinnedPaneContent } from "./api";
 import { createPinnedSlice } from "./store";
@@ -11,6 +11,8 @@ import PinItem from "./views/PinItem";
 import PinnedBadge from "./views/PinnedBadge";
 import ViewPinnedItem from "./views/ViewPinnedItem";
 
+const messageFocus = service("messages.focus");
+const active = () => messageFocus.active();
 const PinnedPane = lazy(() => import("./views/PinnedPane"));
 const PINNED_MARK = "*";
 
@@ -31,10 +33,10 @@ const setup: Setup = (ctx) => {
       tabLabel: (content) =>
         content.kind === "pinned" ? `Pinned in ${titles.label(content.channelId)}` : "…",
       url: {
-        parse: (segment) =>
-          segment.endsWith(PINNED_MARK)
-            ? { channelId: segment.slice(0, -1), kind: "pinned" }
-            : null,
+        parse: (segment) => {
+          const channelId = segment.endsWith(PINNED_MARK) ? segment.slice(0, -1) : undefined;
+          return channelId && isChannelId(channelId) ? { channelId, kind: "pinned" } : null;
+        },
         serialize: (content) =>
           content.kind === "pinned" ? `${content.channelId}${PINNED_MARK}` : "",
       },
@@ -44,18 +46,18 @@ const setup: Setup = (ctx) => {
   );
   const store = createPinnedSlice({ panes: service("shell.panes") });
   ctx.provide("pins", store);
-  createEffect(() => {
-    const view = service("conversations").activeView();
-    if (view) store.ensurePinsLoaded(view.id);
-  });
+  createEffect(
+    () => service("conversations").activeView(),
+    (view) => {
+      if (view) store.ensurePinsLoaded(view.id);
+    },
+  );
   ctx.add("realtime.handler", {
     run: (event) => {
-      if (
-        (event.type === "pin_added" || event.type === "pin_removed") &&
-        event.channel_id &&
-        event.ts
-      )
-        store.applyPinEvent(event.channel_id, event.ts, event.type === "pin_added");
+      if (event.type !== "pin_added" && event.type !== "pin_removed") return;
+      const channelId = ifPresent(parseChannelId, event.channel_id);
+      const ts = ifPresent(parseTs, event.ts);
+      if (channelId && ts) store.applyPinEvent(channelId, ts, event.type === "pin_added");
     },
     types: ["pin_added", "pin_removed"],
   });
@@ -66,7 +68,8 @@ const setup: Setup = (ctx) => {
     handler: () => {
       const focus = active();
       const ts = focus?.focusedTs();
-      if (focus && ts != null) store.togglePinMessage(focus.channelId(), ts);
+      const channelId = focus?.channelId();
+      if (ts != null && channelId) store.togglePinMessage(channelId, ts);
     },
     id: "messages.pin",
     label: "Pin / unpin",

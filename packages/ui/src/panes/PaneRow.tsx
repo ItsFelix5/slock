@@ -1,4 +1,5 @@
-import { createMemo, For, type JSX, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { createMemo, For, Show } from "solid-js";
 import "./PaneRow.css";
 import { defined } from "@slock/core";
 
@@ -52,18 +53,18 @@ export default function PaneRow<T>(props: PaneLayoutProps<T>) {
     return wanted ?? defined(panes[panes.length - 1]);
   };
 
-  const warmIds = createMemo<string[]>((previous) => {
-    const id = activePane().id;
+  const warmIds = createMemo<string[]>((previous = []) => {
+    const { id } = activePane();
     const live = new Set(props.panes.map((p) => p.id));
     return [id, ...previous.filter((other) => other !== id && live.has(other))].slice(
       0,
       MAX_WARM_TABS,
     );
-  }, []);
+  });
   const mounted = (pane: Pane<T>) => !tabbed() || warmIds().includes(pane.id);
 
   return (
-    <div class="pane-row" classList={{ "pane-row-tabbed": tabbed() }}>
+    <div class={["pane-row", { "pane-row-tabbed": tabbed() }]}>
       <Show when={tabbed()}>
         <div class="pane-tab-strip" ref={tabListRef} role="tablist">
           <For each={props.panes}>
@@ -107,7 +108,10 @@ export default function PaneRow<T>(props: PaneLayoutProps<T>) {
               class="pane-cell flex-col"
               style={
                 tabbed()
-                  ? { flex: "1 1 auto", display: pane.id === activePane().id ? "flex" : "none" }
+                  ? {
+                      flex: "1 1 auto",
+                      display: pane.id === activePane().id ? "flex" : "none",
+                    }
                   : { flex: `${pane.size} 1 0%` }
               }
             >

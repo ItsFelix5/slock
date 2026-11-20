@@ -1,4 +1,5 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import type { Ts } from "@slock/types";
+import { createSignal, onCleanup, onSettled } from "solid-js";
 import { type ScrollDirection, scrollDirection } from "../../../lib/scrollMath";
 import { observeComposerOverlay } from "../composerOverlay";
 import { anchorDrift, captureAnchors, type FeedAnchor, shiftAnchors } from "./feedAnchors";
@@ -9,8 +10,8 @@ import { alignedTop, maxScrollTop, offsetTop, revealTop } from "./feedPosition";
 
 export type LandTarget =
   | { at: "bottom" }
-  | { at: "row"; ts: string; align: "start" | "center"; flash?: boolean }
-  | { at: "offset"; ts: string; offset: number };
+  | { at: "row"; ts: Ts; align: "start" | "center"; flash?: boolean }
+  | { at: "offset"; ts: Ts; offset: number };
 
 const BOTTOM_SLACK_PX = 2;
 const SUBPIXEL_PX = 0.5;
@@ -31,7 +32,7 @@ export function createFeedScroll(options: {
   const [ready, setReady] = createSignal(false);
   const [atBottom, setAtBottom] = createSignal(true);
   const [atTop, setAtTop] = createSignal(true);
-  const [topTs, setTopTs] = createSignal<string>();
+  const [topTs, setTopTs] = createSignal<Ts>();
 
   let scroller: HTMLElement | undefined;
   let following = true;
@@ -120,7 +121,10 @@ export function createFeedScroll(options: {
     options.onMove?.(direction);
   }
 
+  let detach: (() => void) | undefined;
+
   function attach(el: HTMLElement) {
+    detach?.();
     scroller = el;
     el.style.overflowAnchor = "none";
     lastTop = el.scrollTop;
@@ -135,15 +139,18 @@ export function createFeedScroll(options: {
     el.addEventListener("scroll", onScroll, { passive: true });
     el.addEventListener("scrollend", onScrollEnd);
     const stopObserving = observeFeed(el, settle);
-    onMount(() => onCleanup(observeComposerOverlay(el, settle)));
-    onCleanup(() => {
+    detach = () => {
       glide.stop();
       el.removeEventListener("scroll", onScroll);
       el.removeEventListener("scrollend", onScrollEnd);
       stopObserving();
       scroller = undefined;
-    });
+      detach = undefined;
+    };
   }
+
+  onSettled(() => (scroller ? observeComposerOverlay(scroller, settle) : undefined));
+  onCleanup(() => detach?.());
 
   function reset() {
     landRun += 1;
@@ -183,7 +190,7 @@ export function createFeedScroll(options: {
     glide.start();
   }
 
-  function glideTo(ts: string) {
+  function glideTo(ts: Ts) {
     const group = scroller && findGroup(scroller, ts);
     if (!group) return;
     flashGroup(group);
@@ -199,7 +206,7 @@ export function createFeedScroll(options: {
     land,
     ready,
     reset,
-    reveal: (ts: string) => moveTo((el) => revealTop(el, ts)),
+    reveal: (ts: Ts) => moveTo((el) => revealTop(el, ts)),
     scrollEdge: (edge: "start" | "end") =>
       moveTo((el) => (edge === "start" ? 0 : maxScrollTop(el))),
     settle,

@@ -1,7 +1,8 @@
 import { EmojiText, Mrkdwn } from "@slock/blockkit";
 import { Slot, service } from "@slock/core/solid";
 import { AvatarImage, HoverCard, Icon, type useHoverIntent } from "@slock/ui";
-import { createMemo, createSignal, type JSX, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { createMemo, createSignal, Show } from "solid-js";
 import { AppBadge } from "../api/AppBadge";
 import "./UserHoverCard.css";
 import { createLocalTime, createTzDiff, createTzSuffix } from "./userProfileTime";
@@ -46,9 +47,7 @@ export default function UserHoverCard(props: {
                 >
                   <AvatarImage avatarUrl={u().avatarUrl} />
                   <Show when={presence()}>
-                    {(p) => (
-                      <span class="user-hovercard-presence" classList={{ away: p() === "away" }} />
-                    )}
+                    {(p) => <span class={["user-hovercard-presence", { away: p() === "away" }]} />}
                   </Show>
                 </div>
                 <div class="user-hovercard-heading flex-col">

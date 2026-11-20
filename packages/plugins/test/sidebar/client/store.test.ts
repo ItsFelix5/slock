@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { forAll, int } from "@slock/core/testing";
-import { createRoot, createSignal } from "solid-js";
+import { createRoot, createSignal, flush } from "solid-js";
 import type { CycleTarget } from "../../../src/sidebar/client/api";
 
 import { createSidebarStore } from "../../../src/sidebar/client/store";
@@ -32,6 +32,7 @@ function provide(store: ReturnType<typeof setup>["store"], order: number, list: 
     dispose = d;
     store.provideCycle(order, () => list);
   });
+  flush();
   return dispose;
 }
 
@@ -79,10 +80,13 @@ describe("stepCycle", () => {
     const { store } = setup();
     const [list, setList] = createSignal(targets(4, 2, opened));
     createRoot(() => store.provideCycle(0, list));
+    flush();
     store.stepCycle(1, false);
     setList(targets(2, -1, opened, "n"));
+    flush();
     store.stepCycle(1, false);
     setList(targets(5, 4, opened, "m"));
+    flush();
     store.stepCycle(1, false);
     expect(opened).toEqual(["t3", "n1", "m0"]);
   });
@@ -140,6 +144,7 @@ describe("sources", () => {
     provide(store, 1, targets(1, -1, opened, "b"));
     expect(store.cycleTargets()).toHaveLength(3);
     removeFirst();
+    flush();
     expect(store.cycleTargets()).toHaveLength(1);
   });
 });
@@ -149,6 +154,7 @@ describe("setNavView", () => {
     focused.length = 0;
     const { store } = setup();
     store.setNavView("search");
+    flush();
     expect(store.nav()).toBe("search");
     await Promise.resolve();
     expect(focused).toEqual(["sidebar"]);
@@ -158,6 +164,7 @@ describe("setNavView", () => {
     focused.length = 0;
     const { store } = setup((id) => id === "ghost");
     store.setNavView("ghost");
+    flush();
     expect(store.nav()).toBe("ghost");
     await Promise.resolve();
     expect(focused).toEqual([]);

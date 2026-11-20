@@ -1,6 +1,7 @@
 import { service } from "@slock/core/solid";
-import type { DirectMessage, SlackFile, User } from "@slock/types";
+import type { ChannelId, DirectMessage, SlackFile, User, UserId } from "@slock/types";
 import { Avatar, AvatarStack, Icon } from "@slock/ui";
+import type { JSX } from "@solidjs/web";
 import { For, Show } from "solid-js";
 import { channelIconName } from "../../../channels/client/api";
 import { openConversationInSplit } from "../../../conversations/client/api/nav";
@@ -11,7 +12,7 @@ const titles = service("titles");
 const usersStore = service("users");
 
 export interface JumpChannel {
-  id: string;
+  id: ChannelId;
   joined: boolean;
   name: string;
   private: boolean;
@@ -23,6 +24,32 @@ export type GlobalSearchRow =
   | { kind: "dm"; data: DirectMessage }
   | { kind: "file"; data: SlackFile };
 
+function ResultButton(props: {
+  active: boolean;
+  children: JSX.Element;
+  class: string;
+  id: string;
+  onActivate: () => void;
+  onHover: () => void;
+}) {
+  return (
+    <button
+      class={[
+        "global-search-result btn-reset flex-align-center",
+        props.class,
+        { active: props.active },
+      ]}
+      id={props.id}
+      onClick={props.onActivate}
+      onMouseEnter={props.onHover}
+      tabindex={-1}
+      type="button"
+    >
+      {props.children}
+    </button>
+  );
+}
+
 export default function GlobalSearchResults(props: {
   activeIndex: number | null;
   hasQuery: boolean;
@@ -32,7 +59,7 @@ export default function GlobalSearchResults(props: {
   onDm: (dm: DirectMessage) => void;
   onFile: (file: SlackFile) => void;
   onMessageSearch: () => void;
-  onPerson: (userId: string) => void;
+  onPerson: (userId: UserId) => void;
   query: string;
   rows: GlobalSearchRow[];
   status: string;
@@ -44,42 +71,38 @@ export default function GlobalSearchResults(props: {
       <Show when={props.hasQuery || props.rows.length > 0}>
         <div class="global-search-options flex-col gap-xs" id={props.listboxId}>
           <Show when={props.hasQuery}>
-            <button
-              class="global-search-result global-search-message-action btn-reset flex-align-center"
-              classList={{ active: props.activeIndex === 0 }}
+            <ResultButton
+              active={props.activeIndex === 0}
+              class="global-search-message-action"
               id={optionId(0)}
-              onClick={props.onMessageSearch}
-              onMouseEnter={() => props.onActiveIndex(0)}
-              tabIndex={-1}
-              type="button"
+              onActivate={props.onMessageSearch}
+              onHover={() => props.onActiveIndex(0)}
             >
               <span class="global-search-jump-icon">
                 <Icon name="search" size={13} />
               </span>
               Search all messages for "{props.query}"
-            </button>
+            </ResultButton>
           </Show>
           <For each={props.rows}>
             {(row, index) => {
               const itemIndex = () => index() + (props.hasQuery ? 1 : 0);
+              const rowProps = () => ({
+                active: props.activeIndex === itemIndex(),
+                class: "global-search-jump",
+                id: optionId(itemIndex()),
+                onHover: () => props.onActiveIndex(itemIndex()),
+              });
               if (row.kind === "channel") {
                 const channel = row.data;
                 return (
                   <SplitNavigation onSplit={() => openConversationInSplit(channel.id)}>
-                    <button
-                      class="global-search-result global-search-jump btn-reset flex-align-center"
-                      classList={{ active: props.activeIndex === itemIndex() }}
-                      id={optionId(itemIndex())}
-                      onClick={() => props.onChannel(channel)}
-                      onMouseEnter={() => props.onActiveIndex(itemIndex())}
-                      tabIndex={-1}
-                      type="button"
-                    >
+                    <ResultButton {...rowProps()} onActivate={() => props.onChannel(channel)}>
                       <span class="global-search-jump-icon">
                         <Icon name={channelIconName(channel.private)} size={13} />
                       </span>
                       {channel.name}
-                    </button>
+                    </ResultButton>
                   </SplitNavigation>
                 );
               }
@@ -90,33 +113,17 @@ export default function GlobalSearchResults(props: {
                   .filter((member) => member !== undefined);
                 return (
                   <SplitNavigation onSplit={() => openConversationInSplit(dm.id)}>
-                    <button
-                      class="global-search-result global-search-jump btn-reset flex-align-center"
-                      classList={{ active: props.activeIndex === itemIndex() }}
-                      id={optionId(itemIndex())}
-                      onClick={() => props.onDm(dm)}
-                      onMouseEnter={() => props.onActiveIndex(itemIndex())}
-                      tabIndex={-1}
-                      type="button"
-                    >
+                    <ResultButton {...rowProps()} onActivate={() => props.onDm(dm)}>
                       <AvatarStack max={3} size="small" users={members} />
                       {titles.title(dm.id)}
-                    </button>
+                    </ResultButton>
                   </SplitNavigation>
                 );
               }
               if (row.kind === "file") {
                 const file = row.data;
                 return (
-                  <button
-                    class="global-search-result global-search-jump btn-reset flex-align-center"
-                    classList={{ active: props.activeIndex === itemIndex() }}
-                    id={optionId(itemIndex())}
-                    onClick={() => props.onFile(file)}
-                    onMouseEnter={() => props.onActiveIndex(itemIndex())}
-                    tabIndex={-1}
-                    type="button"
-                  >
+                  <ResultButton {...rowProps()} onActivate={() => props.onFile(file)}>
                     <span class="global-search-jump-icon">
                       <Icon name={file.isImage ? "image" : "file"} size={13} />
                     </span>
@@ -124,24 +131,16 @@ export default function GlobalSearchResults(props: {
                     <span class="global-search-file-meta text-dim truncate">
                       {file.filetype?.toUpperCase()}
                     </span>
-                  </button>
+                  </ResultButton>
                 );
               }
               const user = row.data;
               return (
                 <SplitNavigation onSplit={() => dmsStore.openDmWithUser(user.id, { split: true })}>
-                  <button
-                    class="global-search-result global-search-jump btn-reset flex-align-center"
-                    classList={{ active: props.activeIndex === itemIndex() }}
-                    id={optionId(itemIndex())}
-                    onClick={() => props.onPerson(user.id)}
-                    onMouseEnter={() => props.onActiveIndex(itemIndex())}
-                    tabIndex={-1}
-                    type="button"
-                  >
+                  <ResultButton {...rowProps()} onActivate={() => props.onPerson(user.id)}>
                     <Avatar size="small" user={user} />
                     {user.name}
-                  </button>
+                  </ResultButton>
                 </SplitNavigation>
               );
             }}

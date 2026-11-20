@@ -1,4 +1,4 @@
-import type { ActivityItem } from "@slock/types";
+import type { ActivityItem, ChannelId, Ts } from "@slock/types";
 import { createMemo } from "solid-js";
 
 const NONE: ActivityItem[] = [];
@@ -8,11 +8,11 @@ export function createUnreadThreads(deps: {
   isActivityItemUnread: (item: ActivityItem) => boolean;
 }) {
   const byChannel = createMemo(() => {
-    const latest = new Map<string, Map<string, ActivityItem>>();
+    const latest = new Map<ChannelId, Map<Ts, ActivityItem>>();
     for (const item of deps.activityItems) {
       if (item.kind !== "thread_reply" || !item.threadTs || !deps.isActivityItemUnread(item))
         continue;
-      const threads = latest.get(item.channelId) ?? new Map<string, ActivityItem>();
+      const threads = latest.get(item.channelId) ?? new Map<Ts, ActivityItem>();
       latest.set(item.channelId, threads);
       const current = threads.get(item.threadTs);
       if (!current || item.time > current.time) threads.set(item.threadTs, item);
@@ -24,5 +24,5 @@ export function createUnreadThreads(deps: {
       ]),
     );
   });
-  return (channelId: string) => byChannel().get(channelId) ?? NONE;
+  return (channelId: ChannelId) => byChannel().get(channelId) ?? NONE;
 }

@@ -1,18 +1,23 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
+import { createHost } from "@slock/core";
+import { setHost, solidReactive } from "@slock/core/solid";
+import { createFakeEnv } from "@slock/core/testing";
 import { apiGet } from "../src/client";
 import { SlackError } from "../src/error";
 
-const realFetch = globalThis.fetch;
+let env = createFakeEnv();
+
+beforeEach(() => {
+  env = createFakeEnv();
+  setHost(createHost({ env, reactive: solidReactive }));
+});
 
 function respondWith(respond: () => Response | Promise<Response>) {
-  globalThis.fetch = Object.assign(() => Promise.resolve().then(respond), {
-    preconnect: realFetch.preconnect,
-  });
+  env.fetch.respond(
+    () => true,
+    () => Promise.resolve().then(respond),
+  );
 }
-
-afterEach(() => {
-  globalThis.fetch = realFetch;
-});
 
 describe("api client errors", () => {
   test("a transport failure is a network error", async () => {

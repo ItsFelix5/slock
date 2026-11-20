@@ -1,10 +1,4 @@
-import {
-  ifPresent,
-  mapMessage,
-  parseChannelId,
-  parseTs,
-  parseUserId,
-} from "@slock/slack";
+import { ifPresent, mapMessage, parseChannelId, parseTs, parseUserId } from "@slock/slack";
 import type {
   ActivityItem,
   ChannelId,

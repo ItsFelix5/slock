@@ -1,6 +1,7 @@
 import { clamp } from "@slock/core";
-import { createEffect, type JSX, onCleanup, onMount, Show } from "solid-js";
-import { Portal } from "solid-js/web";
+import type { JSX } from "@solidjs/web";
+import { Portal } from "@solidjs/web";
+import { createEffect, onSettled, Show } from "solid-js";
 import { useClickOutside } from "../../hooks/useClickOutside";
 import { useEscapeClose } from "../../hooks/useEscapeClose";
 import { FloatingMountContext } from "../floating/FloatingPanel";
@@ -18,14 +19,17 @@ export interface ContextMenuProps {
 }
 
 export default function ContextMenu(props: ContextMenuProps) {
-  createEffect(() => {
-    if (!props.open) return;
-    const previouslyFocused =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    onCleanup(() => {
-      if (previouslyFocused?.isConnected) previouslyFocused.focus();
-    });
-  });
+  createEffect(
+    () => props.open,
+    (isOpen) => {
+      if (!isOpen) return;
+      const previouslyFocused =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      return () => {
+        if (previouslyFocused?.isConnected) previouslyFocused.focus();
+      };
+    },
+  );
 
   return (
     <Show when={props.open}>
@@ -49,7 +53,7 @@ function ContextMenuPanel(props: {
 
   const roving = createMenuRovingFocus(() => ref);
 
-  onMount(() => {
+  onSettled(() => {
     if (!ref) return;
     ref.dataset.menuPanel = "";
     const rect = ref.getBoundingClientRect();
@@ -66,7 +70,7 @@ function ContextMenuPanel(props: {
 
   return (
     <div
-      class={`menu-panel context-menu ${props.class ?? ""}`}
+      class={["menu-panel context-menu", props.class]}
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -75,9 +79,7 @@ function ContextMenuPanel(props: {
       ref={ref}
       style={{ left: `${props.x}px`, top: `${props.y}px` }}
     >
-      <FloatingMountContext.Provider value={() => ref}>
-        {props.children}
-      </FloatingMountContext.Provider>
+      <FloatingMountContext value={() => ref}>{props.children}</FloatingMountContext>
     </div>
   );
 }

@@ -1,10 +1,8 @@
-import { createSignal } from "solid-js";
+import { createImmediateSignal } from "../immediateSignal";
 import { metricsAt } from "../keyframeMetrics";
+import { clampShape, type ThemePrefs, type ThemeShape } from "./themePrefs";
 
-export interface ThemeShape {
-  density: number;
-  roundness: number;
-}
+export type { ThemeShape } from "./themePrefs";
 
 type DensityMetrics = Record<
   | "avatarFontSize"
@@ -91,32 +89,27 @@ const DENSITY_KEYFRAMES: [number, DensityMetrics][] = [
 
 const ROUNDNESS_KEYFRAMES: [number, RoundnessMetrics][] = [
   [0, { controlRadius: 0, pillRadius: 0, radiusLg: 0, radiusMd: 0, radiusSm: 0 }],
-  [1, { controlRadius: 6, pillRadius: 999, radiusLg: 12, radiusMd: 8, radiusSm: 4 }],
-  [2, { controlRadius: 999, pillRadius: 999, radiusLg: 40, radiusMd: 26, radiusSm: 14 }],
+  [
+    1,
+    {
+      controlRadius: 6,
+      pillRadius: 999,
+      radiusLg: 12,
+      radiusMd: 8,
+      radiusSm: 4,
+    },
+  ],
+  [
+    2,
+    {
+      controlRadius: 999,
+      pillRadius: 999,
+      radiusLg: 40,
+      radiusMd: 26,
+      radiusSm: 14,
+    },
+  ],
 ];
-
-const THEME_SHAPE_KEY = "slock-theme-shape";
-
-function clampAxis(value: number): number {
-  return Math.min(2, Math.max(0, value));
-}
-
-function loadThemeShape(): ThemeShape {
-  try {
-    const stored = localStorage.getItem(THEME_SHAPE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (typeof parsed.density === "number" && typeof parsed.roundness === "number")
-        return { density: clampAxis(parsed.density), roundness: clampAxis(parsed.roundness) };
-    }
-  } catch {
-    localStorage.removeItem(THEME_SHAPE_KEY);
-  }
-
-  const shape = { density: 1, roundness: 1 };
-  localStorage.setItem(THEME_SHAPE_KEY, JSON.stringify(shape));
-  return shape;
-}
 
 function applyThemeShape(shape: ThemeShape) {
   const root = document.documentElement;
@@ -144,17 +137,19 @@ function applyThemeShape(shape: ThemeShape) {
   root.style.setProperty("--radius-pill", `${roundness.pillRadius}px`);
 }
 
-const [themeShape, setThemeShapeSignal] = createSignal(loadThemeShape());
-applyThemeShape(themeShape());
-
-export function setThemeShape(next: Partial<ThemeShape>): void {
-  const merged = {
-    density: clampAxis(next.density ?? themeShape().density),
-    roundness: clampAxis(next.roundness ?? themeShape().roundness),
+export function createThemeShape(pref: ThemePrefs["shape"]) {
+  const [themeShape, setThemeShapeSignal] = createImmediateSignal(pref.get());
+  applyThemeShape(themeShape());
+  return {
+    setThemeShape(next: Partial<ThemeShape>): void {
+      const merged = clampShape({
+        density: next.density ?? themeShape().density,
+        roundness: next.roundness ?? themeShape().roundness,
+      });
+      setThemeShapeSignal(merged);
+      pref.set(merged);
+      applyThemeShape(merged);
+    },
+    themeShape,
   };
-  setThemeShapeSignal(merged);
-  localStorage.setItem(THEME_SHAPE_KEY, JSON.stringify(merged));
-  applyThemeShape(merged);
 }
-
-export { themeShape };

@@ -1,6 +1,7 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { liveOnly } from "../../messages/client/api/deletedMessages";
+import { createIncomingShare } from "./api/incomingLinks";
 import { createMessageNavigation } from "./navigation";
 import { installPermalinkHandler } from "./permalinkHandler";
 import CopyChannelLinkItem from "./views/CopyChannelLinkItem";
@@ -15,6 +16,9 @@ const setup: Setup = (ctx) => {
       setActiveView: service("conversations").setActiveView,
     }),
   );
+  const share = createIncomingShare();
+  share.consumeShareTarget();
+  ctx.provide("message-links.share", share);
   installPermalinkHandler(ctx.use("message-links.loaded"));
   ctx.add("messages.menu", CopyLinkItem, { order: 10 });
   ctx.add(

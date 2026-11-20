@@ -1,1 +1,1 @@
-{ "id": "plugins", "core": true, "name": "Plugin manager", "requires": [] }
+{ "id": "plugins", "core": true, "name": "Plugin manager", "requires": ["shell"] }

@@ -1,23 +1,39 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { forAll, int, pick } from "@slock/core/testing";
-import { createRoot } from "solid-js";
+import { createRoot, flush } from "solid-js";
 import {
   focusCalls,
+  focusedId,
   follow,
   kinds,
   loadPanes,
   main,
   setFocusedId,
   side,
-} from "../../../../src/shell/client/store/paneTestKit";
+} from "./paneTestKit";
 
 const { createPanesSlice } = await loadPanes(mock.module);
+
+function settled(slice: ReturnType<typeof createPanesSlice>) {
+  const read =
+    <T>(reader: () => T) =>
+    () => {
+      flush();
+      return reader();
+    };
+  return {
+    ...slice,
+    activePaneId: read(slice.activePaneId),
+    focusedPrimaryContent: read(slice.focusedPrimaryContent),
+    panes: read(slice.panes),
+  };
+}
 
 function setup() {
   let dispose = () => {};
   const slice = createRoot((d) => {
     dispose = d;
-    return createPanesSlice(() => kinds);
+    return settled(createPanesSlice(() => kinds, focusedId));
   });
   const layout = () => slice.panes().map((pane) => pane.content);
   const total = () => slice.panes().reduce((sum, pane) => sum + pane.size, 0);

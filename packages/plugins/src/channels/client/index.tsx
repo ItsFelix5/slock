@@ -12,11 +12,11 @@ const setup: Setup = (ctx) => {
   const view = service("conversations");
   const store = createChannelsStore({
     activeView: view.activeView,
-    bootstrap: () => bootstrap.bootstrap.data,
+    bootstrap: () => bootstrap.bootstrap().data,
     decorators: ctx.use("channels.decorate"),
     mutateUserPrefs: bootstrap.mutateUserPrefs,
     setActiveView: view.setActiveView,
-    userPrefs: () => bootstrap.userPrefs.data,
+    userPrefs: () => bootstrap.userPrefs().data,
   });
   ctx.provide("channels", store);
   ctx.add(
@@ -53,7 +53,10 @@ const setup: Setup = (ctx) => {
     "realtime.handler",
     gatewayHandler(["channel_updated"], (event) => {
       for (const id of event.channels)
-        store.patchChannel(parseChannelId(id), { archived: event.updates.archived, topic: event.updates.topic });
+        store.patchChannel(parseChannelId(id), {
+          archived: event.updates.archived,
+          topic: event.updates.topic,
+        });
     }),
   );
   ctx.add(

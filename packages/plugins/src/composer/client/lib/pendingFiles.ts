@@ -1,25 +1,24 @@
-import { createEffect, createSignal } from "solid-js";
+import { createSignal } from "solid-js";
 import { startUpload } from "./attachUpload";
 
-const pendingFilesByDraft = new Map<string, File[]>();
-
-export function clearAllPendingFiles() {
-  pendingFilesByDraft.clear();
+export function createPendingFilesStore() {
+  const byDraft = new Map<string, File[]>();
+  return {
+    delete: (key: string) => byDraft.delete(key),
+    get: (key: string) => byDraft.get(key) ?? [],
+    set: (key: string, files: File[]) => byDraft.set(key, files),
+  };
 }
 
 export function createPendingFileState(opts: {
   disabled: () => boolean;
   draftKey: () => string | undefined;
+  store: ReturnType<typeof createPendingFilesStore>;
   uploadOnAttach: () => boolean;
 }) {
-  const [files, setFiles] = createSignal<File[]>([]);
-  let loadedKey: string | undefined;
-
-  createEffect(() => {
+  const [files, setFiles] = createSignal<File[]>(() => {
     const key = opts.draftKey();
-    if (key === loadedKey) return;
-    loadedKey = key;
-    setFiles(key ? (pendingFilesByDraft.get(key) ?? []) : []);
+    return key ? opts.store.get(key) : [];
   });
 
   const store = (next: File[]) => {
@@ -27,8 +26,8 @@ export function createPendingFileState(opts: {
     setFiles(next);
     const key = opts.draftKey();
     if (!key) return;
-    if (next.length > 0) pendingFilesByDraft.set(key, next);
-    else pendingFilesByDraft.delete(key);
+    if (next.length > 0) opts.store.set(key, next);
+    else opts.store.delete(key);
   };
 
   return {
@@ -37,7 +36,7 @@ export function createPendingFileState(opts: {
       store([...files(), ...Array.from(fileList)]);
     },
     clear(submittedKey: string) {
-      pendingFilesByDraft.delete(submittedKey);
+      opts.store.delete(submittedKey);
       if (opts.draftKey() === submittedKey) setFiles([]);
     },
     files,

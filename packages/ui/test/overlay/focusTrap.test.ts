@@ -28,7 +28,11 @@ describe("tabWrapTarget", () => {
     forAll(
       (random) => {
         const count = int(random, 1, 20);
-        return { count, index: int(random, 0, count - 1), backwards: random() < 0.5 };
+        return {
+          count,
+          index: int(random, 0, count - 1),
+          backwards: random() < 0.5,
+        };
       },
       ({ count, index, backwards }) => {
         const wrapped = tabWrapTarget(index, count, backwards);

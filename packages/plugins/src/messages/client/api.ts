@@ -1,7 +1,10 @@
 import type { BlockKitResolver } from "@slock/blockkit";
 import type { Attachment, ChannelId, Message, Ts, User, UserId } from "@slock/types";
-import type { Accessor, Component, JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import type { Accessor, Component } from "solid-js";
 import type { PaneContentOf } from "../../shell/client/api/types";
+import type { createMessageFocusRegistry } from "./api/messageFocus";
+import type { createScrollAnchors } from "./api/pane/scroll/rememberedAnchors";
 import type { createMessagesStore } from "./store";
 
 export type ThreadRef = { channelId: ChannelId; ts: Ts; highlightTs?: Ts };
@@ -65,7 +68,7 @@ export type MessageAuthorProps = {
 
 export type MessageAuthorClass = (props: MessageAuthorProps) => Accessor<string | undefined>;
 
-export type MessageHeaderProps = { id: string; kind: "channel" | "dm" };
+export type MessageHeaderProps = { id: ChannelId; kind: "channel" | "dm" };
 
 export type MessageTakeover = {
   active: (view: MessageHeaderProps) => boolean;
@@ -111,5 +114,7 @@ declare module "@slock/core/types" {
   }
   interface Services {
     messages: ReturnType<typeof createMessagesStore>;
+    "messages.anchors": ReturnType<typeof createScrollAnchors>;
+    "messages.focus": ReturnType<typeof createMessageFocusRegistry>;
   }
 }

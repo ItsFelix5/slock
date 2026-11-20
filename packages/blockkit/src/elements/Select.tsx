@@ -1,7 +1,7 @@
 import { usePoint } from "@slock/core/solid";
 import type { Option, SelectElement } from "@slock/types";
 import { Combobox, type ComboboxOption, fuzzySearch } from "@slock/ui";
-import { createSignal, onMount } from "solid-js";
+import { createSignal, onSettled } from "solid-js";
 import { fetchExternalOptions } from "../actions/blockActions";
 import type { BlockActionContext } from "../BlockKit";
 import type { EntityKind } from "../entitySource";
@@ -9,7 +9,11 @@ import { flattenOptions, optionKey, optionPayload, toComboboxOption } from "./op
 
 type SelectKind = EntityKind | "external" | "static";
 
-const ENTITY_KEY = { channels: "channel", conversations: "conversation", users: "user" } as const;
+const ENTITY_KEY = {
+  channels: "channel",
+  conversations: "conversation",
+  users: "user",
+} as const;
 const DEFAULT_MIN_QUERY = 3;
 
 function kindOf(type: string): SelectKind {
@@ -108,7 +112,7 @@ export default function Select(props: {
     );
   };
 
-  onMount(() => {
+  onSettled(() => {
     if (currentDefault()) props.dispatch(payload(selected()));
   });
 

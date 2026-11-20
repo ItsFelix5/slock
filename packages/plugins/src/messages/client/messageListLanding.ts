@@ -1,13 +1,14 @@
 import { service } from "@slock/core/solid";
-import type { Message } from "@slock/types";
+import type { ChannelId, Message } from "@slock/types";
 import { createEffect, onCleanup, untrack } from "solid-js";
 import type { ChannelMessageTarget, View } from "../../conversations/client/api/types";
 import type { FeedScroll } from "./api/pane/scroll/feedScroll";
-import { getRememberedScrollAnchor } from "./api/pane/scroll/rememberedAnchors";
+import { tsFromMs, tsToMs } from "./lib/tsTime";
 import { findUnreadDividerIndex } from "./lib/unreadDivider";
 
 const unreadStore = service("unread");
 const messagesStore = service("messages");
+const scrollAnchors = service("messages.anchors");
 
 const DIVIDER_WAIT_MS = 3000;
 
@@ -20,8 +21,8 @@ export function createMessageListLanding(deps: {
   paneView: () => View | null;
 }) {
   const { feed } = deps;
-  let lastViewId: string | undefined;
-  let positionedViewId: string | undefined;
+  let lastViewId: ChannelId | undefined;
+  let positionedViewId: ChannelId | undefined;
   let requestedMessageTarget: ChannelMessageTarget | null = null;
   let dividerWait: ReturnType<typeof setTimeout> | undefined;
 
@@ -30,7 +31,7 @@ export function createMessageListLanding(deps: {
   function landOnDivider(view: View, anchor: number, windowLoaded: boolean) {
     const msgs = deps.messages();
     const [first] = msgs;
-    const anchorAboveWindow = first && parseFloat(first.ts) * 1000 > anchor;
+    const anchorAboveWindow = first && tsToMs(first.ts) > anchor;
     if (!windowLoaded && anchorAboveWindow && messagesStore.hasMoreHistory(view.id)) {
       void loadWindowAroundAnchor(view, anchor);
       return;
@@ -41,7 +42,7 @@ export function createMessageListLanding(deps: {
   }
 
   async function loadWindowAroundAnchor(view: View, anchor: number) {
-    const ok = await messagesStore.jumpToTs(view.id, (anchor / 1000).toFixed(6));
+    const ok = await messagesStore.jumpToTs(view.id, tsFromMs(anchor));
     if (ok) await messagesStore.loadNewerMessages(view.id);
     if (deps.paneView()?.id !== view.id) return;
     if (ok) landOnDivider(view, anchor, true);
@@ -49,7 +50,7 @@ export function createMessageListLanding(deps: {
   }
 
   function landOnRememberedOrBottom(view: View) {
-    const remembered = getRememberedScrollAnchor(view.id);
+    const remembered = scrollAnchors.get(view.id);
     if (remembered && deps.messages().some((m) => m.ts === remembered.ts))
       feed.land({ at: "offset", ...remembered });
     else landOnBottom();
@@ -65,7 +66,7 @@ export function createMessageListLanding(deps: {
   }
   onCleanup(() => clearTimeout(dividerWait));
 
-  function landOnFirstMessage(jump: (viewId: string) => Promise<boolean>) {
+  function landOnFirstMessage(jump: (viewId: ChannelId) => Promise<boolean>) {
     const view = deps.paneView();
     if (!view) return;
     void jump(view.id).then((ok) => {
@@ -106,22 +107,32 @@ export function createMessageListLanding(deps: {
     else landOnRememberedOrBottom(view);
   }
 
-  createEffect(() => {
-    const view = deps.paneView();
-    const msgs = deps.messages();
-    if (view?.id !== lastViewId) {
-      lastViewId = view?.id;
-      positionedViewId = undefined;
-      clearTimeout(dividerWait);
-      dividerWait = undefined;
-      deps.onViewSwitch();
-    }
-    if (!(view && feed.element())) return;
+  createEffect(
+    () => {
+      const view = deps.paneView();
+      return {
+        anchor: view && unreadStore.unreadDividerTsForChannel(view.id),
+        hasElement: !!feed.element(),
+        hasNewer: view && messagesStore.hasNewerHistory(view.id),
+        msgs: deps.messages(),
+        target: deps.messageTarget(),
+        view,
+      };
+    },
+    ({ hasElement, msgs, target, view }) => {
+      if (view?.id !== lastViewId) {
+        lastViewId = view?.id;
+        positionedViewId = undefined;
+        clearTimeout(dividerWait);
+        dividerWait = undefined;
+        deps.onViewSwitch();
+      }
+      if (!(view && hasElement)) return;
 
-    const target = deps.messageTarget();
-    if (target?.channelId === view.id) landOnTarget(view, target, msgs);
-    else if (positionedViewId !== view.id && msgs.length > 0) landInitially(view);
-  });
+      if (target?.channelId === view.id) landOnTarget(view, target, msgs);
+      else if (positionedViewId !== view.id && msgs.length > 0) landInitially(view);
+    },
+  );
 
   return {
     jumpToBeginning: () => landOnFirstMessage(messagesStore.jumpToBeginning),

@@ -1,5 +1,6 @@
 import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { isChannelId } from "@slock/slack";
 import { listNavigationIndex, useEditShortcuts, useListShortcuts } from "@slock/ui";
 import Quill from "@slock/ui/editor/quill";
 import { indexAlignedText } from "@slock/ui/editor/quillText";
@@ -27,8 +28,9 @@ function resolveTokenLabel(token: string): string {
   }
   const channelMatch = token.match(CHANNEL_TOKEN_RE);
   if (channelMatch) {
-    const [, id] = channelMatch;
-    return `in:#${channelsStore.channelById(defined(id))?.name ?? id}`;
+    const id = defined(channelMatch[1]);
+    const channel = isChannelId(id) ? channelsStore.channelById(id) : undefined;
+    return `in:#${channel?.name ?? id}`;
   }
   return token;
 }

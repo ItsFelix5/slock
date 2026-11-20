@@ -1,7 +1,7 @@
 import { service, usePoint } from "@slock/core/solid";
-import { ResizeHandle, useTabStripShortcuts } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { ariaBoolean, ResizeHandle, useTabStripShortcuts } from "@slock/ui";
+import { dynamic } from "@solidjs/web";
+import { createComponent, createEffect, createMemo, createSignal, For } from "solid-js";
 import type { SidebarNavItem } from "../api";
 import "./Sidebar.css";
 import SidebarToolbar from "./SidebarToolbar";
@@ -19,9 +19,13 @@ export default function Sidebar(props: { onWidth: (width: number) => void }) {
   const tabs = createMemo(() => items().filter((item) => !item.hidden));
   const active = createMemo(() => items().find((item) => item.id === sidebar.nav()));
   const feedMode = () => !!active()?.feed;
+  const ActiveView = dynamic(() => active()?.view);
   const [width, setWidth] = createSignal(DEFAULT_WIDTH);
   const [feedWidth, setFeedWidth] = createSignal(FEED_DEFAULT_WIDTH);
-  createEffect(() => props.onWidth(feedMode() ? feedWidth() : width()));
+  createEffect(
+    () => (feedMode() ? feedWidth() : width()),
+    (current) => props.onWidth(current),
+  );
 
   const select = (item: SidebarNavItem) => {
     if (item.select) item.select(sidebar.nav() === item.id);
@@ -40,8 +44,7 @@ export default function Sidebar(props: { onWidth: (width: number) => void }) {
 
   return (
     <div
-      class="sidebar flex-col"
-      classList={{ feed: feedMode() }}
+      class={["sidebar flex-col", { feed: feedMode() }]}
       data-pane="sidebar"
       style={{ width: `${feedMode() ? feedWidth() : width()}px` }}
     >
@@ -60,23 +63,29 @@ export default function Sidebar(props: { onWidth: (width: number) => void }) {
           {(item, index) => (
             <button
               aria-label={item.label}
-              aria-selected={sidebar.nav() === item.id}
-              class="sidebar-nav-btn btn-reset flex-center hover-hl"
-              classList={{ active: sidebar.nav() === item.id }}
+              aria-selected={ariaBoolean(sidebar.nav() === item.id)}
+              class={[
+                "sidebar-nav-btn btn-reset flex-center hover-hl",
+                { active: sidebar.nav() === item.id },
+              ]}
               onClick={() => select(item)}
               ref={(el) => {
                 navTabRefs[index()] = el;
               }}
               role="tab"
-              tabIndex={sidebar.nav() === item.id || (!active() && index() === 0) ? 0 : -1}
+              tabindex={sidebar.nav() === item.id || (!active() && index() === 0) ? 0 : -1}
               type="button"
             >
-              <Dynamic active={sidebar.nav() === item.id} component={item.button} />
+              {createComponent(item.button, {
+                get active() {
+                  return sidebar.nav() === item.id;
+                },
+              })}
             </button>
           )}
         </For>
       </div>
-      <Dynamic component={active()?.view} />
+      <ActiveView />
     </div>
   );
 }

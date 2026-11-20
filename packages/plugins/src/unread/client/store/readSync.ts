@@ -1,9 +1,10 @@
 import type { Services } from "@slock/core/types";
+import type { ChannelId, Ts } from "@slock/types";
 import { createLatestValueSync } from "../../../query/client/api";
 
 export type ReadApi = {
-  markChannelRead: (channelId: string, ts: string) => Promise<unknown>;
-  markThreadRead: (channelId: string, threadTs: string, ts: string) => Promise<unknown>;
+  markChannelRead: (channelId: ChannelId, ts: Ts) => Promise<unknown>;
+  markThreadRead: (channelId: ChannelId, threadTs: Ts, ts: Ts) => Promise<unknown>;
 };
 
 const hasErrorCode = (error: unknown, code: string) =>
@@ -15,19 +16,19 @@ const isThreadGoneError = (error: unknown) =>
 export function createReadSync(api: ReadApi, flash: Services["feedback"]["flash"]) {
   const sentReadTs: Record<string, { all: Set<string>; latest: string }> = {};
 
-  function recordSentRead(channelId: string, ts: string) {
+  function recordSentRead(channelId: ChannelId, ts: Ts) {
     const sent = sentReadTs[channelId] ?? { all: new Set(), latest: ts };
     sentReadTs[channelId] = sent;
     sent.all.add(ts);
     sent.latest = ts;
   }
 
-  function isStaleReadEcho(channelId: string, ts: string) {
+  function isStaleReadEcho(channelId: ChannelId, ts: Ts) {
     const sent = sentReadTs[channelId];
     return !!sent && sent.all.has(ts) && sent.latest !== ts;
   }
 
-  const channelSync = createLatestValueSync<{ channelId: string; ts: string }>({
+  const channelSync = createLatestValueSync<{ channelId: ChannelId; ts: Ts }>({
     key: (cursor) => cursor.channelId,
     onError: (cursor, error) => {
       if (isChannelGoneError(error)) return true;
@@ -40,7 +41,7 @@ export function createReadSync(api: ReadApi, flash: Services["feedback"]["flash"
     },
   });
 
-  const threadSync = createLatestValueSync<{ channelId: string; threadTs: string; ts: string }>({
+  const threadSync = createLatestValueSync<{ channelId: ChannelId; threadTs: Ts; ts: Ts }>({
     key: (cursor) => `${cursor.channelId}:${cursor.threadTs}`,
     onError: (cursor, error) => {
       if (isThreadGoneError(error)) return true;
@@ -55,17 +56,17 @@ export function createReadSync(api: ReadApi, flash: Services["feedback"]["flash"
 
   return {
     isStaleReadEcho,
-    setChannelRead(channelId: string, ts: string) {
+    setChannelRead(channelId: ChannelId, ts: Ts) {
       recordSentRead(channelId, ts);
       return channelSync.force({ channelId, ts });
     },
-    setThreadRead: (channelId: string, threadTs: string, ts: string) =>
+    setThreadRead: (channelId: ChannelId, threadTs: Ts, ts: Ts) =>
       threadSync.force({ channelId, threadTs, ts }),
-    syncChannelRead(channelId: string, ts: string) {
+    syncChannelRead(channelId: ChannelId, ts: Ts) {
       recordSentRead(channelId, ts);
       return channelSync.requestLatest({ channelId, ts });
     },
-    syncThreadRead: (channelId: string, threadTs: string, ts: string) =>
+    syncThreadRead: (channelId: ChannelId, threadTs: Ts, ts: Ts) =>
       threadSync.requestLatest({ channelId, threadTs, ts }),
   };
 }

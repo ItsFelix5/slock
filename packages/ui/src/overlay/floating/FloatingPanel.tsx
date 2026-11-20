@@ -1,19 +1,9 @@
 import { clamp } from "@slock/core";
-import {
-  createContext,
-  createEffect,
-  getOwner,
-  type JSX,
-  onCleanup,
-  runWithOwner,
-  Show,
-  useContext,
-} from "solid-js";
-import { Portal } from "solid-js/web";
+import type { JSX } from "@solidjs/web";
+import { Portal } from "@solidjs/web";
+import { createContext, createEffect, Show, untrack, useContext } from "solid-js";
 
-export const FloatingMountContext = createContext<() => Element | undefined>();
-
-
+export const FloatingMountContext = createContext<() => Element | undefined>(() => undefined);
 export type VerticalPlacement = "top" | "bottom";
 export type HorizontalPlacement = "left" | "right";
 export type Placement = VerticalPlacement | HorizontalPlacement;
@@ -63,7 +53,7 @@ export interface FloatingPanelProps {
   align?: FloatingAlign;
   anchor: () => HTMLElement | undefined;
   children: JSX.Element;
-  class?: string;
+  class?: JSX.ClassValue;
   gap?: number;
   onFocusOut?: JSX.EventHandlerUnion<HTMLDivElement, FocusEvent>;
   onKeyDown?: JSX.EventHandlerUnion<HTMLDivElement, KeyboardEvent>;
@@ -84,7 +74,6 @@ export default function FloatingPanel(props: FloatingPanelProps) {
   let frame: number | undefined;
   let resizeObserver: ResizeObserver | undefined;
   const parentMount = useContext(FloatingMountContext);
-  const owner = getOwner();
 
   const position = () => {
     const anchorElement = props.anchor();
@@ -132,7 +121,7 @@ export default function FloatingPanel(props: FloatingPanelProps) {
     cancelAnimationFrame(frame ?? 0);
     frame = requestAnimationFrame(() => {
       frame = undefined;
-      runWithOwner(owner, position);
+      position();
     });
   };
 
@@ -155,32 +144,35 @@ export default function FloatingPanel(props: FloatingPanelProps) {
     props.onScroll?.();
   };
 
-  createEffect(() => {
-    props.anchor();
-    schedulePosition();
-  });
+  createEffect(
+    () => props.anchor(),
+    () => untrack(schedulePosition),
+  );
 
-  const onResize = () => runWithOwner(owner, schedulePosition);
-  const onWindowScroll = (e: Event) => runWithOwner(owner, () => handleScroll(e));
+  const onResize = () => schedulePosition();
+  const onWindowScroll = (e: Event) => handleScroll(e);
 
-  createEffect(() => {
-    if (!props.open) return;
-    window.addEventListener("resize", onResize);
-    if (props.onScroll) window.addEventListener("scroll", onWindowScroll, true);
-    onCleanup(() => {
-      cancelAnimationFrame(frame ?? 0);
-      resizeObserver?.disconnect();
-      resizeObserver = undefined;
-      panel = undefined;
-      props.panelRef?.(undefined);
-      window.removeEventListener("resize", onResize);
-      if (props.onScroll) window.removeEventListener("scroll", onWindowScroll, true);
-    });
-  });
+  createEffect(
+    () => props.open,
+    (isOpen) => {
+      if (!isOpen) return;
+      window.addEventListener("resize", onResize);
+      if (props.onScroll) window.addEventListener("scroll", onWindowScroll, true);
+      return () => {
+        cancelAnimationFrame(frame ?? 0);
+        resizeObserver?.disconnect();
+        resizeObserver = undefined;
+        panel = undefined;
+        props.panelRef?.(undefined);
+        window.removeEventListener("resize", onResize);
+        if (props.onScroll) window.removeEventListener("scroll", onWindowScroll, true);
+      };
+    },
+  );
 
   return (
     <Show when={props.open && props.anchor()}>
-      <Portal mount={parentMount?.() ?? document.body}>
+      <Portal mount={parentMount() ?? document.body}>
         <div
           class={props.class}
           onClick={props.onClick}
@@ -189,16 +181,18 @@ export default function FloatingPanel(props: FloatingPanelProps) {
           onMouseDown={props.onMouseDown}
           onMouseEnter={props.onMouseEnter}
           onMouseLeave={props.onMouseLeave}
-          ref={(element) => {
-            panel = element;
-            props.panelRef?.(element);
-            resizeObserver?.disconnect();
-            resizeObserver = new ResizeObserver(() => runWithOwner(owner, schedulePosition));
-            resizeObserver.observe(element);
-            const anchorElement = props.anchor();
-            if (anchorElement) resizeObserver.observe(anchorElement);
-            schedulePosition();
-          }}
+          ref={(element) =>
+            untrack(() => {
+              panel = element;
+              props.panelRef?.(element);
+              resizeObserver?.disconnect();
+              resizeObserver = new ResizeObserver(() => schedulePosition());
+              resizeObserver.observe(element);
+              const anchorElement = props.anchor();
+              if (anchorElement) resizeObserver.observe(anchorElement);
+              schedulePosition();
+            })
+          }
           style={{
             ...props.style,
             left: "0",
@@ -207,9 +201,7 @@ export default function FloatingPanel(props: FloatingPanelProps) {
             visibility: "hidden",
           }}
         >
-          <FloatingMountContext.Provider value={() => panel}>
-            {props.children}
-          </FloatingMountContext.Provider>
+          <FloatingMountContext value={() => panel}>{props.children}</FloatingMountContext>
         </div>
       </Portal>
     </Show>

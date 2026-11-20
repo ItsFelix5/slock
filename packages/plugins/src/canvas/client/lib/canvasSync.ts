@@ -1,6 +1,5 @@
 import type { CanvasControl, CanvasEdit, CanvasNode } from "@slock/types";
 import type { Op } from "@slock/ui/editor/quill";
-import { createSignal } from "solid-js";
 import type { CanvasEmbed } from "../../protocol/api";
 import { newSectionId } from "../../protocol/api";
 import { type CanvasSnapshot, diffSnapshots } from "./canvasDiff";
@@ -94,8 +93,7 @@ function annotationIds(nodes: CanvasNode[]): string[] {
 }
 
 export function createCanvasSync(options: CanvasSyncOptions) {
-  const [status, setStatus] = createSignal<CanvasSaveStatus>("saved");
-  const [failure, setFailure] = createSignal<string | null>(null);
+  let status: CanvasSaveStatus = "saved";
   const controlKeys = new Map<string, string>();
   for (const [id, embed] of options.embeds) controlKeys.set(id, embedKey(embed, id));
   const retired = new Set<string>();
@@ -161,22 +159,20 @@ export function createCanvasSync(options: CanvasSyncOptions) {
       return inflight;
     }
     clearTimeout(timer);
-    setStatus("saving");
+    status = "saving";
     inflight = save()
       .then(() => {
         attempts = 0;
-        setFailure(null);
-        setStatus(changedWhileSaving ? "dirty" : "saved");
+        status = changedWhileSaving ? "dirty" : "saved";
       })
       .catch((error: unknown) => {
         const code = error instanceof CanvasEditError ? error.code : "network";
-        setFailure(code);
         if (CONFLICT_CODES.has(code)) {
-          setStatus("conflict");
+          status = "conflict";
           return;
         }
         attempts += 1;
-        setStatus("error");
+        status = "error";
         changedWhileSaving = false;
         if (!(disposed || PERMANENT_CODES.has(code)))
           schedule(Math.min(RETRY_BASE_MS * 2 ** (attempts - 1), RETRY_MAX_MS));
@@ -185,7 +181,7 @@ export function createCanvasSync(options: CanvasSyncOptions) {
         inflight = null;
         const again = changedWhileSaving;
         changedWhileSaving = false;
-        if (again && status() !== "conflict" && !disposed) schedule(0);
+        if (again && status !== "conflict" && !disposed) schedule(0);
       });
     return inflight;
   }
@@ -202,16 +198,6 @@ export function createCanvasSync(options: CanvasSyncOptions) {
     });
     const next = { entries: remote.entries, title: remoteTitle };
     const edit = diffSnapshots(baseline, next, []);
-    if (edit)
-      console.debug("[canvas-debug] remote diff", {
-        deleted: edit.deleted,
-        title: edit.title,
-        upserts: edit.upserts.map(({ after, node }) => ({
-          after,
-          id: node.id,
-          html: "html" in node ? node.html : node.kind,
-        })),
-      });
     return edit !== null;
   }
 
@@ -221,25 +207,24 @@ export function createCanvasSync(options: CanvasSyncOptions) {
       disposed = true;
       clearTimeout(timer);
     },
-    failure,
     flush: async () => {
-      if (status() === "saved" || status() === "conflict") return;
+      if (status === "saved" || status === "conflict") return;
       await run();
     },
-    isPending: () => status() === "dirty" || status() === "saving" || status() === "error",
+    isPending: () => status === "dirty" || status === "saving" || status === "error",
     markDirty() {
-      if (status() === "conflict") return;
+      if (status === "conflict") return;
       if (inflight) {
         changedWhileSaving = true;
         return;
       }
-      setStatus("dirty");
+      status = "dirty";
       schedule(SAVE_DELAY_MS);
     },
     retry: () => {
       attempts = 0;
       return run();
     },
-    status,
+    status: () => status,
   };
 }

@@ -8,16 +8,15 @@ export function MessageAuthorButton(props: {
 }) {
   return (
     <button
-      class="message-author btn-reset"
-      classList={{
-        truncate: props.truncate,
-        disabled: props.disabled,
-        [props.class ?? ""]: !!props.class,
-      }}
+      class={[
+        "message-author btn-reset",
+        { truncate: props.truncate, disabled: props.disabled },
+        props.class,
+      ]}
       onClick={() => {
         if (!props.disabled) props.onClick();
       }}
-      tabIndex={props.disabled || props.tabbable === false ? -1 : 0}
+      tabindex={props.disabled || props.tabbable === false ? -1 : 0}
       type="button"
     >
       {props.name}

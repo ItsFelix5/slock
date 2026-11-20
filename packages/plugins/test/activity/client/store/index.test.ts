@@ -1,38 +1,40 @@
 import { describe, expect, test } from "bun:test";
+import { systemEnv } from "@slock/core";
+import { ch, stamp, uid } from "@slock/slack/testing";
 import type { ActivityItem, Message, User } from "@slock/types";
 import { createRoot } from "solid-js";
 import { createActivityStore } from "../../../../src/activity/client/store/index";
 
-const me: User = { avatarColor: "", id: "U1", name: "me" };
+const me: User = { avatarColor: "", id: uid("U1"), name: "me" };
 
-const reactedMessage = (users: string[]): Message => ({
+const reactedMessage = (users: ReturnType<typeof uid>[]): Message => ({
   day: "",
-  id: "m1",
+  id: stamp("1.1"),
   kind: "normal",
   reactions: [{ count: users.length, name: "tada", users }],
   text: "",
   time: "",
-  ts: "3.3",
-  userId: "U2",
+  ts: stamp("3.3"),
+  userId: uid("U2"),
 });
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 const reminder: ActivityItem = {
   activityType: "saved_reminder",
-  channelId: "C1",
-  feedTs: "9.9",
+  channelId: ch("C1"),
+  feedTs: stamp("9.9"),
   id: "reminder:Rm1",
   kind: "other",
   linkedItemId: "Rm1",
   text: "Review",
   time: 1,
-  ts: "3.3",
+  ts: stamp("3.3"),
   unread: true,
-  userId: "U2",
+  userId: uid("U2"),
 };
 
-function setup(options: { failArchive?: boolean; reactedBy?: string[] } = {}) {
+function setup(options: { failArchive?: boolean; reactedBy?: ReturnType<typeof uid>[] } = {}) {
   const archived: unknown[][] = [];
   const marked: unknown[][] = [];
   const store = createRoot(() =>
@@ -40,7 +42,9 @@ function setup(options: { failArchive?: boolean; reactedBy?: string[] } = {}) {
       {
         clearChannelUnread: () => {},
         currentUser: () => me,
+        env: systemEnv,
         lastReadByChannel: {},
+        ready: () => false,
         reactionMessageFor: () => reactedMessage(options.reactedBy ?? []),
         setLastReadByChannel: () => {},
         syncChannelRead: () => Promise.resolve(true),
@@ -101,7 +105,7 @@ describe("archiveActivity", () => {
   });
 
   test("a reaction I also gave counts as archived without a request", async () => {
-    const { archived, store } = setup({ reactedBy: ["U1"] });
+    const { archived, store } = setup({ reactedBy: [uid("U1")] });
     const reaction: ActivityItem = { ...reminder, activityType: undefined, kind: "reaction" };
     expect(store.isActivityItemArchived(reaction)).toBe(true);
     await store.archiveActivity(reaction);

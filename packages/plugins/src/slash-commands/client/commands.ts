@@ -1,0 +1,17 @@
+import { apiGet } from "@slock/slack";
+import { defineQuery } from "../../query/client/api";
+
+export interface SlashCommand {
+  desc: string;
+  icon: string | null;
+  name: string;
+}
+
+export const slashCommands = defineQuery<null, SlashCommand[]>({
+  load: async () => {
+    const data = await apiGet<{ commands?: SlashCommand[] }>("/api/commands");
+    if (!data.ok) throw new Error(data.error ?? "fetching commands failed");
+    return data.commands ?? [];
+  },
+  name: "slashCommands",
+});

@@ -1,6 +1,7 @@
 import { EmojiText } from "@slock/blockkit";
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { isChannelId, isFileId } from "@slock/slack";
 import { narrowPaneContent, type Pane } from "@slock/ui";
 import { createEffect, lazy, Show } from "solid-js";
 import { gatewayHandler } from "../../realtime/client/api";
@@ -26,28 +27,32 @@ const setup: Setup = (ctx) => {
   const store = createCanvasStore({ panes });
   ctx.provide("canvas", store);
   const requestedTitles = new Set<string>();
-  createEffect(() => {
-    for (const { content, id } of panes.panes()) {
-      if (content?.kind !== "canvas" || content.title) continue;
-      const { fileId } = content;
-      if (requestedTitles.has(`${id}:${fileId}`)) continue;
-      requestedTitles.add(`${id}:${fileId}`);
-      void fetchCanvasTitle(fileId).then((title) => {
-        if (title) panes.setPaneContent(id, { fileId, kind: "canvas", title });
-      });
-    }
-  });
+  createEffect(
+    () => panes.panes(),
+    (open) => {
+      for (const { content, id } of open) {
+        if (content?.kind !== "canvas" || content.title) continue;
+        const { fileId } = content;
+        if (requestedTitles.has(`${id}:${fileId}`)) continue;
+        requestedTitles.add(`${id}:${fileId}`);
+        void fetchCanvasTitle(fileId).then((title) => {
+          if (title) panes.setPaneContent(id, { fileId, kind: "canvas", title });
+        });
+      }
+    },
+  );
   ctx.onCleanup(openCanvasLinksOnClick(store.openCanvasPane));
   ctx.add("realtime.handler", {
     run: (event) => {
-      if (event.type === "canvas_created" && event.channel_id)
+      if (event.type === "canvas_created" && event.channel_id && isChannelId(event.channel_id))
         store.invalidateChannel(event.channel_id);
     },
     types: ["canvas_created"],
   });
   ctx.add("realtime.handler", {
     run: (event) => {
-      if ("file_id" in event && event.file_id) store.noteRemoteChange(event.file_id);
+      if ("file_id" in event && event.file_id && isFileId(event.file_id))
+        store.noteRemoteChange(event.file_id);
     },
     types: ["document_change", "document_update", "file_change"],
   });
@@ -55,7 +60,7 @@ const setup: Setup = (ctx) => {
     "realtime.handler",
     gatewayHandler(["message", "reaction_added", "reaction_removed"], (event) => {
       const channelId = event.type === "message" ? event.channel : event.item.channel;
-      if (channelId) refreshCommentsForChannel(channelId);
+      if (channelId && isChannelId(channelId)) refreshCommentsForChannel(channelId);
     }),
   );
   ctx.add("messages.blockKit", {
@@ -70,7 +75,7 @@ const setup: Setup = (ctx) => {
       tabLabel: (content) => (content.kind === "canvas" ? <EmojiText text={content.title} /> : "…"),
       url: {
         parse: (segment) =>
-          segment.startsWith("F") ? { fileId: segment, kind: "canvas", title: "" } : null,
+          isFileId(segment) ? { fileId: segment, kind: "canvas", title: "" } : null,
         serialize: (content) => (content.kind === "canvas" ? content.fileId : ""),
       },
       view: CanvasView,

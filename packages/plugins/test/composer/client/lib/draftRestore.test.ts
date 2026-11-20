@@ -3,6 +3,7 @@ import { createHost } from "@slock/core";
 import { setHost, solidReactive } from "@slock/core/solid";
 import { partialService, seededRandom } from "@slock/core/testing";
 import type { Services } from "@slock/core/types";
+import { parseUserId } from "@slock/slack";
 import type { Block } from "@slock/types";
 import type { DeltaOp } from "../../../../src/composer/client/lib/deltaLines";
 import { buildRichTextBlocks } from "../../../../src/composer/client/lib/richTextBuild";
@@ -19,7 +20,7 @@ beforeAll(async () => {
         ctx.provide(
           "users",
           partialService<Services["users"]>({
-            userById: (id) => ({ avatarColor: "#000", id, name: `user-${id}` }),
+            userById: (id) => ({ avatarColor: "#000", id: parseUserId(id), name: `user-${id}` }),
           }),
         ),
     },

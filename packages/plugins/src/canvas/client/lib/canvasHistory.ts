@@ -1,8 +1,10 @@
 import { service } from "@slock/core/solid";
-import type { CanvasVersion } from "@slock/types";
-import { createEffect, createMemo, createSignal, on } from "solid-js";
-import { createKeyedQuery, defineKey } from "../../../query/client/api";
-import { diffNodes } from "../../protocol/api";
+import type { CanvasVersion, FileId } from "@slock/types";
+import { createResetSignal } from "@slock/ui";
+import { createMemo, createSignal } from "solid-js";
+import { defineQuery } from "../../../query/client/api";
+import { type CanvasMeta, diffNodes } from "../../protocol/api";
+import type { CanvasDocModel } from "./canvasDelta";
 import {
   fetchCanvasVersion,
   fetchCanvasVersions,
@@ -12,50 +14,57 @@ import {
 import { olderVersion } from "./canvasVersions";
 
 const feedback = service("feedback");
-const versionsKey = defineKey<[string]>("canvasVersions");
-const versionKey = defineKey<[string, string, string | null]>("canvasVersion");
+
+interface ViewingRef {
+  fileId: FileId;
+  meta: CanvasMeta;
+  older: CanvasVersion | undefined;
+  version: CanvasVersion;
+}
+
+const canvasVersions = defineQuery<FileId, CanvasVersion[]>({
+  load: fetchCanvasVersions,
+  name: "canvasVersions",
+});
+
+const canvasVersionView = defineQuery<
+  ViewingRef,
+  { doc: CanvasDocModel; previous: CanvasDocModel | null } | null
+>({
+  load: async ({ fileId, meta, older, version }) => {
+    const [doc, previous] = await Promise.all([
+      fetchCanvasVersion(fileId, version, meta),
+      older ? fetchCanvasVersion(fileId, older, meta) : null,
+    ]);
+    return doc ? { doc, previous } : null;
+  },
+  name: "canvasVersion",
+});
 
 export function createCanvasHistory(
-  fileId: () => string,
+  fileId: () => FileId,
   content: () => LoadedCanvas | null | undefined,
   reload: () => unknown,
 ) {
-  const [open, setOpen] = createSignal(false);
-  const [selected, setSelected] = createSignal<CanvasVersion | null>(null);
+  const [open, setOpen] = createResetSignal(fileId, false);
+  const [selected, setSelected] = createResetSignal<CanvasVersion | null>(fileId, null);
   const [restoring, setRestoring] = createSignal(false);
-  const versions = createKeyedQuery(() =>
-    open() || selected()
-      ? { queryFn: () => fetchCanvasVersions(fileId()), queryKey: versionsKey(fileId()) }
-      : undefined,
-  );
-  const viewing = createKeyedQuery(() => {
+  const versions = canvasVersions.state(() => (open() || selected() ? fileId() : undefined));
+  const viewing = canvasVersionView.state(() => {
     const version = selected();
     const meta = content()?.doc?.meta;
-    const list = versions.data ?? [];
     if (!(version && meta)) return;
-    const older = olderVersion(list, version);
     return {
-      queryFn: async () => {
-        const [doc, previous] = await Promise.all([
-          fetchCanvasVersion(fileId(), version, meta),
-          older ? fetchCanvasVersion(fileId(), older, meta) : null,
-        ]);
-        return doc ? { doc, previous } : null;
-      },
-      queryKey: versionKey(fileId(), version.versionId, older?.versionId ?? null),
+      fileId: fileId(),
+      meta,
+      older: olderVersion(versions().data ?? [], version),
+      version,
     };
   });
   const diff = createMemo(() => {
-    const view = viewing.data;
+    const view = viewing().data;
     return view ? diffNodes(view.previous?.nodes ?? [], view.doc.nodes) : undefined;
   });
-
-  createEffect(
-    on(fileId, () => {
-      setOpen(false);
-      setSelected(null);
-    }),
-  );
 
   function close() {
     setOpen(false);

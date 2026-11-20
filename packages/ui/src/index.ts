@@ -1,5 +1,10 @@
+export { ariaBoolean } from "./ariaBoolean";
 export type { AvatarUser } from "./avatar/Avatar";
-export { AvatarImage, DEFAULT_AVATAR_COLOR, default as Avatar } from "./avatar/Avatar";
+export {
+  AvatarImage,
+  DEFAULT_AVATAR_COLOR,
+  default as Avatar,
+} from "./avatar/Avatar";
 export { default as AvatarStack } from "./avatar/AvatarStack";
 export { default as AddRowButton } from "./button/AddRowButton";
 export { default as Button } from "./button/Button";
@@ -36,7 +41,11 @@ export { fuzzySearch } from "./fuzzy";
 export { useClickOutside } from "./hooks/useClickOutside";
 export { useDeferredMount } from "./hooks/useDeferredMount";
 export { useElementVisible } from "./hooks/useElementVisible";
-export { useCancelShortcut, useCloseShortcut, useEscapeClose } from "./hooks/useEscapeClose";
+export {
+  useCancelShortcut,
+  useCloseShortcut,
+  useEscapeClose,
+} from "./hooks/useEscapeClose";
 export { useHoverIntent } from "./hooks/useHoverIntent";
 export {
   useConfirmShortcut,
@@ -56,16 +65,22 @@ export {
   shortcutConflicts,
   useShortcut,
 } from "./hooks/useShortcut";
+export { createKeybindOverrides, installKeybindOverrides } from "./keybindOverrides";
 export {
-  clearKeybindOverride,
-  resetAllKeybinds,
-  setKeybindOverride,
-} from "./keybindOverrides";
-export { createKeyedAsyncCache } from "./keyedAsyncCache";
+  createKeyedAsyncCache,
+  type KeyedAsyncCache,
+  type KeyedCacheSetter,
+} from "./keyedAsyncCache";
 export { default as PanelHeader } from "./layout/PanelHeader";
-export { default as ResizeHandle, windowWidth } from "./layout/ResizeHandle";
+export { createWindowWidth, default as ResizeHandle } from "./layout/ResizeHandle";
 export { formatSize } from "./media/formatSize";
-export { default as Icon, ICON_NAMES, type IconName, iconElement, isOneOf } from "./media/Icon";
+export {
+  default as Icon,
+  ICON_NAMES,
+  type IconName,
+  iconElement,
+  isOneOf,
+} from "./media/Icon";
 export { default as ConstrainedImage } from "./media/image/ConstrainedImage";
 export { default as HideBrokenImage } from "./media/image/HideBrokenImage";
 export { ImageLightbox } from "./media/image/ImageLightbox";
@@ -83,7 +98,9 @@ export { focusPaneById, usePaneNavigation } from "./nav/paneNav";
 export { initRovingTabIndexDefault } from "./nav/rovingFocus";
 export {
   ConfirmDialog,
-  confirmDialog,
+  type ConfirmDialogOptions,
+  type ConfirmDialogState,
+  createConfirmDialog,
 } from "./overlay/dialog/ConfirmDialog";
 export { CopyJsonButton, default as JsonTree } from "./overlay/dialog/JsonTree";
 export {
@@ -102,9 +119,13 @@ export { default as Overlay } from "./overlay/Overlay";
 export { default as Popover } from "./overlay/Popover";
 export { default as Tooltip } from "./overlay/Tooltip";
 export { pageIdle } from "./pageIdle";
-export { focusedPaneId } from "./panes/focusedPane";
+export { createFocusedPane } from "./panes/focusedPane";
 export { default as PaneDivider } from "./panes/PaneDivider";
-export { default as PaneRow, MIN_PANE_WIDTH, type PaneLayoutProps } from "./panes/PaneRow";
+export {
+  default as PaneRow,
+  MIN_PANE_WIDTH,
+  type PaneLayoutProps,
+} from "./panes/PaneRow";
 export {
   closePane,
   createPaneId,
@@ -119,6 +140,7 @@ export {
 } from "./panes/paneList";
 export { distributeResize } from "./panes/resize";
 export { createRecencyEviction } from "./recencyEviction";
+export { createResetSignal } from "./resetSignal";
 export { comboLabel, type ShortcutCombo } from "./shortcutCombo";
 export {
   findTextRanges,
@@ -127,30 +149,13 @@ export {
   TRAILING_PUNCTUATION_RE,
   WHITESPACE_RE,
 } from "./textHighlight";
-export { font, setFont } from "./theme/font";
-export {
-  activeFontPreset,
-  FONT_PRESETS,
-} from "./theme/fontPresets";
-export {
-  activePreset,
-  applyCopiedThemePalette,
-  applyPreset,
-  copyableThemePalette,
-  decoupleThemeColor,
-  getColorFormula,
-  getColorRef,
-  getEffectiveColor,
-  isThemeColorCustom,
-  registerThemeColors,
-  resetThemeColor,
-  setColorRef,
-  setThemeColors,
-  type ThemeColorDefinition,
-  themeColorDefinitions,
-} from "./theme/themeColors";
-export { setThemeCss, themeCss } from "./theme/themeCss";
+export { createTheme } from "./theme/createTheme";
+export { activeFontPreset, FONT_PRESETS } from "./theme/fontPresets";
+export type { ThemeColorDefinition } from "./theme/themeColors";
 export type { ColorRef } from "./theme/themeDerivations";
-export { THEME_FAMILIES, type ThemeFamily, type ThemePreset } from "./theme/themePresets";
-export { setThemeShape, themeShape } from "./theme/themeShape";
+export {
+  THEME_FAMILIES,
+  type ThemeFamily,
+  type ThemePreset,
+} from "./theme/themePresets";
 export { createUndoStack, useGlobalUndoShortcut } from "./undoStack";

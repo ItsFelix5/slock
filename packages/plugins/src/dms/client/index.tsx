@@ -23,7 +23,7 @@ const setup: Setup = (ctx) => {
   const view = service("conversations");
   const store = createDmsStore({
     activeView: view.activeView,
-    bootstrap: () => bootstrap.bootstrap.data,
+    bootstrap: () => bootstrap.bootstrap().data,
     closeUserProfile: users.closeUserProfile,
     currentUser: users.currentUser,
     openInPane: service("shell.panes").openInNewPane,

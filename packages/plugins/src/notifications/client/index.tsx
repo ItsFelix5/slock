@@ -17,7 +17,7 @@ const setup: Setup = (ctx) => {
     matchingHighlightWord: prefs.matchingHighlightWord,
     openChannelPeek: service("message-links").openChannelPeek,
     resolveChannel: channels.resolveChannel,
-    userPrefs: () => service("bootstrap").userPrefs.data,
+    userPrefs: () => service("bootstrap").userPrefs().data,
   });
   ctx.provide("notifications", store);
   ctx.add("realtime.handler", {

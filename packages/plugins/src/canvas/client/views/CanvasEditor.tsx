@@ -1,8 +1,8 @@
-import type { CanvasCommentThread } from "@slock/types";
+import type { CanvasCommentThread, FileId } from "@slock/types";
 import { FloatingPanel, scrollActiveListOption } from "@slock/ui";
 import type Quill from "@slock/ui/editor/quill";
 import { indexAlignedText } from "@slock/ui/editor/quillText";
-import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, onSettled, Show } from "solid-js";
 import ComposerSuggestPopover from "../../../composer/client/api/editor/ComposerSuggestPopover";
 import { insertSuggestionAt } from "../../../composer/client/api/editor/mrkdwnInsert";
 import {
@@ -46,7 +46,7 @@ export default function CanvasEditor(props: {
   diff?: DiffEntry[];
   doc: CanvasDocModel;
   editable: boolean;
-  fileId: string;
+  fileId: FileId;
   onOutline: (source: OutlineSource | null) => void;
   fetchLatest: () => Promise<LoadedCanvas | null>;
   onComment?: (annotationId: string) => void;
@@ -126,10 +126,7 @@ export default function CanvasEditor(props: {
   });
   useSuggestUi(() => suggestPopoverRef, suggest, setSuggest);
   useSuggestShortcuts({ setSuggest, suggest, suggestions });
-  createEffect(() => {
-    suggest();
-    scrollActiveListOption(() => suggestPopoverRef);
-  });
+  createEffect(suggest, () => scrollActiveListOption(() => suggestPopoverRef));
 
   function refreshOutline() {
     clearTimeout(outlineTimer);
@@ -156,14 +153,16 @@ export default function CanvasEditor(props: {
     },
   };
 
-  props.onOutline({
-    element: (index) =>
-      index === 0 ? (titleRef ?? null) : root ? headingElement(root.root, index) : null,
-    items: () => [titleItem(title()), ...headings()],
-  });
-  onCleanup(() => {
-    clearTimeout(outlineTimer);
-    props.onOutline(null);
+  onSettled(() => {
+    props.onOutline({
+      element: (index) =>
+        index === 0 ? (titleRef ?? null) : root ? headingElement(root.root, index) : null,
+      items: () => [titleItem(title()), ...headings()],
+    });
+    return () => {
+      clearTimeout(outlineTimer);
+      props.onOutline(null);
+    };
   });
 
   function resizeTitle() {
@@ -213,8 +212,8 @@ export default function CanvasEditor(props: {
       class="canvas-editor"
       onClick={focusEnd}
       ref={(element) => {
+        provideCanvasServices(element, services);
         setContainer(element);
-        onCleanup(provideCanvasServices(element, services));
       }}
     >
       <CanvasCommandPicker
@@ -238,7 +237,7 @@ export default function CanvasEditor(props: {
           root?.setSelection(0, 0);
         }}
         placeholder="Untitled"
-        readOnly={!props.editable}
+        readonly={!props.editable}
         ref={(el) => {
           titleRef = el;
           queueMicrotask(resizeTitle);

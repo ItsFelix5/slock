@@ -1,8 +1,8 @@
 import Quill from "@slock/ui/editor/quill";
 import { asElement } from "@slock/ui/editor/quillText";
+import type { JSX } from "@solidjs/web";
+import { render } from "@solidjs/web";
 import { BlockEmbed } from "quill/blots/block";
-import type { JSX } from "solid-js";
-import { render } from "solid-js/web";
 
 export interface EmbedViewProps<Value> {
   bind(read: () => Value): void;

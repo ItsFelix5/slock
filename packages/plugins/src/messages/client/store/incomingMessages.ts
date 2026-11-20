@@ -1,45 +1,51 @@
-import { isHiddenSubtype, mapMessage } from "@slock/slack";
-import type { Channel, DirectMessage, GatewayMessageEvent, Message, User } from "@slock/types";
+import { ifPresent, isHiddenSubtype, mapMessage, parseChannelId, parseTs } from "@slock/slack";
+import type {
+  Channel,
+  ChannelId,
+  DirectMessage,
+  GatewayMessageEvent,
+  Message,
+  Ts,
+  User,
+  UserId,
+} from "@slock/types";
 import { isDmId } from "../../../dms/client/api";
 import { isPendingMessage } from "../api/messageMerge";
-import type { MessageLocation } from "../lib/messageLocations";
+import type { LocatedMessages } from "../lib/messageLocations";
 import { createChannelActivityBatcher } from "./channelActivity";
 
 type IncomingMessageDeps = {
-  closedDmIds: Record<string, boolean>;
+  closedDmIds: Record<ChannelId, boolean>;
   currentUser: () => User | undefined;
-  dmById: (id: string) => DirectMessage | undefined;
-  ensureDm: (channelId: string, userId: string) => void;
-  findAllMessageLocations: (
-    channelId: string,
-    ts: string,
-  ) => { location: MessageLocation; list: Message[] }[];
-  insertMessageInOrder: (channelId: string, msg: Message) => void;
-  isChannelMember: (id: string) => boolean;
-  acceptsLiveReplies: (ts: string) => boolean;
-  tracksLatest: (channelId: string) => boolean;
-  markDeleted: (channelId: string, ts: string) => void;
+  dmById: (id: ChannelId) => DirectMessage | undefined;
+  ensureDm: (channelId: ChannelId, userId: UserId) => void;
+  findAllMessageLocations: (channelId: ChannelId, ts: Ts) => LocatedMessages[];
+  insertMessageInOrder: (channelId: ChannelId, msg: Message) => void;
+  isChannelMember: (id: ChannelId) => boolean;
+  acceptsLiveReplies: (ts: Ts) => boolean;
+  tracksLatest: (channelId: ChannelId) => boolean;
+  markDeleted: (channelId: ChannelId, ts: Ts) => void;
   mergeIncomingMessage: (existing: Message[], msg: Message) => Message[];
-  patchChannel: (id: string, patch: Partial<Channel>) => void;
-  patchMessage: (channelId: string, ts: string, patch: Partial<Message>) => void;
-  setClosedDmIds: (id: string, closed: boolean) => void;
-  setMessagesByChannel: (channelId: string, updater: (existing?: Message[]) => Message[]) => void;
-  setThreadMessages: (threadTs: string, updater: (existing?: Message[]) => Message[]) => void;
-  setUnreadChannelIds: (id: string, unread: boolean) => void;
-  threadMessages: Record<string, Message[]>;
-  isViewed: (channelId: string) => boolean;
+  patchChannel: (id: ChannelId, patch: Partial<Channel>) => void;
+  patchMessage: (channelId: ChannelId, ts: Ts, patch: Partial<Message>) => void;
+  setClosedDmIds: (id: ChannelId, closed: boolean) => void;
+  updateChannelMessages: (channelId: ChannelId, update: (existing: Message[]) => Message[]) => void;
+  updateThreadMessages: (threadTs: Ts, update: (existing: Message[]) => Message[]) => void;
+  setUnreadChannelIds: (id: ChannelId, unread: boolean) => void;
+  threadMessages: Record<Ts, Message[]>;
+  isViewed: (channelId: ChannelId) => boolean;
 };
 
 export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
-  const mergeIntoChannel = (channel: string, msg: Message) =>
-    deps.setMessagesByChannel(channel, (existing: Message[] = []) =>
-      deps.mergeIncomingMessage(existing, msg),
-    );
+  const mergeIntoChannel = (channel: ChannelId, msg: Message) =>
+    deps.updateChannelMessages(channel, (existing) => deps.mergeIncomingMessage(existing, msg));
+  const mergeIntoThread = (threadTs: Ts, msg: Message) =>
+    deps.updateThreadMessages(threadTs, (existing) => deps.mergeIncomingMessage(existing, msg));
   const markActivity = createChannelActivityBatcher(deps.patchChannel);
-  const latestReplyByThread = new Map<string, string>();
+  const latestReplyByThread = new Map<Ts, Ts>();
   const seenReplyKeys = new Set<string>();
 
-  function hasSeenReply(channel: string, ts: string) {
+  function hasSeenReply(channel: ChannelId, ts: Ts) {
     const key = `${channel}:${ts}`;
     if (seenReplyKeys.has(key)) return true;
     seenReplyKeys.add(key);
@@ -51,18 +57,22 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
   }
 
   function handleIncomingMessage(payload: GatewayMessageEvent) {
-    const { channel, subtype, ts, thread_ts: threadTs } = payload;
+    const { subtype } = payload;
+    const channel = ifPresent(parseChannelId, payload.channel);
+    const threadTs = ifPresent(parseTs, payload.thread_ts);
+    const ts = ifPresent(parseTs, payload.ts);
     if (!channel) return;
     if (subtype === "message_changed") {
       const updated = payload.message;
-      if (!updated?.ts) return;
+      const updatedTs = ifPresent(parseTs, updated?.ts);
+      if (!(updated && updatedTs)) return;
       if (isHiddenSubtype(updated.subtype)) {
-        deps.markDeleted(channel, updated.ts);
+        deps.markDeleted(channel, updatedTs);
         return;
       }
       const isBroadcast = updated.subtype === "thread_broadcast";
       const mapped = mapMessage(updated);
-      deps.patchMessage(channel, updated.ts, {
+      deps.patchMessage(channel, updatedTs, {
         blocks: updated.blocks,
         edited: !!updated.edited,
         isBroadcast,
@@ -72,18 +82,20 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
       });
       if (isBroadcast && deps.tracksLatest(channel)) {
         const msg = deps
-          .findAllMessageLocations(channel, updated.ts)[0]
-          ?.list.find((m) => m.ts === updated.ts);
+          .findAllMessageLocations(channel, updatedTs)[0]
+          ?.list.find((m) => m.ts === updatedTs);
         if (msg) deps.insertMessageInOrder(channel, msg);
       }
       return;
     }
     if (subtype === "message_replied") {
       const updated = payload.message;
-      if (!updated?.ts) return;
+      const updatedTs = ifPresent(parseTs, updated?.ts);
+      if (!(updated && updatedTs)) return;
       const { lastReplyLabel, latestReply, replyCount, replyUsers } = mapMessage(updated);
-      if (updated.latest_reply) latestReplyByThread.set(updated.ts, updated.latest_reply);
-      deps.patchMessage(channel, updated.ts, {
+      const latestReplyTs = ifPresent(parseTs, updated.latest_reply);
+      if (latestReplyTs) latestReplyByThread.set(updatedTs, latestReplyTs);
+      deps.patchMessage(channel, updatedTs, {
         lastReplyLabel,
         latestReply,
         replyCount,
@@ -96,20 +108,15 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
       return;
     }
     if (subtype === "message_deleted") {
-      const ts = payload.deleted_ts;
-      if (!ts) return;
-      deps.markDeleted(channel, ts);
+      const deletedTs = ifPresent(parseTs, payload.deleted_ts);
+      if (deletedTs) deps.markDeleted(channel, deletedTs);
       return;
     }
     if (!ts) return;
     const msg = mapMessage({ ...payload, ts });
     if (msg.isEphemeral) {
       if (threadTs && threadTs !== ts) {
-        if (deps.acceptsLiveReplies(threadTs)) {
-          deps.setThreadMessages(threadTs, (existing: Message[] = []) =>
-            deps.mergeIncomingMessage(existing, msg),
-          );
-        }
+        if (deps.acceptsLiveReplies(threadTs)) mergeIntoThread(threadTs, msg);
       } else if (deps.tracksLatest(channel)) {
         mergeIntoChannel(channel, msg);
       }
@@ -117,18 +124,14 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
     }
     const me = deps.currentUser();
     const isThreadReply = !!threadTs && threadTs !== ts;
-    if (isThreadReply) {
+    if (threadTs && isThreadReply) {
       const existingReplies = deps.threadMessages[threadTs] ?? [];
       const alreadyMerged =
         hasSeenReply(channel, msg.ts) ||
         existingReplies.some(
           (reply) => (reply.ts === msg.ts || reply.id === msg.id) && !isPendingMessage(reply),
         );
-      if (deps.acceptsLiveReplies(threadTs)) {
-        deps.setThreadMessages(threadTs, (existing: Message[] = []) =>
-          deps.mergeIncomingMessage(existing, msg),
-        );
-      }
+      if (deps.acceptsLiveReplies(threadTs)) mergeIntoThread(threadTs, msg);
       const parentLocations = deps.findAllMessageLocations(channel, threadTs);
       const parentMsg = parentLocations[0]?.list.find((m) => m.ts === threadTs);
       const latestReplyTs = latestReplyByThread.get(threadTs);
@@ -155,7 +158,7 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
     }
     if (deps.dmById(channel)) {
       if (deps.closedDmIds[channel]) deps.setClosedDmIds(channel, false);
-    } else if (isDmId(channel, () => false) && me && msg.userId !== me.id) {
+    } else if (isDmId(channel, () => false) && me && msg.userId && msg.userId !== me.id) {
       deps.ensureDm(channel, msg.userId);
     } else if (deps.isChannelMember(channel)) {
       markActivity(channel);

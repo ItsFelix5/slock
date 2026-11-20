@@ -13,7 +13,11 @@ export const INLINE_MARKS: [char: string, format: "bold" | "italic" | "strike" |
 
 const MARK_PATTERNS = INLINE_MARKS.map(([char, format]) => {
   const escaped = escapeRegExp(char);
-  return { char, format, pattern: new RegExp(`${escaped}([^${escaped}\\n]+)$`) };
+  return {
+    char,
+    format,
+    pattern: new RegExp(`${escaped}([^${escaped}\\n]+)$`),
+  };
 });
 
 function typedCharIndex(ops: Op[], char: string) {

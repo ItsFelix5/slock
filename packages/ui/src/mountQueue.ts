@@ -18,7 +18,9 @@ const browserEnv: MountQueueEnv = {
   frame: (run) => requestAnimationFrame(() => setTimeout(run, 0)),
   idle: (run) =>
     "requestIdleCallback" in globalThis
-      ? requestIdleCallback((deadline) => run(() => deadline.timeRemaining()), { timeout: 2000 })
+      ? requestIdleCallback((deadline) => run(() => deadline.timeRemaining()), {
+          timeout: 2000,
+        })
       : void setTimeout(() => run(() => IDLE_MIN_MS + 1), 50),
   now: () => performance.now(),
 };

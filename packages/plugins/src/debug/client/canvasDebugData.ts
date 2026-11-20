@@ -1,4 +1,5 @@
 import { errorMessage } from "@slock/core";
+import { isFileId } from "@slock/slack";
 import {
   fetchCanvasComments,
   fetchCanvasRaw,
@@ -21,6 +22,7 @@ function toHex(bytes: Uint8Array, limit: number): string {
 }
 
 export async function loadCanvasDebug(fileId: string) {
+  if (!isFileId(fileId)) return { error: `not a canvas file id: ${fileId}` };
   const [raw, file, comments, versions] = await Promise.all([
     settle(fetchCanvasRaw(fileId)),
     settle(resolveCanvasFile(fileId)),

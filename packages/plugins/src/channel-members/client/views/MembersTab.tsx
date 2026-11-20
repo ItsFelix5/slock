@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import type { User } from "@slock/types";
+import type { ChannelId, User } from "@slock/types";
 import {
   Avatar,
   Button,
@@ -8,7 +8,8 @@ import {
   initRovingTabIndexDefault,
   SegmentedControl,
 } from "@slock/ui";
-import { For, type JSX, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { For, Show } from "solid-js";
 import type { MemberFilter } from "../../../channel-details/client/api";
 import { createChannelMembers } from "../channelMembers";
 import "../../../channel-details/client/api/ChannelDetails.css";
@@ -31,7 +32,7 @@ function MemberRow(props: { action: JSX.Element; isManager: boolean; user: User 
         class="channel-details-member-main btn-reset flex-align-center"
         data-nav-row
         onClick={() => usersStore.openUserProfile(props.user.id)}
-        tabIndex={-1}
+        tabindex={-1}
         type="button"
       >
         <Avatar size="small" user={props.user} />
@@ -49,7 +50,7 @@ function MemberRow(props: { action: JSX.Element; isManager: boolean; user: User 
 }
 
 export default function MembersTab(props: {
-  channelId: string;
+  channelId: ChannelId;
   channelName: string;
   memberCount?: number;
   onMembersChanged?: () => void;
@@ -59,7 +60,7 @@ export default function MembersTab(props: {
     channelId: () => props.channelId,
     channelName: () => props.channelName,
     memberCount: () => props.memberCount,
-    onMembersChanged: props.onMembersChanged,
+    onMembersChanged: () => props.onMembersChanged?.(),
   });
   const [copiedKey, copy] = createCopyFeedback(1200, () =>
     feedback.flash(props.channelId, "Couldn't copy the member list.", "error"),
@@ -76,8 +77,7 @@ export default function MembersTab(props: {
           <For each={MEMBER_FILTERS}>
             {(f) => (
               <button
-                class="segmented-control-btn"
-                classList={{ active: members.filter() === f.key }}
+                class={["segmented-control-btn", { active: members.filter() === f.key }]}
                 onClick={() => members.setFilter(f.key)}
                 type="button"
               >

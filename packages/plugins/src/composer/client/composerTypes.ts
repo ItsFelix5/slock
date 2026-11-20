@@ -1,4 +1,4 @@
-import type { Attachment, Block, Message, SlackFile } from "@slock/types";
+import type { Attachment, Block, ChannelId, FileId, Message, SlackFile, Ts } from "@slock/types";
 
 export interface ComposerEditingProps {
   initialAttachments?: Attachment[];
@@ -9,7 +9,7 @@ export interface ComposerEditingProps {
   onSave: (
     text: string,
     blocks?: Block[],
-    fileIds?: string[],
+    fileIds?: FileId[],
     removedAttachmentIds?: number[],
   ) => Promise<boolean>;
 }
@@ -23,10 +23,10 @@ export interface ComposerReplyToProps {
 }
 
 export interface ComposerProps {
-  channelId: string;
+  channelId: ChannelId;
   editing?: ComposerEditingProps;
   paneId?: string;
   placeholder?: string;
   replyTo?: ComposerReplyToProps;
-  threadTs?: string;
+  threadTs?: Ts;
 }

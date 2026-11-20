@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
 import { usergroupIdsOf } from "@slock/slack";
-import { createMemo, For, Show } from "solid-js";
+import { createEffect, createMemo, For, Show } from "solid-js";
 import type { ComposerProps } from "../../composer/client/api";
 import "./ThreadPingNotice.css";
 
@@ -10,16 +10,17 @@ const usergroups = service("usergroups");
 export default function ThreadPingNotice(props: ComposerProps) {
   const groupIds = createMemo(() => {
     const ids = new Set<string>();
-    for (const message of messages.messagesInThread(props.threadTs ?? "") ?? []) {
+    const { threadTs } = props;
+    for (const message of (threadTs && messages.messagesInThread(threadTs)) || []) {
       for (const id of usergroupIdsOf(message)) ids.add(id);
     }
     return [...ids];
   });
+  createEffect(groupIds, (ids) => {
+    for (const id of ids) usergroups.ensureUsergroupDetails(id);
+  });
   const names = createMemo(() =>
-    groupIds().map((id) => {
-      usergroups.ensureUsergroupDetails(id);
-      return usergroups.usergroupById(id)?.name ?? "a group";
-    }),
+    groupIds().map((id) => usergroups.usergroupById(id)?.name ?? "a group"),
   );
   return (
     <Show when={props.threadTs && names().length}>

@@ -1,6 +1,7 @@
-import { getHost } from "@slock/core/solid";
+import { getHost, service } from "@slock/core/solid";
 import { logout, refreshAccountInfo } from "@slock/slack";
-import { confirmDialog } from "@slock/ui";
+
+const dialogs = service("shell.dialogs");
 
 export function restartApp(): Promise<void> {
   refreshAccountInfo();
@@ -9,7 +10,7 @@ export function restartApp(): Promise<void> {
 }
 
 export function confirmLogout(): Promise<boolean> {
-  return confirmDialog({
+  return dialogs.confirm({
     confirmLabel: "Log out",
     danger: true,
     message: "Log out? :(",

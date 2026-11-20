@@ -6,11 +6,11 @@ const LIB_SLUGS: Record<string, string> = {
   "@slock/slack": "lib-slack",
   "@slock/core/solid": "lib-core-solid",
   "@slock/ui": "lib-ui",
-  "@tanstack/solid-query": "lib-solid-query",
+  "@solidjs/web": "lib-solidjs-web",
   "solid-js": "lib-solid-js",
-  "solid-js/store": "lib-solid-js-store",
-  "solid-js/web": "lib-solid-js-web",
 };
+
+const PINNED_RUNTIMES = new Set(["solid-js", "@solidjs/web"]);
 
 const VIRTUAL_PREFIX = "virtual:lib/";
 const MODULE_PREFIX = "__lib__/";
@@ -33,7 +33,7 @@ export const libsPlugin: BunPlugin = {
     }));
     build.onLoad({ filter: ANY_FILTER, namespace: "lib" }, (args) => {
       const specifier = specifierBySlug.get(args.path.slice(MODULE_PREFIX.length)) ?? "";
-      const target = specifier.startsWith("solid-js")
+      const target = PINNED_RUNTIMES.has(specifier)
         ? specifier
         : Bun.resolveSync(specifier, import.meta.dir);
       return { contents: `export * from "${target}";`, loader: "js" };

@@ -11,7 +11,7 @@ export default function ThreadButton(props: MessageBarProps) {
         icon="threads"
         label="Reply in thread"
         onClick={(e) => props.onOpenThread?.(threadRootTs(props.msg), { pinned: e.shiftKey })}
-        tabIndex={props.rowFocused() ? undefined : -1}
+        tabindex={props.rowFocused() ? undefined : -1}
       />
     </Show>
   );

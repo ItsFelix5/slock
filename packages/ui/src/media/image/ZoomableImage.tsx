@@ -1,4 +1,6 @@
-import { createEffect, createSignal, type JSX, on, Show } from "solid-js";
+import { clamp } from "@slock/core";
+import type { JSX } from "@solidjs/web";
+import { createSignal, Show } from "solid-js";
 import Icon from "../Icon";
 import { imageSrc } from "../mediaSrc";
 import { ImageLightbox } from "./ImageLightbox";
@@ -28,26 +30,15 @@ export interface ZoomableImageProps {
 export default function ZoomableImage(props: ZoomableImageProps) {
   const [open, setOpen] = createSignal(false);
   const [galleryIndex, setGalleryIndex] = createSignal(0);
-  const [previewFailed, setPreviewFailed] = createSignal(false);
+  const [failedSrc, setFailedSrc] = createSignal<string>();
+  const previewFailed = () => failedSrc() === props.src;
 
   const gallery = (): ZoomableImageItem[] =>
     props.gallery?.length ? props.gallery : [{ alt: props.alt, src: props.fullSrc ?? props.src }];
-  const initialGalleryIndex = () =>
-    clamp(props.galleryIndex ?? 0, 0, gallery().length - 1);
   const openPreview = () => {
-    setGalleryIndex(initialGalleryIndex());
+    setGalleryIndex(clamp(props.galleryIndex ?? 0, 0, gallery().length - 1));
     setOpen(true);
   };
-
-  createEffect(
-    on(
-      () => props.src,
-      () => {
-        setPreviewFailed(false);
-      },
-      { defer: true },
-    ),
-  );
 
   return (
     <>
@@ -77,10 +68,10 @@ export default function ZoomableImage(props: ZoomableImageProps) {
           >
             <img
               alt={props.alt}
-              class={`zoomable-image zoomable-image-framed fill ${props.class ?? ""}`}
+              class={["zoomable-image zoomable-image-framed fill", props.class]}
               decoding="async"
               loading="lazy"
-              onError={() => setPreviewFailed(true)}
+              onError={() => setFailedSrc(props.src)}
               src={imageSrc(props.src)}
             />
           </Show>

@@ -1,5 +1,5 @@
 import { IconButton } from "@slock/ui";
-import { createSignal, onCleanup, Show } from "solid-js";
+import { createSignal, onSettled, Show } from "solid-js";
 import "./CanvasSelectionActions.css";
 
 export default function CanvasSelectionActions(props: {
@@ -19,8 +19,10 @@ export default function CanvasSelectionActions(props: {
     setTop(first ? first.top - props.container.getBoundingClientRect().top : undefined);
   }
 
-  document.addEventListener("selectionchange", update);
-  onCleanup(() => document.removeEventListener("selectionchange", update));
+  onSettled(() => {
+    document.addEventListener("selectionchange", update);
+    return () => document.removeEventListener("selectionchange", update);
+  });
 
   return (
     <Show when={top() !== undefined}>

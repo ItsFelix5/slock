@@ -21,7 +21,7 @@ export default function ThreadRow(props: { item: ActivityItem }) {
         onClick={() =>
           messageLinks.openChannelPeek(props.item.channelId, threadTs(), props.item.ts)
         }
-        tabIndex={-1}
+        tabindex={-1}
         type="button"
       >
         <span class="sidebar-row-name truncate">

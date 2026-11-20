@@ -1,7 +1,7 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { Slot, service } from "@slock/core/solid";
 import { HoverCard, Icon, type useHoverIntent } from "@slock/ui";
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { Show } from "solid-js";
 import "./UsergroupHoverCard.css";
 

@@ -68,13 +68,16 @@ export default function MessageTextContent(props: {
         fallback={
           <Show when={props.messageText || props.renderBlocks}>
             <div
-              class={`message-text${props.msg.deleted ? " message-deleted-text" : ""}`}
-              classList={{ "message-emoji-only": props.hasEnlargedEmojiOnlyText }}
+              class={[
+                "message-text",
+                {
+                  "message-deleted-text": props.msg.deleted,
+                  "message-emoji-only": props.hasEnlargedEmojiOnlyText,
+                },
+              ]}
             >
-              <MessageAttachmentsContext.Provider value={() => props.msg.attachments}>
-                <TimeAnchorContext.Provider
-                  value={{ ms: parseFloat(props.msg.ts) * 1000, tz: props.tz }}
-                >
+              <MessageAttachmentsContext value={() => props.msg.attachments}>
+                <TimeAnchorContext value={{ ms: parseFloat(props.msg.ts) * 1000, tz: props.tz }}>
                   <Show
                     fallback={
                       <>
@@ -100,8 +103,8 @@ export default function MessageTextContent(props: {
                       />
                     )}
                   </Show>
-                </TimeAnchorContext.Provider>
-              </MessageAttachmentsContext.Provider>
+                </TimeAnchorContext>
+              </MessageAttachmentsContext>
             </div>
           </Show>
         }

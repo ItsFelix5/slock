@@ -1,3 +1,4 @@
+export { hasChannel } from "./kinds";
 export { TAG_FILTERS } from "./views/activityViewFilters";
 
 import type { Component } from "solid-js";

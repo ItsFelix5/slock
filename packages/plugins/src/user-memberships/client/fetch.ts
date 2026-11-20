@@ -10,7 +10,6 @@ export type Membership = {
   created: boolean;
 };
 
-export const MEMBERSHIPS_QUERY = "userMemberships";
 export const MEMBERSHIPS_STALE_MS = 30 * 60_000;
 
 export async function fetchMemberships(userId: string): Promise<Membership[]> {

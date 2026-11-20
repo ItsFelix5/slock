@@ -9,10 +9,10 @@ import {
   replacePaneContent,
   resizePanes,
 } from "../../../../../ui/src/panes/paneList";
-import type { PaneKind } from "../api";
-import type { PaneContent } from "../api/types";
+import type { PaneKind } from "../../../../src/shell/client/api";
+import type { PaneContent } from "../../../../src/shell/client/api/types";
 
-declare module "../api/types" {
+declare module "../../../../src/shell/client/api/types" {
   interface PaneContents {
     mainTest: { id: string; at?: string };
     sideTest: { id: string };
@@ -22,7 +22,7 @@ declare module "../api/types" {
 
 const [focusedId, setFocusedId] = createSignal<string | null>(null);
 export const focusCalls: string[] = [];
-export { setFocusedId };
+export { focusedId, setFocusedId };
 
 type MockModule = (id: string, factory: () => object) => unknown;
 
@@ -36,7 +36,6 @@ function installUiBoundary(mockModule: MockModule) {
     createPaneId,
     findPane,
     findPaneByContent,
-    focusedPaneId: focusedId,
     focusPaneById: (id: string) => {
       focusCalls.push(id);
       return true;
@@ -50,12 +49,12 @@ function installUiBoundary(mockModule: MockModule) {
 
 export function loadPanes(mockModule: MockModule) {
   installUiBoundary(mockModule);
-  return import("./panes");
+  return import("../../../../src/shell/client/store/panes");
 }
 
 export function loadShellStore(mockModule: MockModule) {
   installUiBoundary(mockModule);
-  return import("./index");
+  return import("../../../../src/shell/client/store/index");
 }
 
 const labels = { tabLabel: () => "", view: () => "" };

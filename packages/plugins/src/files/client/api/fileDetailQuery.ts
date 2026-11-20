@@ -1,22 +1,20 @@
-import { service } from "@slock/core/solid";
-import { createKeyedQuery, defineKey } from "../../../query/client/api";
+import type { FileId } from "@slock/types";
+import { defineQuery } from "../../../query/client/api";
 import { fetchFileDetail } from "../../../slack/client/api";
 
-const fileDetailKey = defineKey<[string]>("fileDetail");
+const fileDetail = defineQuery<FileId, Awaited<ReturnType<typeof fetchFileDetail>>>({
+  load: fetchFileDetail,
+  name: "fileDetail",
+});
 
-const query = service("query");
-
-export function fileDetailQueryOptions(fileId: string) {
-  return { queryFn: () => fetchFileDetail(fileId), queryKey: fileDetailKey(fileId) };
+export function createFileDetailQuery(fileId: () => FileId | undefined) {
+  return fileDetail.state(fileId);
 }
 
-export function createFileDetailQuery(fileId: () => string | undefined) {
-  return createKeyedQuery(() => {
-    const id = fileId();
-    return id ? fileDetailQueryOptions(id) : undefined;
-  });
+export function useFileDetail(fileId: () => FileId | undefined) {
+  return fileDetail.use(fileId);
 }
 
-export function loadFileDetail(fileId: string) {
-  return query.client.query({ ...fileDetailQueryOptions(fileId), staleTime: "static" });
-}
+export const refreshFileDetail = (fileId: FileId) => fileDetail.refresh(fileId).catch(() => {});
+
+export const loadFileDetail = (fileId: FileId) => fileDetail.ensure(fileId);

@@ -40,7 +40,7 @@ export default function PaneDivider(props: {
       class="pane-divider"
       onPointerDown={onPointerDown}
       ref={handleEl}
-      tabIndex={0}
+      tabindex={0}
     />
   );
 }

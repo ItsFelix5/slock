@@ -9,8 +9,8 @@ import {
   useGridShortcuts,
   useListShortcuts,
 } from "@slock/ui";
-import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
-import { createKeyedQuery, defineKey } from "../../../query/client/api";
+import { createMemo, createSignal, For, onCleanup, onSettled, Show } from "solid-js";
+import { defineQuery } from "../../../query/client/api";
 import type { Gif } from "../store";
 import { loadGifs } from "../tenor";
 import "./GifPicker.css";
@@ -20,7 +20,11 @@ const gifs = service("gifs");
 const COLS = 2;
 const SEARCH_DELAY_MS = 250;
 const STALE_MS = 5 * 60 * 1000;
-const gifsKey = defineKey<[string]>("gifs");
+const gifsQuery = defineQuery<string, Gif[]>({
+  load: loadGifs,
+  maxAgeMs: STALE_MS,
+  name: "gifs",
+});
 
 export default function GifPicker(props: { onClose: () => void; onSelect: (gif: Gif) => void }) {
   const [input, setInput] = createSignal("");
@@ -29,22 +33,21 @@ export default function GifPicker(props: { onClose: () => void; onSelect: (gif: 
   const [tab, setTab] = createSignal<"favorites" | "trending">(
     gifs.favorites().length ? "favorites" : "trending",
   );
-  const tenor = createKeyedQuery(() => ({
-    queryFn: () => loadGifs(query()),
-    queryKey: gifsKey(query()),
-    staleTime: STALE_MS,
-  }));
+  const tenor = gifsQuery.state(query);
   let searchRef: HTMLInputElement | undefined;
   let bodyRef: HTMLDivElement | undefined;
   let delay: ReturnType<typeof setTimeout> | undefined;
 
   useEscapeClose(props.onClose);
   useClickOutside(".gif-picker", props.onClose);
-  onMount(() => requestAnimationFrame(() => searchRef?.focus()));
+  onSettled(() => {
+    const frame = requestAnimationFrame(() => searchRef?.focus());
+    return () => cancelAnimationFrame(frame);
+  });
   onCleanup(() => clearTimeout(delay));
 
   const showingFavorites = () => tab() === "favorites" && !query();
-  const entries = createMemo(() => (showingFavorites() ? gifs.favorites() : (tenor.data ?? [])));
+  const entries = createMemo(() => (showingFavorites() ? gifs.favorites() : (tenor().data ?? [])));
 
   const selectTab = (next: "favorites" | "trending") => {
     setTab(next);
@@ -117,10 +120,10 @@ export default function GifPicker(props: { onClose: () => void; onSelect: (gif: 
         <Show when={showingFavorites() && entries().length === 0}>
           <div class="gif-picker-status">Star a GIF to save it here</div>
         </Show>
-        <Show when={!showingFavorites() && tenor.isError}>
+        <Show when={!showingFavorites() && tenor().status === "error"}>
           <div class="gif-picker-status">Tenor is unreachable</div>
         </Show>
-        <Show when={!showingFavorites() && tenor.isSuccess && entries().length === 0}>
+        <Show when={!showingFavorites() && tenor().status === "ready" && entries().length === 0}>
           <div class="gif-picker-status">No GIFs found</div>
         </Show>
         <div class="gif-picker-grid">
@@ -134,7 +137,7 @@ export default function GifPicker(props: { onClose: () => void; onSelect: (gif: 
                   if (e.key === "f") gifs.toggleFavorite(gif);
                 }}
                 role="button"
-                tabIndex={0}
+                tabindex={0}
               >
                 <img alt="" loading="lazy" src={gif.preview} />
                 <IconButton

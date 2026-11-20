@@ -1,10 +1,11 @@
 import { service } from "@slock/core/solid";
+import type { Ts } from "@slock/types";
 import { Button } from "@slock/ui";
 import { Show } from "solid-js";
 
 const messagesStore = service("messages");
 
-export function ThreadLoadStatus(props: { hasMessages: boolean; ts: string }) {
+export function ThreadLoadStatus(props: { hasMessages: boolean; ts: Ts }) {
   return (
     <>
       <Show when={messagesStore.isLoadingThread(props.ts) && !props.hasMessages}>
@@ -22,7 +23,7 @@ export function ThreadLoadStatus(props: { hasMessages: boolean; ts: string }) {
   );
 }
 
-export function ThreadMoreStatus(props: { ts: string }) {
+export function ThreadMoreStatus(props: { ts: Ts }) {
   return (
     <>
       <Show when={messagesStore.isLoadingMoreReplies(props.ts)}>
@@ -53,7 +54,7 @@ export function ThreadMoreStatus(props: { ts: string }) {
   );
 }
 
-export function ThreadEarlierStatus(props: { onRetry: () => void; ts: string }) {
+export function ThreadEarlierStatus(props: { onRetry: () => void; ts: Ts }) {
   return (
     <div class="thread-panel-earlier flex-center text-dim">
       <Show

@@ -51,7 +51,10 @@ function insertNewline(quill: Quill, extendedFormats: boolean) {
 
 export function useEditorShortcuts(
   getQuill: () => Quill | undefined,
-  options: { extendedFormats: boolean; onSubmit: () => (() => void) | undefined },
+  options: {
+    extendedFormats: boolean;
+    onSubmit: () => (() => void) | undefined;
+  },
 ) {
   const focused = () => getQuill()?.hasFocus() ?? false;
   const format = (name: InlineFormat) => () => {
@@ -69,7 +72,11 @@ export function useEditorShortcuts(
     quill.insertText(range.index, styled, formats, "user");
     quill.setSelection(range.index, styled.length, "silent");
   };
-  const shared = { allowInInputs: true, manual: true, scope: "composer" } as const;
+  const shared = {
+    allowInInputs: true,
+    manual: true,
+    scope: "composer",
+  } as const;
 
   useShortcut({
     ...shared,

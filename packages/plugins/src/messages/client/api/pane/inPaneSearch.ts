@@ -1,8 +1,8 @@
 import { defined } from "@slock/core";
+import { service } from "@slock/core/solid";
 import type { Message } from "@slock/types";
 import {
   findTextRanges,
-  focusedPaneId,
   indexElementText,
   type TextIndex,
   useEscapeClose,
@@ -71,33 +71,37 @@ export function createInPaneSearch(
     setMatchIndex(0);
   };
 
-  createEffect(() => {
-    const q = query().trim().toLowerCase();
-    const index = rowIndex();
-    const list = matches();
-    const current = list[matchIndex()];
-    if (!(q && index)) {
-      clearHighlights();
-      return;
-    }
-    const currentRanges: Range[] = [];
-    const otherRanges: Range[] = [];
-    for (const m of list) {
-      const row = index.get(m.ts);
-      if (!row) continue;
-      const ranges = findTextRanges(row, q);
-      (m.ts === current?.ts ? currentRanges : otherRanges).push(...ranges);
-    }
-    CSS.highlights.set(ALL_MATCHES, new Highlight(...otherRanges));
-    CSS.highlights.set(CURRENT_MATCH, new Highlight(...currentRanges));
-  });
+  createEffect(
+    () => ({
+      current: matches()[matchIndex()],
+      index: rowIndex(),
+      list: matches(),
+      q: query().trim().toLowerCase(),
+    }),
+    ({ current, index, list, q }) => {
+      if (!(q && index)) {
+        clearHighlights();
+        return;
+      }
+      const currentRanges: Range[] = [];
+      const otherRanges: Range[] = [];
+      for (const m of list) {
+        const row = index.get(m.ts);
+        if (!row) continue;
+        const ranges = findTextRanges(row, q);
+        (m.ts === current?.ts ? currentRanges : otherRanges).push(...ranges);
+      }
+      CSS.highlights.set(ALL_MATCHES, new Highlight(...otherRanges));
+      CSS.highlights.set(CURRENT_MATCH, new Highlight(...currentRanges));
+    },
+  );
   onCleanup(clearHighlights);
 
   useShortcut({
     allowInInputs: true,
     allowRepeat: false,
     combo: { key: "f", mod: true },
-    enabled: () => focusedPaneId() === paneId(),
+    enabled: () => service("shell.panes").focusedPaneId() === paneId(),
     handler: () => setOpen(true),
     id: "messages.searchInPane",
     label: "Search in this view",

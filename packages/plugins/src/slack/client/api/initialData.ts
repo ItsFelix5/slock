@@ -1,32 +1,30 @@
-import { service } from "@slock/core/solid";
-import { ApiError, forceReauth, isAuthError, isConfigured } from "@slock/slack";
+import { forceReauth, isAuthError, isConfigured, slackErrorOf } from "@slock/slack";
 import type { BootstrapPayload } from "@slock/types";
-import { defineKey } from "../../../query/client/api";
+import { defineQuery } from "../../../query/client/api";
 
-const query = service("query");
-const initialDataKey = defineKey("initialData");
+const initialData = defineQuery<null, BootstrapPayload>({
+  load: async () => {
+    const response = await fetch("/api/bootstrap");
+    if (!response.ok) {
+      throw slackErrorOf({
+        fallback: `Bootstrap failed (${response.status})`,
+        retryAfter: response.headers.get("retry-after") ?? undefined,
+        status: response.status,
+      });
+    }
+    const data: BootstrapPayload = await response.json();
+    if (isConfigured() && Object.values(data.error ?? {}).some(isAuthError)) {
+      return forceReauth();
+    }
+    return data;
+  },
+  name: "initialData",
+});
 
-export function fetchInitialData(): Promise<BootstrapPayload> {
-  return query.client.query({
-    queryFn: async () => {
-      const response = await fetch("/api/bootstrap");
-      if (!response.ok) {
-        throw new ApiError(
-          `Bootstrap failed (${response.status})`,
-          response.headers.get("retry-after") ?? undefined,
-        );
-      }
-      const data: BootstrapPayload = await response.json();
-      if (isConfigured() && Object.values(data.error ?? {}).some(isAuthError)) {
-        return forceReauth();
-      }
-      if (Object.keys(data.error ?? {}).length)
-        query.client.removeQueries({ queryKey: initialDataKey() });
-      return data;
-    },
-    queryKey: initialDataKey(),
-    staleTime: Infinity,
-  });
+export async function fetchInitialData(): Promise<BootstrapPayload> {
+  const data = await initialData.ensure(null);
+  if (Object.keys(data.error ?? {}).length) initialData.remove(null);
+  return data;
 }
 
 export function isPending(data: BootstrapPayload, part: string): boolean {
@@ -38,15 +36,11 @@ export async function completePending(
   loadLate: () => Promise<Partial<BootstrapPayload>>,
 ): Promise<void> {
   const late = await loadLate();
-  query.client.setQueryData<BootstrapPayload>(
-    initialDataKey(),
-    (current) =>
-      current && {
-        ...current,
-        ...late,
-        pending: current.pending?.filter((name) => name !== part),
-      },
-  );
+  initialData.modify(null, (current) => ({
+    ...current,
+    ...late,
+    pending: current.pending?.filter((name) => name !== part),
+  }));
 }
 
 export async function fetchInitialDataWith(
@@ -60,8 +54,5 @@ export async function fetchInitialDataWith(
 }
 
 export function patchInitialData(patch: Partial<BootstrapPayload>) {
-  query.client.setQueryData<BootstrapPayload>(
-    initialDataKey(),
-    (data) => data && { ...data, ...patch },
-  );
+  initialData.modify(null, (data) => ({ ...data, ...patch }));
 }

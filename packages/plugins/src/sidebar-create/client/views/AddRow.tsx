@@ -27,7 +27,7 @@ export default function AddRow() {
             class="sidebar-row btn-reset flex-align-center"
             data-nav-row
             onClick={() => setOpen(!open())}
-            tabIndex={-1}
+            tabindex={-1}
             type="button"
           >
             <span class="sidebar-row-icon">

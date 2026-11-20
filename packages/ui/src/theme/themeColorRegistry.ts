@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createImmediateSignal } from "../immediateSignal";
 
 export interface ThemeColorDefinition {
   derive?: string;
@@ -8,15 +8,19 @@ export interface ThemeColorDefinition {
 
 export type ThemeColors = Record<string, string>;
 
-const [themeColorDefinitions, setDefinitions] = createSignal<ThemeColorDefinition[]>([]);
-
-export { themeColorDefinitions };
-
 export function themeColorVar(key: string): string {
   return `--${key.replace(/([a-z])([A-Z]|\d+)/g, "$1-$2").toLowerCase()}`;
 }
 
-export function addThemeColorDefinitions(definitions: ThemeColorDefinition[]): () => void {
-  setDefinitions((current) => [...current, ...definitions]);
-  return () => setDefinitions((current) => current.filter((def) => !definitions.includes(def)));
+export function createThemeColorRegistry() {
+  const [themeColorDefinitions, setDefinitions] = createImmediateSignal<ThemeColorDefinition[]>([]);
+  return {
+    add(definitions: ThemeColorDefinition[]): () => void {
+      setDefinitions([...themeColorDefinitions(), ...definitions]);
+      return () => {
+        setDefinitions(themeColorDefinitions().filter((def) => !definitions.includes(def)));
+      };
+    },
+    themeColorDefinitions,
+  };
 }

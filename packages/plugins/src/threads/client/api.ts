@@ -1,7 +1,8 @@
-import type { JSX } from "solid-js";
+import type { ChannelId } from "@slock/types";
+import type { JSX } from "@solidjs/web";
 
 export type ThreadHeader = (
-  channelId: string,
+  channelId: ChannelId,
 ) => { title: string; subtitle(): JSX.Element } | undefined;
 
 declare module "@slock/core/types" {

@@ -16,17 +16,24 @@ interface PendingConfirm extends ConfirmDialogOptions {
   resolve: (ok: boolean) => void;
 }
 
-const [pending, setPending] = createSignal<PendingConfirm | null>(null);
-
-export function confirmDialog(options: ConfirmDialogOptions): Promise<boolean> {
-  return new Promise((resolve) => setPending({ ...options, resolve }));
+export function createConfirmDialog() {
+  const [pending, setPending] = createSignal<PendingConfirm | null>(null);
+  return {
+    confirm: (options: ConfirmDialogOptions): Promise<boolean> =>
+      new Promise((resolve) => setPending({ ...options, resolve })),
+    dismiss: (ok: boolean) => {
+      pending()?.resolve(ok);
+      setPending(null);
+    },
+    pending,
+  };
 }
 
-export function ConfirmDialog() {
-  const close = (ok: boolean) => {
-    pending()?.resolve(ok);
-    setPending(null);
-  };
+export type ConfirmDialogState = ReturnType<typeof createConfirmDialog>;
+
+export function ConfirmDialog(props: { dialog: ConfirmDialogState }) {
+  const pending = () => props.dialog.pending();
+  const close = (ok: boolean) => props.dialog.dismiss(ok);
   useShortcut({
     combo: { key: "Enter" },
     id: "confirm.accept",

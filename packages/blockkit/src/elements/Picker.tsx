@@ -1,6 +1,10 @@
 import type { DatePickerElement } from "@slock/types";
 
-const INPUT_TYPE = { datepicker: "date", datetimepicker: "datetime-local", timepicker: "time" };
+const INPUT_TYPE = {
+  datepicker: "date",
+  datetimepicker: "datetime-local",
+  timepicker: "time",
+};
 
 function initialValue(el: DatePickerElement) {
   if (el.type === "datepicker") return el.initial_date;
@@ -14,7 +18,9 @@ function initialValue(el: DatePickerElement) {
 function payload(el: DatePickerElement, value: string) {
   if (el.type === "datepicker") return { selected_date: value || null };
   if (el.type === "timepicker") return { selected_time: value || null };
-  return { selected_date_time: value ? Math.floor(new Date(value).getTime() / 1000) : null };
+  return {
+    selected_date_time: value ? Math.floor(new Date(value).getTime() / 1000) : null,
+  };
 }
 
 export default function Picker(props: {

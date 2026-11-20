@@ -1,9 +1,13 @@
-import { getCachedWorkspaceDomain, userProfileUrl } from "@slock/slack";
+import { getCachedWorkspaceDomain, isUserId, userProfileUrl } from "@slock/slack";
 
 export interface MentionValue {
   kind: "user" | "channel" | "special" | "usergroup" | "userlink" | "messagelink";
   id: string;
   name: string;
+}
+
+export function userlinkUrl(id: string): string | undefined {
+  return isUserId(id) ? userProfileUrl(getCachedWorkspaceDomain() ?? "", id) : undefined;
 }
 
 export interface DateValue {
@@ -92,8 +96,8 @@ export function embedText(embed: EmbedInsert): string {
     if (embed.mention.kind === "special") return `<!${embed.mention.id}>`;
     if (embed.mention.kind === "usergroup") return `<!subteam^${embed.mention.id}>`;
     if (embed.mention.kind === "userlink") {
-      const url = userProfileUrl(getCachedWorkspaceDomain() ?? "", embed.mention.id);
-      return `<${url}|@${embed.mention.name}>`;
+      const url = userlinkUrl(embed.mention.id);
+      return url ? `<${url}|@${embed.mention.name}>` : `@${embed.mention.name}`;
     }
     if (embed.mention.kind === "messagelink") return `<${embed.mention.id}>`;
     return `<#${embed.mention.id}|${embed.mention.name}>`;

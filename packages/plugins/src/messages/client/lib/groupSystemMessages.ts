@@ -15,7 +15,8 @@ function groupKey(message: Message): string | undefined {
 }
 
 function summarize(run: Message[]): Message {
-  const [first] = run as [Message, ...Message[]];
+  const [first] = run;
+  if (!first) throw new Error("cannot summarize an empty run");
   const users = [...new Set(run.map((m) => m.userId))];
   const named = users.slice(0, NAMED_USERS).map((id) => `<@${id}>`);
   const hidden = users.length - named.length;

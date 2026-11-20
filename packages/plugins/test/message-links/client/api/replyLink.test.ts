@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { narrowByType } from "@slock/core";
+import { ch, stamp } from "@slock/slack/testing";
 import type { Block, RichTextBlock } from "@slock/types";
 import {
   encodeReplyLink,
@@ -10,7 +11,7 @@ import {
 } from "../../../../src/message-links/client/api/replyLink";
 
 const PERMALINK = "https://team.slack.com/archives/C0123ABCD/p1700000000123456";
-const REPLY_TARGET = { channelId: "C0123ABCD", ts: "1700000000.123456", url: PERMALINK };
+const REPLY_TARGET = { channelId: ch("C0123ABCD"), ts: stamp("1700000000.123456"), url: PERMALINK };
 
 function richText(...elements: RichTextBlock["elements"]): Block[] {
   return [{ elements, type: "rich_text" }];
@@ -43,7 +44,7 @@ describe("splitReplyLink on text", () => {
 
   test("a permalink query string does not break the target", () => {
     const url = `${PERMALINK}?thread_ts=1700000000.000100&cid=C0123ABCD`;
-    expect(splitReplyLink({ text: `${url} hi` }).replyRef?.ts).toBe("1700000000.123456");
+    expect(splitReplyLink({ text: `${url} hi` }).replyRef?.ts).toBe(stamp("1700000000.123456"));
   });
 
   test("non slack hosts are not replies", () => {
@@ -119,7 +120,7 @@ describe("splitReplyLink on blocks", () => {
 });
 
 describe("threadContainsMessage", () => {
-  const messages = [{ ts: "2" }, { ts: "3" }];
+  const messages = [{ ts: stamp("2") }, { ts: stamp("3") }];
 
   test.each([
     ["root", "1", "C1", "1", true],
@@ -127,10 +128,12 @@ describe("threadContainsMessage", () => {
     ["other channel", "1", "C2", "3", false],
     ["unknown ts", "1", "C1", "9", false],
   ])("%s", (_name, threadTs, channelId, targetTs, expected) => {
-    expect(threadContainsMessage("C1", threadTs, messages, channelId, targetTs)).toBe(expected);
+    expect(
+      threadContainsMessage(ch("C1"), stamp(threadTs), messages, ch(channelId), stamp(targetTs)),
+    ).toBe(expected);
   });
 
   test("a message without a thread never matches", () => {
-    expect(threadContainsMessage("C1", undefined, messages, "C1", "2")).toBe(false);
+    expect(threadContainsMessage(ch("C1"), undefined, messages, ch("C1"), stamp("2"))).toBe(false);
   });
 });

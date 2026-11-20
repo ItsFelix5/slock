@@ -7,10 +7,12 @@
     ".": "./src/index.ts",
     "./types": "./src/types.ts",
     "./http": "./src/http.ts",
+    "./services": "./src/solidHost.ts",
     "./solid": "./src/solid.tsx",
     "./testing": "./src/testing.ts"
   },
   "dependencies": {
-    "solid-js": "^1.9.13"
+    "@solidjs/web": "2.0.3",
+    "solid-js": "2.0.3"
   }
 }

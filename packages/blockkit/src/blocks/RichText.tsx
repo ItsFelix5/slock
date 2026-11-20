@@ -7,8 +7,9 @@ import type {
   RichTextStyle,
   RichTextSubBlock,
 } from "@slock/types";
-import { For, type JSX } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import type { JSX } from "@solidjs/web";
+import { dynamic } from "@solidjs/web";
+import { For } from "solid-js";
 import EmojiText from "../emoji/EmojiText";
 import { hexCodepointsToEmoji } from "../emoji/emoji";
 import { parseArchiveLink } from "../mrkdwn/mrkdwnInline";
@@ -42,13 +43,13 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
   switch (el.type) {
     case "text":
       return (
-        <span class="bk-rt-text" classList={styleClasses(el.style)}>
+        <span class={["bk-rt-text", styleClasses(el.style)]}>
           <TimeAwareText text={el.text} />
         </span>
       );
     case "link": {
       const link = <LinkToken label={el.text} url={el.url} />;
-      return el.style ? <span classList={styleClasses(el.style)}>{link}</span> : link;
+      return el.style ? <span class={styleClasses(el.style)}>{link}</span> : link;
     }
     case "emoji": {
       const unicode = el.unicode && hexCodepointsToEmoji(el.unicode);
@@ -126,10 +127,10 @@ function RichTextListView(props: { list: RichTextListType }) {
   const ordered = () => props.list.style === "ordered";
   const indent = () => props.list.indent ?? 0;
   const markers = () => (ordered() ? ORDERED_MARKERS : BULLET_MARKERS);
+  const List = dynamic(() => (ordered() ? "ol" : "ul"));
   return (
-    <Dynamic
+    <List
       class="bk-rt-list"
-      component={ordered() ? "ol" : "ul"}
       start={ordered() ? (props.list.offset ?? 0) + 1 : undefined}
       style={{
         "list-style-type": markers()[indent() % markers().length],
@@ -143,15 +144,15 @@ function RichTextListView(props: { list: RichTextListType }) {
           </li>
         )}
       </For>
-    </Dynamic>
+    </List>
   );
 }
 
-function SubBlockView(props: { sub: RichTextSubBlock }) {
-  const { sub } = props;
+function SubBlockView(props: { sub: RichTextSubBlock; trailing?: JSX.Element }) {
+  const sub = props.sub;
   switch (sub.type) {
     case "rich_text_section":
-      return <RichTextSectionView section={sub} />;
+      return <RichTextSectionView section={sub} trailing={props.trailing} />;
     case "rich_text_quote":
       return (
         <blockquote class="bk-quote quote-bar">
@@ -195,15 +196,12 @@ export default function RichText(props: { block: RichTextBlockType; trailing?: J
   return (
     <div class="bk-rich-text">
       <For each={props.block.elements}>
-        {(sub: RichTextSubBlock, index) => {
-          const isLastSection =
-            sub.type === "rich_text_section" && index() === props.block.elements.length - 1;
-          return isLastSection ? (
-            <RichTextSectionView section={sub} trailing={props.trailing} />
-          ) : (
-            <SubBlockView sub={sub} />
-          );
-        }}
+        {(sub: RichTextSubBlock, index) => (
+          <SubBlockView
+            sub={sub}
+            trailing={index() === props.block.elements.length - 1 ? props.trailing : undefined}
+          />
+        )}
       </For>
     </div>
   );

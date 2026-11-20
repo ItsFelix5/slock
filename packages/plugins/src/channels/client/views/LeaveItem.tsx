@@ -1,7 +1,9 @@
 import { service } from "@slock/core/solid";
-import { confirmDialog, MenuItem } from "@slock/ui";
+import { MenuItem } from "@slock/ui";
 import { Show } from "solid-js";
 import type { ChannelMenuProps } from "../../../messages/client/api";
+
+const dialogs = service("shell.dialogs");
 
 export default function LeaveItem(props: ChannelMenuProps) {
   const channels = service("channels");
@@ -13,7 +15,7 @@ export default function LeaveItem(props: ChannelMenuProps) {
         icon="sign-out"
         onClick={async () => {
           props.close();
-          const ok = await confirmDialog({
+          const ok = await dialogs.confirm({
             confirmLabel: "Leave",
             danger: true,
             message: `Leave #${props.channelTitle}?`,

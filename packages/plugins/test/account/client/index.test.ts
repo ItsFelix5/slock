@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createHost, defined, type PluginDef } from "@slock/core";
 import { setHost, solidReactive } from "@slock/core/solid";
 import { getActiveAccountId, REAUTH_EVENT, sessionInfoCookie } from "@slock/slack";
+import { tid } from "@slock/slack/testing";
 import type { AccountSummary } from "@slock/types";
 import type { AccountService } from "../../../src/account/client/api";
 import account from "../../../src/account/client/index";
@@ -9,8 +10,8 @@ import account from "../../../src/account/client/index";
 type Host = ReturnType<typeof createHost>;
 
 const accounts: AccountSummary[] = [
-  { domain: "one.slack.com", id: "a", name: "One", teamId: "T1" },
-  { domain: "two.slack.com", id: "b", name: "Two", teamId: "T2" },
+  { domain: "one.slack.com", id: "a", name: "One", teamId: tid("T1") },
+  { domain: "two.slack.com", id: "b", name: "Two", teamId: tid("T2") },
 ];
 
 function signIn(id: string | null) {

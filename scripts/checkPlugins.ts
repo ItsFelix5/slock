@@ -8,8 +8,7 @@ const SERVICE_USE = /(?:\bservice|ctx\.get|ctx\.maybe)\(\s*["']([^"']+)["']/g;
 const PUBLIC_NAMES = new Set(["api", "contract"]);
 const HANDLER_TYPES = /(?:types:|gatewayHandler\(|_EVENTS\s*=)\s*\[([^\]]*)\]/g;
 const BANNED: [RegExp, string][] = [
-  [/\bcreateResource\b/, "createResource (use a query)"],
-  [/queryKey:\s*\[/, "literal query key (use defineKey)"],
+  [/\bcreateResource\b/, "createResource (use defineQuery or an async memo)"],
   [/^(?:export )?const .*= createRoot\(/m, "module level createRoot (create it in setup)"],
 ];
 const LIBRARY_PACKAGES = ["core", "ui", "blockkit", "slack", "types"];

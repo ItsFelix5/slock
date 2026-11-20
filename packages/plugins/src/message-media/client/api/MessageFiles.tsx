@@ -179,7 +179,7 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
     <div class="message-files flex-col">
       <Show when={mediaFiles().length}>
         <MediaFrame title={mediaTitle()} titleUrl={mediaTitleUrl()}>
-          <div class="message-file-gallery" classList={{ single: mediaFiles().length === 1 }}>
+          <div class={["message-file-gallery", { single: mediaFiles().length === 1 }]}>
             <For each={mediaFiles()}>
               {(file) => (
                 <InlineMedia

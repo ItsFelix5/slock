@@ -50,7 +50,7 @@ export default function DndButton() {
 
   return (
     <fieldset
-      aria-busy={prefsStore.isDndPending()}
+      aria-busy={prefsStore.isDndPending() ? "true" : "false"}
       class="dnd-btn-wrap"
       disabled={prefsStore.isDndPending()}
       onBlur={scheduleClose}

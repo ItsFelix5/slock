@@ -1,5 +1,6 @@
 import { service } from "@slock/core/solid";
-import { AddRowButton, confirmDialog, Icon, Switch } from "@slock/ui";
+import type { ChannelId } from "@slock/types";
+import { AddRowButton, Icon, Switch } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { channelDisplayName } from "../../../channels/client/api";
 import ComposeChannelPicker from "../../../composer/client/api/pickers/ComposeChannelPicker";
@@ -8,13 +9,15 @@ import { SplitNavigation } from "../../../shell/client/api/SplitNavigation";
 import RemoveRowButton from "./RemoveRowButton";
 import "./UsergroupDetails.css";
 
+const dialogs = service("shell.dialogs");
+
 const details = service("usergroup-details");
 
 const viewStore = service("conversations");
 const channelsStore = service("channels");
 
 export default function UsergroupChannelsTab(props: {
-  channelIds: string[];
+  channelIds: ChannelId[];
   disabled: boolean;
   sectionEnabled: boolean;
   usergroupId: string;
@@ -30,16 +33,16 @@ export default function UsergroupChannelsTab(props: {
     );
   });
 
-  const addChannel = async (channelId: string) => {
+  const addChannel = async (channelId: ChannelId) => {
     if (props.disabled) return;
     setAddingChannel(false);
     await details.addUsergroupChannels(props.usergroupId, [channelId]);
   };
 
-  const removeChannel = async (id: string, name: string) => {
+  const removeChannel = async (id: ChannelId, name: string) => {
     if (props.disabled) return;
 
-    const confirmed = await confirmDialog({
+    const confirmed = await dialogs.confirm({
       confirmLabel: "Remove",
       danger: true,
       message: `Remove #${name} as a default channel for this pinggroup?`,
@@ -90,7 +93,7 @@ export default function UsergroupChannelsTab(props: {
           <ComposeChannelPicker
             excludeChannelIds={props.channelIds}
             onClose={() => setAddingChannel(false)}
-            onSelect={addChannel}
+            onSelect={(channelId) => void addChannel(channelId)}
           />
         </div>
       </Show>

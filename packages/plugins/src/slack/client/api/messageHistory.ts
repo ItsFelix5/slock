@@ -1,6 +1,6 @@
 import { defined } from "@slock/core";
 import { apiGet, HISTORY_PAGE_SIZE, mapVisibleMessages } from "@slock/slack";
-import type { HistoryPage, RawMessage } from "@slock/types";
+import type { ChannelId, HistoryPage, RawMessage, Ts } from "@slock/types";
 
 type HistoryReply = {
   has_more?: boolean;
@@ -8,7 +8,10 @@ type HistoryReply = {
   response_metadata?: { next_cursor?: string };
 };
 
-async function fetchHistoryPage(channelId: string, query: URLSearchParams): Promise<HistoryPage> {
+async function fetchHistoryPage(
+  channelId: ChannelId,
+  query: URLSearchParams,
+): Promise<HistoryPage> {
   const data = await apiGet<HistoryReply>(`/api/channels/${channelId}/messages?${query}`);
   if (!data.ok) throw new Error(data.error ?? "conversations.history failed");
   return {
@@ -18,7 +21,7 @@ async function fetchHistoryPage(channelId: string, query: URLSearchParams): Prom
   };
 }
 
-export async function fetchHistory(channelId: string, cursor?: string): Promise<HistoryPage> {
+export async function fetchHistory(channelId: ChannelId, cursor?: string): Promise<HistoryPage> {
   if (!cursor) {
     const page = await fetchHistoryPage(
       channelId,
@@ -38,11 +41,7 @@ export async function fetchHistory(channelId: string, cursor?: string): Promise<
   return fetchHistoryPage(channelId, query);
 }
 
-export function fetchHistoryAround(
-  channelId: string,
-  ts: string,
-  limit = 28,
-): Promise<HistoryPage> {
+export function fetchHistoryAround(channelId: ChannelId, ts: Ts, limit = 28): Promise<HistoryPage> {
   const query = new URLSearchParams({
     inclusive: "true",
     latest: ts,
@@ -64,7 +63,7 @@ function newerSpans(start: number): number[] {
 type NewerWindow = { end: number; page: HistoryPage; reachesPresent: boolean };
 
 async function fetchNewerWindow(
-  channelId: string,
+  channelId: ChannelId,
   start: number,
   span: number,
 ): Promise<NewerWindow> {
@@ -84,7 +83,7 @@ function newerPage({ end, page, reachesPresent }: NewerWindow): HistoryPage {
   return { hasMore: true, messages: page.messages, nextCursor: end.toFixed(6) };
 }
 
-async function bisectNewer(channelId: string, from: number, firstSpan: number) {
+async function bisectNewer(channelId: ChannelId, from: number, firstSpan: number) {
   let start = from;
   let span = firstSpan;
   for (;;) {
@@ -99,7 +98,10 @@ async function bisectNewer(channelId: string, from: number, firstSpan: number) {
   }
 }
 
-export async function fetchHistoryNewer(channelId: string, oldest: string): Promise<HistoryPage> {
+export async function fetchHistoryNewer(
+  channelId: ChannelId,
+  oldest: string,
+): Promise<HistoryPage> {
   let start = parseFloat(oldest);
   for (;;) {
     const windows = await Promise.all(

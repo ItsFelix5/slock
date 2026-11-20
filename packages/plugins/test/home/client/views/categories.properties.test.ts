@@ -1,12 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { forAll, int, pick } from "@slock/core/testing";
-import {
-  build,
-  channel,
-  ids,
-  section,
-  type World,
-} from "../../../../src/home/client/views/categoriesFixtures";
+import { build, channel, ids, section, type World } from "./categoriesFixtures";
 
 describe("buildCategories properties", () => {
   const singletonTypes = ["channels", "stars", "direct_messages", "recent_apps"];

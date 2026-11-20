@@ -7,7 +7,8 @@ import {
   type IconName,
   VideoPlayer,
 } from "@slock/ui";
-import { createSignal, type JSX, Match, Show, Switch } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { createSignal, Match, Show, Switch } from "solid-js";
 import AudioFile from "../../../../message-media/client/api/AudioFile";
 import FileViewerTrigger from "../../../../message-media/client/api/FileViewer";
 import TranscriptPopover from "../../../../message-media/client/api/TranscriptPopover";

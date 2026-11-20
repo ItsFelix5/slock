@@ -1,27 +1,57 @@
-import { createSignal } from "solid-js";
+import { createPref, type Env, isRecord } from "@slock/core";
+import { createImmediateSignal } from "./immediateSignal";
 import type { ShortcutCombo } from "./shortcutCombo";
 
 export type KeybindOverrides = Record<string, ShortcutCombo | null>;
 
 const STORAGE_KEY = "slock-keybind-overrides";
 
-type KeyValueStorage = Pick<Storage, "getItem" | "setItem">;
+function parseKey(value: unknown): string | readonly string[] | undefined {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value) && value.every((key) => typeof key === "string")) return value;
+}
 
-export function createKeybindOverrides(storage: KeyValueStorage) {
-  function load(): KeybindOverrides {
-    try {
-      const raw = storage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : {};
-    } catch {
-      return {};
-    }
+function parseFlag(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function parseCombo(value: unknown): ShortcutCombo | null | undefined {
+  if (value === null) return null;
+  if (!isRecord(value)) return;
+  const key = parseKey(value.key);
+  if (key === undefined) return;
+  const combo: ShortcutCombo = { key };
+  const mod = parseFlag(value.mod);
+  const shift = parseFlag(value.shift);
+  const alt = parseFlag(value.alt);
+  if (mod !== undefined) combo.mod = mod;
+  if (shift !== undefined) combo.shift = shift;
+  if (alt !== undefined) combo.alt = alt;
+  return combo;
+}
+
+function parseOverrides(value: unknown): KeybindOverrides | undefined {
+  if (!isRecord(value)) return;
+  const overrides: KeybindOverrides = {};
+  for (const [id, entry] of Object.entries(value)) {
+    const combo = parseCombo(entry);
+    if (combo !== undefined) overrides[id] = combo;
   }
+  return overrides;
+}
 
-  const [overrides, setOverrides] = createSignal<KeybindOverrides>(load());
+export function createKeybindOverrides(storage: Env["storage"]) {
+  const pref = createPref<KeybindOverrides>(storage, {
+    fallback: {},
+    key: STORAGE_KEY,
+    parse: parseOverrides,
+  });
+  const [overrides, setOverrides] = createImmediateSignal(pref.get());
+  const stopSync = pref.onRemoteChange(setOverrides);
 
   function persist(next: KeybindOverrides) {
     setOverrides(next);
-    storage.setItem(STORAGE_KEY, JSON.stringify(next));
+    pref.set(next);
   }
 
   return {
@@ -30,6 +60,7 @@ export function createKeybindOverrides(storage: KeyValueStorage) {
       delete next[id];
       persist(next);
     },
+    dispose: stopSync,
     overrides,
     resetAll(): void {
       persist({});
@@ -40,9 +71,15 @@ export function createKeybindOverrides(storage: KeyValueStorage) {
   };
 }
 
-const store = createKeybindOverrides(globalThis.localStorage);
+const NO_OVERRIDES: KeybindOverrides = {};
+let source: () => KeybindOverrides = () => NO_OVERRIDES;
 
-export const keybindOverrides = store.overrides;
-export const setKeybindOverride = store.set;
-export const clearKeybindOverride = store.clear;
-export const resetAllKeybinds = store.resetAll;
+export const keybindOverrides = (): KeybindOverrides => source();
+
+export function installKeybindOverrides(store: { overrides: () => KeybindOverrides }): () => void {
+  const read = store.overrides;
+  source = read;
+  return () => {
+    if (source === read) source = () => NO_OVERRIDES;
+  };
+}

@@ -1,6 +1,7 @@
 import type { SlackFile, SlackFileDetail } from "@slock/types";
 import { formatSize } from "@slock/ui";
-import { type JSX, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { Show } from "solid-js";
 import { formatDateTime } from "./formatDateTime";
 
 function Fact(props: { children: JSX.Element; label: string }) {

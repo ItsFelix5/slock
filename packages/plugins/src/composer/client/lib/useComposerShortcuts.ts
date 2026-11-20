@@ -1,6 +1,9 @@
-import { focusedPaneId, focusPaneById, inside, useEscapeClose, useShortcut } from "@slock/ui";
+import { service } from "@slock/core/solid";
+import { focusPaneById, inside, useEscapeClose, useShortcut } from "@slock/ui";
 import type Quill from "@slock/ui/editor/quill";
-import { editLastMessageInPane } from "../../../messages/client/api/messageFocus";
+
+const focusRegistry = service("messages.focus");
+const panesStore = service("shell.panes");
 
 export function useComposerShortcuts(deps: {
   dismissPreviews: () => void;
@@ -11,7 +14,8 @@ export function useComposerShortcuts(deps: {
   quill: () => Quill | undefined;
   toggleDrafts: () => void;
 }) {
-  const paneFocused = () => !deps.editing() && !!deps.paneId() && focusedPaneId() === deps.paneId();
+  const paneFocused = () =>
+    !deps.editing() && !!deps.paneId() && panesStore.focusedPaneId() === deps.paneId();
   useShortcut({
     combo: { key: "i" },
     enabled: paneFocused,
@@ -47,7 +51,7 @@ export function useComposerShortcuts(deps: {
     enabled: () => !deps.editing() && (deps.quill()?.getLength() ?? 2) <= 1,
     handler: () => {
       const id = deps.paneId();
-      if (id) editLastMessageInPane(id);
+      if (id) focusRegistry.editLastInPane(id);
     },
     id: "composer.editLast",
     label: "Edit your last message",

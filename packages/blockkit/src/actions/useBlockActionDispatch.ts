@@ -1,10 +1,11 @@
 import type { ConfirmationDialog } from "@slock/types";
-import { confirmDialog } from "@slock/ui";
 import { createSignal, onCleanup } from "solid-js";
 import type { BlockActionContext } from "../BlockKit";
+import { useBlockKitConfirm } from "../context";
 import { containerOf, runBlockAction } from "./blockActions";
 
 export function useBlockActionDispatch(context: () => BlockActionContext | undefined) {
+  const confirmDialog = useBlockKitConfirm();
   const [pending, setPending] = createSignal(false);
   const [unsupported, setUnsupported] = createSignal(false);
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -66,5 +67,12 @@ export function useBlockActionDispatch(context: () => BlockActionContext | undef
     if (action_id) context()?.view?.state.record(block_id, action_id, value);
   };
 
-  return { canDispatch, dispatch, flashUnsupported, pending, record, unsupported };
+  return {
+    canDispatch,
+    dispatch,
+    flashUnsupported,
+    pending,
+    record,
+    unsupported,
+  };
 }

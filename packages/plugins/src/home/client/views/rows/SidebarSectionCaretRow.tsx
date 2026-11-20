@@ -1,5 +1,5 @@
-import { Icon, type IconName } from "@slock/ui";
-import type { JSX } from "solid-js";
+import { ariaBoolean, Icon, type IconName } from "@slock/ui";
+import type { JSX } from "@solidjs/web";
 import { Show } from "solid-js";
 import "./SidebarSection.css";
 
@@ -16,12 +16,12 @@ export function SidebarSectionCaretRow(props: {
   return (
     <div class="sidebar-section-header-btn flex-align-center text-muted text-sm">
       <button
-        aria-expanded={props.open}
+        aria-expanded={ariaBoolean(props.open)}
         aria-label={`${props.open ? "Collapse" : "Expand"} ${props.label}`}
         class="sidebar-caret btn-reset icon-shift"
         data-nav-row
         onClick={props.onToggleOpen}
-        tabIndex={-1}
+        tabindex={-1}
         type="button"
       >
         <Icon
@@ -36,7 +36,7 @@ export function SidebarSectionCaretRow(props: {
             class="btn-reset text-muted text-sm"
             data-nav-row
             onClick={onLabelClick()}
-            tabIndex={-1}
+            tabindex={-1}
             type="button"
           >
             {props.label}

@@ -1,5 +1,5 @@
 import { BlockKit, TimeAnchorContext } from "@slock/blockkit";
-import type { Block, SlackFile } from "@slock/types";
+import type { Block, ChannelId, SlackFile, Ts } from "@slock/types";
 import { Show } from "solid-js";
 import TextOrFiles from "../../../../files/client/api/TextOrFiles";
 
@@ -7,19 +7,19 @@ export default function MessageReferenceSnippet(props: {
   blocks?: Block[];
   botId?: string;
   botUserId?: string;
-  channelId: string;
+  channelId: ChannelId;
   edited?: boolean;
   files?: SlackFile[];
   inline?: boolean;
   text: string;
-  threadTs?: string;
-  ts: string;
+  threadTs?: Ts;
+  ts: Ts;
   tz?: string;
 }) {
   const blocks = () => (props.blocks?.length ? props.blocks : undefined);
 
   return (
-    <TimeAnchorContext.Provider value={{ ms: parseFloat(props.ts) * 1000, tz: props.tz }}>
+    <TimeAnchorContext value={{ ms: parseFloat(props.ts) * 1000, tz: props.tz }}>
       <Show
         fallback={
           <>
@@ -46,6 +46,6 @@ export default function MessageReferenceSnippet(props: {
           />
         )}
       </Show>
-    </TimeAnchorContext.Provider>
+    </TimeAnchorContext>
   );
 }

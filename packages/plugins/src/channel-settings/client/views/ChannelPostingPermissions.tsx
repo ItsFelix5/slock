@@ -1,8 +1,9 @@
 import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { isWaiting } from "@slock/resource";
 import type { ChannelId, UserId } from "@slock/types";
 import { AddRowButton, Avatar, IconButton, Switch } from "@slock/ui";
-import { createEffect, createSignal, For, on, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import ComposeUserPicker from "../../../composer/client/api/pickers/ComposeUserPicker";
 import SettingsLoadError from "./SettingsLoadError";
 import "./ChannelPostingPermissions.css";
@@ -13,26 +14,25 @@ const usersStore = service("users");
 
 export default function ChannelPostingPermissions(props: { channelId: ChannelId }) {
   const postingPrefsQuery = channelDetails.createChannelPostingPrefsQuery(() => props.channelId);
-  const postingPrefs = () => postingPrefsQuery.data;
-  const [postingRestricted, setPostingRestricted] = createSignal(false);
-  const [postingExceptionUserIds, setPostingExceptionUserIds] = createSignal<UserId[]>([]);
-  const [threadsRestricted, setThreadsRestricted] = createSignal(false);
-  const [allowChannelMentions, setAllowChannelMentions] = createSignal(true);
+  const postingPrefs = () => postingPrefsQuery().data;
+  const [postingRestricted, setPostingRestricted] = createSignal(
+    () => postingPrefs()?.postingRestrictedToManagers ?? false,
+  );
+  const [postingExceptionUserIds, setPostingExceptionUserIds] = createSignal<UserId[]>(
+    () => postingPrefs()?.postingExceptionUserIds ?? [],
+  );
+  const [threadsRestricted, setThreadsRestricted] = createSignal(
+    () => postingPrefs()?.threadsRestrictedToManagers ?? false,
+  );
+  const [allowChannelMentions, setAllowChannelMentions] = createSignal(
+    () => postingPrefs()?.allowChannelMentions ?? true,
+  );
   const [savingPostingPrefs, setSavingPostingPrefs] = createSignal(false);
   const [addingPostingException, setAddingPostingException] = createSignal(false);
   const [postingPrefsSaveError, setPostingPrefsSaveError] = createSignal<string>();
 
-  const retryPostingPrefs = () => void postingPrefsQuery.refetch();
-
-  createEffect(
-    on(postingPrefs, (prefs) => {
-      if (!prefs) return;
-      setPostingRestricted(prefs.postingRestrictedToManagers);
-      setPostingExceptionUserIds(prefs.postingExceptionUserIds);
-      setThreadsRestricted(prefs.threadsRestrictedToManagers);
-      setAllowChannelMentions(prefs.allowChannelMentions);
-    }),
-  );
+  const retryPostingPrefs = () =>
+    void channelDetails.queries.postingPrefs.refresh(props.channelId).catch(() => {});
 
   const canEdit = () => !!postingPrefs() && !savingPostingPrefs();
 
@@ -111,12 +111,12 @@ export default function ChannelPostingPermissions(props: { channelId: ChannelId 
   return (
     <div class="settings-section">
       <div class="settings-section-title">Posting permissions</div>
-      <Show when={postingPrefsQuery.isLoading}>
+      <Show when={isWaiting(postingPrefsQuery())}>
         <p class="channel-details-meta">Loading posting permissions…</p>
       </Show>
-      <Show when={postingPrefsQuery.error}>
+      <Show when={postingPrefsQuery().error}>
         <SettingsLoadError
-          error={postingPrefsQuery.error}
+          error={postingPrefsQuery().error}
           message="Posting permissions couldn't be loaded."
           onRetry={retryPostingPrefs}
         />

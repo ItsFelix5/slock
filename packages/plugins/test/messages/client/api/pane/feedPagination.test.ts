@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createRoot } from "solid-js";
 import { createFeedPagination } from "../../../../../src/messages/client/api/pane/scroll/feedPagination";
-import { createScrollFeed } from "../../../../../src/messages/client/api/pane/scrollFeedFixture";
+import { createScrollFeed } from "./scrollFeedFixture";
 
 const disposers: (() => void)[] = [];
 afterEach(() => {

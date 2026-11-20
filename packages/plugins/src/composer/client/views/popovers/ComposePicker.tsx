@@ -8,7 +8,7 @@ import {
   useEscapeClose,
   useListShortcuts,
 } from "@slock/ui";
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { createMemo, createSignal, createUniqueId, For, Show } from "solid-js";
 import "../../api/pickers/ComposeUserPicker.css";
 
@@ -21,11 +21,11 @@ interface PickerItem {
 
 export default function ComposePicker<T extends PickerItem>(props: {
   emptyMessage: string;
-  excludeIds?: string[];
+  excludeIds?: T["id"][];
   localItems: () => T[];
   notFoundMessage: string;
   onClose: () => void;
-  onSelect: (id: string) => void;
+  onSelect: (id: T["id"]) => void;
   placeholder: string;
   remoteSearch: (query: string) => Promise<T[]>;
   renderItem: (item: T, isActive: boolean, optionId: string) => JSX.Element;
@@ -127,12 +127,14 @@ export default function ComposePicker<T extends PickerItem>(props: {
           <For each={items()}>
             {(item, index) => (
               <button
-                class="compose-picker-row btn-reset flex-align-center"
-                classList={{ active: activeIndex() === index() }}
+                class={[
+                  "compose-picker-row btn-reset flex-align-center",
+                  { active: activeIndex() === index() },
+                ]}
                 id={optionId(index())}
                 onClick={() => props.onSelect(item.id)}
                 onMouseEnter={() => setActiveIndex(index())}
-                tabIndex={-1}
+                tabindex={-1}
                 type="button"
               >
                 {props.renderItem(item, activeIndex() === index(), optionId(index()))}

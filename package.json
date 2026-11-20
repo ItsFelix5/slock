@@ -13,7 +13,7 @@
     "plugin:build": "bun run packages/server/src/index.ts --build-plugin",
     "start": "bun run packages/server/src/index.ts",
     "relay": "bun run packages/relay/src/index.ts",
-    "test": "bun test --conditions browser --timeout 30000",
+    "test": "bun test --conditions browser --conditions development --timeout 30000",
     "check": "biome check . --write && tsc -b && bun scripts/checkPlugins.ts",
     "format": "biome format . --write"
   },

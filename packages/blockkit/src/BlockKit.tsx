@@ -21,10 +21,11 @@ import type {
   TaskCardBlock,
   VideoBlock,
 } from "@slock/types";
-import { For, type JSX, Match, Show, Switch } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { For, Match, Show, Switch } from "solid-js";
 import Mrkdwn from "./mrkdwn/mrkdwn";
 import "./BlockKit.css";
-import { Dynamic } from "solid-js/web";
+import { dynamic } from "@solidjs/web";
 import type { ViewState } from "./actions/viewState";
 import Alert from "./blocks/Alert";
 import { Card, Carousel } from "./blocks/Card";
@@ -61,10 +62,11 @@ function Divider() {
 }
 
 function Header(props: { block: HeaderBlock }) {
+  const Heading = dynamic(() => `h${props.block.level ?? 1}` as const);
   return (
-    <Dynamic component={`h${props.block.level ?? 1}`} class="bk-header">
+    <Heading class="bk-header">
       <EmojiText text={props.block.text.text} />
-    </Dynamic>
+    </Heading>
   );
 }
 

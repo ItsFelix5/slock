@@ -23,7 +23,7 @@ export default function MessageActionsBar(props: {
   const toggleMore = () => props.onToggleMoreMenu(props.msg.ts);
 
   return (
-    <div class="message-hover-actions" classList={{ "force-visible": pickerOpen() || moreOpen() }}>
+    <div class={["message-hover-actions", { "force-visible": pickerOpen() || moreOpen() }]}>
       <Slot
         channelId={props.channelId}
         msg={props.msg}
@@ -48,7 +48,7 @@ export default function MessageActionsBar(props: {
             icon="ellipsis-vertical-filled"
             label="More actions"
             onClick={toggleMore}
-            tabIndex={props.rowFocused() ? undefined : -1}
+            tabindex={props.rowFocused() ? undefined : -1}
           />
         }
       >

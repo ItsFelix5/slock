@@ -1,10 +1,12 @@
 import { service } from "@slock/core/solid";
-import type { User } from "@slock/types";
-import { AddRowButton, Avatar, Button, confirmDialog, initRovingTabIndexDefault } from "@slock/ui";
+import type { User, UserId } from "@slock/types";
+import { AddRowButton, Avatar, Button, initRovingTabIndexDefault } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import ComposeUserPicker from "../../../composer/client/api/pickers/ComposeUserPicker";
 import RemoveRowButton from "./RemoveRowButton";
 import "./UsergroupDetails.css";
+
+const dialogs = service("shell.dialogs");
 
 const details = service("usergroup-details");
 
@@ -13,14 +15,17 @@ const usersStore = service("users");
 export default function UsergroupMembersTab(props: {
   disabled: boolean;
   usergroupId: string;
-  memberIds: string[];
+  memberIds: UserId[];
 }) {
   let listRef: HTMLDivElement | undefined;
   const [query, setQuery] = createSignal("");
   const [addingPeople, setAddingPeople] = createSignal(false);
 
   const selfId = () => usersStore.currentUser()?.id;
-  const isSelfMember = () => props.memberIds.includes(selfId() ?? "");
+  const isSelfMember = () => {
+    const me = selfId();
+    return !!me && props.memberIds.includes(me);
+  };
 
   const members = createMemo(() => {
     const users = props.memberIds
@@ -37,7 +42,7 @@ export default function UsergroupMembersTab(props: {
 
   initRovingTabIndexDefault(() => listRef, filteredMembers);
 
-  const addMember = async (userId: string) => {
+  const addMember = async (userId: UserId) => {
     if (props.disabled) return;
     setAddingPeople(false);
     await details.addUsergroupMembers(props.usergroupId, [userId]);
@@ -46,7 +51,7 @@ export default function UsergroupMembersTab(props: {
   const removeMember = async (user: User) => {
     if (props.disabled) return;
 
-    const confirmed = await confirmDialog({
+    const confirmed = await dialogs.confirm({
       confirmLabel: "Remove",
       danger: true,
       message: `Remove ${user.name} from this pinggroup?`,
@@ -78,7 +83,7 @@ export default function UsergroupMembersTab(props: {
           <ComposeUserPicker
             excludeUserIds={props.memberIds}
             onClose={() => setAddingPeople(false)}
-            onSelect={addMember}
+            onSelect={(userId) => void addMember(userId)}
           />
         </div>
       </Show>
@@ -111,7 +116,7 @@ export default function UsergroupMembersTab(props: {
                 class="usergroup-details-row-main btn-reset flex-align-center"
                 data-nav-row
                 onClick={() => usersStore.openUserProfile(u.id)}
-                tabIndex={-1}
+                tabindex={-1}
                 type="button"
               >
                 <Avatar size="small" user={u} />

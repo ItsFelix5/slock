@@ -1,5 +1,6 @@
 import type { Attachment } from "@slock/types";
-import { createContext, type JSX, useContext } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { createContext, useContext } from "solid-js";
 
 export interface BlockKitMentionInfo {
   isMember?: boolean;
@@ -53,10 +54,10 @@ export interface TimeAnchor {
   tz?: string;
 }
 
-export const TimeAnchorContext = createContext<TimeAnchor | undefined>(undefined);
+export const TimeAnchorContext = createContext<TimeAnchor | null>(null);
 
 export function useTimeAnchor(): TimeAnchor | undefined {
-  return useContext(TimeAnchorContext);
+  return useContext(TimeAnchorContext) ?? undefined;
 }
 
 export const HighlightWordsContext = createContext<() => string[]>(() => []);
@@ -83,4 +84,18 @@ export const EmojiFreezeContext = createContext<() => boolean>(() => false);
 
 export function useEmojiFreeze(): () => boolean {
   return useContext(EmojiFreezeContext);
+}
+
+export type BlockKitConfirm = (options: {
+  cancelLabel?: string;
+  confirmLabel?: string;
+  danger?: boolean;
+  message: string;
+  title?: string;
+}) => Promise<boolean>;
+
+export const BlockKitConfirmContext = createContext<BlockKitConfirm>(() => Promise.resolve(false));
+
+export function useBlockKitConfirm(): BlockKitConfirm {
+  return useContext(BlockKitConfirmContext);
 }

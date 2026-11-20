@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import SegmentedControl from "../../src/button/SegmentedControl";
 
 let dispose: (() => void) | undefined;

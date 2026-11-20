@@ -29,8 +29,7 @@ export default function MasterLayout<T>(props: PaneLayoutProps<T>) {
       <For each={props.panes}>
         {(pane, i) => (
           <div
-            class="master-cell flex-col"
-            classList={{ "master-stacked": i() > 0 }}
+            class={["master-cell", "flex-col", { "master-stacked": i() > 0 }]}
             style={
               i() === 0
                 ? { "grid-column": 1, "grid-row": `1 / span ${stackRows()}` }

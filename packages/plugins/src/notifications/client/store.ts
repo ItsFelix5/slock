@@ -1,16 +1,17 @@
-import type { Channel, DesktopNotificationEvent, UserPrefs } from "@slock/types";
+import { isChannelId, isTs } from "@slock/slack";
+import type { Channel, ChannelId, DesktopNotificationEvent, Ts, UserPrefs } from "@slock/types";
 import { createSignal } from "solid-js";
 import { createLocalPref } from "../../slack/client/api/localPref";
 import { classifyNotification, type NotificationKind } from "./classify";
 
 type Deps = {
   activeView: () => { kind: string; id: string } | null;
-  isChannelMuted: (id: string) => boolean;
-  isChannelNotifyAll: (id: string) => boolean;
+  isChannelMuted: (id: ChannelId) => boolean;
+  isChannelNotifyAll: (id: ChannelId) => boolean;
   isDndActive: () => boolean;
   matchingHighlightWord: (text: string) => string | undefined;
-  openChannelPeek: (channelId: string, ts: string) => void;
-  resolveChannel: (id: string) => Promise<Pick<Channel, "canvasFileId" | "name"> | undefined>;
+  openChannelPeek: (channelId: ChannelId, ts: Ts) => void;
+  resolveChannel: (id: ChannelId) => Promise<Pick<Channel, "canvasFileId" | "name"> | undefined>;
   userPrefs: () => UserPrefs | undefined;
 };
 
@@ -49,7 +50,7 @@ export function createDesktopNotificationsStore(deps: Deps) {
     if (document.hasFocus() && document.visibilityState === "visible") return;
     const link = parseSlackDeepLink(payload.launchUri);
     const channelId = payload.channel ?? link.get("id");
-    if (!channelId || deps.isChannelMuted(channelId)) return;
+    if (!(channelId && isChannelId(channelId)) || deps.isChannelMuted(channelId)) return;
     if (deps.activeView()?.id === channelId) return;
 
     const text = payload.msg ?? payload.content ?? "";
@@ -73,7 +74,7 @@ export function createDesktopNotificationsStore(deps: Deps) {
     const ts = link.get("message") ?? payload.event_ts;
     notification.onclick = () => {
       window.focus();
-      if (ts) deps.openChannelPeek(channelId, ts);
+      if (ts && isTs(ts)) deps.openChannelPeek(channelId, ts);
       notification.close();
     };
   }

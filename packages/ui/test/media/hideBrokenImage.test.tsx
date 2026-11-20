@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
-import { createSignal } from "solid-js";
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
+import { createSignal, flush } from "solid-js";
 import HideBrokenImage from "../../src/media/image/HideBrokenImage";
 import { imageSrc } from "../../src/media/mediaSrc";
 
@@ -21,9 +21,11 @@ test("an image that fails to load is removed, and a new source shows again", () 
   const img = host.querySelector("img");
   expect(img).not.toBeNull();
   img?.dispatchEvent(new Event("error"));
+  flush();
   expect(host.querySelector("img")).toBeNull();
 
   setSrc("https://example.test/b.png");
+  flush();
   expect(host.querySelector("img")?.getAttribute("src")).toBe(
     imageSrc("https://example.test/b.png"),
   );

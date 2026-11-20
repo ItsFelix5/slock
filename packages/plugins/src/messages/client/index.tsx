@@ -1,6 +1,7 @@
-import { BlockKitResolverContext } from "@slock/blockkit";
+import { BlockKitConfirmContext, BlockKitResolverContext } from "@slock/blockkit";
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { isChannelId } from "@slock/slack";
 import type { ChannelId, Ts } from "@slock/types";
 import { narrowPaneContent, type Pane } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
@@ -8,8 +9,8 @@ import type { View } from "../../conversations/client/api/types";
 import { parseSlackPermalink } from "../../message-links/client/api/slackPermalink";
 import type { PaneContent } from "../../shell/client/api/types";
 import { liveOnly } from "./api/deletedMessages";
-import { clearActiveMessageFocus } from "./api/messageFocus";
-import { forgetScrollAnchors } from "./api/pane/scroll/rememberedAnchors";
+import { createMessageFocusRegistry } from "./api/messageFocus";
+import { createScrollAnchors } from "./api/pane/scroll/rememberedAnchors";
 import { createBlockKitResolver } from "./blockKitResolver";
 import { installDocumentTitle } from "./documentTitle";
 import { createEntitySource } from "./entitySource";
@@ -42,6 +43,7 @@ const setup: Setup = (ctx) => {
   const unread = service("unread");
   const titles = service("titles");
   const panes = service("shell.panes");
+  const dialogs = service("shell.dialogs");
   const conversations = service("conversations");
   const threadsIn = (list: ReturnType<typeof panes.panes>) =>
     list.flatMap(({ content }) =>
@@ -83,8 +85,8 @@ const setup: Setup = (ctx) => {
   });
   ctx.provide("messages", messages);
   ctx.add("messages.prefetch", messages.prefetchHistory);
-  ctx.onCleanup(forgetScrollAnchors);
-  ctx.onCleanup(clearActiveMessageFocus);
+  ctx.provide("messages.anchors", createScrollAnchors());
+  ctx.provide("messages.focus", createMessageFocusRegistry());
   installDocumentTitle();
   useMessageShortcuts();
   unread.wireReadTracking({
@@ -109,7 +111,7 @@ const setup: Setup = (ctx) => {
       singleton: false,
       tabLabel,
       url: {
-        parse: (segment) => ({ id: segment, kind: "channel" }),
+        parse: (segment) => (isChannelId(segment) ? { id: segment, kind: "channel" } : null),
         serialize: (content) => (content.kind === "channel" ? content.id : ""),
       },
       view: ConversationView,
@@ -134,9 +136,9 @@ const setup: Setup = (ctx) => {
   ctx.add("message-links.loaded", (channelId, ts) => !!loadedMessage(channelId, ts));
   const blockKitResolver = createBlockKitResolver(ctx.use("messages.blockKit"));
   ctx.add("shell.provider", (props) => (
-    <BlockKitResolverContext.Provider value={blockKitResolver}>
-      {props.children}
-    </BlockKitResolverContext.Provider>
+    <BlockKitResolverContext value={blockKitResolver}>
+      <BlockKitConfirmContext value={dialogs.confirm}>{props.children}</BlockKitConfirmContext>
+    </BlockKitResolverContext>
   ));
   ctx.add("messages.blockKit", {
     wrapLink: (url, trigger, attachments) => {

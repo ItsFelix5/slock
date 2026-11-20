@@ -1,12 +1,12 @@
 import type { Env } from "@slock/core";
 import type { ActivityItem, ChannelId, FeedEntry, Message, Ts, User, UserId } from "@slock/types";
-import { batch as solidBatch } from "solid-js";
-import { produce, type SetStoreFunction } from "solid-js/store";
 import { channelPostKey, isOwnOrUnresolved, NO_CHANNEL, reactionActivityKey } from "../kinds";
+import type { ActivityItems } from "./activityItems";
 
 export function createEntryResolution(deps: {
   cacheResolvedMessages?: (messages: Map<string, Message>) => void;
   env: Env;
+  items: ActivityItems;
   fetchHistoryAround: (
     channelId: ChannelId,
     ts: Ts,
@@ -19,7 +19,6 @@ export function createEntryResolution(deps: {
   isBotUser?: (userId: UserId) => boolean;
   onReactionPushed?: (name: string) => void;
   resolveActivityEntry: (entry: FeedEntry, batch?: Map<string, Message>) => ActivityItem;
-  setActivityItems: SetStoreFunction<ActivityItem[]>;
 }) {
   async function resolvePendingEntries(
     pending: FeedEntry[],
@@ -33,14 +32,12 @@ export function createEntryResolution(deps: {
     const unresolved = pending.filter(needsMessage);
     const toFetch = unresolved;
 
-    await deps.fetchMessagesByIds(toFetch, (batch) =>
-      solidBatch(() => {
-        deps.cacheResolvedMessages?.(batch);
-        for (const entry of toFetch)
-          if (!seen.has(entry.id) && batch.has(channelPostKey(entry.channelId, entry.ts)))
-            push(entry, batch);
-      }),
-    );
+    await deps.fetchMessagesByIds(toFetch, (batch) => {
+      deps.cacheResolvedMessages?.(batch);
+      for (const entry of toFetch)
+        if (!seen.has(entry.id) && batch.has(channelPostKey(entry.channelId, entry.ts)))
+          push(entry, batch);
+    });
 
     const unresolvedChannelEntries = toFetch.filter(
       (entry) =>
@@ -72,6 +69,7 @@ export function createEntryResolution(deps: {
     seenChannelPosts: Set<string>,
     seenReactions: Set<string>,
   ) {
+    const pushed: ActivityItem[] = [];
     const pushItem = (item: ActivityItem) => {
       const postKey = channelPostKey(item.channelId, item.ts);
       const reactionKey = reactionActivityKey(item);
@@ -88,16 +86,12 @@ export function createEntryResolution(deps: {
       if (item.kind === "channel_all") seenChannelPosts.add(postKey);
       if (item.kind === "reaction" && item.reactionName && deps.env.now() - item.time < 10_000)
         deps.onReactionPushed?.(item.reactionName);
-      deps.setActivityItems(
-        produce((list) => {
-          const olderIndex = list.findIndex((existing) => existing.time < item.time);
-          list.splice(olderIndex === -1 ? list.length : olderIndex, 0, item);
-        }),
-      );
+      pushed.push(item);
+      deps.items.insertByTime(item);
     };
     const push = (entry: FeedEntry, batch?: Map<string, Message>) =>
       pushItem(deps.resolveActivityEntry(entry, batch));
-    return { push, pushItem };
+    return { push, pushed };
   }
 
   return { createEntryPusher, resolvePendingEntries };

@@ -1,4 +1,5 @@
 import { service, usePoint } from "@slock/core/solid";
+import type { ChannelId, Ts } from "@slock/types";
 import { IconButton, PanelHeader } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
 import { openConversationInSplit } from "../../../conversations/client/api/nav";
@@ -12,10 +13,10 @@ const titles = service("titles");
 const messagesStore = service("messages");
 
 export default function ThreadHeader(props: {
-  channelId: string;
+  channelId: ChannelId;
   hasMessages: boolean;
   paneId: string;
-  threadTs: string;
+  threadTs: Ts;
 }) {
   const headers = usePoint("threads.header");
   const header = createMemo(() => {
@@ -56,8 +57,7 @@ export default function ThreadHeader(props: {
           {(override) => override().subtitle()}
         </Show>
         <IconButton
-          class="thread-panel-subscribe-btn icon-shift busy"
-          classList={{ subscribed: subscribed() }}
+          class={["thread-panel-subscribe-btn icon-shift busy", { subscribed: subscribed() }]}
           disabled={
             !(isMember() && props.hasMessages) ||
             messagesStore.isThreadSubscriptionPending(props.channelId, props.threadTs)

@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
-import { createSignal } from "solid-js";
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
+import { createSignal, flush } from "solid-js";
 import ConnectionStatus, { type ConnectionStatusState } from "../../src/feedback/ConnectionStatus";
 
 let dispose: (() => void) | undefined;
@@ -21,9 +21,11 @@ test("the pill stays mounted so it can fade, and is shown only while not connect
   expect(pill?.classList.contains("connection-status-shown")).toBe(false);
 
   setState("offline");
+  flush();
   expect(host.querySelector(".connection-status")).toBe(pill);
   expect(pill?.classList.contains("connection-status-shown")).toBe(true);
 
   setState("connected");
+  flush();
   expect(pill?.classList.contains("connection-status-shown")).toBe(false);
 });

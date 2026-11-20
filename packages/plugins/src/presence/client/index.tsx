@@ -49,11 +49,13 @@ const setup: Setup = (ctx) => {
     else setTimeout(flushHydration, 1000);
   }
 
-  createEffect(() => {
-    const ids = watchedIds();
-    if (realtime.gatewayConnected()) realtime.send({ ids, type: "watch_presence" });
-    hydrate(ids);
-  });
+  createEffect(
+    () => ({ connected: realtime.gatewayConnected(), ids: watchedIds() }),
+    ({ connected, ids }) => {
+      if (connected) realtime.send({ ids, type: "watch_presence" });
+      hydrate(ids);
+    },
+  );
   const tickle = () => realtime.send({ type: "tickle" });
   window.addEventListener("focus", tickle);
   ctx.onCleanup(() => window.removeEventListener("focus", tickle));

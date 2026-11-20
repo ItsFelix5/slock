@@ -1,18 +1,20 @@
 import { service } from "@slock/core/solid";
-import type { Message } from "@slock/types";
+import type { Message, Ts } from "@slock/types";
 import { useListShortcuts, useShortcut } from "@slock/ui";
 import { copyMessageLink } from "../../message-links/client/api/messageLinks";
 import { resolveProfileUserId } from "./api/messageAuthor";
-import { type ActiveMessageFocus, active, threadRootTs } from "./api/messageFocus";
+import { type ActiveMessageFocus, threadRootTs } from "./api/messageFocus";
 import { copyMessageText, deleteOrDismissMessage } from "./messageActions";
 
 const usersStore = service("users");
 const messagesStore = service("messages");
+const focusRegistry = service("messages.focus");
+const active = () => focusRegistry.active();
 
 export function useMessageShortcuts() {
   const enabled = () => active()?.focusedTs() != null;
   const liveEnabled = () => active()?.focusedLiveTs() != null;
-  const withFocused = (run: (focus: ActiveMessageFocus, ts: string) => void) => () => {
+  const withFocused = (run: (focus: ActiveMessageFocus, ts: Ts) => void) => () => {
     const focus = active();
     const ts = focus?.focusedTs();
     if (focus && ts != null) run(focus, ts);
@@ -65,9 +67,10 @@ export function useMessageShortcuts() {
   useShortcut({
     combo: { key: "c" },
     enabled,
-    handler: withFocused((focus, ts) =>
-      copyMessageLink(focus.channelId(), ts, focus.callbacks.threadTs?.()),
-    ),
+    handler: withFocused((focus, ts) => {
+      const channelId = focus.channelId();
+      if (channelId) copyMessageLink(channelId, ts, focus.callbacks.threadTs?.());
+    }),
     id: "messages.copyLink",
     label: "Copy link",
     scope: "messages",
@@ -100,9 +103,10 @@ export function useMessageShortcuts() {
   useShortcut({
     combo: { key: "u" },
     enabled: liveEnabled,
-    handler: withFocused((focus, ts) =>
-      messagesStore.toggleMessageUnread(focus.channelId(), ts, focus.callbacks.threadTs?.()),
-    ),
+    handler: withFocused((focus, ts) => {
+      const channelId = focus.channelId();
+      if (channelId) messagesStore.toggleMessageUnread(channelId, ts, focus.callbacks.threadTs?.());
+    }),
     id: "messages.markUnread",
     label: "Toggle unread",
     scope: "messages",
@@ -127,7 +131,8 @@ export function useMessageShortcuts() {
     },
     handler: withFocused((focus) => {
       const msg = focus.focusedMessage();
-      if (msg) deleteOrDismissMessage(focus.channelId(), msg);
+      const channelId = focus.channelId();
+      if (msg && channelId) deleteOrDismissMessage(channelId, msg);
     }),
     id: "messages.delete",
     label: "Delete message",

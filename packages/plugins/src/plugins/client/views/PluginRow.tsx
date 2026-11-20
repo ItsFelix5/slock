@@ -1,7 +1,9 @@
 import type { PluginInfo } from "@slock/core";
 import { getHost, service, usePoint } from "@slock/core/solid";
-import { confirmDialog, IconButton, Switch } from "@slock/ui";
+import { IconButton, Switch } from "@slock/ui";
 import { Show } from "solid-js";
+
+const dialogs = service("shell.dialogs");
 
 const STATUS_LABEL = {
   blocked: "Waiting for a dependency",
@@ -16,7 +18,7 @@ async function toggle(plugin: PluginInfo, on: boolean) {
     (id) => host.list().find((other) => other.id === id)?.status.state === "running",
   );
   if (!on && running.length > 0) {
-    const confirmed = await confirmDialog({
+    const confirmed = await dialogs.confirm({
       confirmLabel: "Turn off",
       danger: true,
       message: `${plugin.name} is needed by ${running.join(", ")}. Turn all off?`,

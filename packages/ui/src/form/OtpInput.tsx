@@ -27,23 +27,21 @@ function selectAll(event: FocusEvent & { currentTarget: HTMLInputElement }) {
 
 export default function OtpInput(props: OtpInputProps) {
   const length = () => props.length ?? 6;
-  const [slots, setSlots] = createSignal(toSlots(props.value, length()));
+  const [slots, setSlots] = createSignal(() => toSlots(props.value, length()));
   const [shake, setShake] = createSignal(false);
-  let lastEmitted = props.value;
   const inputs: HTMLInputElement[] = [];
   let rootRef: HTMLDivElement | undefined;
 
-  createEffect(() => {
-    if (props.value !== lastEmitted) setSlots(toSlots(props.value, length()));
-  });
-
-  createEffect(() => {
-    if (!props.error) return;
-    setShake(true);
-    focusAt(0);
-    const timer = setTimeout(() => setShake(false), 320);
-    return () => clearTimeout(timer);
-  });
+  createEffect(
+    () => props.error,
+    (error) => {
+      if (!error) return;
+      setShake(true);
+      focusAt(0);
+      const timer = setTimeout(() => setShake(false), 320);
+      return () => clearTimeout(timer);
+    },
+  );
 
   function focusAt(index: number) {
     const input = inputs[clamp(index, 0, length() - 1)];
@@ -54,7 +52,6 @@ export default function OtpInput(props: OtpInputProps) {
   function commit(next: string[]) {
     setSlots(next);
     const code = next.join("");
-    lastEmitted = code;
     props.onChange(code);
     if (next.every(Boolean)) props.onComplete?.(code);
   }
@@ -114,7 +111,7 @@ export default function OtpInput(props: OtpInputProps) {
   }
 
   return (
-    <div class="otp-input" classList={{ shake: shake() }} ref={rootRef}>
+    <div class={["otp-input", { shake: shake() }]} ref={rootRef}>
       <For each={slots()}>
         {(slot, index) => {
           const setInputRef = (el: HTMLInputElement) => {
@@ -129,8 +126,7 @@ export default function OtpInput(props: OtpInputProps) {
               ref={setInputRef}
               autocomplete={index() === 0 ? "one-time-code" : "off"}
               autofocus={props.autofocus && index() === 0}
-              class="otp-input-slot"
-              classList={{ filled: !!slot }}
+              class={["otp-input-slot", { filled: !!slot }]}
               disabled={props.disabled}
               inputmode="numeric"
               onFocus={selectAll}

@@ -1,4 +1,4 @@
-import { onMount } from "solid-js";
+import { onSettled } from "solid-js";
 
 export interface FormatBubbleLinkProps {
   onBlur: () => void;
@@ -8,7 +8,7 @@ export interface FormatBubbleLinkProps {
 
 export default function FormatBubbleLink(props: FormatBubbleLinkProps) {
   let input: HTMLInputElement | undefined;
-  onMount(() => input?.focus());
+  onSettled(() => input?.focus());
 
   return (
     <input

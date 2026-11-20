@@ -6,7 +6,7 @@ import { createUsersStore } from "./store";
 const setup: Setup = (ctx) => {
   const bootstrap = service("bootstrap");
   const store = createUsersStore({
-    currentUserBase: () => bootstrap.bootstrap.data?.currentUser,
+    currentUserBase: () => bootstrap.bootstrap().data?.currentUser,
     isSelfOnline: service("realtime").isSelfOnline,
     panes: service("shell.panes"),
   });

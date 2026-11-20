@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
+import { render } from "@solidjs/web";
 import { createComponent } from "solid-js";
-import { render } from "solid-js/web";
 import ClickableInline from "../../src/button/ClickableInline";
 
 let dispose: (() => void) | undefined;

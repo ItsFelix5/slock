@@ -6,8 +6,8 @@ import { createUsergroupsSlice } from "./store";
 const setup: Setup = (ctx) => {
   const { bootstrap } = service("bootstrap");
   const store = createUsergroupsSlice({
-    allUsergroupIds: () => bootstrap.data?.allUsergroupIds ?? [],
-    selfUsergroupIds: () => bootstrap.data?.selfUsergroupIds ?? [],
+    allUsergroupIds: () => bootstrap().data?.allUsergroupIds ?? [],
+    selfUsergroupIds: () => bootstrap().data?.selfUsergroupIds ?? [],
   });
   ctx.provide("usergroups", store);
   ctx.add("realtime.handler", {

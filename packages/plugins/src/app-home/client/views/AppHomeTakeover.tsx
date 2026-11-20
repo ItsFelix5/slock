@@ -1,5 +1,6 @@
 import { BlockKit, createViewState } from "@slock/blockkit";
-import { createEffect, on, Show } from "solid-js";
+import { isWaiting } from "@slock/resource";
+import { createEffect, Show } from "solid-js";
 import type { MessageHeaderProps } from "../../../messages/client/api";
 import { dispatchHomeOpen } from "../fetch";
 import "./AppHome.css";
@@ -8,21 +9,21 @@ import { useAppHome } from "./useAppHome";
 export default function AppHomeTakeover(props: MessageHeaderProps) {
   const home = useAppHome(() => props.id);
   createEffect(
-    on(
-      () => home.data?.appHome?.app_id,
-      (appId) => {
-        if (appId) void dispatchHomeOpen(props.id, appId);
-      },
-    ),
+    () => home().data?.appHome?.app_id,
+    (appId) => {
+      if (appId) void dispatchHomeOpen(props.id, appId);
+    },
   );
   return (
     <div class="app-home">
       <Show
         fallback={
-          <p class="app-home-empty text-dim">{home.isPending ? "Loading" : "Nothing here yet"}</p>
+          <p class="app-home-empty text-dim">
+            {isWaiting(home()) ? "Loading" : "Nothing here yet"}
+          </p>
         }
         keyed
-        when={home.data?.view}
+        when={home().data?.view}
       >
         {(view) => (
           <BlockKit

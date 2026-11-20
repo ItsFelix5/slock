@@ -44,11 +44,13 @@ export function createTokenEntitySearch(deps: TokenEntitySearchDeps) {
     onReset: () => setRemoteChannels([]),
     onResult: setRemoteChannels,
   });
-  createEffect(() => {
-    const { modifier, term } = currentToken(deps.query(), deps.cursor());
-    peopleRequest.run(PEOPLE_MODIFIERS.has(modifier) ? term : "");
-    channelRequest.run(modifier === "in" ? term : "");
-  });
+  createEffect(
+    () => currentToken(deps.query(), deps.cursor()),
+    ({ modifier, term }) => {
+      peopleRequest.run(PEOPLE_MODIFIERS.has(modifier) ? term : "");
+      channelRequest.run(modifier === "in" ? term : "");
+    },
+  );
 
   return { remoteChannels, remoteUsers };
 }

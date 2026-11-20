@@ -1,38 +1,35 @@
 import { imageSrc } from "@slock/ui";
-import { For, Show } from "solid-js";
+import { Errored, For, Loading, Show } from "solid-js";
 import type { ProfileMetaProps } from "../../profile/client/api";
-import { createKeyedQuery, defineKey } from "../../query/client/api";
-import { fetchInstalledApps, INSTALLED_APPS_QUERY } from "./fetch";
+import { installedApps } from "./fetch";
 import "./InstalledApps.css";
 
-const installedAppsKey = defineKey<[string]>(INSTALLED_APPS_QUERY);
-
 export default function UserInstalledApps(props: ProfileMetaProps) {
-  const installed = createKeyedQuery(() => {
-    const { id, isBot } = props.user;
-    if (isBot) return;
-    return { queryFn: () => fetchInstalledApps(id), queryKey: installedAppsKey(id) };
-  });
+  const installed = installedApps.use(() => (props.user.isBot ? undefined : props.user.id));
   return (
-    <Show when={installed.data?.length}>
-      <div class="user-profile-section">
-        <h3 class="user-profile-section-title">Installed apps ({installed.data?.length})</h3>
-        <ul class="installed-apps flex-col">
-          <For each={installed.data}>
-            {(app) => (
-              <li class="installed-app flex-align-center">
-                <Show
-                  fallback={<span class="installed-app-icon installed-app-icon-empty" />}
-                  when={app.icon}
-                >
-                  <img alt="" class="installed-app-icon" src={imageSrc(app.icon)} />
-                </Show>
-                <span class="truncate">{app.name}</span>
-              </li>
-            )}
-          </For>
-        </ul>
-      </div>
-    </Show>
+    <Errored fallback={null}>
+      <Loading>
+        <Show when={installed()?.length}>
+          <div class="user-profile-section">
+            <h3 class="user-profile-section-title">Installed apps ({installed()?.length})</h3>
+            <ul class="installed-apps flex-col">
+              <For each={installed()}>
+                {(app) => (
+                  <li class="installed-app flex-align-center">
+                    <Show
+                      fallback={<span class="installed-app-icon installed-app-icon-empty" />}
+                      when={app.icon}
+                    >
+                      <img alt="" class="installed-app-icon" src={imageSrc(app.icon)} />
+                    </Show>
+                    <span class="truncate">{app.name}</span>
+                  </li>
+                )}
+              </For>
+            </ul>
+          </div>
+        </Show>
+      </Loading>
+    </Errored>
   );
 }

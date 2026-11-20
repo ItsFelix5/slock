@@ -39,9 +39,9 @@ export default function ChoiceGroup(props: {
               checked={initial().has(optionKey(option))}
               disabled={!props.ready}
               name={props.name}
-              ref={(node) =>
-                props.el.focus_on_load && index() === 0 && queueMicrotask(() => node.focus())
-              }
+              ref={(node) => {
+                if (props.el.focus_on_load && index() === 0) queueMicrotask(() => node.focus());
+              }}
               type={multi() ? "checkbox" : "radio"}
               value={String(index())}
             />

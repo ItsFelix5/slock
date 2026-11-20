@@ -5,7 +5,7 @@
     "erasableSyntaxOnly": true,
     "esModuleInterop": true,
     "jsx": "preserve",
-    "jsxImportSource": "solid-js",
+    "jsxImportSource": "@solidjs/web",
     "lib": ["ES2023", "DOM"],
     "module": "esnext",
     "moduleDetection": "force",

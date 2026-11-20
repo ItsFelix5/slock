@@ -4,13 +4,10 @@ import type { ChannelId, Message } from "@slock/types";
 import { confirmsPending, dedupeMessages, isPendingMessage } from "../../api/messageMerge";
 
 export function createMessageMergeActions(deps: {
-  setMessagesByChannel: (
-    channelId: ChannelId,
-    update: (existing: Message[]) => Message[],
-  ) => void;
+  updateChannelMessages: (channelId: ChannelId, update: (existing: Message[]) => Message[]) => void;
 }) {
   function insertMessageInOrder(channelId: ChannelId, msg: Message) {
-    deps.setMessagesByChannel(channelId, (existing = []) => {
+    deps.updateChannelMessages(channelId, (existing) => {
       const messages = dedupeMessages(existing);
       if (messages.some((m) => m.ts === msg.ts)) return messages;
       const idx = messages.findIndex((m) => compareTs(m.ts, msg.ts) > 0);

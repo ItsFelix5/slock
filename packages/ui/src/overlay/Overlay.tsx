@@ -1,5 +1,6 @@
-import { type JSX, onCleanup, onMount } from "solid-js";
-import { Portal } from "solid-js/web";
+import type { JSX } from "@solidjs/web";
+import { Portal } from "@solidjs/web";
+import { onSettled } from "solid-js";
 import {
   focusableWithin,
   isTopFocusLayer,
@@ -26,7 +27,7 @@ export default function Overlay(props: OverlayProps) {
   const previouslyFocused =
     document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
-  onMount(() => {
+  onSettled(() => {
     const layer = pushFocusLayer();
     queueMicrotask(() => {
       if (!(isTopFocusLayer(layer) && overlayRef) || overlayRef.contains(document.activeElement))
@@ -55,14 +56,14 @@ export default function Overlay(props: OverlayProps) {
     };
 
     document.addEventListener("keydown", keepFocusInside);
-    onCleanup(() => {
+    return () => {
       document.removeEventListener("keydown", keepFocusInside);
       const { wasTop, revealed } = popFocusLayer(layer);
       if (!(wasTop && previouslyFocused?.isConnected)) return;
       queueMicrotask(() => {
         if (isTopFocusLayer(revealed) && previouslyFocused.isConnected) previouslyFocused.focus();
       });
-    });
+    };
   });
 
   return (
@@ -71,21 +72,21 @@ export default function Overlay(props: OverlayProps) {
         aria-label={props.ariaLabel}
         aria-labelledby={props.ariaLabelledBy}
         aria-modal="true"
-        class={`overlay flex-center ${props.align === "top" ? "overlay-top" : ""}`}
+        class={["overlay flex-center", { "overlay-top": props.align === "top" }]}
         onClick={(event) => {
           if (pressStartedOnBackdrop && event.target === event.currentTarget) props.onClose();
         }}
-        onContextMenu={(event) => event.stopPropagation()}
+        onContextMenu={(event) => {
+          event.stopPropagation();
+        }}
         onMouseDown={(event) => {
           pressStartedOnBackdrop = event.target === event.currentTarget;
         }}
         ref={overlayRef}
         role="dialog"
-        tabIndex={-1}
+        tabindex={-1}
       >
-        <FloatingMountContext.Provider value={() => overlayRef}>
-          {props.children}
-        </FloatingMountContext.Provider>
+        <FloatingMountContext value={() => overlayRef}>{props.children}</FloatingMountContext>
       </div>
     </Portal>
   );

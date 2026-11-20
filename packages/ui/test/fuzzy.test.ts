@@ -59,9 +59,12 @@ describe("fuzzySearch options", () => {
 
   test("priority beats frequency beats score inside a tier", () => {
     const options = { frequency: (p: (typeof people)[number]) => p.uses };
-    expect(run("al", { ...options, priority: (p: (typeof people)[number]) => p.priority })).toEqual(
-      ["Alina", "Alan", "Alice Zed"],
-    );
+    expect(
+      run("al", {
+        ...options,
+        priority: (p: (typeof people)[number]) => p.priority,
+      }),
+    ).toEqual(["Alina", "Alan", "Alice Zed"]);
     expect(run("al", options)).toEqual(["Alan", "Alina", "Alice Zed"]);
   });
 

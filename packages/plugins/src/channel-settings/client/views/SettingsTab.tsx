@@ -1,13 +1,15 @@
 import { service } from "@slock/core/solid";
+import { isWaiting } from "@slock/resource";
 import type { ChannelId } from "@slock/types";
 import { Button } from "@slock/ui";
-import { createEffect, createMemo, createSignal, on, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, createStore, For, Show, snapshot } from "solid-js";
 import ChannelDangerZone from "./ChannelDangerZone";
 import "../../../channel-details/client/api/ChannelDetails.css";
 import ChannelPostingPermissions from "./ChannelPostingPermissions";
 import "./SettingsTab.css";
 import {
   type AppliedRetentionChoice,
+  type MemberPermissionKey,
   memberPermissionsDirty,
   memberPermissionsPatch,
   type PermissionChoice,
@@ -29,46 +31,58 @@ function asRetentionChoice(value: string): RetentionChoice {
   return value === "keep" || value === "delete" ? value : "";
 }
 
+const PERMISSION_FIELDS: { key: MemberPermissionKey; label: string }[] = [
+  { key: "invite", label: "Who can invite others" },
+  { key: "topic", label: "Who can change the topic" },
+  { key: "purpose", label: "Who can change the description" },
+];
+
 export default function SettingsTab(props: {
   archived: boolean;
   channelId: ChannelId;
   onChanged?: () => void;
   private: boolean;
 }) {
-  const [invitePermission, setInvitePermission] = createSignal<PermissionChoice>("");
-  const [committedInvite, setCommittedInvite] = createSignal<PermissionChoice>("");
-  const [topicPermission, setTopicPermission] = createSignal<PermissionChoice>("");
-  const [committedTopic, setCommittedTopic] = createSignal<PermissionChoice>("");
-  const [purposePermission, setPurposePermission] = createSignal<PermissionChoice>("");
-  const [committedPurpose, setCommittedPurpose] = createSignal<PermissionChoice>("");
+  const [permissions, setPermissions] = createStore<Record<MemberPermissionKey, PermissionChoice>>({
+    invite: "",
+    purpose: "",
+    topic: "",
+  });
+  const [committedPermissions, setCommittedPermissions] = createStore<
+    Record<MemberPermissionKey, PermissionChoice>
+  >({ invite: "", purpose: "", topic: "" });
 
   const permissionDrafts = () => ({
-    invite: { committed: committedInvite(), current: invitePermission() },
-    purpose: { committed: committedPurpose(), current: purposePermission() },
-    topic: { committed: committedTopic(), current: topicPermission() },
+    invite: { committed: committedPermissions.invite, current: permissions.invite },
+    purpose: { committed: committedPermissions.purpose, current: permissions.purpose },
+    topic: { committed: committedPermissions.topic, current: permissions.topic },
   });
   const permissionsDirty = () => memberPermissionsDirty(permissionDrafts());
 
   const permissionsQuery = channelDetails.createMemberPermissionsQuery(() => props.channelId);
   createEffect(
-    on(
-      () => permissionsQuery.data,
-      (loaded) => {
-        if (!loaded) return;
-        const choice = (allowed: boolean): PermissionChoice => (allowed ? "allow" : "restrict");
-        setInvitePermission(choice(loaded.invite));
-        setCommittedInvite(choice(loaded.invite));
-        setTopicPermission(choice(loaded.setTopic));
-        setCommittedTopic(choice(loaded.setTopic));
-        setPurposePermission(choice(loaded.setPurpose));
-        setCommittedPurpose(choice(loaded.setPurpose));
-      },
-    ),
+    () => permissionsQuery().data,
+    (loaded) => {
+      if (!loaded) return;
+      const choice = (allowed: boolean): PermissionChoice => (allowed ? "allow" : "restrict");
+      const next = {
+        invite: choice(loaded.invite),
+        purpose: choice(loaded.setPurpose),
+        topic: choice(loaded.setTopic),
+      };
+      setPermissions((draft) => {
+        Object.assign(draft, next);
+      });
+      setCommittedPermissions((draft) => {
+        Object.assign(draft, next);
+      });
+    },
   );
 
   const retentionQuery = channelDetails.createChannelRetentionQuery(() => props.channelId);
-  const retention = () => retentionQuery.data;
-  const retryRetention = () => void retentionQuery.refetch();
+  const retention = () => retentionQuery().data;
+  const retryRetention = () =>
+    void channelDetails.queries.retention.refresh(props.channelId).catch(() => {});
 
   const [retentionChoice, setRetentionChoice] = createSignal<RetentionChoice>("");
   const [retentionDays, setRetentionDays] = createSignal(90);
@@ -79,15 +93,14 @@ export default function SettingsTab(props: {
 
   const [saving, setSaving] = createSignal(false);
 
-  createEffect(
-    on(retention, (days) => {
-      if (days === undefined) return;
-      const choice: AppliedRetentionChoice = days === null ? "keep" : "delete";
-      setRetentionChoice(choice);
-      setRetentionDays(days ?? retentionDays());
-      setSavedRetention({ choice, days: days ?? retentionDays() });
-    }),
-  );
+  createEffect(retention, (days) => {
+    if (days === undefined) return;
+    const choice: AppliedRetentionChoice = days === null ? "keep" : "delete";
+    const effectiveDays = days ?? retentionDays();
+    setRetentionChoice(choice);
+    setRetentionDays(effectiveDays);
+    setSavedRetention({ choice, days: effectiveDays });
+  });
 
   const retentionDaysValid = () => Number.isInteger(retentionDays()) && retentionDays() >= 1;
 
@@ -104,9 +117,10 @@ export default function SettingsTab(props: {
   const anyDirty = () => permissionsDirty() || retentionDirty();
 
   const discardChanges = () => {
-    setInvitePermission(committedInvite());
-    setTopicPermission(committedTopic());
-    setPurposePermission(committedPurpose());
+    const committed = snapshot(committedPermissions);
+    setPermissions((draft) => {
+      Object.assign(draft, committed);
+    });
     const saved = savedRetention();
     if (saved) {
       setRetentionChoice(saved.choice);
@@ -127,9 +141,11 @@ export default function SettingsTab(props: {
           memberPermissionsPatch(drafts),
         )
       ) {
-        setCommittedInvite(drafts.invite.current);
-        setCommittedTopic(drafts.topic.current);
-        setCommittedPurpose(drafts.purpose.current);
+        setCommittedPermissions((draft) => {
+          draft.invite = drafts.invite.current;
+          draft.topic = drafts.topic.current;
+          draft.purpose = drafts.purpose.current;
+        });
       } else {
         ok = false;
       }
@@ -158,69 +174,39 @@ export default function SettingsTab(props: {
 
       <div class="settings-section">
         <div class="settings-section-title">Member permissions</div>
-        <div class="settings-row flex-between">
-          <label class="settings-row-label" for="channel-member-invite-permission">
-            Who can invite others
-          </label>
-          <select
-            class="text-field select-field channel-details-setting-select"
-            disabled={saving()}
-            id="channel-member-invite-permission"
-            onChange={(event) => setInvitePermission(asPermissionChoice(event.currentTarget.value))}
-            value={invitePermission()}
-          >
-            <option disabled value="">
-              Choose a policy…
-            </option>
-            <option value="allow">All members</option>
-            <option value="restrict">Channel managers only</option>
-          </select>
-        </div>
-        <div class="settings-row flex-between">
-          <label class="settings-row-label" for="channel-member-topic-permission">
-            Who can change the topic
-          </label>
-          <select
-            class="text-field select-field channel-details-setting-select"
-            disabled={saving()}
-            id="channel-member-topic-permission"
-            onChange={(event) => setTopicPermission(asPermissionChoice(event.currentTarget.value))}
-            value={topicPermission()}
-          >
-            <option disabled value="">
-              Choose a policy…
-            </option>
-            <option value="allow">All members</option>
-            <option value="restrict">Channel managers only</option>
-          </select>
-        </div>
-        <div class="settings-row flex-between">
-          <label class="settings-row-label" for="channel-member-purpose-permission">
-            Who can change the description
-          </label>
-          <select
-            class="text-field select-field channel-details-setting-select"
-            disabled={saving()}
-            id="channel-member-purpose-permission"
-            onChange={(event) =>
-              setPurposePermission(asPermissionChoice(event.currentTarget.value))
-            }
-            value={purposePermission()}
-          >
-            <option disabled value="">
-              Choose a policy…
-            </option>
-            <option value="allow">All members</option>
-            <option value="restrict">Channel managers only</option>
-          </select>
-        </div>
+        <For each={PERMISSION_FIELDS}>
+          {(field) => (
+            <div class="settings-row flex-between">
+              <label class="settings-row-label" for={`channel-member-${field.key}-permission`}>
+                {field.label}
+              </label>
+              <select
+                class="text-field select-field channel-details-setting-select"
+                disabled={saving()}
+                id={`channel-member-${field.key}-permission`}
+                onChange={(event) =>
+                  setPermissions((draft) => {
+                    draft[field.key] = asPermissionChoice(event.currentTarget.value);
+                  })
+                }
+                value={permissions[field.key]}
+              >
+                <option disabled value="">
+                  Choose a policy…
+                </option>
+                <option value="allow">All members</option>
+                <option value="restrict">Channel managers only</option>
+              </select>
+            </div>
+          )}
+        </For>
       </div>
 
       <div class="settings-section">
         <div class="settings-section-title">Message retention</div>
-        <Show when={retentionQuery.error}>
+        <Show when={retentionQuery().error}>
           <SettingsLoadError
-            error={retentionQuery.error}
+            error={retentionQuery().error}
             message="Retention policy couldn't be loaded."
             onRetry={retryRetention}
           />
@@ -238,7 +224,7 @@ export default function SettingsTab(props: {
               value={retentionChoice()}
             >
               <option disabled value="">
-                {retentionQuery.isLoading ? "Loading…" : "Choose a policy…"}
+                {isWaiting(retentionQuery()) ? "Loading…" : "Choose a policy…"}
               </option>
               <option value="keep">Keep all messages</option>
               <option value="delete">Delete after…</option>

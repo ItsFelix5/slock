@@ -1,5 +1,5 @@
 import { Icon, IconButton, inside, useConfirmShortcut, useShortcut } from "@slock/ui";
-import { onMount, Show } from "solid-js";
+import { onSettled, Show } from "solid-js";
 import "./InPaneSearchBar.css";
 
 export default function InPaneSearchBar(props: {
@@ -12,7 +12,7 @@ export default function InPaneSearchBar(props: {
   onClose: () => void;
 }) {
   let inputRef: HTMLInputElement | undefined;
-  onMount(() => inputRef?.focus());
+  onSettled(() => inputRef?.focus());
 
   const target = inside(() => inputRef);
   useConfirmShortcut(props.onNext, { target });

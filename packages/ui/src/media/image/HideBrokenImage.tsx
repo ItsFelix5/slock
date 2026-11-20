@@ -1,14 +1,15 @@
-import { createSignal, type JSX, Show, splitProps } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { createSignal, omit, Show } from "solid-js";
 import { imageSrc } from "../mediaSrc";
 
 export default function HideBrokenImage(
   props: JSX.ImgHTMLAttributes<HTMLImageElement> & { src: string },
 ) {
-  const [local, rest] = splitProps(props, ["src"]);
+  const rest = omit(props, "src");
   const [brokenSrc, setBrokenSrc] = createSignal<string>();
   return (
-    <Show when={local.src !== brokenSrc()}>
-      <img {...rest} onError={() => setBrokenSrc(local.src)} src={imageSrc(local.src)} />
+    <Show when={props.src !== brokenSrc()}>
+      <img {...rest} onError={() => setBrokenSrc(props.src)} src={imageSrc(props.src)} />
     </Show>
   );
 }

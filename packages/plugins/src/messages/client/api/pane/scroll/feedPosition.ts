@@ -9,7 +9,7 @@ const contentTop = (scroller: HTMLElement, node: HTMLElement) =>
 export function alignedTop(scroller: HTMLElement, ts: string, align: "start" | "center") {
   const group = findGroup(scroller, ts);
   if (!group) return;
-  const height = group.getBoundingClientRect().height;
+  const { height } = group.getBoundingClientRect();
   if (align === "center" && height < scroller.clientHeight)
     return contentTop(scroller, group) - (scroller.clientHeight - height) / 2;
   return contentTop(scroller, leadOf(group));

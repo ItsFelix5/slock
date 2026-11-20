@@ -1,8 +1,10 @@
 export const WHITESPACE_RE = /\s/;
 export const TRAILING_PUNCTUATION_RE = /[),.!?;:'"]+$/;
 
-
-export type TextIndex = { starts: { node: Node; start: number }[]; text: string };
+export type TextIndex = {
+  starts: { node: Node; start: number }[];
+  text: string;
+};
 
 export function indexElementText(root: Node): TextIndex {
   const starts: TextIndex["starts"] = [];

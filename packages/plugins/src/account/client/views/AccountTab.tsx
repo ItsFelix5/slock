@@ -1,10 +1,34 @@
 import { errorMessage } from "@slock/core";
 import { Slot, usePoint } from "@slock/core/solid";
 import { getActiveAccountId, listAccounts, removeAccount, switchAccount } from "@slock/slack";
+import type { AccountSummary } from "@slock/types";
 import { Avatar, Button, DEFAULT_AVATAR_COLOR, Icon, IconButton } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
 import { confirmLogout, logoutAndRestart, restartApp } from "../session";
 import ConnectAccountForm from "./ConnectAccountForm";
+
+function AccountIdentity(props: { account: AccountSummary }) {
+  const label = () => props.account.name || props.account.domain;
+  return (
+    <div class="settings-account-identity flex-align-center">
+      <Avatar
+        size="medium"
+        user={{
+          avatarColor: DEFAULT_AVATAR_COLOR,
+          avatarUrl: `/api/accounts/${props.account.id}/avatar`,
+          id: props.account.id,
+          name: label(),
+        }}
+      />
+      <div>
+        <div class="settings-row-label">{label()}</div>
+        <Show when={props.account.name}>
+          <div class="settings-row-meta text-dim">{props.account.domain}</div>
+        </Show>
+      </div>
+    </div>
+  );
+}
 
 export default function AccountTab() {
   const sections = usePoint("account.section");
@@ -61,21 +85,7 @@ export default function AccountTab() {
       <Show when={currentAccount()}>
         {(account) => (
           <div class="settings-row flex-between">
-            <div class="settings-account-identity flex-align-center">
-              <Avatar
-                size="medium"
-                user={{
-                  avatarColor: DEFAULT_AVATAR_COLOR,
-                  avatarUrl: `/api/accounts/${account().id}/avatar`,
-                  id: account().id,
-                  name: account().name || account().domain,
-                }}
-              />
-              <div>
-                <div class="settings-row-label">{account().name || account().domain}</div>
-                <div class="settings-row-meta text-dim">{account().domain}</div>
-              </div>
-            </div>
+            <AccountIdentity account={account()} />
           </div>
         )}
       </Show>
@@ -90,23 +100,7 @@ export default function AccountTab() {
             <For each={otherAccounts()}>
               {(account) => (
                 <div class="settings-list-row flex-between">
-                  <div class="settings-account-identity flex-align-center">
-                    <Avatar
-                      size="medium"
-                      user={{
-                        avatarColor: DEFAULT_AVATAR_COLOR,
-                        avatarUrl: `/api/accounts/${account.id}/avatar`,
-                        id: account.id,
-                        name: account.name || account.domain,
-                      }}
-                    />
-                    <div>
-                      <div class="settings-row-label">{account.name || account.domain}</div>
-                      <Show when={account.name}>
-                        <div class="settings-row-meta text-dim">{account.domain}</div>
-                      </Show>
-                    </div>
-                  </div>
+                  <AccountIdentity account={account} />
                   <div class="account-switcher-actions flex-align-center">
                     <IconButton
                       disabled={!!switching()}

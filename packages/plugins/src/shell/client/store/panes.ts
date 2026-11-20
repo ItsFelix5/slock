@@ -4,7 +4,6 @@ import {
   createPaneId,
   findPane,
   findPaneByContent,
-  focusedPaneId,
   focusPaneById,
   insertPane,
   isPaneRightAfter,
@@ -12,16 +11,26 @@ import {
   replacePaneContent,
   resizePanes,
 } from "@slock/ui";
-import { createEffect, createSignal } from "solid-js";
-import { createStore, reconcile, unwrap } from "solid-js/store";
+import { createEffect, createSignal, createStore, reconcile } from "solid-js";
 import type { PaneKind } from "../api";
 import type { PaneContent } from "../api/types";
+
+type ShellPane = Pane<PaneContent | null>;
 
 function focusPaneSoon(id: string) {
   queueMicrotask(() => focusPaneById(id));
 }
 
-export function createPanesSlice(paneKinds: () => PaneKind[]) {
+function focusedIdIn(
+  panes: ShellPane[],
+  activeId: string | null,
+  focusedPaneId: () => string | null,
+): string {
+  const id = activeId ?? focusedPaneId();
+  return id && findPane(panes, id) ? id : defined(panes[0]).id;
+}
+
+export function createPanesSlice(paneKinds: () => PaneKind[], focusedPaneId: () => string | null) {
   const kindOf = (content: PaneContent | null | undefined) =>
     paneKinds().find((kind) => kind.kind === content?.kind);
 
@@ -30,10 +39,29 @@ export function createPanesSlice(paneKinds: () => PaneKind[]) {
     return typeof rule === "function" ? rule(content) : rule;
   }
 
-  const [state, setState] = createStore<{ panes: Pane<PaneContent | null>[] }>({
-    panes: [{ id: createPaneId(), content: null, size: 1 }],
-  });
+  const isPrimaryPane = (pane: ShellPane) => !!kindOf(pane.content)?.primary;
 
+  function nearestPrimaryId(panes: ShellPane[], fromId: string): string {
+    const fromIndex = panes.findIndex((p) => p.id === fromId);
+    const first = defined(panes[0]).id;
+    if (fromIndex === -1) return first;
+    const before = panes.slice(0, fromIndex + 1).reverse();
+    const after = panes.slice(fromIndex + 1);
+    return [...before, ...after].find(isPrimaryPane)?.id ?? first;
+  }
+
+  function primaryContentIn(panes: ShellPane[], activeId: string | null): PaneContent | null {
+    const id = nearestPrimaryId(panes, focusedIdIn(panes, activeId, focusedPaneId));
+    return findPane(panes, id)?.content ?? null;
+  }
+
+  // `latest` and `active` are the synchronous truth for actions; the store and signal
+  // below publish them to readers once the batch flushes.
+  let latest: ShellPane[] = [{ content: null, id: createPaneId(), size: 1 }];
+  let active: string | null = null;
+  const [state, setState] = createStore<{ panes: ShellPane[] }>({
+    panes: latest.map((pane) => ({ ...pane })),
+  });
   const [activePaneId, setActivePaneId] = createSignal<string | null>(null);
   const [mountedIds, setMountedIds] = createSignal<ReadonlySet<string>>(new Set());
 
@@ -47,57 +75,43 @@ export function createPanesSlice(paneKinds: () => PaneKind[]) {
       });
   }
 
-  createEffect(() => {
-    const id = focusedPaneId();
-    if (id && findPane(state.panes, id)) setActivePaneId(id);
-  });
+  function setActive(id: string) {
+    active = id;
+    setActivePaneId(id);
+  }
+
+  createEffect(
+    () => {
+      const id = focusedPaneId();
+      return id && findPane(state.panes, id) ? id : null;
+    },
+    (id) => {
+      if (id) setActive(id);
+    },
+  );
 
   function activateId(id: string) {
-    setActivePaneId(id);
+    setActive(id);
     focusPaneSoon(id);
   }
 
-  function currentFocusedId(): string {
-    const id = activePaneId() ?? focusedPaneId();
-    return id && findPane(state.panes, id) ? id : defined(state.panes[0]).id;
-  }
-
-  function isPrimaryPane(pane: Pane<PaneContent | null>): boolean {
-    return !!kindOf(pane.content)?.primary;
-  }
-
-  function nearestPrimaryPaneId(fromId: string): string {
-    const { panes } = state;
-    const fromIndex = panes.findIndex((p) => p.id === fromId);
-    if (fromIndex === -1) return defined(panes[0]).id;
-    for (let i = fromIndex; i >= 0; i--) {
-      if (isPrimaryPane(defined(panes[i]))) return defined(panes[i]).id;
-    }
-    for (let i = fromIndex + 1; i < panes.length; i++) {
-      if (isPrimaryPane(defined(panes[i]))) return defined(panes[i]).id;
-    }
-    return defined(panes[0]).id;
-  }
-
-  function focusedPrimaryContent(): PaneContent | null {
-    const id = nearestPrimaryPaneId(currentFocusedId());
-    return findPane(state.panes, id)?.content ?? null;
-  }
-
-  function commit(next: Pane<PaneContent | null>[]) {
-    setState("panes", reconcile(next, { key: "id" }));
+  function commit(next: ShellPane[]) {
+    latest = next;
+    setState((draft) => {
+      reconcile(next, "id")(draft.panes);
+    });
   }
 
   function navigateFocusedPane(content: PaneContent): string {
-    const id = nearestPrimaryPaneId(currentFocusedId());
-    commit(replacePaneContent(unwrap(state.panes), id, content));
+    const id = nearestPrimaryId(latest, focusedIdIn(latest, active, focusedPaneId));
+    commit(replacePaneContent(latest, id, content));
     activateId(id);
     return id;
   }
 
   function setPaneContent(id: string, content: PaneContent | null) {
-    if (!findPane(state.panes, id)) return;
-    commit(replacePaneContent(unwrap(state.panes), id, content));
+    if (!findPane(latest, id)) return;
+    commit(replacePaneContent(latest, id, content));
   }
 
   function setAllPanes(contents: PaneContent[]) {
@@ -105,7 +119,7 @@ export function createPanesSlice(paneKinds: () => PaneKind[]) {
     commit(
       next.map((content, i) => ({
         content,
-        id: state.panes[i]?.id ?? createPaneId(),
+        id: latest[i]?.id ?? createPaneId(),
         size: 1 / next.length,
       })),
     );
@@ -114,54 +128,54 @@ export function createPanesSlice(paneKinds: () => PaneKind[]) {
   function insertContentPane(content: PaneContent, afterId: string | null): string {
     const id = createPaneId();
     const fraction = kindOf(content)?.size ?? 0.32;
-    commit(insertPane(unwrap(state.panes), afterId, content, id, fraction));
+    commit(insertPane(latest, afterId, content, id, fraction));
     activateId(id);
     return id;
   }
 
   function openInNewPane(content: PaneContent): string {
-    const focusedId = currentFocusedId();
+    const focusedId = focusedIdIn(latest, active, focusedPaneId);
     const existing = isSingletonKind(content)
-      ? findPaneByContent(state.panes, (c) => !!c && c.kind === content.kind && isSingletonKind(c))
+      ? findPaneByContent(latest, (c) => !!c && c.kind === content.kind && isSingletonKind(c))
       : undefined;
     if (!existing) return insertContentPane(content, focusedId);
     const staysInPlace =
       !kindOf(content)?.followsFocus ||
       existing.id === focusedId ||
-      isPaneRightAfter(state.panes, focusedId, existing.id);
+      isPaneRightAfter(latest, focusedId, existing.id);
     if (staysInPlace) {
-      commit(replacePaneContent(unwrap(state.panes), existing.id, content));
+      commit(replacePaneContent(latest, existing.id, content));
       activateId(existing.id);
       return existing.id;
     }
     const id = createPaneId();
-    const withoutExisting = closePaneInList(unwrap(state.panes), existing.id);
+    const withoutExisting = closePaneInList(latest, existing.id);
     commit(insertPane(withoutExisting, focusedId, content, id, kindOf(content)?.size ?? 0.32));
     activateId(id);
     return id;
   }
 
   function closePane(id: string) {
-    if (state.panes.length <= 1) return;
-    const hadFocus = activePaneId() === id || focusedPaneId() === id;
-    const index = state.panes.findIndex((p) => p.id === id);
-    commit(closePaneInList(unwrap(state.panes), id));
-    if (hadFocus) {
-      const next = state.panes[Math.min(index, state.panes.length - 1)];
-      if (next) activateId(next.id);
-    }
+    if (latest.length <= 1) return;
+    const hadFocus = active === id || focusedPaneId() === id;
+    const index = latest.findIndex((p) => p.id === id);
+    const next = closePaneInList(latest, id);
+    commit(next);
+    const successor = next[Math.min(index, next.length - 1)];
+    if (hadFocus && successor) activateId(successor.id);
   }
 
   function resize(sizes: number[]) {
-    commit(resizePanes(unwrap(state.panes), sizes));
+    commit(resizePanes(latest, sizes));
   }
 
   return {
     activatePane: activateId,
     activePaneId,
     closePane,
-    currentFocusedId,
-    focusedPrimaryContent,
+    focusedPaneId,
+    currentPanes: () => latest,
+    focusedPrimaryContent: () => primaryContentIn(state.panes, activePaneId()),
     insertContentPane,
     markMounted,
     mountedPanes: () => state.panes.filter((pane) => mountedIds().has(pane.id)),

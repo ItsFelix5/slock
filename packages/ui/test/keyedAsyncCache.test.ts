@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createRoot } from "solid-js";
+import { createRoot, flush } from "solid-js";
 import { createKeyedAsyncCache } from "../src/keyedAsyncCache";
 
 function remote() {
@@ -21,7 +21,9 @@ function withCache<T>(
   fetcher: (key: string) => Promise<T>,
   onError?: (error: unknown, key: string) => void,
 ) {
-  return createRoot(() => ({ cache: createKeyedAsyncCache(fetcher, { onError }) }));
+  return createRoot(() => ({
+    cache: createKeyedAsyncCache(fetcher, { onError }),
+  }));
 }
 
 describe("createKeyedAsyncCache", () => {
@@ -30,12 +32,14 @@ describe("createKeyedAsyncCache", () => {
     const { cache } = withCache(api.fetcher);
     const first = cache.ensure("a");
     const second = cache.ensure("a");
+    flush();
     expect(cache.isLoading("a")).toBe(true);
     expect(cache.isKnown("a")).toBe(true);
     expect(cache.has("a")).toBe(false);
     api.answer("a", "one");
     expect(await first).toBe("one");
     expect(await second).toBe("one");
+    flush();
     expect(api.calls).toEqual(["a"]);
     expect(cache.entry("a")).toBe("one");
     expect(cache.isLoading("a")).toBe(false);
@@ -45,6 +49,7 @@ describe("createKeyedAsyncCache", () => {
     const api = remote();
     const { cache } = withCache(api.fetcher);
     cache.set("a", "seeded");
+    flush();
     expect(await cache.ensure("a")).toBe("seeded");
     expect(api.calls).toEqual([]);
   });
@@ -57,10 +62,12 @@ describe("createKeyedAsyncCache", () => {
     const attempt = cache.ensure("a");
     api.fail("a", failure);
     expect(await attempt).toBeUndefined();
+    flush();
     expect(errors).toEqual([[failure, "a"]]);
     expect(cache.hasError("a")).toBe(true);
     expect(cache.isKnown("a")).toBe(false);
     const retry = cache.ensure("a");
+    flush();
     expect(cache.hasError("a")).toBe(false);
     api.answer("a", "fine", 1);
     expect(await retry).toBe("fine");
@@ -73,9 +80,11 @@ describe("createKeyedAsyncCache", () => {
     cache.set("a", "old");
     const first = cache.refresh("a");
     const second = cache.refresh("a");
+    flush();
     expect(cache.entry("a")).toBe("old");
     api.answer("a", "new");
     await Promise.all([first, second]);
+    flush();
     expect(cache.entry("a")).toBe("new");
     expect(api.calls).toEqual(["a"]);
   });
@@ -84,7 +93,9 @@ describe("createKeyedAsyncCache", () => {
     const api = remote();
     const { cache } = withCache(api.fetcher);
     cache.set("a", "old");
+    flush();
     cache.invalidate("a");
+    flush();
     expect(cache.has("a")).toBe(false);
     const next = cache.ensure("a");
     api.answer("a", "fresh");
@@ -96,12 +107,14 @@ describe("createKeyedAsyncCache", () => {
     const { cache } = withCache(api.fetcher);
     const stale = cache.ensure("a");
     cache.invalidate("a");
+    flush();
     expect(cache.isLoading("a")).toBe(false);
     const fresh = cache.ensure("a");
     api.answer("a", "fresh", 1);
     await fresh;
     api.answer("a", "stale", 0);
     await stale;
+    flush();
     expect(cache.entry("a")).toBe("fresh");
     expect(cache.isLoading("a")).toBe(false);
   });
@@ -111,8 +124,10 @@ describe("createKeyedAsyncCache", () => {
     const { cache } = withCache(api.fetcher);
     cache.update("a", (value) => `${value ?? "none"}+1`);
     cache.set("b", "other");
+    flush();
     expect(cache.entry("a")).toBe("none+1");
     cache.invalidate("a");
+    flush();
     expect(cache.entry("b")).toBe("other");
   });
 });

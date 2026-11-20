@@ -5,9 +5,9 @@ type Errors = Record<string, string>;
 
 export function createViewSession() {
   const states = new Map<string, ViewState>();
-  const [errors, setErrors] = createSignal<Record<string, Errors>>({});
+  const [errors, setErrors] = createSignal<Record<string, Errors>>({}, { ownedWrite: true });
 
-  const [touched, setTouched] = createSignal<string[]>([]);
+  const [touched, setTouched] = createSignal<string[]>([], { ownedWrite: true });
 
   const clearError = (viewId: string, blockId: string) => {
     setTouched((ids) => (ids.includes(viewId) ? ids : [...ids, viewId]));

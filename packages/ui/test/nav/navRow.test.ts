@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { render } from "@solidjs/web";
 import { createComponent } from "solid-js";
-import { render } from "solid-js/web";
 import NavRow from "../../src/nav/NavRow";
 
 let dispose: (() => void) | undefined;
@@ -29,7 +29,7 @@ function mount() {
         onActivate: () => {
           calls.activate += 1;
         },
-        tabIndex: -1,
+        tabindex: -1,
         get children() {
           return [
             child("span", "label"),
@@ -57,7 +57,12 @@ function click(element: Element) {
 }
 
 function press(element: Element, key: string, repeat = false) {
-  const event = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key, repeat });
+  const event = new KeyboardEvent("keydown", {
+    bubbles: true,
+    cancelable: true,
+    key,
+    repeat,
+  });
   element.dispatchEvent(event);
   return event;
 }

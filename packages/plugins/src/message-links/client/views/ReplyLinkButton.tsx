@@ -10,7 +10,7 @@ export default function ReplyLinkButton(props: MessageBarProps) {
         icon="email-reply"
         label="Reply"
         onClick={() => props.onReplyLink?.(props.msg)}
-        tabIndex={props.rowFocused() ? undefined : -1}
+        tabindex={props.rowFocused() ? undefined : -1}
       />
     </Show>
   );

@@ -1,4 +1,4 @@
-import { createEffect, createSignal, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import IconButton from "../../button/IconButton";
 import RelativeChannelRows, { type RelativeColor } from "../RelativeChannelRows";
 import ColorChannelRow from "./ColorChannelRow";
@@ -15,9 +15,7 @@ export interface OklchColorPickerProps {
 type ColorChannel = keyof OklchColor;
 
 export default function OklchColorPicker(props: OklchColorPickerProps) {
-  const [color, setColor] = createSignal(cssColorToOklch(props.value));
-
-  createEffect(() => setColor(cssColorToOklch(props.value)));
+  const [color, setColor] = createSignal(() => cssColorToOklch(props.value));
 
   function update(channel: ColorChannel, value: number) {
     const next = { ...color(), [channel]: value };

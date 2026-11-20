@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { systemEnv } from "@slock/core";
 import { createActivityFeedRefreshScheduler } from "../../../../src/activity/client/store/activityFeedRefresh";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -8,6 +9,7 @@ function setup(refreshMs = 0) {
   let refreshes = 0;
   const scheduler = createActivityFeedRefreshScheduler({
     delayMs: 5,
+    env: systemEnv,
     isLoading: () => loading,
     refresh: async () => {
       refreshes++;

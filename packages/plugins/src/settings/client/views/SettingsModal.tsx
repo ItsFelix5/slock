@@ -1,7 +1,7 @@
 import { usePoint } from "@slock/core/solid";
-import { Modal, ModalCloseButton, useTabStripShortcuts } from "@slock/ui";
+import { ariaBoolean, Modal, ModalCloseButton, useTabStripShortcuts } from "@slock/ui";
+import { dynamic } from "@solidjs/web";
 import { createMemo, createSignal, For } from "solid-js";
-import { Dynamic } from "solid-js/web";
 import type { SettingsTabItem } from "../api";
 import "./SettingsForm.css";
 import "./SettingsModal.css";
@@ -10,8 +10,9 @@ import "./SettingsModal.responsive.css";
 export default function SettingsModal(props: { initialTab?: string; onClose: () => void }) {
   const items = usePoint("settings.tab");
   const tabs = createMemo(() => items().filter((tab) => tab.visible?.() ?? true));
-  const [selected, setSelected] = createSignal(props.initialTab);
+  const [selected, setSelected] = createSignal(() => props.initialTab);
   const active = createMemo(() => tabs().find((tab) => tab.id === selected()) ?? tabs()[0]);
+  const ActiveTab = dynamic(() => active()?.view);
   const tabButtonRefs: (HTMLButtonElement | undefined)[] = [];
   let tabListRef: HTMLDivElement | undefined;
   useTabStripShortcuts<SettingsTabItem>({
@@ -37,15 +38,14 @@ export default function SettingsModal(props: { initialTab?: string; onClose: () 
         <For each={tabs()}>
           {(tab, index) => (
             <button
-              aria-selected={active()?.id === tab.id}
-              class="settings-nav-btn btn-reset"
-              classList={{ active: active()?.id === tab.id }}
+              aria-selected={ariaBoolean(active()?.id === tab.id)}
+              class={["settings-nav-btn", "btn-reset", { active: active()?.id === tab.id }]}
               onClick={() => setSelected(tab.id)}
               ref={(el) => {
                 tabButtonRefs[index()] = el;
               }}
               role="tab"
-              tabIndex={active()?.id === tab.id ? 0 : -1}
+              tabindex={active()?.id === tab.id ? 0 : -1}
               type="button"
             >
               {tab.label}
@@ -55,7 +55,7 @@ export default function SettingsModal(props: { initialTab?: string; onClose: () 
       </div>
 
       <div class="settings-content">
-        <Dynamic component={active()?.view} />
+        <ActiveTab />
       </div>
     </Modal>
   );

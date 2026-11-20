@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
 import { createListboxActiveIndex, FloatingPanel, Icon, SuggestionList } from "@slock/ui";
-import { createMemo, createSignal, createUniqueId, onMount } from "solid-js";
+import { createMemo, createSignal, createUniqueId, onSettled } from "solid-js";
 import { fetchBrowsableChannels } from "../../../slack/client/api";
 import { createSearchQueryEditor } from "./lib/searchQueryEditor";
 import { createTokenEntitySearch, mergeById } from "./lib/tokenEntitySearch";
@@ -68,7 +68,7 @@ export default function SearchQueryInput(props: {
       editor.alignedText(),
       cursor(),
       mergeById(usersStore.knownUsers(), remoteUsers()),
-      mergeById(bootstrapStore.bootstrap.data?.channels ?? [], remoteChannels()),
+      mergeById(bootstrapStore.bootstrap().data?.channels ?? [], remoteChannels()),
       { ...activeViewSuggestionContext(), modifiers: props.modifiers },
     ).slice(0, 8),
   );
@@ -82,7 +82,7 @@ export default function SearchQueryInput(props: {
       () => suggestionsListRef,
     );
 
-  onMount(() => {
+  onSettled(() => {
     if (!containerEl) return;
     const quill = editor.mount(containerEl);
     quill.focus();

@@ -14,15 +14,11 @@ function resizeWidth(
   return Math.min(max, Math.max(min, width + pointerDelta * direction));
 }
 
-let cachedWindowWidth: (() => number) | undefined;
-
-export function windowWidth(): number {
-  if (!cachedWindowWidth) {
-    const [get, set] = createSignal(window.innerWidth);
-    window.addEventListener("resize", () => set(window.innerWidth));
-    cachedWindowWidth = get;
-  }
-  return cachedWindowWidth();
+export function createWindowWidth() {
+  const [width, setWidth] = createSignal(window.innerWidth);
+  const onResize = () => setWidth(window.innerWidth);
+  window.addEventListener("resize", onResize);
+  return { dispose: () => window.removeEventListener("resize", onResize), width };
 }
 
 export default function ResizeHandle(props: {
@@ -91,11 +87,10 @@ export default function ResizeHandle(props: {
       aria-valuemax={props.max}
       aria-valuemin={props.min}
       aria-valuenow={Math.round(props.width())}
-      class="resize-handle"
-      classList={{ [props.side]: true }}
+      class={["resize-handle", props.side]}
       onPointerDown={onPointerDown}
       ref={rootRef}
-      tabIndex={0}
+      tabindex={0}
     />
   );
 }

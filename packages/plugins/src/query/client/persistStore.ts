@@ -1,5 +1,8 @@
+import type { PersistAdapter, StoredSnapshot } from "@slock/resource";
+
 const DB_NAME = "slock-query";
 const STORE = "snapshots";
+const SEPARATOR = "/";
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -21,11 +24,34 @@ async function run<T>(mode: IDBTransactionMode, action: (store: IDBObjectStore) 
   });
 }
 
-export const readSnapshot = (account: string): Promise<unknown> =>
-  run("readonly", (store) => store.get(account));
+function isSnapshot(value: unknown): value is StoredSnapshot {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "version" in value &&
+    typeof value.version === "number" &&
+    "entries" in value &&
+    Array.isArray(value.entries)
+  );
+}
 
-export const writeSnapshot = (account: string, snapshot: unknown): Promise<IDBValidKey> =>
-  run("readwrite", (store) => store.put(snapshot, account));
+export const noPersistence: PersistAdapter = {
+  load: () => Promise.resolve(undefined),
+  save: () => Promise.resolve(),
+};
+
+export function createIdbAdapter(account: string): PersistAdapter {
+  const slot = (name: string) => `${account}${SEPARATOR}${name}`;
+  return {
+    load: async (name) => {
+      const stored: unknown = await run("readonly", (store) => store.get(slot(name)));
+      return isSnapshot(stored) ? stored : undefined;
+    },
+    save: async (name, snapshot) => {
+      await run("readwrite", (store) => store.put(snapshot, slot(name)));
+    },
+  };
+}
 
 export async function pruneSnapshots(keep: readonly string[]): Promise<void> {
   const db = await open();
@@ -34,8 +60,10 @@ export async function pruneSnapshots(keep: readonly string[]): Promise<void> {
     const store = transaction.objectStore(STORE);
     const request = store.getAllKeys();
     request.onsuccess = () => {
-      for (const key of request.result)
-        if (typeof key === "string" && !keep.includes(key)) store.delete(key);
+      for (const key of request.result) {
+        const owned = keep.some((account) => String(key).startsWith(`${account}${SEPARATOR}`));
+        if (!owned) store.delete(key);
+      }
     };
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error);

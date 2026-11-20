@@ -11,7 +11,6 @@ import "./SidebarRow.css";
 
 const sidebarStore = service("sidebar");
 
-const viewStore = service("conversations");
 const conversationsStore = service("conversations");
 const prefsStore = service("prefs");
 
@@ -29,18 +28,22 @@ export default function ChannelRow(props: { channel: Channel; unread: boolean })
     <>
       <SplitNavigation onSplit={() => openConversationInSplit(props.channel.id)}>
         <button
-          class="sidebar-row sidebar-row-channel btn-reset flex-align-center"
-          classList={{
-            active: isActive(),
-            muted: muted(),
-            unread: props.unread && !muted(),
-          }}
+          class={[
+            "sidebar-row sidebar-row-channel btn-reset flex-align-center",
+            {
+              active: isActive(),
+              muted: muted(),
+              unread: props.unread && !muted(),
+            },
+          ]}
           data-channel-id={props.channel.id}
           data-nav-row
-          onClick={() => viewStore.setActiveView({ id: props.channel.id, kind: "channel" })}
+          onClick={() =>
+            conversationsStore.setActiveView({ id: props.channel.id, kind: "channel" })
+          }
           {...prefetch}
           onContextMenu={ctxMenu.open}
-          tabIndex={-1}
+          tabindex={-1}
           type="button"
         >
           <span class="sidebar-row-icon">

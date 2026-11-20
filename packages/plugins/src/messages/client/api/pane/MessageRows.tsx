@@ -1,7 +1,8 @@
 import { HighlightWordsContext } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
-import type { Message } from "@slock/types";
-import { createMemo, For, type JSX, Show } from "solid-js";
+import type { ChannelId, Message, Ts } from "@slock/types";
+import type { JSX } from "@solidjs/web";
+import { createMemo, For, Show } from "solid-js";
 import MessageRow from "../../views/MessageRow";
 import { retainsDeleted } from "../deletedMessages";
 import type { OpenThreadHandler } from "../messageFocus";
@@ -10,29 +11,29 @@ const prefsStore = service("prefs");
 
 export type MessageRowsProps = {
   messages: Message[];
-  channelId: string;
-  threadTs?: string;
+  channelId: ChannelId;
+  threadTs?: Ts;
   gap?: JSX.Element;
-  gapAfterTs?: string;
+  gapAfterTs?: Ts;
   onOpenThread?: OpenThreadHandler;
   onReplyLink?: (msg: Message) => void;
-  onJumpToMessage?: (ts: string) => void;
+  onJumpToMessage?: (ts: Ts) => void;
 
-  focusedTs?: () => string | null;
+  focusedTs?: () => Ts | null;
 
-  editingTs?: () => string | null;
-  onStartEdit?: (ts: string) => void;
+  editingTs?: () => Ts | null;
+  onStartEdit?: (ts: Ts) => void;
   onStopEdit?: () => void;
 
-  reactionPickerTs?: () => string | null;
-  onToggleReactionPicker?: (ts: string) => void;
-  moreMenuTs?: () => string | null;
-  onToggleMoreMenu?: (ts: string) => void;
+  reactionPickerTs?: () => Ts | null;
+  onToggleReactionPicker?: (ts: Ts) => void;
+  moreMenuTs?: () => Ts | null;
+  onToggleMoreMenu?: (ts: Ts) => void;
 };
 
 export default function MessageRows(props: MessageRowsProps) {
   const messageByTs = createMemo(() => {
-    const map = new Map<string, Message>();
+    const map = new Map<Ts, Message>();
     for (const m of props.messages) map.set(m.ts, m);
     return map;
   });
@@ -48,7 +49,7 @@ export default function MessageRows(props: MessageRowsProps) {
   });
 
   return (
-    <HighlightWordsContext.Provider value={prefsStore.highlightWords}>
+    <HighlightWordsContext value={prefsStore.highlightWords}>
       <For each={props.messages}>
         {(message, index) => {
           const prev = createMemo(() => previousVisible()[index()]);
@@ -79,6 +80,6 @@ export default function MessageRows(props: MessageRowsProps) {
           );
         }}
       </For>
-    </HighlightWordsContext.Provider>
+    </HighlightWordsContext>
   );
 }

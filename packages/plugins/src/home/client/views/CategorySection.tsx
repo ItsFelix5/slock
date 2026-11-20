@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
-import { InlineFeedback, useEditShortcuts } from "@slock/ui";
+import type { ChannelId } from "@slock/types";
+import { ariaBoolean, InlineFeedback, useEditShortcuts } from "@slock/ui";
 import { createMemo, For, Show } from "solid-js";
-import { Dynamic } from "solid-js/web";
 import { idsEqual } from "./categories";
 import { useChannelRows } from "./channelRows";
 import ChannelRow from "./rows/ChannelRow";
@@ -14,7 +14,7 @@ const feedback = service("feedback");
 
 function CategoryChannelRow(props: {
   catId: string;
-  channelId: string;
+  channelId: ChannelId;
   sections: ChannelSections;
 }) {
   const unread = service("unread");
@@ -26,7 +26,10 @@ function CategoryChannelRow(props: {
         <Show when={props.sections.isChannelShown(props.catId, ch())}>
           <ChannelRow channel={ch()} unread={unread.isChannelUnread(props.channelId)} />
           <For each={channelRows.rows()}>
-            {(row) => <Dynamic channelId={props.channelId} component={row.view} />}
+            {(row) => {
+              const RowView = row.view;
+              return <RowView channelId={props.channelId} />;
+            }}
           </For>
         </Show>
       )}
@@ -48,7 +51,7 @@ export default function CategorySection(props: { id: string; sections: ChannelSe
       .categories()
       .find((c) => c.id === props.id),
   );
-  const channelIds = createMemo(() => cat()?.channels.map((ch) => ch.id) ?? [], undefined, {
+  const channelIds = createMemo(() => cat()?.channels.map((ch) => ch.id) ?? [], {
     equals: idsEqual,
   });
   const dms = () => {
@@ -63,27 +66,31 @@ export default function CategorySection(props: { id: string; sections: ChannelSe
     sections().draggingSectionId() !== props.id;
   return (
     <div
-      class="sidebar-section"
-      classList={{
-        "sidebar-section-dragging": dragging(),
-        "sidebar-section-drop-after": dropping(false),
-        "sidebar-section-drop-before": dropping(true),
-      }}
+      class={[
+        "sidebar-section",
+        {
+          "sidebar-section-dragging": dragging(),
+          "sidebar-section-drop-after": dropping(false),
+          "sidebar-section-drop-before": dropping(true),
+        },
+      ]}
       data-reorderable={cat()?.reorderable ? "true" : undefined}
       data-section-id={props.id}
       ref={sectionRef}
     >
       <div
-        class="sidebar-section-header flex-align-center"
-        classList={{
-          "sidebar-section-header-draggable":
-            cat()?.reorderable && !sections().sectionStructurePending(),
-        }}
-        draggable={
-          cat()?.reorderable &&
-          sections().renamingId() !== props.id &&
-          !sections().sectionStructurePending()
-        }
+        class={[
+          "sidebar-section-header flex-align-center",
+          {
+            "sidebar-section-header-draggable":
+              cat()?.reorderable && !sections().sectionStructurePending(),
+          },
+        ]}
+        draggable={ariaBoolean(
+          !!cat()?.reorderable &&
+            sections().renamingId() !== props.id &&
+            !sections().sectionStructurePending(),
+        )}
         onContextMenu={(e) => {
           if (!cat()?.reorderable) return;
           e.preventDefault();
@@ -95,12 +102,12 @@ export default function CategorySection(props: { id: string; sections: ChannelSe
         <Show
           fallback={
             <input
-              aria-busy={sections().sectionStructurePending()}
+              aria-busy={ariaBoolean(sections().sectionStructurePending())}
               autofocus
               class="sidebar-section-rename-input"
               onBlur={() => void sections().commitRename()}
               onInput={(e) => sections().setRenameValue(e.currentTarget.value)}
-              readOnly={sections().sectionStructurePending()}
+              readonly={sections().sectionStructurePending()}
               value={sections().renameValue()}
             />
           }

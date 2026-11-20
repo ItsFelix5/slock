@@ -10,7 +10,7 @@ import type {
   UserId,
 } from "@slock/types";
 import { createSignal } from "solid-js";
-import { createKeyedQuery, defineKey } from "../../query/client/api";
+import { defineQuery, type Query } from "../../query/client/api";
 import {
   archiveChannel,
   convertChannelToPrivate,
@@ -31,15 +31,9 @@ import {
   unarchiveChannel,
 } from "../../slack/client/api";
 
-const channelDetailsKey = defineKey<[ChannelId]>("channelDetails");
-const channelManagerIdsKey = defineKey<[ChannelId]>("channelManagerIds");
-const channelPostingPrefsKey = defineKey<[ChannelId]>("channelPostingPrefs");
-const memberPermissionsKey = defineKey<[ChannelId]>("memberPermissions");
-const channelRetentionKey = defineKey<[ChannelId]>("channelRetention");
 const feedback = service("feedback");
 
 const channelsStore = service("channels");
-const query = service("query");
 
 export type MemberFilter = "everyone" | "managers" | "apps";
 export type ChannelDetailsTab = string;
@@ -85,10 +79,33 @@ export function createChannelDetailsStore() {
   }
 
   function invalidateChannelDetails(id: ChannelId, postingChanged = false) {
-    void query.client.invalidateQueries({ queryKey: channelDetailsKey(id) });
-    if (postingChanged)
-      void query.client.invalidateQueries({ queryKey: channelPostingPrefsKey(id) });
+    channelDetailsQuery.invalidate(id);
+    if (postingChanged) channelPostingPrefsQuery.invalidate(id);
   }
+
+  const channelDetailsQuery = defineQuery<ChannelId, ChannelDetails | null>({
+    load: (id) => loadChannelDetails(id),
+    name: "channelDetails",
+  });
+  const channelManagerIdsQuery = defineQuery<ChannelId, UserId[]>({
+    load: (id) => loadChannelManagerIds(id),
+    name: "channelManagerIds",
+  });
+  const channelPostingPrefsQuery = defineQuery<ChannelId, ChannelPostingPrefs>({
+    load: fetchChannelPostingPrefs,
+    name: "channelPostingPrefs",
+  });
+  const channelRetentionQuery = defineQuery<ChannelId, number | null>({
+    load: fetchChannelRetention,
+    name: "channelRetention",
+  });
+  const memberPermissionsQuery = defineQuery<
+    ChannelId,
+    Awaited<ReturnType<typeof fetchMemberPermissions>>
+  >({
+    load: fetchMemberPermissions,
+    name: "memberPermissions",
+  });
 
   function loadChannelDetails(id: ChannelId): Promise<ChannelDetails | null> {
     return withFeedback(
@@ -118,35 +135,23 @@ export function createChannelDetailsStore() {
   }
 
   function loadChannelManagerIds(id: ChannelId): Promise<UserId[]> {
-    return withFeedbackOrThrow(id, "Failed to load channel managers.", () =>
-      fetchChannelManagerIds(id),
+    return withFeedbackOrThrow(
+      id,
+      "Failed to load channel managers.",
+      async () => await fetchChannelManagerIds(id),
     );
   }
 
-  function createChannelQuery<T>(
-    keyFor: (id: ChannelId) => readonly unknown[],
-    id: () => ChannelId | null | undefined,
-    load: (id: ChannelId) => Promise<T>,
-  ) {
-    return createKeyedQuery(() => {
-      const channelId = id();
-      return channelId
-        ? { queryFn: () => load(channelId), queryKey: keyFor(channelId) }
-        : undefined;
-    });
-  }
+  const stateOf =
+    <T>(query: Query<ChannelId, T>) =>
+    (id: () => ChannelId | null | undefined) =>
+      query.state(() => id() ?? undefined);
 
-  const createChannelDetailsQuery = (id: () => ChannelId | null | undefined) =>
-    createChannelQuery(channelDetailsKey, id, loadChannelDetails);
-  const createChannelManagerIdsQuery = (id: () => ChannelId | null | undefined) =>
-    createChannelQuery(channelManagerIdsKey, id, loadChannelManagerIds);
-  const createChannelPostingPrefsQuery = (id: () => ChannelId | null | undefined) =>
-    createChannelQuery<ChannelPostingPrefs>(channelPostingPrefsKey, id, fetchChannelPostingPrefs);
-  const createChannelRetentionQuery = (id: () => ChannelId | null | undefined) =>
-    createChannelQuery<number | null>(channelRetentionKey, id, fetchChannelRetention);
-
-  const createMemberPermissionsQuery = (id: () => ChannelId | null | undefined) =>
-    createChannelQuery(memberPermissionsKey, id, fetchMemberPermissions);
+  const createChannelDetailsQuery = stateOf(channelDetailsQuery);
+  const createChannelManagerIdsQuery = stateOf(channelManagerIdsQuery);
+  const createChannelPostingPrefsQuery = stateOf(channelPostingPrefsQuery);
+  const createChannelRetentionQuery = stateOf(channelRetentionQuery);
+  const createMemberPermissionsQuery = stateOf(memberPermissionsQuery);
 
   function renameChannelById(id: ChannelId, name: string): Promise<boolean> {
     return withFeedback(id, "Failed to rename channel.", false, async () => {
@@ -185,7 +190,10 @@ export function createChannelDetailsStore() {
     });
   }
 
-  function updateChannelPostingPrefs(id: ChannelId, patch: ChannelPostingPrefsPatch): Promise<void> {
+  function updateChannelPostingPrefs(
+    id: ChannelId,
+    patch: ChannelPostingPrefsPatch,
+  ): Promise<void> {
     return setChannelPostingPrefs(id, patch);
   }
 
@@ -240,6 +248,13 @@ export function createChannelDetailsStore() {
     createChannelPostingPrefsQuery,
     createChannelRetentionQuery,
     createMemberPermissionsQuery,
+    queries: {
+      details: channelDetailsQuery,
+      managerIds: channelManagerIdsQuery,
+      memberPermissions: memberPermissionsQuery,
+      postingPrefs: channelPostingPrefsQuery,
+      retention: channelRetentionQuery,
+    },
     loadChannelManagerIds,
     loadChannelMembersPage,
     searchChannelMembers,

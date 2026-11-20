@@ -1,5 +1,6 @@
-import type { ActivityItem, Message, User } from "@slock/types";
-import { createStore } from "solid-js/store";
+import type { Env } from "@slock/core";
+import type { ActivityItem, ChannelId, Message, Ts, User, UserId } from "@slock/types";
+import { createSignal, createStore } from "solid-js";
 import {
   fetchChannelLastRead,
   fetchHistoryAround,
@@ -14,6 +15,7 @@ import {
 } from "../fetch";
 import { PING_KINDS } from "../kinds";
 import { createActivityFeedLoad } from "./activityFeedLoad";
+import { createActivityItems } from "./activityItems";
 import { createActivityReadState } from "./activityReadState";
 import { createActivityReadSync } from "./activityReadSync";
 import { createRecentReactionFlash } from "./recentReaction";
@@ -44,20 +46,24 @@ const DEFAULT_ACTIVITY_API: ActivityApi = {
 export function createActivityStore(
   deps: {
     cacheResolvedMessages?: (messages: Map<string, Message>) => void;
+    clearChannelUnread: (channelId: ChannelId) => void;
     currentUser: () => User | undefined;
-    isBotUser?: (userId: string) => boolean;
-    lastReadByChannel: Record<string, number>;
-    reactionMessageFor?: (channelId: string, ts: string) => Message | undefined;
-    setLastReadByChannel: (channelId: string, ts: number) => void;
-    clearChannelUnread: (channelId: string) => void;
-    syncChannelRead: (channelId: string, ts: string) => Promise<boolean>;
-    setThreadRead: (channelId: string, threadTs: string, ts: string) => Promise<boolean>;
-    threadReadTsFor: (threadTs: string) => string | undefined;
+    env: Env;
+    ready: () => boolean;
+    isBotUser?: (userId: UserId) => boolean;
+    lastReadByChannel: Record<string, number | undefined>;
+    reactionMessageFor?: (channelId: ChannelId, ts: Ts) => Message | undefined;
+    setLastReadByChannel: (channelId: ChannelId, ts: number) => void;
+    setThreadRead: (channelId: ChannelId, threadTs: Ts, ts: Ts) => Promise<boolean>;
+    syncChannelRead: (channelId: ChannelId, ts: Ts) => Promise<boolean>;
+    threadReadTsFor: (threadTs: Ts) => Ts | undefined;
   },
   apiOverrides: Partial<ActivityApi> = {},
 ) {
   const api = { ...DEFAULT_ACTIVITY_API, ...apiOverrides };
-  const [activityItems, setActivityItems] = createStore<ActivityItem[]>([]);
+  const [currentRowKey, setCurrentRowKey] = createSignal<string>();
+  const items = createActivityItems();
+  const activityItems = items.list;
   const [archivedIds, setArchivedIds] = createStore<Record<string, boolean>>({});
   const activityReadSync = createActivityReadSync(deps.syncChannelRead);
   const {
@@ -71,58 +77,53 @@ export function createActivityStore(
     unreadActivityCount,
     unreadPingCount,
   } = createActivityReadState({
-    activityItems,
     activityReadSync,
     clearChannelUnread: deps.clearChannelUnread,
     fetchActivityBadgeCounts: api.fetchActivityBadgeCounts,
     fetchChannelLastRead: api.fetchChannelLastRead,
+    items,
     lastReadByChannel: deps.lastReadByChannel,
     markActivityRead: api.markActivityRead,
     pingKinds: PING_KINDS,
-    setActivityItems,
     setLastReadByChannel: deps.setLastReadByChannel,
     setThreadRead: deps.setThreadRead,
     threadReadTsFor: deps.threadReadTsFor,
   });
 
-  function removeActivityForMessage(channelId: string, ts: string): void {
-    setActivityItems((items) =>
-      items.filter((item) => item.channelId !== channelId || item.ts !== ts),
-    );
+  function removeActivityForMessage(channelId: ChannelId, ts: Ts): void {
+    items.removeWhere((item) => item.channelId === channelId && item.ts === ts);
   }
 
-  const recentReactionFlash = createRecentReactionFlash();
+  const recentReactionFlash = createRecentReactionFlash(deps.env);
 
-  function applyThreadMarked(threadTs: string, unreadCount: number): void {
-    setActivityItems((item) => item.kind === "thread_reply" && item.threadTs === threadTs, {
+  function applyThreadMarked(threadTs: Ts, unreadCount: number): void {
+    items.patchWhere((item) => item.kind === "thread_reply" && item.threadTs === threadTs, {
       unread: unreadCount > 0,
       unreadCount,
     });
   }
 
   const {
+    activityFeed,
     activityHasMore,
     activityLoaded,
-    activityLoading,
-    activityLoadError,
-    activityLoadingMore,
-    activityLoadMoreError,
-    ensureActivityLoaded,
+    activityMore,
     loadMoreActivity,
     requestActivityRefresh,
     retryActivityLoad,
   } = createActivityFeedLoad({
-    activityItems,
     backfillMissingReadCursors,
     cacheResolvedMessages: deps.cacheResolvedMessages,
     currentUser: deps.currentUser,
+    env: deps.env,
     fetchActivityFeedEntries: api.fetchActivityFeedEntries,
     fetchHistoryAround: api.fetchHistoryAround,
     fetchMessagesByIds: api.fetchMessagesByIds,
     isBotUser: deps.isBotUser,
+    items,
+    ready: deps.ready,
     onReactionPushed: recentReactionFlash.flash,
     resolveActivityEntry: api.resolveActivityEntry,
-    setActivityItems,
   });
 
   function isActivityItemArchived(item: ActivityItem): boolean {
@@ -147,7 +148,9 @@ export function createActivityStore(
         item.ts,
         item.linkedItemId,
       );
-      setArchivedIds(item.id, true);
+      setArchivedIds((ids) => {
+        ids[item.id] = true;
+      });
       markActivityItemsRead([item]);
     } finally {
       archivePending.delete(item.id);
@@ -155,19 +158,17 @@ export function createActivityStore(
   }
 
   return {
+    activityFeed,
     activityHasMore,
     activityItems,
     activityItemReadState,
     activityLoaded,
-    activityLoading,
-    activityLoadError,
-    activityLoadingMore,
-    activityLoadMoreError,
+    activityMore,
     activityReadSyncError: activityReadSync.error,
     activityReadSyncPending: activityReadSync.isPending,
     applyThreadMarked,
     archiveActivity,
-    ensureActivityLoaded,
+    currentRowKey,
     hasUnreadActivity,
     isActivityItemArchived,
     isActivityItemUnread,
@@ -179,6 +180,7 @@ export function createActivityStore(
     requestActivityRefresh,
     retryActivityLoad,
     retryActivityReadSync: activityReadSync.retry,
+    setCurrentRowKey,
     setGatewayActivityBadgeCounts,
     unreadActivityCount,
     unreadPingCount,

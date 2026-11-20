@@ -1,25 +1,32 @@
 import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { isWaiting } from "@slock/resource";
 import { CopyJsonButton, IconButton, JsonTree, type Pane, PanelHeader } from "@slock/ui";
 import { For, Show } from "solid-js";
-import { createKeyedQuery, defineKey } from "../../../query/client/api";
+import { defineQuery } from "../../../query/client/api";
 import type { DebugPaneContent } from "../api";
 import { entities } from "../entities";
 import "./DebugPane.css";
 import IdChip from "./IdChip";
 
-const debugKey = defineKey<[string, string]>("debug");
+interface DebugTarget {
+  entity: string;
+  id: string;
+}
+
+const debugData = defineQuery<DebugTarget, unknown>({
+  load: async ({ entity, id }) => (await entities[entity]?.load(id)) ?? null,
+  maxAgeMs: 0,
+  name: "debug",
+});
 
 const viewStore = service("shell.view");
 
 export default function DebugPane(props: { pane: Pane<DebugPaneContent> }) {
   const content = () => props.pane.content;
   const entity = () => entities[content().entity];
-  const data = createKeyedQuery(() => ({
-    queryFn: async () => (await entities[content().entity]?.load(content().id)) ?? null,
-    queryKey: debugKey(content().entity, content().id),
-    staleTime: 0,
-  }));
+  const target = () => ({ entity: content().entity, id: content().id });
+  const data = debugData.state(target);
 
   const decorate = (value: string) => {
     if (value === content().id) return;
@@ -51,22 +58,26 @@ export default function DebugPane(props: { pane: Pane<DebugPaneContent> }) {
             icon="refresh"
             iconSize={15}
             label="Reload"
-            onClick={() => void data.refetch()}
+            onClick={() => void debugData.refresh(target()).catch(() => {})}
             size="sm"
           />
-          <CopyJsonButton value={data.data} />
+          <CopyJsonButton value={data().data} />
         </div>
       </PanelHeader>
       <div class="debug-pane-body">
         <Show
           fallback={
             <span class="text-dim">
-              {data.error ? errorMessage(data.error) : data.isPending ? "Loading..." : "Not stored"}
+              {data().error
+                ? errorMessage(data().error)
+                : isWaiting(data())
+                  ? "Loading..."
+                  : "Not stored"}
             </span>
           }
-          when={data.data}
+          when={data().data}
         >
-          <JsonTree decorate={decorate} openDepth={3} value={data.data} />
+          <JsonTree decorate={decorate} openDepth={3} value={data().data} />
         </Show>
       </div>
     </div>

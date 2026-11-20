@@ -1,38 +1,35 @@
 import { service } from "@slock/core/solid";
 import { isMyRelayedMessage } from "@slock/slack";
-import type { Block, Message, User } from "@slock/types";
+import type { Block, ChannelId, FileId, Message, Ts, User } from "@slock/types";
 import {
   broadcastReply,
   deleteAttachment,
   deleteMessage,
   editMessage,
 } from "../../../slack/client/api";
-import type { MessageLocation } from "../lib/messageLocations";
+import type { LocatedMessages } from "../lib/messageLocations";
 
 const feedback = service("feedback");
 
 export function createMessageMutations(deps: {
   currentUser: () => User | undefined;
-  findAllMessageLocations: (
-    channelId: string,
-    ts: string,
-  ) => { location: MessageLocation; list: Message[] }[];
-  isChannelLoaded: (channelId: string) => boolean;
-  markDeleted: (channelId: string, ts: string) => void;
-  patchMessage: (channelId: string, ts: string, patch: Partial<Message>) => void;
-  insertMessageInOrder: (channelId: string, message: Message) => void;
+  findAllMessageLocations: (channelId: ChannelId, ts: Ts) => LocatedMessages[];
+  isChannelLoaded: (channelId: ChannelId) => boolean;
+  markDeleted: (channelId: ChannelId, ts: Ts) => void;
+  patchMessage: (channelId: ChannelId, ts: Ts, patch: Partial<Message>) => void;
+  insertMessageInOrder: (channelId: ChannelId, message: Message) => void;
 }) {
-  const findMessage = (channelId: string, ts: string) =>
+  const findMessage = (channelId: ChannelId, ts: Ts) =>
     deps.findAllMessageLocations(channelId, ts)[0]?.list.find((m) => m.ts === ts);
   const isRelayed = (message: Message | undefined) =>
     !!message && isMyRelayedMessage(message, deps.currentUser());
 
   async function editMessageText(
-    channelId: string,
-    ts: string,
+    channelId: ChannelId,
+    ts: Ts,
     text: string,
     blocks?: Block[],
-    fileIds?: string[],
+    fileIds?: FileId[],
     removedAttachmentIds: number[] = [],
   ) {
     const trimmed = text.trim();
@@ -65,7 +62,7 @@ export function createMessageMutations(deps: {
     }
   }
 
-  async function broadcastThreadReply(channelId: string, ts: string) {
+  async function broadcastThreadReply(channelId: ChannelId, ts: Ts) {
     const relayed = isRelayed(findMessage(channelId, ts));
     deps.patchMessage(channelId, ts, { isBroadcast: true });
     try {
@@ -80,7 +77,7 @@ export function createMessageMutations(deps: {
     }
   }
 
-  async function deleteMessageAt(channelId: string, ts: string) {
+  async function deleteMessageAt(channelId: ChannelId, ts: Ts) {
     const relayed = isRelayed(findMessage(channelId, ts));
     try {
       await deleteMessage(channelId, ts, relayed);

@@ -4,8 +4,8 @@ import type {
   RealtimeEventHook,
   RealtimeTrim,
 } from "../../../src/realtime/server/api";
-import { createGatewayHarness, creds } from "../../../src/realtime/testing/gatewayHarness";
 import type { Credentials } from "../../../src/slack/server/api/auth";
+import { createGatewayHarness, creds } from "../support/gatewayHarness";
 
 let h: ReturnType<typeof createGatewayHarness>;
 

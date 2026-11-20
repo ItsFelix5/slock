@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { forAll, int, pick, text } from "@slock/core/testing";
+import { stamp } from "@slock/slack/testing";
 import type { RawActivityFeedEntry } from "@slock/types";
 import { ACTIVITY_KIND_FEED_TYPES, mapFeedEntry } from "../../../src/activity/client/feedEntry";
+import { NO_CHANNEL } from "../../../src/activity/client/kinds";
 import { ACTIVITY_FEED_TYPES } from "../../../src/activity/protocol/feedTypes";
 
 const TIME = 1_700_000_000_000;
@@ -46,7 +48,7 @@ describe("mapFeedEntry", () => {
         TIME,
       );
     expect(entry("5.5")?.threadTs).toBeUndefined();
-    expect(entry("4.4")?.threadTs).toBe("4.4");
+    expect(entry("4.4")?.threadTs).toBe(stamp("4.4"));
   });
 
   test("maps reactions to the reacted message and the reacting user", () => {
@@ -114,12 +116,12 @@ describe("mapFeedEntry", () => {
     expect(entry).toMatchObject({ channelId: "C1234567890", ts: "7.7" });
   });
 
-  test("channel less items get an empty channel id and a stable id", () => {
+  test("channel less items get the no-channel id and a stable id", () => {
     const entry = mapFeedEntry(
       { feed_ts: "7.7", item: { activity_text: "Due now", type: "saved_reminder" } },
       TIME,
     );
-    expect(entry).toMatchObject({ channelId: "", id: "saved_reminder:7.7", kind: "other" });
+    expect(entry).toMatchObject({ channelId: NO_CHANNEL, id: "saved_reminder:7.7", kind: "other" });
   });
 
   test("a reminder resolved to a message keeps its link to the saved item", () => {
@@ -156,7 +158,7 @@ describe("mapFeedEntry", () => {
       { feed_ts: "9.9", item: { linked_item_id: "Rm1", type: "saved_reminder" }, key: "k" },
       TIME,
     );
-    expect(entry).toMatchObject({ channelId: "", linkedItemId: "Rm1", ts: "9.9" });
+    expect(entry).toMatchObject({ channelId: NO_CHANNEL, linkedItemId: "Rm1", ts: "9.9" });
   });
 
   test("broadcast mentions set the range", () => {
@@ -186,16 +188,17 @@ describe("mapFeedEntry", () => {
 
   test("property: never throws on partial payloads", () => {
     const types = [...ACTIVITY_FEED_TYPES, "other_thing"];
-    const alphabet = "CGU0123456789ABC.";
+    const idChars = "ABC0123456789";
     forAll(
       (random) => {
         const some = <T>(value: T): T | undefined => (random() < 0.5 ? value : undefined);
+        const stampText = () => `${int(random, 1, 99)}.${int(random, 1, 99)}`;
         const message = some({
-          channel: some(text(random, alphabet, 12)),
+          channel: some(`C0${text(random, idChars, 10)}`),
           text: some(text(random, "ab😀")),
-          thread_ts: some(text(random, alphabet, 6)),
-          ts: some(text(random, alphabet, 6)),
-          user: some(text(random, alphabet, 6)),
+          thread_ts: some(stampText()),
+          ts: some(stampText()),
+          user: some(`U0${text(random, idChars, 8)}`),
         });
         return {
           feed_ts: some(`${int(random, 1, 99)}.${int(random, 1, 99)}`),
@@ -206,7 +209,7 @@ describe("mapFeedEntry", () => {
             reaction: some({ name: some("x") }),
             type: pick(random, types),
           }),
-          key: some(text(random, alphabet, 12)),
+          key: some(text(random, idChars, 12)),
         } satisfies RawActivityFeedEntry;
       },
       (raw) => {

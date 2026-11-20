@@ -15,7 +15,9 @@ export default function VideoSpeedMenu(props: { onSpeed: (value: number) => void
       trigger={
         <button
           class="video-player-speed video-player-chrome btn-reset flex-align-center"
-          onClick={() => setOpen(!open())}
+          onClick={() => {
+            setOpen(!open());
+          }}
           type="button"
         >
           {props.speed}x
@@ -26,7 +28,7 @@ export default function VideoSpeedMenu(props: { onSpeed: (value: number) => void
       <For each={SPEEDS}>
         {(value) => (
           <MenuItem
-            classList={{ active: props.speed === value }}
+            class={{ active: props.speed === value }}
             onClick={() => {
               props.onSpeed(value);
               setOpen(false);

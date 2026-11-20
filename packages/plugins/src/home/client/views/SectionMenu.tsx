@@ -1,8 +1,11 @@
-import { confirmDialog, IconButton, Menu, MenuItem } from "@slock/ui";
+import { service } from "@slock/core/solid";
+import { IconButton, Menu, MenuItem } from "@slock/ui";
 import { Show } from "solid-js";
 import type { Category } from "./categories";
 import type { ChannelSections } from "./useChannelSections";
 import "./rows/SidebarSection.css";
+
+const dialogs = service("shell.dialogs");
 
 export default function SectionMenu(props: { cat: Category; sections: ChannelSections }) {
   const {
@@ -17,7 +20,7 @@ export default function SectionMenu(props: { cat: Category; sections: ChannelSec
   const deleteSection = async () => {
     setSectionMenuOpen(null);
 
-    const confirmed = await confirmDialog({
+    const confirmed = await dialogs.confirm({
       confirmLabel: "Delete",
       danger: true,
       message: `Delete section "${props.cat.name}"? Its channels won't be removed from the workspace.`,

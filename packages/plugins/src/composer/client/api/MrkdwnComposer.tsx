@@ -1,3 +1,4 @@
+import type { ChannelId } from "@slock/types";
 import { scrollActiveListOption } from "@slock/ui";
 import QuillEditor from "@slock/ui/editor/QuillEditor";
 import type Quill from "@slock/ui/editor/quill";
@@ -34,21 +35,27 @@ export default function MrkdwnComposer(props: {
   disabled?: boolean;
   multiline?: boolean;
   ariaBusy?: boolean;
-  channelId?: string;
+  channelId?: ChannelId;
 }) {
-  let quill: Quill | undefined;
+  const [editor, setEditor] = createSignal<Quill>();
   let caretIndex = 0;
   let lastEmitted: string | undefined;
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
-  const resolveMention = useMentionResolution(() => quill);
+  const resolveMention = useMentionResolution(editor);
   const mentionHover = createMentionHoverController();
-  const editorPlugins = createEditorPlugins(() => quill);
+  const editorPlugins = createEditorPlugins(editor);
+
+  const disposers: Array<() => void> = [];
+  onCleanup(() => {
+    for (const dispose of disposers.splice(0)) dispose();
+  });
 
   let rootRef: HTMLDivElement | undefined;
   let suggestPopoverRef: HTMLDivElement | undefined;
 
   const suggestions = createSuggestionController({
     applyTextSuggestion: (item, state) => {
+      const quill = editor();
       if (!quill) return;
       caretIndex = insertSuggestionAt(
         quill,
@@ -68,20 +75,23 @@ export default function MrkdwnComposer(props: {
 
   useSuggestUi(() => suggestPopoverRef, suggest, setSuggest);
 
-  createEffect(() => {
-    suggest();
-    scrollActiveListOption(() => suggestPopoverRef);
-  });
+  createEffect(suggest, () => scrollActiveListOption(() => suggestPopoverRef));
 
-  createEffect(() => {
-    if (!quill || props.value === lastEmitted) return;
-    lastEmitted = props.value;
-    loadMrkdwnIntoQuill(quill, props.value, resolveMention);
-  });
+  createEffect(
+    () => ({ quill: editor(), value: props.value }),
+    ({ quill, value }) => {
+      if (!quill || value === lastEmitted) return;
+      lastEmitted = value;
+      loadMrkdwnIntoQuill(quill, value, resolveMention);
+    },
+  );
 
-  createEffect(() => {
-    quill?.enable(!props.disabled);
-  });
+  createEffect(
+    () => ({ disabled: props.disabled, quill: editor() }),
+    ({ disabled, quill }) => {
+      quill?.enable(!disabled);
+    },
+  );
 
   const onFocusOut = () => {
     queueMicrotask(() => {
@@ -95,8 +105,7 @@ export default function MrkdwnComposer(props: {
 
   return (
     <div
-      class="mrkdwn-composer"
-      classList={{ disabled: props.disabled, multiline: props.multiline }}
+      class={["mrkdwn-composer", { disabled: props.disabled, multiline: props.multiline }]}
       onFocusOut={onFocusOut}
       ref={rootRef}
     >
@@ -107,12 +116,10 @@ export default function MrkdwnComposer(props: {
         id={props.id}
         onPasteText={(q, event) => pasteBlocksClipboard(q, event, resolveMention)}
         onReady={(q) => {
-          quill = q;
           loadMrkdwnIntoQuill(q, props.value, resolveMention);
           lastEmitted = props.value;
-          onCleanup(mentionHover.bind(q));
-          editorPlugins.bind(q);
-          q.enable(!props.disabled);
+          disposers.push(mentionHover.bind(q), ...editorPlugins.bind(q));
+          setEditor(q);
           q.on("text-change", () => {
             const next = mrkdwnText(q.getContents().ops);
             lastEmitted = next;
@@ -123,7 +130,7 @@ export default function MrkdwnComposer(props: {
             });
           });
         }}
-        onSubmit={props.multiline ? undefined : () => quill?.root.blur()}
+        onSubmit={props.multiline ? undefined : () => editor()?.root.blur()}
         placeholder={props.placeholder}
       />
       <MentionHoverCard hoverIntent={mentionHover.hoverIntent} state={mentionHover.state} />

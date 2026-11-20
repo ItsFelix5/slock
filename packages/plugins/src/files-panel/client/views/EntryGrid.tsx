@@ -1,6 +1,6 @@
 import { EmojiText, safeMediaUrl, safeUrl } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
-import type { SlackFile, SlackLink } from "@slock/types";
+import type { ChannelId, SlackFile, SlackLink } from "@slock/types";
 import { formatSize, Icon, imageSrc, Tooltip } from "@slock/ui";
 import { For, Show } from "solid-js";
 import { fileIconName, fileKindLabel, isCanvasFile } from "../../../files/client/api/fileSummary";
@@ -28,7 +28,7 @@ function JumpButton(props: { onJump: () => void; onSplit: () => void }) {
 }
 
 function FileCard(props: {
-  channelId: string;
+  channelId: ChannelId;
   file: SlackFile;
   onOpen: (file: SlackFile) => void;
 }) {
@@ -38,7 +38,7 @@ function FileCard(props: {
         class="files-links-card-open btn-reset"
         data-nav-row
         onClick={() => props.onOpen(props.file)}
-        tabIndex={-1}
+        tabindex={-1}
         type="button"
       >
         <Show
@@ -94,7 +94,7 @@ function FileCard(props: {
   );
 }
 
-function LinkCard(props: { channelId: string; link: SlackLink }) {
+function LinkCard(props: { channelId: ChannelId; link: SlackLink }) {
   return (
     <div class="files-links-card files-links-card-jumpable">
       <a
@@ -102,7 +102,7 @@ function LinkCard(props: { channelId: string; link: SlackLink }) {
         data-nav-row
         href={safeUrl(props.link.url)}
         rel="noopener noreferrer"
-        tabIndex={-1}
+        tabindex={-1}
         target="_blank"
       >
         <Show
@@ -149,7 +149,7 @@ function LinkCard(props: { channelId: string; link: SlackLink }) {
 }
 
 export function EntryGrid(props: {
-  channelId: string;
+  channelId: ChannelId;
   entries: FilesLinksEntry[];
   onOpenFile: (file: SlackFile) => void;
 }) {

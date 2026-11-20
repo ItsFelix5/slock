@@ -1,5 +1,7 @@
-import { createStore, produce, type SetStoreFunction } from "solid-js/store";
+import { createStore } from "solid-js";
 import { backgroundFetchQueue } from "./concurrencyQueue";
+
+export type KeyedCacheSetter<T> = ReturnType<typeof createStore<Record<string, T>>>[1];
 
 export interface KeyedAsyncCache<T> {
   entry(key: string): T | undefined;
@@ -11,7 +13,7 @@ export interface KeyedAsyncCache<T> {
   isLoading(key: string): boolean;
   refresh(key: string): Promise<T | undefined>;
   set(key: string, value: T): void;
-  setStore: SetStoreFunction<Record<string, T>>;
+  setStore: KeyedCacheSetter<T>;
   store: Record<string, T>;
   update(key: string, updater: (value: T | undefined) => T): void;
 }
@@ -46,41 +48,59 @@ export function createKeyedAsyncCache<T>(
   }
 
   function set(key: string, value: T): void {
-    setStore(key, value);
+    setStore((draft) => {
+      draft[key] = value;
+    });
   }
 
   function update(key: string, updater: (value: T | undefined) => T): void {
-    setStore(key, updater(store[key]));
+    setStore((draft) => {
+      draft[key] = updater(draft[key]);
+    });
   }
 
   function invalidate(key: string): void {
     inFlight.delete(key);
-    setStore(produce((s) => delete s[key]));
-    setErrors(produce((s) => delete s[key]));
-    setLoading(produce((s) => delete s[key]));
+    setStore((draft) => {
+      delete draft[key];
+    });
+    setErrors((draft) => {
+      delete draft[key];
+    });
+    setLoading((draft) => {
+      delete draft[key];
+    });
   }
 
   function load(key: string): Promise<T | undefined> {
     const existing = inFlight.get(key);
     if (existing) return existing;
-    setLoading(key, true);
-    setErrors(key, false);
+    setLoading((draft) => {
+      draft[key] = true;
+    });
+    setErrors((draft) => {
+      delete draft[key];
+    });
     const isCurrent = () => inFlight.get(key) === request;
     const request: Promise<T | undefined> = backgroundFetchQueue
       .run(() => fetcher(key))
       .then((value) => {
-        if (isCurrent()) setStore(key, value);
+        if (isCurrent()) set(key, value);
         return value;
       })
       .catch<T | undefined>((err) => {
         if (!isCurrent()) return;
-        setErrors(key, true);
+        setErrors((draft) => {
+          draft[key] = true;
+        });
         options.onError?.(err, key);
       })
       .finally(() => {
         if (!isCurrent()) return;
         inFlight.delete(key);
-        setLoading(produce((s) => delete s[key]));
+        setLoading((draft) => {
+          delete draft[key];
+        });
       });
     inFlight.set(key, request);
     return request;

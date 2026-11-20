@@ -10,7 +10,7 @@ export default function AppHomeButton(props: MessageHeaderProps) {
   const home = useAppHome(() => props.id);
   const isOpen = () => appHome.homeChannelId() === props.id;
   return (
-    <Show when={home.data?.appHome?.home_tab_enabled}>
+    <Show when={home().data?.appHome?.home_tab_enabled}>
       <IconButton
         active={isOpen()}
         class="channel-header-btn"

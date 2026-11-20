@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { forAll, int, pick } from "@slock/core/testing";
-import { createRoot } from "solid-js";
+import { forAll, inRoot, int, pick } from "@slock/core/testing";
+import { flush } from "solid-js";
 import type { PaneContent } from "../../../../src/shell/client/api/types";
-import { kinds, loadShellStore, main, side } from "../../../../src/shell/client/store/paneTestKit";
+import { kinds, loadShellStore, main, side } from "./paneTestKit";
 
 const { createShellStore } = await loadShellStore(mock.module);
 
@@ -40,33 +40,64 @@ function createFakeWindow(initialPath: string) {
     index = to;
     for (const listener of listeners) listener({ state: entries[index]?.state });
   };
+  const settledTravel = (to: number) => {
+    flush();
+    travel(to);
+    flush();
+  };
   return {
-    back: () => travel(index - 1),
-    entries,
-    forward: () => travel(index + 1),
-    index: () => index,
+    back: () => settledTravel(index - 1),
+    get entries() {
+      flush();
+      return entries;
+    },
+    forward: () => settledTravel(index + 1),
+    index: () => {
+      flush();
+      return index;
+    },
     install: () => Object.assign(globalThis, { window: fake }),
     listenerCount: () => listeners.size,
-    path: () => entries[index]?.path,
+    path: () => {
+      flush();
+      return entries[index]?.path;
+    },
+  };
+}
+
+function flushing<Args extends unknown[], Result>(action: (...args: Args) => Result) {
+  return (...args: Args): Result => {
+    const result = action(...args);
+    flush();
+    return result;
   };
 }
 
 function boot(initialPath: string, defaultView?: PaneContent) {
   const browser = createFakeWindow(initialPath);
   browser.install();
-  let dispose = () => {};
-  const { panes, viewState: view } = createRoot((d) => {
-    dispose = d;
-    const store = createShellStore({
+  const root = inRoot(() =>
+    createShellStore({
       defaultView: () => defaultView,
+      focusedPaneId: () => null,
       paneKinds: () => kinds,
       ready: () => true,
-    });
-    store.viewState.start();
-    return store;
-  });
-  const layout = () => panes.panes().map((pane) => pane.content);
-  return { browser, dispose, layout, panes, view };
+    }),
+  );
+  const { dispose } = root;
+  const { panes, viewState: view } = root.value;
+  view.start();
+  const layout = () => {
+    flush();
+    return panes.panes().map((pane) => pane.content);
+  };
+  return {
+    browser,
+    dispose,
+    layout,
+    panes: { ...panes, openInNewPane: flushing(panes.openInNewPane) },
+    view: { ...view, closeTile: flushing(view.closeTile), open: flushing(view.open) },
+  };
 }
 
 const realWindow = globalThis.window;

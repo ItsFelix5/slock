@@ -1,17 +1,12 @@
 import { service } from "@slock/core/solid";
 import type { ChannelId, DirectMessage, User, UserId } from "@slock/types";
-import { createMemo } from "solid-js";
-import { createStore, produce } from "solid-js/store";
+import { createMemo, createStore } from "solid-js";
 import type { View } from "../../../conversations/client/api/types";
-import { defineKey } from "../../../query/client/api";
+import { defineQuery } from "../../../query/client/api";
 import { closeDm, fetchChannelMembers, openDm } from "../../../slack/client/api";
 import { isDmId } from "../api";
 
-const mpdmMembersKey = defineKey<[ChannelId]>("mpdmMembers");
-
 const feedback = service("feedback");
-
-const query = service("query");
 
 export function createDmsStore(deps: {
   bootstrap: () => { directMessages: DirectMessage[] } | undefined;
@@ -22,11 +17,15 @@ export function createDmsStore(deps: {
   openInPane: (view: View) => string;
 }) {
   const [extraDms, setExtraDms] = createStore<DirectMessage[]>([]);
-  const [closedDmIds, setClosedDmIds] = createStore<Record<ChannelId, boolean>>({});
+  const [closedDmIds, setClosedDmFlags] = createStore<Record<ChannelId, boolean>>({});
+  const setClosedDmIds = (id: ChannelId, closed: boolean) =>
+    setClosedDmFlags((draft) => {
+      draft[id] = closed;
+    });
 
   const [dmPatches, setDmPatches] = createStore<Record<ChannelId, Partial<DirectMessage>>>({});
-  const [openDmPendingByUser, setOpenDmPendingByUser] = createStore<Record<UserId, boolean>>({});
-  const [closeDmPendingById, setCloseDmPendingById] = createStore<Record<ChannelId, boolean>>({});
+  const [openDmPendingByUser, setOpenDmPending] = createStore<Record<UserId, boolean>>({});
+  const [closeDmPendingById, setCloseDmPending] = createStore<Record<ChannelId, boolean>>({});
 
   const baseDmsById = createMemo(() => {
     const base = deps.bootstrap()?.directMessages ?? [];
@@ -40,7 +39,9 @@ export function createDmsStore(deps: {
   );
 
   function patchDm(id: ChannelId, patch: Partial<DirectMessage>) {
-    setDmPatches(id, { ...dmPatches[id], ...patch });
+    setDmPatches((draft) => {
+      draft[id] = { ...draft[id], ...patch };
+    });
   }
 
   const directMessages = createMemo<DirectMessage[]>(() =>
@@ -69,22 +70,27 @@ export function createDmsStore(deps: {
 
   function ensureDm(channelId: ChannelId, userId: UserId) {
     if (baseDmsById().has(channelId)) return;
-    setExtraDms(produce((list) => list.push({ id: channelId, unread: true, userId })));
+    setExtraDms((list) => {
+      list.push({ id: channelId, unread: true, userId });
+    });
   }
+
+  const mpdmMembers = defineQuery<ChannelId, true>({
+    load: async (channelId) => {
+      const { members } = await fetchChannelMembers(channelId, "everyone");
+      const selfId = deps.currentUser()?.id;
+      const memberIds = members.map((u) => u.id).filter((id) => id !== selfId);
+      setExtraDms((list) => {
+        list.push({ id: channelId, memberIds, unread: false });
+      });
+      return true;
+    },
+    name: "mpdmMembers",
+  });
 
   async function ensureMpdm(channelId: ChannelId) {
     if (baseDmsById().has(channelId)) return;
-    await query.client.query({
-      queryKey: mpdmMembersKey(channelId),
-      staleTime: "static",
-      queryFn: async () => {
-        const { members } = await fetchChannelMembers(channelId, "everyone");
-        const selfId = deps.currentUser()?.id;
-        const memberIds = members.map((u) => u.id).filter((id) => id !== selfId);
-        setExtraDms(produce((list) => list.push({ id: channelId, memberIds, unread: false })));
-        return true;
-      },
-    });
+    await mpdmMembers.ensure(channelId);
   }
 
   function isOpenDmPending(userId: UserId): boolean {
@@ -97,7 +103,9 @@ export function createDmsStore(deps: {
 
   async function openDmWithUser(userId: UserId, options?: { split?: boolean }): Promise<boolean> {
     if (isOpenDmPending(userId)) return false;
-    setOpenDmPendingByUser(userId, true);
+    setOpenDmPending((draft) => {
+      draft[userId] = true;
+    });
     const openView = (view: View) =>
       options?.split ? deps.openInPane(view) : deps.setActiveView(view);
     try {
@@ -114,12 +122,10 @@ export function createDmsStore(deps: {
       }
       if (existing) setClosedDmIds(channelId, false);
       else
-        setExtraDms(
-          produce((list) => {
-            if (!list.some((dm) => dm.id === channelId))
-              list.push({ id: channelId, unread: false, userId });
-          }),
-        );
+        setExtraDms((list) => {
+          if (!list.some((dm) => dm.id === channelId))
+            list.push({ id: channelId, unread: false, userId });
+        });
       openView({ id: channelId, kind: "dm" });
       deps.closeUserProfile();
       return true;
@@ -128,13 +134,17 @@ export function createDmsStore(deps: {
       feedback.flash(userId, "Could not open a direct message with this user.", "error");
       return false;
     } finally {
-      setOpenDmPendingByUser(userId, false);
+      setOpenDmPending((draft) => {
+        draft[userId] = false;
+      });
     }
   }
 
   async function closeDmConversation(dmId: ChannelId): Promise<boolean> {
     if (isCloseDmPending(dmId)) return false;
-    setCloseDmPendingById(dmId, true);
+    setCloseDmPending((draft) => {
+      draft[dmId] = true;
+    });
     try {
       await closeDm(dmId);
       setClosedDmIds(dmId, true);
@@ -149,7 +159,9 @@ export function createDmsStore(deps: {
       feedback.flash(dmId, "Failed to close conversation.", "error");
       return false;
     } finally {
-      setCloseDmPendingById(dmId, false);
+      setCloseDmPending((draft) => {
+        draft[dmId] = false;
+      });
     }
   }
 

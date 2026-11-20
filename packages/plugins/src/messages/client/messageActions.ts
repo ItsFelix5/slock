@@ -1,6 +1,7 @@
 import { service } from "@slock/core/solid";
-import type { Message } from "@slock/types";
-import { confirmDialog } from "@slock/ui";
+import type { ChannelId, Message } from "@slock/types";
+
+const dialogs = service("shell.dialogs");
 
 const feedback = service("feedback");
 
@@ -19,12 +20,12 @@ export async function copyMessageText(msg: Message) {
   if (!copied) feedback.flash(msg.ts, "Couldn't copy the message text.", "error");
 }
 
-export async function deleteOrDismissMessage(channelId: string, msg: Message) {
+export async function deleteOrDismissMessage(channelId: ChannelId, msg: Message) {
   if (msg.deleted) {
     messagesStore.dismissMessage(channelId, msg.ts);
     return true;
   }
-  const confirmed = await confirmDialog({
+  const confirmed = await dialogs.confirm({
     confirmLabel: "Delete",
     danger: true,
     message: "Delete this message?",

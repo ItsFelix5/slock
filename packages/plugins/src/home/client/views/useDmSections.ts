@@ -1,5 +1,6 @@
 import { service } from "@slock/core/solid";
 import { SLACK_USER_ID } from "@slock/slack";
+import type { ChannelId, UserId } from "@slock/types";
 import { type Accessor, createMemo, createSignal } from "solid-js";
 import type { DmKind } from "./categories";
 import { useOpenViews } from "./useOpenViews";
@@ -21,7 +22,7 @@ export function useDmSections(unreadsOnly: Accessor<boolean>) {
           .flatMap((section) => section.channelIds),
       ),
   );
-  const isDmUnread = (dm: { id: string }) =>
+  const isDmUnread = (dm: { id: ChannelId }) =>
     unread.isChannelUnread(dm.id) && !prefs.isChannelMuted(dm.id);
   const visibleDms = createMemo(() =>
     dms.directMessages().filter((dm) => {
@@ -30,7 +31,7 @@ export function useDmSections(unreadsOnly: Accessor<boolean>) {
       return isOpenDm || !unreadsOnly() || isDmUnread(dm);
     }),
   );
-  const isAppDm = (dm: { userId?: string }) =>
+  const isAppDm = (dm: { userId?: UserId }) =>
     !!dm.userId && (dm.userId === SLACK_USER_ID || !!users.userById(dm.userId)?.isBot);
 
   const appDms = createMemo(() => visibleDms().filter((dm) => !isDmUnread(dm) && isAppDm(dm)));

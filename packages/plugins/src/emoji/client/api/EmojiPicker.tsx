@@ -2,6 +2,7 @@ import { hasEmojiLoadError, isEmojiLoading, loadCustomEmoji } from "@slock/block
 import { service } from "@slock/core/solid";
 import {
   Button,
+  createResetSignal,
   gridNavigationIndex,
   inside,
   type NavDirection,
@@ -10,16 +11,7 @@ import {
   useListShortcuts,
   useShortcut,
 } from "@slock/ui";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  on,
-  onCleanup,
-  onMount,
-  Show,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, For, onSettled, Show } from "solid-js";
 import "./EmojiPicker.css";
 import EmojiPickerButton from "../EmojiPickerButton";
 import { prioritizeEmojiEntries } from "../emojiPickerEntries";
@@ -40,7 +32,7 @@ export default function EmojiPicker(props: {
   existingReactions?: { name: string; mine: boolean }[];
 }) {
   const [query, setQuery] = createSignal("");
-  const [activeIndex, setActiveIndex] = createSignal(0);
+  const [activeIndex, setActiveIndex] = createResetSignal(query, 0);
 
   let bodyRef: HTMLDivElement | undefined;
 
@@ -48,9 +40,16 @@ export default function EmojiPicker(props: {
 
   useEscapeClose(props.onClose);
 
-  onMount(() => {
+  onSettled(() => {
     void loadCustomEmoji();
-    requestAnimationFrame(() => requestAnimationFrame(() => searchInputRef?.focus()));
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => searchInputRef?.focus());
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
   });
 
   const allEntries = emojiIndex.allEmojiEntries;
@@ -79,27 +78,23 @@ export default function EmojiPicker(props: {
 
   const layout = createMemo(() => layoutChunks(visibleEntries()));
 
-  const [scrollTop, setScrollTop] = createSignal(0);
+  const [scrollTop, setScrollTop] = createResetSignal(query, 0);
   const [viewportHeight, setViewportHeight] = createSignal(360);
 
-  onMount(() => {
+  onSettled(() => {
     if (!bodyRef) return;
     const measure = () => bodyRef && setViewportHeight(bodyRef.clientHeight);
     measure();
     window.addEventListener("resize", measure);
-    onCleanup(() => window.removeEventListener("resize", measure));
+    return () => window.removeEventListener("resize", measure);
   });
 
   createEffect(
-    on(
-      query,
-      () => {
-        setScrollTop(0);
-        if (bodyRef) bodyRef.scrollTop = 0;
-        setActiveIndex(0);
-      },
-      { defer: true },
-    ),
+    query,
+    () => {
+      if (bodyRef) bodyRef.scrollTop = 0;
+    },
+    { defer: true },
   );
 
   const visible = createMemo(() => visibleChunks(layout(), scrollTop(), viewportHeight()));

@@ -1,11 +1,11 @@
 import { service } from "@slock/core/solid";
 import type { ChannelId, ChannelSection } from "@slock/types";
-import { createStore } from "solid-js/store";
 import {
   updateSectionChannels as apiUpdateSectionChannels,
   toggleStar,
 } from "../../../slack/client/api";
 import type { ChannelPlacementOutcome } from "../api/sectionMutations";
+import { createFlags } from "./flags";
 
 const feedback = service("feedback");
 
@@ -15,17 +15,17 @@ export function createChannelStarPlacement(deps: {
   sectionStructurePending: () => boolean;
   setSectionStructurePending: (pending: boolean) => void;
 }) {
-  const [starredChannelIds, setStarredChannelIds] = createStore<Record<ChannelId, boolean>>({});
-  const [placementPendingByChannel, setPlacementPendingByChannel] = createStore<
-    Record<ChannelId, boolean>
-  >({});
+  const starred = createFlags<ChannelId>();
+  const placementPending = createFlags<ChannelId>();
+  const setStarredChannelIds = starred.set;
+  const setPlacementPendingByChannel = placementPending.set;
 
   function isChannelStarred(channelId: ChannelId): boolean {
-    return !!starredChannelIds[channelId];
+    return starred.has(channelId);
   }
 
   function isChannelPlacementPending(channelId: ChannelId): boolean {
-    return !!placementPendingByChannel[channelId];
+    return placementPending.has(channelId);
   }
 
   async function toggleChannelStar(channelId: ChannelId): Promise<ChannelPlacementOutcome> {

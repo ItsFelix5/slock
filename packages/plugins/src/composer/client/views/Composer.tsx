@@ -4,9 +4,9 @@ import { InlineFeedback, scrollActiveListOption, useEscapeClose } from "@slock/u
 import QuillEditor from "@slock/ui/editor/QuillEditor";
 import type Quill from "@slock/ui/editor/quill";
 import { indexAlignedText } from "@slock/ui/editor/quillText";
-import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
 import "./Composer.css";
-import { createComposerDraftState, draftCacheKey } from "../../../drafts/client/api";
+import { draftCacheKey } from "../../../drafts/client/api";
 import { composerFeedbackKey } from "../../../slash-commands/client/api";
 import ComposerSuggestPopover from "../api/editor/ComposerSuggestPopover";
 import MentionHoverCard from "../api/editor/MentionHoverCard";
@@ -44,11 +44,16 @@ import DraftsMenu from "./popovers/DraftsMenu";
 
 const feedback = service("feedback");
 const composer = service("composer");
+const drafts = service("drafts");
 
 export default function Composer(props: ComposerProps) {
   let quill: Quill | undefined;
   let suggestPopoverRef: HTMLDivElement | undefined;
   let caretIndex = 0;
+  const disposers: Array<() => void> = [];
+  onCleanup(() => {
+    for (const dispose of disposers.splice(0)) dispose();
+  });
   const [sending, setSending] = createSignal(false);
   const [dragOver, setDragOver] = createSignal(false);
   const [menuOpen, setMenuOpen] = createSignal(false);
@@ -63,10 +68,7 @@ export default function Composer(props: ComposerProps) {
     () => !!props.editing,
   );
   useSuggestUi(() => suggestPopoverRef, suggest, setSuggest);
-  createEffect(() => {
-    suggest();
-    scrollActiveListOption(() => suggestPopoverRef);
-  });
+  createEffect(suggest, () => scrollActiveListOption(() => suggestPopoverRef));
 
   useComposerShortcuts({
     dismissPreviews: () => linkPreviews.dismissAll(),
@@ -78,20 +80,18 @@ export default function Composer(props: ComposerProps) {
     toggleDrafts: () => setDraftsMenuOpen((open) => !open),
   });
 
-  const feedbackKey = () => composerFeedbackKey(props.threadTs ?? props.channelId ?? "");
+  const feedbackKey = () => composerFeedbackKey(props.threadTs ?? props.channelId);
 
   const [existingFiles, setExistingFiles] = createSignal<SlackFile[]>(
-    props.editing?.initialFiles ?? [],
+    () => props.editing?.initialFiles ?? [],
   );
 
   const editAttachments = createEditAttachments(() => props.editing?.initialAttachments);
 
   const pendingFiles = createPendingFileState({
     disabled: sending,
-    draftKey: () =>
-      props.editing || !props.channelId
-        ? undefined
-        : draftCacheKey(props.channelId, props.threadTs),
+    draftKey: () => (props.editing ? undefined : draftCacheKey(props.channelId, props.threadTs)),
+    store: composer.pendingFiles,
     uploadOnAttach: composer.uploadOnAttach,
   });
 
@@ -114,16 +114,13 @@ export default function Composer(props: ComposerProps) {
     loadRichTextIntoQuill(quill, blocks, resolveMention);
   };
 
-  const draftState = props.editing
+  const draftState = untrack(() => props.editing)
     ? undefined
-    : createComposerDraftState({
+    : drafts.createComposerState({
         blocks: editorBlocks,
         channelId: () => props.channelId,
-        editing: () => false,
-        key: () => (props.channelId ? draftCacheKey(props.channelId, props.threadTs) : undefined),
         loadIntoEditor,
         ready: editorReady,
-        resetPreviews: () => {},
         threadTs: () => props.threadTs,
       });
 
@@ -172,8 +169,10 @@ export default function Composer(props: ComposerProps) {
 
   return (
     <div
-      class="composer composer-frame surface-popover"
-      classList={{ "composer-editing": !!props.editing, "drag-over": dragOver() }}
+      class={[
+        "composer composer-frame surface-popover",
+        { "composer-editing": !!props.editing, "drag-over": dragOver() },
+      ]}
       onDragLeave={() => setDragOver(false)}
       onDragOver={(e) => {
         e.preventDefault();
@@ -233,8 +232,7 @@ export default function Composer(props: ComposerProps) {
               }
               setEdits((count) => count + 1);
               wireHeaderLimit(q);
-              onCleanup(mentionHover.bind(q));
-              editorPlugins.bind(q);
+              disposers.push(mentionHover.bind(q), ...editorPlugins.bind(q));
               q.on("text-change", () => {
                 setEdits((count) => count + 1);
                 const rawAligned = indexAlignedText(q);

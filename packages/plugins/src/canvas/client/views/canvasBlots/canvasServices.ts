@@ -1,5 +1,5 @@
 import type Quill from "@slock/ui/editor/quill";
-import { createSignal, onMount } from "solid-js";
+import { createSignal, onSettled } from "solid-js";
 import type { CanvasNames } from "../../lib/canvasEmbeds";
 
 export interface CanvasServices {
@@ -14,9 +14,8 @@ export interface CanvasServices {
 const ROOT_CLASS = ".canvas-editor";
 const registry = new WeakMap<Element, CanvasServices>();
 
-export function provideCanvasServices(root: Element, services: CanvasServices): () => void {
+export function provideCanvasServices(root: Element, services: CanvasServices) {
   registry.set(root, services);
-  return () => registry.delete(root);
 }
 
 export function canvasServicesFor(node: Element): CanvasServices | undefined {
@@ -26,6 +25,6 @@ export function canvasServicesFor(node: Element): CanvasServices | undefined {
 
 export function useCanvasServices(node: Element) {
   const [services, setServices] = createSignal<CanvasServices>();
-  onMount(() => queueMicrotask(() => setServices(canvasServicesFor(node))));
+  onSettled(() => queueMicrotask(() => setServices(canvasServicesFor(node))));
   return services;
 }

@@ -1,6 +1,7 @@
 import { service } from "@slock/core/solid";
+import { isChannelId, isFileId, isTs, isUserId } from "@slock/slack";
 import { Avatar, Icon } from "@slock/ui";
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { Show } from "solid-js";
 import { openConversation } from "../../conversations/client/api/nav";
 import { loadCanvasDebug } from "./canvasDebugData";
@@ -35,7 +36,21 @@ export const messageId = (channelId: string, ts: string) => `${channelId}${MESSA
 
 function splitMessageId(id: string) {
   const split = id.indexOf(MESSAGE_SEPARATOR);
-  return { channelId: id.slice(0, split), ts: id.slice(split + 1) };
+  const channelId = id.slice(0, split);
+  const ts = id.slice(split + 1);
+  return {
+    channelId: isChannelId(channelId) ? channelId : undefined,
+    ts: isTs(ts) ? ts : undefined,
+  };
+}
+
+const dmOf = (id: string) => (isChannelId(id) ? dms.dmById(id) : undefined);
+const channelOf = (id: string) => (isChannelId(id) ? channels.channelById(id) : undefined);
+
+function messageOf(id: string) {
+  const { channelId, ts } = splitMessageId(id);
+  if (!(channelId && ts)) return;
+  return messages.findAllMessageLocations(channelId, ts)[0]?.list.find((m) => m.ts === ts);
 }
 
 export const entities: Record<string, Entity> = {
@@ -51,37 +66,38 @@ export const entities: Record<string, Entity> = {
   canvas: {
     label: "Canvas",
     load: loadCanvasDebug,
-    open: (id) => canvas.openCanvasPane(id),
+    open: (id) => {
+      if (isFileId(id)) canvas.openCanvasPane(id);
+    },
     title: (id) => `Canvas ${id}`,
   },
   channel: {
     chip: (id) =>
-      dms.dmById(id) ? (
+      dmOf(id) ? (
         <Icon name="direct-messages" size={12} />
-      ) : channels.channelById(id)?.private ? (
+      ) : channelOf(id)?.private ? (
         <Icon name="lock" size={12} />
       ) : (
         <span>#</span>
       ),
     label: "Channel",
-    load: (id) => channels.channelById(id) ?? dms.dmById(id),
-    open: openConversation,
+    load: (id) => channelOf(id) ?? dmOf(id),
+    open: (id) => {
+      if (isChannelId(id)) openConversation(id);
+    },
     pattern: /^[CGD][A-Z0-9]{8,}$/,
-    title: (id) => `${dms.dmById(id) ? "DM" : "Channel"} ${id}`,
+    title: (id) => `${dmOf(id) ? "DM" : "Channel"} ${id}`,
     wrap: "wrapChannelMention",
   },
   message: {
     label: "Message",
-    load: (id) => {
-      const { channelId, ts } = splitMessageId(id);
-      return messages.findAllMessageLocations(channelId, ts)[0]?.list.find((m) => m.ts === ts);
-    },
+    load: messageOf,
     open: (id) => {
       const { channelId, ts } = splitMessageId(id);
-      messageLinks.openChannelMessage(channelId, ts);
+      if (channelId && ts) messageLinks.openChannelMessage(channelId, ts);
     },
-    related: (id) => [{ entity: "channel", id: splitMessageId(id).channelId }],
-    title: (id) => `Message ${splitMessageId(id).ts}`,
+    related: (id) => [{ entity: "channel", id: id.slice(0, id.indexOf(MESSAGE_SEPARATOR)) }],
+    title: (id) => `Message ${id.slice(id.indexOf(MESSAGE_SEPARATOR) + 1)}`,
   },
   user: {
     chip: (id) => (
@@ -89,7 +105,9 @@ export const entities: Record<string, Entity> = {
     ),
     label: "Profile",
     load: (id) => users.userById(id),
-    open: (id) => users.openUserProfile(id),
+    open: (id) => {
+      if (isUserId(id)) users.openUserProfile(id);
+    },
     pattern: /^[UWB][A-Z0-9]{8,}$/,
     title: (id) => `User ${id}`,
     wrap: "wrapUserMention",

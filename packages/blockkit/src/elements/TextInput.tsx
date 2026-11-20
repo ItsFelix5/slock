@@ -27,7 +27,9 @@ export default function TextInput(props: {
   };
 
   const onInput = (
-    event: InputEvent & { currentTarget: HTMLInputElement | HTMLTextAreaElement },
+    event: InputEvent & {
+      currentTarget: HTMLInputElement | HTMLTextAreaElement;
+    },
   ) => {
     const { value } = event.currentTarget;
     props.record({ value: value || null });
@@ -35,12 +37,18 @@ export default function TextInput(props: {
   };
 
   const onKeyDown = (
-    event: KeyboardEvent & { currentTarget: HTMLInputElement | HTMLTextAreaElement },
+    event: KeyboardEvent & {
+      currentTarget: HTMLInputElement | HTMLTextAreaElement;
+    },
   ) => {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
     if (!props.dispatchOn.includes("on_enter_pressed")) return;
     event.preventDefault();
     props.dispatch({ value: event.currentTarget.value });
+  };
+
+  const focusOnLoad = (node: HTMLElement) => {
+    if (props.el.focus_on_load) queueMicrotask(() => node.focus());
   };
 
   return (
@@ -50,13 +58,13 @@ export default function TextInput(props: {
           class="bk-control"
           disabled={!props.ready}
           max={numeric() ? props.el.max_value : undefined}
-          maxLength={props.el.max_length}
+          maxlength={props.el.max_length}
           min={numeric() ? props.el.min_value : undefined}
           onBeforeInput={onBeforeInput}
           onInput={onInput}
           onKeyDown={onKeyDown}
           placeholder={props.el.placeholder?.text}
-          ref={(node) => props.el.focus_on_load && queueMicrotask(() => node.focus())}
+          ref={focusOnLoad}
           step={numeric() ? (props.el.is_decimal_allowed ? "any" : 1) : undefined}
           type={inputType(props.el.type)}
           value={props.el.initial_value ?? ""}
@@ -67,11 +75,11 @@ export default function TextInput(props: {
       <textarea
         class="bk-control bk-control--textarea"
         disabled={!props.ready}
-        maxLength={props.el.max_length}
+        maxlength={props.el.max_length}
         onInput={onInput}
         onKeyDown={onKeyDown}
         placeholder={props.el.placeholder?.text}
-        ref={(node) => props.el.focus_on_load && queueMicrotask(() => node.focus())}
+        ref={focusOnLoad}
         value={props.el.initial_value ?? ""}
       />
     </Show>

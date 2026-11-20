@@ -36,4 +36,3 @@ describe("findTextRanges", () => {
     expect(found("abc", "xyz")).toEqual([]);
   });
 });
-

@@ -13,7 +13,7 @@ export function MessageAvatarButton(props: {
       aria-label={`View ${props.name}`}
       class="message-avatar-button btn-reset flex-center"
       onClick={props.onClick}
-      tabIndex={props.tabbable === false ? -1 : undefined}
+      tabindex={props.tabbable === false ? -1 : undefined}
       type="button"
     >
       <Avatar

@@ -1,14 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import { forAll, pick, text } from "@slock/core/testing";
+import { parseChannelId, parseTs } from "@slock/slack";
+import type { ChannelId } from "@slock/types";
 import { SLASH_COMMAND_RE } from "../../../src/slash-commands/client/api";
 import { handleSlashCommand } from "../../../src/slash-commands/client/slashCommand";
+
+const C1 = parseChannelId("C1");
 
 function harness(result: () => Promise<string | null>) {
   const runs: [string, string, string][] = [];
   const flashes: [string, string][] = [];
   const deps = {
     flashError: (key: string, message: string) => flashes.push([key, message]),
-    run: (channelId: string, command: string, body: string) => {
+    run: (channelId: ChannelId, command: string, body: string) => {
       runs.push([channelId, command, body]);
       return result();
     },
@@ -61,7 +65,7 @@ describe("SLASH_COMMAND_RE", () => {
 describe("handleSlashCommand", () => {
   test("plain text is not handled and never hits the network", async () => {
     const { deps, runs } = harness(async () => null);
-    expect(await handleSlashCommand(deps, "C1", undefined, "hello")).toEqual({
+    expect(await handleSlashCommand(deps, C1, undefined, "hello")).toEqual({
       handled: false,
       succeeded: false,
     });
@@ -70,7 +74,7 @@ describe("handleSlashCommand", () => {
 
   test("runs the command with its argument", async () => {
     const { deps, runs, flashes } = harness(async () => null);
-    expect(await handleSlashCommand(deps, "C1", undefined, "/remind me tomorrow")).toEqual({
+    expect(await handleSlashCommand(deps, C1, undefined, "/remind me tomorrow")).toEqual({
       handled: true,
       succeeded: true,
     });
@@ -80,20 +84,20 @@ describe("handleSlashCommand", () => {
 
   test("a Slack error is flashed under the channel key", async () => {
     const { deps, flashes } = harness(async () => "The app didn't respond.");
-    const result = await handleSlashCommand(deps, "C1", undefined, "/foo");
+    const result = await handleSlashCommand(deps, C1, undefined, "/foo");
     expect(result).toEqual({ handled: true, succeeded: false });
     expect(flashes).toEqual([["composer:C1", "The app didn't respond."]]);
   });
 
   test("thread commands flash under the thread key", async () => {
     const { deps, flashes } = harness(async () => "nope");
-    await handleSlashCommand(deps, "C1", "9.9", "/foo");
+    await handleSlashCommand(deps, C1, parseTs("9.9"), "/foo");
     expect(flashes).toEqual([["composer:9.9", "nope"]]);
   });
 
   test("a network failure is flashed instead of rejecting", async () => {
     const { deps, flashes } = harness(() => Promise.reject(new Error("offline")));
-    const result = await handleSlashCommand(deps, "C1", undefined, "/foo");
+    const result = await handleSlashCommand(deps, C1, undefined, "/foo");
     expect(result).toEqual({ handled: true, succeeded: false });
     expect(flashes).toEqual([["composer:C1", "offline"]]);
   });

@@ -1,5 +1,5 @@
 import type { SectionBlock } from "@slock/types";
-import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { createSignal, For, onSettled, Show } from "solid-js";
 import BkText from "../BkText";
 import type { BlockActionContext } from "../BlockKit";
 import ElementRenderer from "../elements/ElementRenderer";
@@ -16,25 +16,32 @@ export default function Section(props: { block: SectionBlock; context?: BlockAct
   };
   let textEl: HTMLDivElement | undefined;
 
-  onMount(() => {
+  onSettled(() => {
     if (!(textEl && clampable())) return;
-    onCleanup(observeOverflow(textEl, (value) => expanded() || setOverflowing(value)));
+    return observeOverflow(textEl, (value) => {
+      if (!expanded()) setOverflowing(value);
+    });
   });
 
   return (
-    <div class="bk-section" classList={{ "bk-section--stacked": stacked() }}>
+    <div class={["bk-section", { "bk-section--stacked": stacked() }]}>
       <div class="bk-section-main grow">
         <Show when={props.block.text}>
           <div
-            class="bk-section-text"
-            classList={{ "bk-section-text--clamped": clampable() && !expanded() }}
+            class={["bk-section-text", { "bk-section-text--clamped": clampable() && !expanded() }]}
             ref={textEl}
           >
             <BkText text={props.block.text} />
           </div>
         </Show>
         <Show when={clampable() && overflowing()}>
-          <button class="bk-section-expand" onClick={() => setExpanded((v) => !v)} type="button">
+          <button
+            class="bk-section-expand"
+            onClick={() => {
+              setExpanded((v) => !v);
+            }}
+            type="button"
+          >
             {expanded() ? "Show less" : "Show more"}
           </button>
         </Show>

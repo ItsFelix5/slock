@@ -4,6 +4,7 @@
   "name": "Composer",
   "requires": [
     "channels",
+    "drafts",
     "emoji",
     "messages",
     "prefs",

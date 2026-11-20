@@ -1,5 +1,5 @@
-import { type Accessor, type Component, ErrorBoundary, For, type JSX, splitProps } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import type { JSX } from "@solidjs/web";
+import { type Component, createComponent, createMemo, Errored, For, omit } from "solid-js";
 import { usePoint } from "./solidHost";
 import type { Points } from "./types";
 
@@ -11,20 +11,28 @@ type ComponentPoint = {
 
 type PropsOf<T> = T extends (props: infer Props) => JSX.Element ? Props : never;
 
+function isComponent<Props extends Record<string, unknown>>(
+  item: unknown,
+): item is Component<Props> {
+  return typeof item === "function";
+}
+
 export function Slot<P extends ComponentPoint>(props: { point: P } & PropsOf<Points[P]>) {
-  const [, rest] = splitProps(props, ["point"]);
-  const items = usePoint(props.point) as Accessor<Component<typeof rest>[]>;
+  const rest = omit(props, "point");
+  const items = createMemo(() =>
+    usePoint(props.point)().flatMap((item) => (isComponent<typeof rest>(item) ? [item] : [])),
+  );
   return (
     <For each={items()}>
       {(item) => (
-        <ErrorBoundary
+        <Errored
           fallback={(error) => {
-            console.error(`${props.point} item failed`, error);
+            console.error(`${props.point} item failed`, error());
             return null;
           }}
         >
-          <Dynamic component={item} {...rest} />
-        </ErrorBoundary>
+          {createComponent(item, rest)}
+        </Errored>
       )}
     </For>
   );

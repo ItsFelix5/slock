@@ -60,9 +60,9 @@ export default function MessageMeta(props: {
             }
           >
             <span class="message-status-emoji">
-              <EmojiFreezeContext.Provider value={() => true}>
+              <EmojiFreezeContext value={() => true}>
                 <EmojiText text={emoji()} />
-              </EmojiFreezeContext.Provider>
+              </EmojiFreezeContext>
             </span>
           </Tooltip>
         )}

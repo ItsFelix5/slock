@@ -1,6 +1,7 @@
 import type { ProfileFieldDef, User } from "@slock/types";
 import { createCopyFeedback, IconButton } from "@slock/ui";
 import { For, Show } from "solid-js";
+import type { ProfileForm } from "./profileForm";
 import UserProfileFieldValue from "./UserProfileFieldValue";
 import { formatStartDate } from "./userProfileTime";
 import "./UserProfileContact.css";
@@ -12,10 +13,7 @@ export default function UserProfileContact(props: {
   startDate: string | undefined;
   customFields: CustomField[];
   editableFields: ProfileFieldDef[];
-  values: Record<string, string>;
-  isSavingField: (id: string) => boolean;
-  setValue: (id: string, value: string) => void;
-  saveField: (id: string) => void;
+  form: ProfileForm;
 }) {
   const [copiedKey, copy] = createCopyFeedback();
   return (
@@ -57,13 +55,15 @@ export default function UserProfileContact(props: {
                 </label>
                 <input
                   class="user-profile-field-input"
-                  disabled={props.isSavingField(field.id)}
+                  disabled={props.form.isSavingField(`custom:${field.id}`)}
                   id={`profile-field-${field.id}`}
-                  onBlur={() => props.saveField(field.id)}
-                  onInput={(event) => props.setValue(field.id, event.currentTarget.value)}
+                  onBlur={() => props.form.commitCustomField(field.id)}
+                  onInput={(event) =>
+                    props.form.setCustomValue(field.id, event.currentTarget.value)
+                  }
                   data-commit-on-enter
                   type={field.type === "date" ? "date" : "text"}
-                  value={props.values[field.id] ?? ""}
+                  value={props.form.customValues[field.id] ?? ""}
                 />
               </div>
             )}

@@ -1,9 +1,8 @@
-import { getCachedWorkspaceDomain, userProfileUrl } from "@slock/slack";
 import type { Block, RichTextInlineElement, RichTextStyle, RichTextSubBlock } from "@slock/types";
 import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
 import { parseSlackPermalink } from "../../../message-links/client/api/slackPermalink";
 import { type DeltaLine, type DeltaOp, type DeltaSegment, deltaLines } from "./deltaLines";
-import { MENTION_PREFIX } from "./embedValues";
+import { MENTION_PREFIX, userlinkUrl } from "./embedValues";
 import { cutHeaderText } from "./headerLimit";
 import { collapseLeadingMessageLink } from "./replyLinkBlocks";
 
@@ -28,8 +27,9 @@ function segmentElements(segment: DeltaSegment, forceBold: boolean): RichTextInl
       return [{ type: "usergroup", usergroup_id: embed.mention.id }];
     }
     if (embed.mention.kind === "userlink") {
-      const url = userProfileUrl(getCachedWorkspaceDomain() ?? "", embed.mention.id);
-      return [{ text: `@${embed.mention.name}`, type: "link", url }];
+      const url = userlinkUrl(embed.mention.id);
+      const text = `@${embed.mention.name}`;
+      return [url ? { text, type: "link", url } : { text, type: "text" }];
     }
     if (embed.mention.kind === "messagelink") {
       const target = parseSlackPermalink(embed.mention.id);

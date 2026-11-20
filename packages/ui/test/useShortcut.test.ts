@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createRoot, createSignal } from "solid-js";
+import { createRoot, createSignal, flush } from "solid-js";
 import {
   dispatchManualShortcut,
   inside,
@@ -25,7 +25,11 @@ interface KeyInit {
 }
 
 function keydown(init: KeyInit) {
-  return new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init });
+  return new KeyboardEvent("keydown", {
+    bubbles: true,
+    cancelable: true,
+    ...init,
+  });
 }
 
 function press(init: KeyInit, target: Element = body()) {
@@ -37,7 +41,7 @@ function press(init: KeyInit, target: Element = body()) {
 let counter = 0;
 function register(overrides: Partial<ShortcutDef> & { log?: string[]; name?: string }) {
   const { log, name = `s${counter++}`, ...rest } = overrides;
-  return createRoot((dispose) => {
+  const dispose = createRoot((disposeRoot) => {
     useShortcut({
       combo: { key: "x" },
       group: "App",
@@ -47,8 +51,10 @@ function register(overrides: Partial<ShortcutDef> & { log?: string[]; name?: str
       scope: "general",
       ...rest,
     });
-    return dispose;
+    return disposeRoot;
   });
+  flush();
+  return dispose;
 }
 
 describe("useShortcut dispatch", () => {
@@ -69,6 +75,7 @@ describe("useShortcut dispatch", () => {
     const dispose = register({ enabled, log, name: "gated" });
     press({ key: "x" });
     setEnabled(true);
+    flush();
     press({ key: "x" });
     expect(log).toEqual(["gated"]);
     dispose();
@@ -108,7 +115,11 @@ describe("useShortcut dispatch", () => {
   test("a target scoped shortcut beats a global one registered after it", () => {
     const log: string[] = [];
     const inner = element("div");
-    const scoped = register({ log, name: "scoped", target: inside(() => inner) });
+    const scoped = register({
+      log,
+      name: "scoped",
+      target: inside(() => inner),
+    });
     const global = register({ log, name: "global" });
     press({ key: "x" }, inner);
     press({ key: "x" }, element("div"));

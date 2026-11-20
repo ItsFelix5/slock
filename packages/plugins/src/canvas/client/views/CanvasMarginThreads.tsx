@@ -1,6 +1,6 @@
-import type { CanvasCommentThread } from "@slock/types";
+import type { CanvasCommentThread, FileId } from "@slock/types";
 import { IconButton } from "@slock/ui";
-import { createEffect, createSignal, For, on, onCleanup } from "solid-js";
+import { createEffect, createSignal, For, onSettled } from "solid-js";
 import ReactionRow from "../../../reactions/client/api/ReactionRow";
 import { isThreadAnnotation } from "../api/canvasQuote";
 import "./CanvasMarginThreads.css";
@@ -12,7 +12,7 @@ function sameTops(a: Record<string, number>, b: Record<string, number>): boolean
 
 export default function CanvasMarginThreads(props: {
   container: HTMLElement;
-  fileId: string;
+  fileId: FileId;
   onOpen: (thread: CanvasCommentThread) => void;
   onReact: (thread: CanvasCommentThread, name: string) => void;
   threads: CanvasCommentThread[];
@@ -43,19 +43,21 @@ export default function CanvasMarginThreads(props: {
     frame = requestAnimationFrame(measure);
   }
 
-  createEffect(on(() => props.threads, schedule));
+  createEffect(() => props.threads, schedule);
 
-  createEffect(() => {
-    const id = active();
-    const ranges = [...props.container.querySelectorAll<HTMLElement>("[data-annotation]")]
-      .filter((mark) => id && threadOf(mark)?.threadId === id)
-      .map((mark) => {
-        const range = new Range();
-        range.selectNodeContents(mark);
-        return range;
-      });
-    CSS.highlights.set("canvas-thread", new Highlight(...ranges));
-  });
+  createEffect(
+    () => ({ id: active(), threads: props.threads }),
+    ({ id }) => {
+      const ranges = [...props.container.querySelectorAll<HTMLElement>("[data-annotation]")]
+        .filter((mark) => id && threadOf(mark)?.threadId === id)
+        .map((mark) => {
+          const range = new Range();
+          range.selectNodeContents(mark);
+          return range;
+        });
+      CSS.highlights.set("canvas-thread", new Highlight(...ranges));
+    },
+  );
 
   function hoverMark(event: MouseEvent) {
     const mark =
@@ -69,20 +71,22 @@ export default function CanvasMarginThreads(props: {
     setActive(undefined);
   }
 
-  props.container.addEventListener("mouseover", hoverMark);
-  props.container.addEventListener("mouseleave", clearActive);
-
-  const resizes = new ResizeObserver(schedule);
-  const mutations = new MutationObserver(schedule);
-  resizes.observe(props.container);
-  mutations.observe(props.container, { characterData: true, childList: true, subtree: true });
-  onCleanup(() => {
-    props.container.removeEventListener("mouseover", hoverMark);
-    props.container.removeEventListener("mouseleave", clearActive);
-    CSS.highlights.delete("canvas-thread");
-    cancelAnimationFrame(frame);
-    resizes.disconnect();
-    mutations.disconnect();
+  onSettled(() => {
+    const { container } = props;
+    container.addEventListener("mouseover", hoverMark);
+    container.addEventListener("mouseleave", clearActive);
+    const resizes = new ResizeObserver(schedule);
+    const mutations = new MutationObserver(schedule);
+    resizes.observe(container);
+    mutations.observe(container, { characterData: true, childList: true, subtree: true });
+    return () => {
+      container.removeEventListener("mouseover", hoverMark);
+      container.removeEventListener("mouseleave", clearActive);
+      CSS.highlights.delete("canvas-thread");
+      cancelAnimationFrame(frame);
+      resizes.disconnect();
+      mutations.disconnect();
+    };
   });
 
   return (
@@ -90,8 +94,10 @@ export default function CanvasMarginThreads(props: {
       <For each={visible()}>
         {(thread) => (
           <div
-            class="canvas-margin-thread flex-align-center"
-            classList={{ active: active() === thread.threadId }}
+            class={[
+              "canvas-margin-thread flex-align-center",
+              { active: active() === thread.threadId },
+            ]}
             onFocusIn={() => setActive(thread.threadId)}
             onFocusOut={clearActive}
             onMouseEnter={() => setActive(thread.threadId)}

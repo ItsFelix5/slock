@@ -4,12 +4,14 @@ import ChannelHoverCard from "./ChannelHoverCard";
 
 export default function ChannelMentionCard(props: MentionCardProps) {
   return (
-    <Show when={props.kind === "channel"}>
-      <ChannelHoverCard
-        anchor={props.anchor}
-        channelId={props.id}
-        hoverIntent={props.hoverIntent}
-      />
+    <Show when={props.kind === "channel" ? props.id : undefined}>
+      {(channelId) => (
+        <ChannelHoverCard
+          anchor={props.anchor}
+          channelId={channelId()}
+          hoverIntent={props.hoverIntent}
+        />
+      )}
     </Show>
   );
 }

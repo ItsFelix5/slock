@@ -1,15 +1,15 @@
 import { createHost } from "@slock/core";
 import { setHost, solidReactive } from "@slock/core/solid";
 import { createFakeEnv } from "@slock/core/testing";
+import { isChannelId } from "@slock/slack";
 import { ch, uid } from "@slock/slack/testing";
 import type { ChannelId, GatewayEvent, Message, Ts, User } from "@slock/types";
-import { QueryClient } from "@tanstack/solid-query";
-import { createRoot, createSignal } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createMemo, createRoot, createSignal, createStore, flush } from "solid-js";
 import type { View } from "../../../../src/conversations/client/api/types";
 import type { ThreadRef } from "../../../../src/messages/client/api";
 import { createMessageEvents } from "../../../../src/messages/client/store/events";
 import { createMessagesStore } from "../../../../src/messages/client/store/index";
+import querySetup from "../../../../src/query/client/index";
 import { createFeedback } from "../../../../src/shell/client/feedback";
 import { createFakeSlack } from "./fakeSlack";
 
@@ -27,13 +27,16 @@ export async function createStoreHarness() {
   const slack = createFakeSlack(ME, env);
   const host = createHost({ env, reactive: solidReactive });
   setHost(host);
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   await host.register(
     { id: "feedback", setup: (ctx) => ctx.provide("feedback", createFeedback()) },
-    { id: "query", setup: (ctx) => ctx.provide("query", { client: queryClient }) },
+    { id: "query", setup: querySetup },
   );
 
-  const [unread, setUnread] = createStore<Record<ChannelId, boolean>>({});
+  const [unread, setUnreadFlags] = createStore<Record<ChannelId, boolean>>({});
+  const setUnread = (id: ChannelId, flag: boolean) =>
+    setUnreadFlags((s) => {
+      s[id] = flag;
+    });
   const patchedChannels: ChannelId[] = [];
   const deleted: string[] = [];
   const closedDms: Record<ChannelId, boolean> = {};
@@ -44,9 +47,10 @@ export async function createStoreHarness() {
   let dispose = () => {};
   const { events, store } = createRoot((stop) => {
     dispose = stop;
+    const currentUser = createMemo(() => me);
     const store = createMessagesStore({
       clearChannelUnread: (id) => setUnread(id, false),
-      currentUser: () => me,
+      currentUser,
       extendPatch: () => ({}),
       lastReadFor: () => undefined,
       onMessageDeleted: (channel, ts) => deleted.push(`${channel}:${ts}`),
@@ -81,7 +85,7 @@ export async function createStoreHarness() {
         isViewed: (id) => views().some((view) => view.id === id),
         setUnreadChannelIds: setUnread,
       },
-      users: { currentUser: () => me },
+      users: { currentUser },
     });
     return { events, store };
   });
@@ -89,6 +93,7 @@ export async function createStoreHarness() {
   const deliver = (event: GatewayEvent) => {
     for (const handler of events.handlers)
       if (handler.types.includes(event.type)) handler.run(event);
+    flush();
   };
 
   return {
@@ -98,7 +103,10 @@ export async function createStoreHarness() {
       dispose();
       return host.stop();
     },
-    messages: (channel: ChannelId): Message[] => [...(store.messagesByChannel[channel] ?? [])],
+    messages: (channel: ChannelId): Message[] => {
+      flush();
+      return [...(store.messagesByChannel[channel] ?? [])];
+    },
     onReconnect: events.onReconnect,
     open(...ids: ChannelId[]) {
       setViews(ids.map((id) => ({ id, kind: "channel" })));
@@ -109,8 +117,16 @@ export async function createStoreHarness() {
     env,
     slack,
     store,
-    thread: (ts: Ts): Message[] => [...(store.threadMessages[ts] ?? [])],
-    unreadChannels: () => Object.keys(unread).filter((id) => unread[id]),
+    thread: (ts: Ts): Message[] => {
+      flush();
+      return [...(store.threadMessages[ts] ?? [])];
+    },
+    unreadChannels: () => {
+      flush();
+      return Object.keys(unread)
+        .filter(isChannelId)
+        .filter((id) => unread[id]);
+    },
   };
 }
 

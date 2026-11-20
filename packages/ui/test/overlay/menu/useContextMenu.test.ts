@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { createRoot } from "solid-js";
+import { inRoot } from "@slock/core/testing";
+import { flush } from "solid-js";
 import { useContextMenu } from "../../../src/overlay/menu/useContextMenu";
 
 function fakeEvent(clientX: number, clientY: number) {
@@ -21,53 +22,47 @@ function fakeEvent(clientX: number, clientY: number) {
 
 describe("useContextMenu", () => {
   test("starts closed at the origin", () => {
-    createRoot((dispose) => {
-      const menu = useContextMenu();
-      expect(menu.isOpen()).toBe(false);
-      expect([menu.x(), menu.y()]).toEqual([0, 0]);
-      dispose();
-    });
+    const { value: menu, dispose } = inRoot(useContextMenu);
+    expect(menu.isOpen()).toBe(false);
+    expect([menu.x(), menu.y()]).toEqual([0, 0]);
+    dispose();
   });
 
   test("open takes the event position and swallows the native menu", () => {
-    createRoot((dispose) => {
-      const menu = useContextMenu();
-      const { event, calls } = fakeEvent(120, 45);
-      menu.open(event);
-      expect(menu.isOpen()).toBe(true);
-      expect([menu.x(), menu.y()]).toEqual([120, 45]);
-      expect(calls).toEqual({ preventDefault: 1, stopPropagation: 1 });
-      dispose();
-    });
+    const { value: menu, dispose } = inRoot(useContextMenu);
+    const { event, calls } = fakeEvent(120, 45);
+    menu.open(event);
+    flush();
+    expect(menu.isOpen()).toBe(true);
+    expect([menu.x(), menu.y()]).toEqual([120, 45]);
+    expect(calls).toEqual({ preventDefault: 1, stopPropagation: 1 });
+    dispose();
   });
 
   test("a second open moves the menu", () => {
-    createRoot((dispose) => {
-      const menu = useContextMenu();
-      menu.open(fakeEvent(1, 2).event);
-      menu.open(fakeEvent(300, 400).event);
-      expect([menu.x(), menu.y()]).toEqual([300, 400]);
-      dispose();
-    });
+    const { value: menu, dispose } = inRoot(useContextMenu);
+    menu.open(fakeEvent(1, 2).event);
+    menu.open(fakeEvent(300, 400).event);
+    flush();
+    expect([menu.x(), menu.y()]).toEqual([300, 400]);
+    dispose();
   });
 
   test("close resets the position", () => {
-    createRoot((dispose) => {
-      const menu = useContextMenu();
-      menu.open(fakeEvent(9, 9).event);
-      menu.close();
-      expect(menu.isOpen()).toBe(false);
-      expect([menu.x(), menu.y()]).toEqual([0, 0]);
-      dispose();
-    });
+    const { value: menu, dispose } = inRoot(useContextMenu);
+    menu.open(fakeEvent(9, 9).event);
+    menu.close();
+    flush();
+    expect(menu.isOpen()).toBe(false);
+    expect([menu.x(), menu.y()]).toEqual([0, 0]);
+    dispose();
   });
 
   test("a keyboard opened menu at the origin still counts as open", () => {
-    createRoot((dispose) => {
-      const menu = useContextMenu();
-      menu.open(fakeEvent(0, 0).event);
-      expect(menu.isOpen()).toBe(true);
-      dispose();
-    });
+    const { value: menu, dispose } = inRoot(useContextMenu);
+    menu.open(fakeEvent(0, 0).event);
+    flush();
+    expect(menu.isOpen()).toBe(true);
+    dispose();
   });
 });

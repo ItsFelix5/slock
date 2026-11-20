@@ -1,4 +1,4 @@
-import type { Attachment, Block } from "@slock/types";
+import type { Attachment, Block, ChannelId } from "@slock/types";
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { fetchLinkPreview } from "../../../slack/client/api";
 import { previewableLinks } from "./blockLinks";
@@ -13,11 +13,11 @@ const SEND_WAIT_MS = 2000;
 const sameUrls = (a: string[], b: string[]) =>
   a.length === b.length && a.every((u, i) => u === b[i]);
 
-const lookupKey = (channelId: string, url: string) => `${channelId} ${url}`;
+const lookupKey = (channelId: ChannelId, url: string) => `${channelId} ${url}`;
 
 export function createLinkPreviews(opts: {
   blocks: () => Block[] | undefined;
-  channelId: () => string | undefined;
+  channelId: () => ChannelId | undefined;
   enabled: () => boolean;
 }) {
   const [found, setFound] = createSignal<ReadonlyMap<string, Attachment>>(new Map());
@@ -25,11 +25,11 @@ export function createLinkPreviews(opts: {
   const requested = new Set<string>();
   const inflight = new Set<Promise<void>>();
 
-  const urls = createMemo(() => (opts.enabled() ? previewableLinks(opts.blocks()) : []), [], {
+  const urls = createMemo(() => (opts.enabled() ? previewableLinks(opts.blocks()) : []), {
     equals: sameUrls,
   });
 
-  const lookup = (channelId: string, url: string) => {
+  const lookup = (channelId: ChannelId, url: string) => {
     const key = lookupKey(channelId, url);
     if (requested.has(key)) return;
     requested.add(key);
@@ -46,10 +46,12 @@ export function createLinkPreviews(opts: {
     inflight.add(request);
   };
 
-  createEffect(() => {
-    const channelId = opts.channelId();
-    if (channelId) for (const url of urls()) lookup(channelId, url);
-  });
+  createEffect(
+    () => ({ channelId: opts.channelId(), urls: urls() }),
+    ({ channelId, urls: wanted }) => {
+      if (channelId) for (const url of wanted) lookup(channelId, url);
+    },
+  );
 
   const previews = createMemo<LinkPreview[]>(() => {
     const channelId = opts.channelId();

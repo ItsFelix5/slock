@@ -1,6 +1,6 @@
 import { type BlockActionContext, safeColor, safeMediaUrl, safeUrl } from "@slock/blockkit";
 import { decodeTextEntities } from "@slock/slack";
-import type { Attachment } from "@slock/types";
+import type { Attachment, ChannelId, Message, Ts } from "@slock/types";
 import { HideBrokenImage, Icon } from "@slock/ui";
 import { Show } from "solid-js";
 import { channelIconName } from "../../../channels/client/api";
@@ -9,14 +9,24 @@ import {
   viewForConversation,
 } from "../../../conversations/client/api/nav";
 import { MessageAuthorButton } from "../../../messages/client/api/cards/MessageAuthorButton";
-import { createKeyedQuery } from "../../../query/client/api";
 import { fetchMessagesByIds } from "../../../slack/client/api";
 import "./AttachmentCard.css";
 import { service } from "@slock/core/solid";
-import { defineKey } from "../../../query/client/api";
+import { defineQuery } from "../../../query/client/api";
 import AttachmentContent from "./AttachmentContent";
 
-const originalMessageKey = defineKey<[string, string]>("originalMessage");
+interface OriginalRef {
+  channelId: ChannelId;
+  ts: Ts;
+}
+
+const lookupOriginal = ({ channelId, ts }: OriginalRef) =>
+  fetchMessagesByIds([{ channelId, ts }]).then((messages) => messages.get(`${channelId}:${ts}`));
+
+const originalMessage = defineQuery<OriginalRef, Message | null>({
+  load: async (ref) => (await lookupOriginal(ref)) ?? null,
+  name: "originalMessage",
+});
 const viewStore = service("conversations");
 const dmsStore = service("dms");
 const channelsStore = service("channels");
@@ -56,25 +66,19 @@ export default function MessageUnfurl(props: { attachment: Attachment }) {
     }
     viewStore.setActiveView(viewForConversation(a.channelId));
   };
-  const lookupOriginal = (channelId: string, ts: string) =>
-    fetchMessagesByIds([{ channelId, ts }]).then((messages) => messages.get(`${channelId}:${ts}`));
-  const original = createKeyedQuery(() => {
+  const original = originalMessage.state(() => {
     const { channelId, ts } = a;
-    if (!(hasInteractiveBlocks(a.blocks) && channelId && ts)) return;
-    return {
-      queryFn: async () => (await lookupOriginal(channelId, ts)) ?? null,
-      queryKey: originalMessageKey(channelId, ts),
-    };
+    return hasInteractiveBlocks(a.blocks) && channelId && ts ? { channelId, ts } : undefined;
   });
   const blockContext = (): BlockActionContext | undefined => {
-    const message = original.data;
+    const message = original().data;
     if (!(message?.botId && a.channelId && a.ts)) return;
     return { botId: message.botId, channelId: a.channelId, messageTs: a.ts };
   };
   const openAuthorProfile = async () => {
     const { channelId, ts } = a;
     if (!(channelId && ts)) return;
-    const userId = a.authorId ?? (await lookupOriginal(channelId, ts))?.userId;
+    const userId = a.authorId ?? (await lookupOriginal({ channelId, ts }))?.userId;
     if (userId) usersStore.openUserProfile(userId);
   };
 

@@ -1,4 +1,4 @@
-import type { Channel } from "@slock/types";
+import type { Channel, ChannelId } from "@slock/types";
 
 export type DmKind = "people" | "apps";
 
@@ -6,7 +6,7 @@ export interface Category {
   channels: Channel[];
   custom: boolean;
   dm?: DmKind;
-  dmIds: string[];
+  dmIds: ChannelId[];
   id: string;
   name: string;
   reorderable: boolean;
@@ -25,7 +25,7 @@ function sectionShowsAllChannels(sidebar: Category["sidebar"], unreadsOnly: bool
 export type SectionData = {
   id: string;
   name: string;
-  channelIds: string[];
+  channelIds: ChannelId[];
   sidebar: "hid" | "active" | "all";
   sort?: "recent";
   type: string;
@@ -33,13 +33,13 @@ export type SectionData = {
 
 export type CategoryInput = {
   allChannels: Channel[];
-  allDmIds: string[];
+  allDmIds: ChannelId[];
   hasDms: (kind: DmKind) => boolean;
-  isChannelLeft: (id: string) => boolean;
-  isChannelMuted: (id: string) => boolean;
-  isChannelOpen: (id: string) => boolean;
-  isChannelStarred: (id: string) => boolean;
-  isChannelUnread: (id: string) => boolean;
+  isChannelLeft: (id: ChannelId) => boolean;
+  isChannelMuted: (id: ChannelId) => boolean;
+  isChannelOpen: (id: ChannelId) => boolean;
+  isChannelStarred: (id: ChannelId) => boolean;
+  isChannelUnread: (id: ChannelId) => boolean;
   sections: () => SectionData[] | undefined;
   unreadsOnly: () => boolean;
 };
@@ -58,7 +58,7 @@ export function buildCategories({
 }: CategoryInput): Category[] {
   const visibleChannels = allChannels.filter((c) => !isChannelLeft(c.id));
 
-  const matchesId = (id: string, sidebar: Category["sidebar"]) => {
+  const matchesId = (id: ChannelId, sidebar: Category["sidebar"]) => {
     if (isChannelOpen(id)) return true;
     return (
       sectionShowsAllChannels(sidebar, unreadsOnly()) ||
@@ -72,12 +72,12 @@ export function buildCategories({
   const starredDmIds = allDmIds.filter(isChannelStarred);
   const secs = sections() ?? [];
   const channelSecs = secs.filter((s) => s.type === "standard" || s.type === "usergroup");
-  const usedForRest = new Set<string>(starredIds);
+  const usedForRest = new Set<ChannelId>(starredIds);
   for (const s of channelSecs) for (const id of s.channelIds) usedForRest.add(id);
   const restChannels = visibleChannels.filter((c) => !usedForRest.has(c.id));
-  const claimed = new Set<string>([...starredIds, ...starredDmIds]);
+  const claimed = new Set<ChannelId>([...starredIds, ...starredDmIds]);
   const sectionChannelsById = new Map<string, Channel[]>();
-  const sectionDmIdsById = new Map<string, string[]>();
+  const sectionDmIdsById = new Map<string, ChannelId[]>();
   for (const s of channelSecs) {
     const ids = s.channelIds.filter((id) => !claimed.has(id));
     for (const id of ids) claimed.add(id);

@@ -5,6 +5,15 @@ export { createHost, Unavailable } from "./host/host";
 export { parseManifest } from "./host/manifest";
 export type { HttpContext, HttpHandler } from "./http";
 export { runHttp } from "./http";
+export type { Pref, PrefCodec, PrefSpec } from "./pref";
+export {
+  createPref,
+  jsonCodec,
+  parseLike,
+  parseRecordOf,
+  parseString,
+  textCodec,
+} from "./pref";
 export type {
   AddOptions,
   Context,

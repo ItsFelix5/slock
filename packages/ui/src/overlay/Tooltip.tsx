@@ -1,4 +1,5 @@
-import { children, type JSX, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { children, Show } from "solid-js";
 import { useHoverIntent } from "../hooks/useHoverIntent";
 import FloatingPanel, { type VerticalPlacement } from "./floating/FloatingPanel";
 import "./Tooltip.css";
@@ -13,7 +14,10 @@ export interface TooltipProps {
 }
 
 function TooltipBubble(
-  props: TooltipProps & { anchor: () => HTMLElement | undefined; onScroll: () => void },
+  props: TooltipProps & {
+    anchor: () => HTMLElement | undefined;
+    onScroll: () => void;
+  },
 ) {
   const content = children(() => props.content);
   return (

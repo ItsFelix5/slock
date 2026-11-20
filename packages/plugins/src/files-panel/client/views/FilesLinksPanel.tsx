@@ -61,11 +61,13 @@ export default function FilesLinksPanel() {
       filesPanel.loadMoreFilesLinks();
   };
 
-  createEffect(() => {
-    sorted();
-    if (filesPanel.filesLinksLoading() || !bodyRef) return;
-    queueMicrotask(() => bodyRef && loadMoreAtBottom(bodyRef));
-  });
+  createEffect(
+    () => ({ entries: sorted(), loading: filesPanel.filesLinksLoading() }),
+    ({ loading }) => {
+      if (loading || !bodyRef) return;
+      queueMicrotask(() => bodyRef && loadMoreAtBottom(bodyRef));
+    },
+  );
 
   return (
     <Show when={filesPanel.filesLinksChannelId()}>
@@ -85,8 +87,7 @@ export default function FilesLinksPanel() {
                 <For each={TYPE_FILTERS}>
                   {(f) => (
                     <button
-                      class="files-links-filter-chip"
-                      classList={{ active: typeFilter() === f.value }}
+                      class={["files-links-filter-chip", { active: typeFilter() === f.value }]}
                       onClick={() => setTypeFilter(f.value)}
                       type="button"
                     >

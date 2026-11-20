@@ -32,9 +32,9 @@ describe("dm title", () => {
   });
 
   test("group dm with an unresolved member says Someone", () => {
-    expect(
-      titleFor(ch("G1"), dm({ id: ch("G1"), memberIds: [uid("U1"), uid("UGONE")] })),
-    ).toEqual({ name: "Ann, Someone" });
+    expect(titleFor(ch("G1"), dm({ id: ch("G1"), memberIds: [uid("U1"), uid("UGONE")] }))).toEqual({
+      name: "Ann, Someone",
+    });
   });
 
   test("a custom group name wins over member names", () => {

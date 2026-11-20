@@ -2,7 +2,7 @@ import { startOfDay } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { parseTs } from "@slock/slack";
 import type { ChannelId, HistoryPage, Message, Ts } from "@slock/types";
-import type { SetStoreFunction, Store } from "solid-js/store";
+import type { Store } from "solid-js";
 import { mergeMessages } from "../api/messageMerge";
 import { tsFromMs } from "../lib/tsTime";
 import type { HistoryMeta } from "./history/historyFlags";
@@ -20,10 +20,10 @@ export function createHistoryJump(deps: {
   loadedChannels: Set<ChannelId>;
   loadNewerMessages: (channelId: ChannelId) => Promise<void>;
   loadRecentHistory: (channelId: ChannelId) => Promise<void>;
-  messagesByChannel: Store<Record<string, Message[]>>;
+  messagesByChannel: Store<Record<ChannelId, Message[]>>;
   newerHistoryBoundary: Map<ChannelId, Ts>;
+  patchMeta: (channelId: ChannelId, patch: Partial<HistoryMeta>) => void;
   replaceMessages: (channelId: ChannelId, compute: (existing: Message[]) => Message[]) => void;
-  setHistoryMeta: SetStoreFunction<Record<ChannelId, HistoryMeta>>;
   windowEpochs: {
     begin: (key: ChannelId) => number;
     isCurrent: (key: ChannelId, epoch: number) => boolean;
@@ -38,8 +38,8 @@ export function createHistoryJump(deps: {
     loadRecentHistory,
     messagesByChannel,
     newerHistoryBoundary,
+    patchMeta,
     replaceMessages,
-    setHistoryMeta,
     windowEpochs,
   } = deps;
 
@@ -47,7 +47,7 @@ export function createHistoryJump(deps: {
     if (messagesByChannel[channelId]?.some((message) => message.ts === ts)) return true;
     const epoch = windowEpochs.begin(channelId);
     const previous = historyMeta[channelId];
-    setHistoryMeta(channelId, {
+    patchMeta(channelId, {
       anchored: previous?.anchored,
       hasMore: previous?.hasMore ?? true,
       initialError: false,
@@ -65,7 +65,7 @@ export function createHistoryJump(deps: {
       replaceMessages(channelId, () => mergeMessages([], messages));
       historyCursor.set(channelId, nextCursor);
       newerHistoryBoundary.set(channelId, messages.at(-1)?.ts ?? ts);
-      setHistoryMeta(channelId, {
+      patchMeta(channelId, {
         anchored: true,
         hasMore,
         hasNewer: true,
@@ -87,7 +87,7 @@ export function createHistoryJump(deps: {
   async function jumpToTs(channelId: ChannelId, ts: Ts) {
     const epoch = windowEpochs.begin(channelId);
     const previous = historyMeta[channelId];
-    setHistoryMeta(channelId, {
+    patchMeta(channelId, {
       anchored: previous?.anchored,
       hasMore: previous?.hasMore ?? true,
       initialError: false,
@@ -113,7 +113,7 @@ export function createHistoryJump(deps: {
           channelId,
           newer?.nextCursor ? parseTs(newer.nextCursor) : (messages.at(-1)?.ts ?? ts),
         );
-      setHistoryMeta(channelId, {
+      patchMeta(channelId, {
         anchored: !newer || newer.hasMore,
         hasMore: !fromStart && around.hasMore,
         hasNewer: !newer || newer.hasMore,

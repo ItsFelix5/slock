@@ -118,8 +118,7 @@ function isCanvasControl(value: unknown): value is CanvasControl {
   if (value.kind === "annotation") return true;
   if (value.kind === "user") return isId(value.userId, isUserId);
   if (value.kind === "channel") return isId(value.channelId, isChannelId);
-  if (value.kind === "emoji")
-    return isString(value.name) && isId(value.teamId, isTeamId);
+  if (value.kind === "emoji") return isString(value.name) && isId(value.teamId, isTeamId);
   return value.kind === "date" && isNumber(value.ms) && isString(value.label);
 }
 

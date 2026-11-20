@@ -1,5 +1,5 @@
 import type { ChannelId } from "@slock/types";
-import type { Store } from "solid-js/store";
+import type { Store } from "solid-js";
 
 export type HistoryMeta = {
   anchored?: boolean;

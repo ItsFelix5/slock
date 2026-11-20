@@ -1,4 +1,4 @@
-import type { HttpHandler } from "@slock/core";
+import { type HttpHandler, isRecord } from "@slock/core";
 import type { RawMessage } from "@slock/types";
 import { jsonHeaders } from "../../slack/server/api/auth";
 import type { LogStore, TsRange } from "./store";
@@ -8,6 +8,19 @@ const HISTORY_PATH = /^\/api\/channels\/([^/]+)\/messages$/;
 const REPLIES_PATH = /^\/api\/channels\/([^/]+)\/threads\/([^/]+)\/messages$/;
 
 type Page = { has_more?: boolean; messages?: RawMessage[] };
+
+function isRawMessage(value: unknown): value is RawMessage {
+  return isRecord(value) && typeof value.ts === "string";
+}
+
+function parsePage(body: unknown): Page {
+  if (!isRecord(body)) return {};
+  return {
+    ...body,
+    has_more: body.has_more === true,
+    messages: Array.isArray(body.messages) ? body.messages.filter(isRawMessage) : undefined,
+  };
+}
 
 function extremes(page: Page) {
   const stamps = (page.messages ?? []).map((message) => message.ts).sort();
@@ -39,7 +52,7 @@ export function restoreDeleted(store: LogStore): HttpHandler {
     if (c.req.method !== "GET" || !(replies || history) || !res?.ok || !creds) return res;
     const workspace = workspaceOf(creds);
     const [channel = "", threadTs = ""] = (replies ?? history)?.slice(1) ?? [];
-    const page = (await res.json()) as Page;
+    const page = parsePage(await res.json());
     const live = page.messages ?? [];
     const kept = replies
       ? store.threadMessages(workspace, channel, threadTs, repliesRange(page, searchParams))

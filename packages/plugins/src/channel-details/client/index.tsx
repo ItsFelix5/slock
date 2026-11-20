@@ -1,6 +1,6 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { ifPresent, parseChannelId } from "@slock/slack";
+import { ifPresent, isChannelId, parseChannelId } from "@slock/slack";
 import { MenuItem } from "@slock/ui";
 import { lazy, Show } from "solid-js";
 import { openConversationInSplit } from "../../conversations/client/api/nav";
@@ -62,11 +62,14 @@ const setup: Setup = (ctx) => {
     if (view.kind === "channel") channelDetails.openChannelDetails(view.id);
   });
   ctx.add("messages.blockKit", {
-    wrapChannelMention: (id, trigger) => (
-      <SplitNavigation onSplit={() => openConversationInSplit(id)}>
-        <ChannelHoverCard channelId={id}>{trigger}</ChannelHoverCard>
-      </SplitNavigation>
-    ),
+    wrapChannelMention: (id, trigger) =>
+      isChannelId(id) ? (
+        <SplitNavigation onSplit={() => openConversationInSplit(id)}>
+          <ChannelHoverCard channelId={id}>{trigger}</ChannelHoverCard>
+        </SplitNavigation>
+      ) : (
+        trigger
+      ),
   });
 };
 

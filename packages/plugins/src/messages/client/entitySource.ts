@@ -89,7 +89,7 @@ function describe(kind: EntityKind, id: string): ComboboxOption {
   return {
     icon: channelIconName(channelId ? channelsStore.channelById(channelId)?.private : undefined),
     id,
-    label: titles.title(id),
+    label: channelId ? titles.title(channelId) : id,
   };
 }
 

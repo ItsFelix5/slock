@@ -1,6 +1,6 @@
 import type { CanvasVersion } from "@slock/types";
-import { Avatar, inside, useCancelShortcut, useEscapeClose } from "@slock/ui";
-import { For, onMount, Show } from "solid-js";
+import { Avatar, ariaBoolean, inside, useCancelShortcut, useEscapeClose } from "@slock/ui";
+import { For, onSettled, Show } from "solid-js";
 import {
   groupVersionsByDay,
   versionAuthor,
@@ -33,7 +33,7 @@ export default function CanvasHistory(props: {
     },
     { target: inside(() => panel) },
   );
-  onMount(() => panel?.querySelector<HTMLElement>("[aria-pressed='true']")?.focus());
+  onSettled(() => panel?.querySelector<HTMLElement>("[aria-pressed='true']")?.focus());
 
   return (
     <aside
@@ -55,7 +55,7 @@ export default function CanvasHistory(props: {
                 {(version) => (
                   <li>
                     <button
-                      aria-pressed={isSelected(version)}
+                      aria-pressed={ariaBoolean(isSelected(version))}
                       class="canvas-history-item btn-reset flex-align-center"
                       onClick={() =>
                         props.onSelect(version.versionId === latestId() ? null : version)

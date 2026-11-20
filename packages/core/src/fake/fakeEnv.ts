@@ -8,6 +8,7 @@ export type FakeEnv = Env & {
   advance(ms: number): void;
   runAll(): void;
   pendingTimers(): number;
+  writeRemote(key: string, value: string | null): void;
 };
 
 const DEFAULT_START = Date.UTC(2026, 0, 1, 12);
@@ -15,6 +16,7 @@ const DEFAULT_START = Date.UTC(2026, 0, 1, 12);
 export function createFakeEnv(seed = 1, start = DEFAULT_START): FakeEnv {
   const timers = createFakeTimers(start);
   const data = new Map<string, string>();
+  const listeners = new Set<(key: string | null) => void>();
   return {
     ...timers.api,
     advance: timers.advance,
@@ -26,6 +28,15 @@ export function createFakeEnv(seed = 1, start = DEFAULT_START): FakeEnv {
       get: (key) => data.get(key) ?? null,
       remove: (key) => void data.delete(key),
       set: (key, value) => void data.set(key, value),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => void listeners.delete(listener);
+      },
+    },
+    writeRemote: (key, value) => {
+      if (value === null) data.delete(key);
+      else data.set(key, value);
+      for (const listener of listeners) listener(key);
     },
   };
 }

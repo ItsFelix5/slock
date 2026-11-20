@@ -1,7 +1,7 @@
 import { errorMessage } from "@slock/core";
 import { getHost, service } from "@slock/core/solid";
 import { blockPreviewText, broadcastRangeOf } from "@slock/slack";
-import type { SlackFile } from "@slock/types";
+import type { ChannelId, SlackFile, Ts } from "@slock/types";
 import { encodeReplyLink, withReplyLink } from "../../message-links/client/api/replyLink";
 import { SLASH_COMMAND_RE } from "../../slash-commands/client/api";
 import type { ComposerProps } from "./composerTypes";
@@ -26,7 +26,7 @@ interface SubmitEditor<Contents extends { ops: DeltaOp[] }> {
 }
 
 export function createComposerSubmitHandler<Contents extends { ops: DeltaOp[] }>(deps: {
-  channelId: () => string | undefined;
+  channelId: () => ChannelId | undefined;
   clearDraftAfterSend: () => Promise<void>;
   editing: () => ComposerProps["editing"];
   existingFiles: () => SlackFile[];
@@ -40,7 +40,7 @@ export function createComposerSubmitHandler<Contents extends { ops: DeltaOp[] }>
   sending: () => boolean;
   setExistingFiles: (files: SlackFile[]) => void;
   setSending: (sending: boolean) => void;
-  threadTs: () => string | undefined;
+  threadTs: () => Ts | undefined;
 }) {
   let submitting = false;
 

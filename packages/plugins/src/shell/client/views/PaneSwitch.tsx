@@ -1,7 +1,8 @@
 import { getHost, service, usePoint } from "@slock/core/solid";
-import { focusedPaneId, type Pane, useEscapeClose } from "@slock/ui";
-import { createEffect, createMemo, type JSX, onCleanup, Show } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { type Pane, useEscapeClose } from "@slock/ui";
+import type { JSX } from "@solidjs/web";
+import { dynamic } from "@solidjs/web";
+import { createEffect, createMemo, onSettled } from "solid-js";
 import type { PaneContent } from "../api/types";
 
 export function paneTabLabel(pane: Pane<PaneContent | null>): JSX.Element {
@@ -19,10 +20,10 @@ export default function PaneSwitch(props: { pane: Pane<PaneContent | null> }) {
   const kinds = usePoint("shell.pane");
   const resolvers = usePoint("shell.resolve");
 
-  onCleanup(panes.markMounted(props.pane.id));
+  onSettled(() => panes.markMounted(props.pane.id));
   useEscapeClose(
     () => view.closeTile(props.pane.id),
-    () => focusedPaneId() === props.pane.id,
+    () => panes.focusedPaneId() === props.pane.id,
   );
 
   const kind = createMemo(() => kinds().find((item) => item.kind === props.pane.content?.kind));
@@ -34,14 +35,10 @@ export default function PaneSwitch(props: { pane: Pane<PaneContent | null> }) {
       if (next) return next;
     }
   });
-  createEffect(() => {
-    const next = redirect();
+  createEffect(redirect, (next) => {
     if (next) panes.setPaneContent(props.pane.id, next);
   });
 
-  return (
-    <Show when={!redirect() && kind()}>
-      {(item) => <Dynamic component={item().view} pane={props.pane} />}
-    </Show>
-  );
+  const View = dynamic(() => (redirect() ? undefined : kind()?.view));
+  return <View pane={props.pane} />;
 }

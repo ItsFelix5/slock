@@ -1,5 +1,6 @@
 import { messageLinkLabel, parseArchiveLink, parseUserProfileLink } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
+import { isChannelId } from "@slock/slack";
 import { iconElement } from "@slock/ui";
 import Quill, { getEmbedBlot } from "@slock/ui/editor/quill";
 import { asElement } from "@slock/ui/editor/quillText";
@@ -18,6 +19,7 @@ export function stripLeadingAt(name: string): string {
 }
 
 function isVisibleChannel(id: string): boolean {
+  if (!isChannelId(id)) return false;
   const channel = channelsStore.channelById(id);
   return !!channel && (!channel.private || channelsStore.isChannelMember(id));
 }
@@ -42,7 +44,11 @@ function mentionClassName(value: MentionValue, isSelf: boolean): string {
 
 function mentionIcon(value: MentionValue): HTMLElement | undefined {
   if (value.kind === "messagelink") return iconElement("message", 12);
-  if (value.kind === "channel" && channelsStore.channelById(value.id)?.private)
+  if (
+    value.kind === "channel" &&
+    isChannelId(value.id) &&
+    channelsStore.channelById(value.id)?.private
+  )
     return iconElement("lock", 12);
 }
 

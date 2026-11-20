@@ -71,6 +71,11 @@ export function officialPreset(
   layers: ThemeColors = {},
 ): ThemePreset {
   return scheme === "light"
-    ? { colorScheme: "light", colors: { ...lightColors(swatches), ...layers }, id, label }
+    ? {
+        colorScheme: "light",
+        colors: { ...lightColors(swatches), ...layers },
+        id,
+        label,
+      }
     : { colors: { ...darkColors(swatches), ...layers }, id, label };
 }

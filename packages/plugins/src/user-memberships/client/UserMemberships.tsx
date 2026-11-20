@@ -1,11 +1,11 @@
 import { service } from "@slock/core/solid";
+import { isChannelId } from "@slock/slack";
 import { Button, SegmentedControl } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import type { ProfileMetaProps } from "../../profile/client/api";
-import { createKeyedQuery, defineKey } from "../../query/client/api";
+import { defineQuery } from "../../query/client/api";
 import {
   fetchMemberships,
-  MEMBERSHIPS_QUERY,
   MEMBERSHIPS_STALE_MS,
   type Membership,
   type MembershipKind,
@@ -20,7 +20,11 @@ const FILTERS: { label: string; kinds: MembershipKind[] }[] = [
   { kinds: ["mpim", "im"], label: "DMs" },
 ];
 
-const membershipsKey = defineKey<[string]>(MEMBERSHIPS_QUERY);
+const membershipsQuery = defineQuery<string, Membership[]>({
+  load: fetchMemberships,
+  maxAgeMs: MEMBERSHIPS_STALE_MS,
+  name: "memberships",
+});
 
 const conversations = service("conversations");
 const users = service("users");
@@ -35,33 +39,24 @@ function labelOf(membership: Membership): string {
 export default function UserMemberships(props: ProfileMetaProps) {
   const [filterIndex, setFilterIndex] = createSignal(0);
   const [limit, setLimit] = createSignal(PAGE_SIZE);
-  const memberships = createKeyedQuery(() => {
-    const { id, isBot } = props.user;
-    if (isBot) return;
-    return {
-      queryFn: () => fetchMemberships(id),
-      queryKey: membershipsKey(id),
-      staleTime: MEMBERSHIPS_STALE_MS,
-    };
-  });
+  const memberships = membershipsQuery.state(() => (props.user.isBot ? undefined : props.user.id));
   const visible = createMemo(() => {
     const kinds = FILTERS[filterIndex()]?.kinds ?? [];
-    return (memberships.data ?? []).filter((m) => kinds.includes(m.kind));
+    return (memberships().data ?? []).filter((m) => kinds.includes(m.kind));
   });
   const select = (index: number) => {
     setFilterIndex(index);
     setLimit(PAGE_SIZE);
   };
   return (
-    <Show when={memberships.data?.length}>
+    <Show when={memberships().data?.length}>
       <div class="user-profile-section">
-        <h3 class="user-profile-section-title">Conversations ({memberships.data?.length})</h3>
+        <h3 class="user-profile-section-title">Conversations ({memberships().data?.length})</h3>
         <SegmentedControl class="user-memberships-filter">
           <For each={FILTERS}>
             {(filter, index) => (
               <button
-                class="segmented-control-btn"
-                classList={{ active: filterIndex() === index() }}
+                class={["segmented-control-btn", { active: filterIndex() === index() }]}
                 onClick={() => select(index())}
                 type="button"
               >
@@ -76,7 +71,10 @@ export default function UserMemberships(props: ProfileMetaProps) {
               <li>
                 <button
                   class="user-membership btn-reset flex-align-center"
-                  onClick={() => conversations.setActiveView(conversations.viewFor(membership.id))}
+                  onClick={() => {
+                    if (isChannelId(membership.id))
+                      conversations.setActiveView(conversations.viewFor(membership.id));
+                  }}
                   type="button"
                 >
                   <span class="truncate">{labelOf(membership)}</span>

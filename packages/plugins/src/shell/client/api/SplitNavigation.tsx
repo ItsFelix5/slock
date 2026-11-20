@@ -1,4 +1,5 @@
-import { type JSX, onCleanup } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { onSettled } from "solid-js";
 
 export function SplitNavigation(props: { children: JSX.Element; onSplit: () => void }) {
   const onActivate = (event: MouseEvent | KeyboardEvent) => {
@@ -9,18 +10,20 @@ export function SplitNavigation(props: { children: JSX.Element; onSplit: () => v
     props.onSplit();
   };
 
+  let host: HTMLSpanElement | undefined;
+  onSettled(() => {
+    const el = host;
+    if (!el) return;
+    el.addEventListener("click", onActivate, true);
+    el.addEventListener("keydown", onActivate, true);
+    return () => {
+      el.removeEventListener("click", onActivate, true);
+      el.removeEventListener("keydown", onActivate, true);
+    };
+  });
+
   return (
-    <span
-      ref={(el) => {
-        el.addEventListener("click", onActivate, true);
-        el.addEventListener("keydown", onActivate, true);
-        onCleanup(() => {
-          el.removeEventListener("click", onActivate, true);
-          el.removeEventListener("keydown", onActivate, true);
-        });
-      }}
-      style={{ display: "contents" }}
-    >
+    <span ref={host} style={{ display: "contents" }}>
       {props.children}
     </span>
   );

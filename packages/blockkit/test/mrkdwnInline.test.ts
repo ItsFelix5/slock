@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { forAll, pick, text } from "@slock/core/testing";
+import { parseChannelId } from "@slock/slack";
 import { type InlineNode, parseArchiveLink, parseInline } from "../src/mrkdwn/mrkdwnInline";
 
 describe("canvas token", () => {
@@ -76,14 +77,11 @@ describe("tokens", () => {
 
 describe("parseArchiveLink", () => {
   test.each([
-    ["https://acme.slack.com/archives/C123", { channelId: "C123", isMessage: false }],
-    [
-      "https://acme.slack.com/archives/C123/p1700000000123456",
-      { channelId: "C123", isMessage: true },
-    ],
-    ["https://acme.enterprise.slack.com/archives/D9/?x=1", { channelId: "D9", isMessage: false }],
-  ])("parses %p", (url, expected) => {
-    expect(parseArchiveLink(url)).toEqual(expected);
+    ["https://acme.slack.com/archives/C123", "C123", false],
+    ["https://acme.slack.com/archives/C123/p1700000000123456", "C123", true],
+    ["https://acme.enterprise.slack.com/archives/D9/?x=1", "D9", false],
+  ])("parses %p", (url, channelId, isMessage) => {
+    expect(parseArchiveLink(url)).toEqual({ channelId: parseChannelId(channelId), isMessage });
   });
 
   test("rejects other hosts and paths", () => {

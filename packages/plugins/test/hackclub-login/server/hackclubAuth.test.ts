@@ -1,9 +1,12 @@
-import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { afterEach, beforeAll, describe, expect, mock, spyOn, test } from "bun:test";
+import { createHost } from "@slock/core";
+import { setHost } from "@slock/core/services";
 import {
   type EmailChallenge,
   exchangeEmailCode,
   requestEmailCode,
 } from "../../../src/hackclub-login/server/hackclubAuth";
+import slack from "../../../src/slack/server/index";
 
 const HC = "https://auth.hackclub.com";
 const XOXC = "xoxc-111-222-abcdef";
@@ -38,6 +41,12 @@ function serve(route: Route) {
   }) as typeof fetch);
   return requests;
 }
+
+beforeAll(async () => {
+  const host = createHost();
+  setHost(host);
+  await host.register({ id: "slack", setup: slack });
+});
 
 afterEach(() => mock.restore());
 

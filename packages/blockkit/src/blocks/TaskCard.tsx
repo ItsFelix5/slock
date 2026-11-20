@@ -1,6 +1,7 @@
 import type { PlanBlock, TaskCardBlock } from "@slock/types";
 import { Icon } from "@slock/ui";
-import { For, type JSX, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { For, Show } from "solid-js";
 import BkText from "../BkText";
 import { Link } from "../mrkdwn/mrkdwnTokens";
 import RichText from "./RichText";

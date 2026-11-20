@@ -1,4 +1,4 @@
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import ZoomableImage, { type ZoomableImageItem } from "./ZoomableImage";
 
 export interface ConstrainedImageProps {

@@ -191,8 +191,7 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
             };
             return (
               <MenuItem
-                class="channel-move-menu-destination"
-                classList={{ active: selected() }}
+                class={["channel-move-menu-destination", { active: selected() }]}
                 disabled={isPending()}
                 icon={icon()}
                 onClick={() => void move()}

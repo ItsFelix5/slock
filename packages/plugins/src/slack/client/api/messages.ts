@@ -7,8 +7,18 @@ import {
   mapAttachment,
   mapMessage,
   mapVisibleMessage,
+  parseTs,
 } from "@slock/slack";
-import type { Message, PinnedMessage, RawAttachment, RawMessage, SearchResult } from "@slock/types";
+import type {
+  ChannelId,
+  FileId,
+  Message,
+  PinnedMessage,
+  RawAttachment,
+  RawMessage,
+  SearchResult,
+  Ts,
+} from "@slock/types";
 
 import { fetchRepliesFrom } from "./threadReplies";
 
@@ -21,9 +31,9 @@ type HistoryReply = {
 };
 
 export async function fetchPermalinkMessage(
-  channelId: string,
-  messageTs: string,
-  threadTs: string,
+  channelId: ChannelId,
+  messageTs: Ts,
+  threadTs: Ts,
 ): Promise<Message | undefined> {
   if (threadTs !== messageTs) {
     const replies = await fetchRepliesFrom(channelId, threadTs, messageTs);
@@ -41,7 +51,7 @@ export async function fetchPermalinkMessage(
   return raw && mapVisibleMessage(raw);
 }
 
-export async function fetchLinkPreview(channelId: string, url: string) {
+export async function fetchLinkPreview(channelId: ChannelId, url: string) {
   const data = await apiPost<{ attachment?: RawAttachment }>(`/api/channels/${channelId}/unfurl`, {
     url,
   });
@@ -50,12 +60,12 @@ export async function fetchLinkPreview(channelId: string, url: string) {
 }
 
 export async function postMessage(
-  channelId: string,
+  channelId: ChannelId,
   text: string,
   unfurl: string[],
-  threadTs?: string,
+  threadTs?: Ts,
   blocks?: unknown,
-  fileIds?: string[],
+  fileIds?: FileId[],
 ) {
   const body: Record<string, unknown> = { text, unfurl };
   if (threadTs) body.threadTs = threadTs;
@@ -72,10 +82,10 @@ const BROADCAST_ERROR_MESSAGES: Record<string, string> = {
 };
 
 export async function postBroadcastMessage(
-  channelId: string,
+  channelId: ChannelId,
   text: string,
   unfurl: string[],
-  threadTs?: string,
+  threadTs?: Ts,
   blocks?: unknown,
 ) {
   const body: Record<string, unknown> = { text, unfurl };
@@ -93,12 +103,12 @@ export async function postBroadcastMessage(
 }
 
 export async function editMessage(
-  channelId: string,
-  ts: string,
+  channelId: ChannelId,
+  ts: Ts,
   text: string,
   blocks?: unknown,
   relayed?: boolean,
-  fileIds?: string[],
+  fileIds?: FileId[],
 ) {
   const body: Record<string, unknown> = { text };
   if (blocks) body.blocks = blocks;
@@ -109,7 +119,7 @@ export async function editMessage(
   return data;
 }
 
-export async function broadcastReply(channelId: string, ts: string, relayed?: boolean) {
+export async function broadcastReply(channelId: ChannelId, ts: Ts, relayed?: boolean) {
   const body: Record<string, unknown> = { replyBroadcast: true };
   if (relayed) body.relayed = true;
   const data = await apiPatch(`/api/channels/${channelId}/messages/${ts}`, body);
@@ -117,7 +127,7 @@ export async function broadcastReply(channelId: string, ts: string, relayed?: bo
   return data;
 }
 
-export async function deleteMessage(channelId: string, ts: string, relayed?: boolean) {
+export async function deleteMessage(channelId: ChannelId, ts: Ts, relayed?: boolean) {
   const data = await apiDelete(
     `/api/channels/${channelId}/messages/${ts}`,
     relayed ? { relayed: true } : undefined,
@@ -126,34 +136,34 @@ export async function deleteMessage(channelId: string, ts: string, relayed?: boo
   return data;
 }
 
-export async function deleteAttachment(channelId: string, ts: string, attachmentId: number) {
+export async function deleteAttachment(channelId: ChannelId, ts: Ts, attachmentId: number) {
   const data = await apiDelete(
     `/api/channels/${channelId}/messages/${ts}/attachments/${attachmentId}`,
   );
   if (!data.ok) throw new Error(data.error ?? "chat.deleteAttachment failed");
 }
 
-export async function toggleReaction(channelId: string, ts: string, name: string, remove: boolean) {
+export async function toggleReaction(channelId: ChannelId, ts: Ts, name: string, remove: boolean) {
   const path = `/api/messages/${channelId}/${ts}/reactions`;
   const data = remove ? await apiDelete(path, { name }) : await apiPost(path, { name });
   if (!data.ok) throw new Error(data.error ?? "reactions failed");
   return data;
 }
 
-export async function toggleSaved(channelId: string, ts: string, remove: boolean) {
+export async function toggleSaved(channelId: ChannelId, ts: Ts, remove: boolean) {
   const path = `/api/messages/${channelId}/${ts}/save`;
   const data = remove ? await apiDelete(path) : await apiPost(path);
   if (!data.ok) throw new Error(data.error ?? "saved.add/remove failed");
   return data;
 }
 
-export async function markChannelRead(channelId: string, ts: string) {
+export async function markChannelRead(channelId: ChannelId, ts: Ts) {
   const data = await apiPost(`/api/channels/${channelId}/read`, { ts });
   if (!data.ok) throw new Error(data.error ?? "conversations.mark failed");
   return data;
 }
 
-export async function toggleStar(channelId: string, remove: boolean) {
+export async function toggleStar(channelId: ChannelId, remove: boolean) {
   const path = `/api/channels/${channelId}/star`;
   const data = remove ? await apiDelete(path) : await apiPost(path);
   if (!data.ok) throw new Error(data.error ?? "stars.add/remove failed");
@@ -162,28 +172,28 @@ export async function toggleStar(channelId: string, remove: boolean) {
 
 type PinsReply = { items?: { message?: RawMessage; ts: string }[] };
 
-export async function fetchPins(channelId: string): Promise<string[]> {
+export async function fetchPins(channelId: ChannelId): Promise<Ts[]> {
   const data = await apiGet<PinsReply>(`/api/channels/${channelId}/pins`);
   if (!data.ok) throw new Error(data.error ?? "pins.list failed");
-  return (data.items ?? []).map((it) => it.ts).filter(Boolean);
+  return (data.items ?? []).flatMap((it) => (it.ts ? [parseTs(it.ts)] : []));
 }
 
-export async function fetchPinnedMessages(channelId: string): Promise<PinnedMessage[]> {
+export async function fetchPinnedMessages(channelId: ChannelId): Promise<PinnedMessage[]> {
   const data = await apiGet<PinsReply>(`/api/channels/${channelId}/pins`);
   if (!data.ok) throw new Error(data.error ?? "pins.list failed");
   return (data.items ?? []).flatMap((it) =>
-    it.message ? [{ message: mapMessage(it.message), ts: it.ts }] : [],
+    it.message ? [{ message: mapMessage(it.message), ts: parseTs(it.ts) }] : [],
   );
 }
 
-export async function togglePin(channelId: string, ts: string, remove: boolean) {
+export async function togglePin(channelId: ChannelId, ts: Ts, remove: boolean) {
   const path = `/api/messages/${channelId}/${ts}/pin`;
   const data = remove ? await apiDelete(path) : await apiPost(path);
   if (!data.ok) throw new Error(data.error ?? "pins.add/remove failed");
   return data;
 }
 
-export async function getChannelLink(channelId: string): Promise<string | null> {
+export async function getChannelLink(channelId: ChannelId): Promise<string | null> {
   try {
     return `https://${await getWorkspaceDomain()}/archives/${channelId}`;
   } catch (err) {
@@ -193,9 +203,9 @@ export async function getChannelLink(channelId: string): Promise<string | null> 
 }
 
 export async function getPermalink(
-  channelId: string,
-  ts: string,
-  threadTs?: string,
+  channelId: ChannelId,
+  ts: Ts,
+  threadTs?: Ts,
 ): Promise<string | null> {
   const channelLink = await getChannelLink(channelId);
   if (!channelLink) return null;
@@ -203,13 +213,13 @@ export async function getPermalink(
   return threadTs && threadTs !== ts ? `${base}?thread_ts=${threadTs}&cid=${channelId}` : base;
 }
 
-export async function saveWithReminder(channelId: string, ts: string, dateDue: number) {
+export async function saveWithReminder(channelId: ChannelId, ts: Ts, dateDue: number) {
   const data = await apiPost(`/api/messages/${channelId}/${ts}/reminder`, { dateDue });
   if (!data.ok) throw new Error(data.error ?? "saved.add failed");
   return data;
 }
 
-export async function updateSaved(channelId: string, ts: string, change: { dateDue: number }) {
+export async function updateSaved(channelId: ChannelId, ts: Ts, change: { dateDue: number }) {
   const data = await apiPatch(`/api/messages/${channelId}/${ts}/save`, change);
   if (!data.ok) throw new Error(data.error ?? "saved.update failed");
   return data;

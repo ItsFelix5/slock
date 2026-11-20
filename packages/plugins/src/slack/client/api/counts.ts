@@ -1,21 +1,19 @@
-import { service } from "@slock/core/solid";
 import { apiGet, replyError } from "@slock/slack";
 import type { RawCounts } from "@slock/types";
-import { defineKey } from "../../../query/client/api";
-
-const query = service("query");
-const countsKey = defineKey("counts");
+import { defineQuery } from "../../../query/client/api";
 
 type CountsReply = { notifications?: Record<string, number>; unreads?: RawCounts };
 
+const counts = defineQuery<null, CountsReply>({
+  load: async () => {
+    const data = await apiGet<CountsReply>("/api/counts");
+    if (!data.ok) throw replyError(data, "client.counts failed");
+    return data;
+  },
+  maxAgeMs: 0,
+  name: "counts",
+});
+
 export function fetchCounts(): Promise<CountsReply> {
-  return query.client.query({
-    queryFn: async () => {
-      const data = await apiGet<CountsReply>("/api/counts");
-      if (!data.ok) throw replyError(data, "client.counts failed");
-      return data;
-    },
-    queryKey: countsKey(),
-    staleTime: 0,
-  });
+  return counts.ensure(null);
 }

@@ -1,71 +1,57 @@
 import { service } from "@slock/core/solid";
 import type { Services } from "@slock/core/types";
-import { queryOptions } from "@tanstack/solid-query";
-import { createStore, produce } from "solid-js/store";
-import { createReactiveQueryCache, defineKey } from "../../query/client/api";
+import type { ChannelId, PinnedMessage, Ts } from "@slock/types";
+import { createStore } from "solid-js";
+import { defineQuery } from "../../query/client/api";
 import { fetchPinnedMessages, fetchPins, togglePin } from "../../slack/client/api";
-
-const pinsKey = defineKey<[string]>("pins");
-const pinnedMessagesKey = defineKey<[string]>("pinnedMessages");
 
 const feedback = service("feedback");
 
-const query = service("query");
+const pins = defineQuery<ChannelId, Record<Ts, boolean>>({
+  load: async (channelId) => {
+    const map: Record<Ts, boolean> = {};
+    for (const ts of await fetchPins(channelId)) map[ts] = true;
+    return map;
+  },
+  name: "pins",
+});
 
-export function pinsQueryOptions(channelId: string) {
-  return queryOptions({
-    queryKey: pinsKey(channelId),
-    queryFn: async () => {
-      const pins = await fetchPins(channelId);
-      const map: Record<string, boolean> = {};
-      for (const ts of pins) map[ts] = true;
-      return map;
-    },
-  });
-}
-
-export function pinnedMessagesQueryOptions(channelId: string) {
-  return queryOptions({
-    queryKey: pinnedMessagesKey(channelId),
-    queryFn: () => fetchPinnedMessages(channelId),
-  });
-}
+const pinnedMessages = defineQuery<ChannelId, PinnedMessage[]>({
+  load: fetchPinnedMessages,
+  name: "pinnedMessages",
+});
 
 export function createPinnedSlice(deps: {
   panes: Pick<Services["shell.panes"], "closePane" | "openInNewPane" | "panes">;
 }) {
-  const pins = createReactiveQueryCache(query.client, "pins", pinsQueryOptions);
-  const pinnedMessages = createReactiveQueryCache(
-    query.client,
-    "pinnedMessages",
-    pinnedMessagesQueryOptions,
-  );
   const [pinPending, setPinPending] = createStore<Record<string, boolean>>({});
 
-  const pinPendingKey = (channelId: string, ts: string) => `${channelId}:${ts}`;
+  const pinPendingKey = (channelId: ChannelId, ts: Ts) => `${channelId}:${ts}`;
 
-  function isPinPending(channelId: string, ts: string): boolean {
+  function isPinPending(channelId: ChannelId, ts: Ts): boolean {
     return !!pinPending[pinPendingKey(channelId, ts)];
   }
 
-  function ensurePinsLoaded(channelId: string): void {
-    pins.ensure(channelId);
+  function ensurePinsLoaded(channelId: ChannelId): void {
+    void pins.ensure(channelId).catch(() => {});
   }
 
-  function isMessagePinned(channelId: string, ts: string): boolean {
-    return !!pins.entry(channelId)?.[ts];
+  function isMessagePinned(channelId: ChannelId, ts: Ts): boolean {
+    return !!pins.peek(channelId)?.[ts];
   }
 
-  async function togglePinMessage(channelId: string, ts: string): Promise<boolean> {
+  async function togglePinMessage(channelId: ChannelId, ts: Ts): Promise<boolean> {
     const pendingKey = pinPendingKey(channelId, ts);
     if (pinPending[pendingKey]) return false;
-    setPinPending(pendingKey, true);
+    setPinPending((s) => {
+      s[pendingKey] = true;
+    });
     const currentlyPinned = isMessagePinned(channelId, ts);
-    pins.set(channelId, { ...pins.entry(channelId), [ts]: !currentlyPinned });
-    if (currentlyPinned && pinnedMessages.entry(channelId)) {
+    pins.set(channelId, { ...pins.peek(channelId), [ts]: !currentlyPinned });
+    if (currentlyPinned && pinnedMessages.peek(channelId)) {
       pinnedMessages.set(
         channelId,
-        (pinnedMessages.entry(channelId) ?? []).filter((p) => p.ts !== ts),
+        (pinnedMessages.peek(channelId) ?? []).filter((p) => p.ts !== ts),
       );
     }
     try {
@@ -78,40 +64,39 @@ export function createPinnedSlice(deps: {
     } catch (err) {
       console.error("Failed to toggle pin", err);
       feedback.error(ts, "Failed to update pin.");
-      pins.set(channelId, { ...pins.entry(channelId), [ts]: currentlyPinned });
-      if (pinnedMessages.entry(channelId)) pinnedMessages.invalidate(channelId);
+      pins.set(channelId, { ...pins.peek(channelId), [ts]: currentlyPinned });
+      if (pinnedMessages.peek(channelId)) pinnedMessages.invalidate(channelId);
       return false;
     } finally {
-      setPinPending(
-        produce((pending) => {
-          delete pending[pendingKey];
-        }),
-      );
+      setPinPending((pending) => {
+        delete pending[pendingKey];
+      });
     }
   }
 
-  async function refreshPinnedMessages(channelId: string): Promise<void> {
-    await query.client.refetchQueries({ queryKey: pinnedMessagesKey(channelId) });
+  async function refreshPinnedMessages(channelId: ChannelId): Promise<void> {
+    await pinnedMessages.refresh(channelId).catch(() => {});
   }
 
-  function applyPinEvent(channelId: string, ts: string, pinned: boolean): void {
-    if (pins.entry(channelId)) pins.set(channelId, { ...pins.entry(channelId), [ts]: pinned });
-    if (pinnedMessages.entry(channelId)) pinnedMessages.invalidate(channelId);
+  function applyPinEvent(channelId: ChannelId, ts: Ts, pinned: boolean): void {
+    if (pins.peek(channelId)) pins.set(channelId, { ...pins.peek(channelId), [ts]: pinned });
+    if (pinnedMessages.peek(channelId)) pinnedMessages.invalidate(channelId);
   }
 
-  function pinnedMessagesFor(channelId: string) {
-    return pinnedMessages.entry(channelId);
+  function pinnedMessagesFor(channelId: ChannelId) {
+    return pinnedMessages.peek(channelId);
   }
 
-  function isPinnedMessagesLoading(channelId: string): boolean {
-    return pinnedMessages.isLoading(channelId);
+  function isPinnedMessagesLoading(channelId: ChannelId): boolean {
+    const { status } = pinnedMessages.entry(channelId);
+    return status === "idle" || status === "loading";
   }
 
-  function hasPinnedMessagesError(channelId: string): boolean {
-    return pinnedMessages.hasError(channelId);
+  function hasPinnedMessagesError(channelId: ChannelId): boolean {
+    return pinnedMessages.entry(channelId).status === "error";
   }
 
-  function openPinnedPane(channelId: string) {
+  function openPinnedPane(channelId: ChannelId) {
     deps.panes.openInNewPane({ channelId, kind: "pinned" });
   }
 

@@ -42,3 +42,7 @@ export const IDLE: EntryState<never> = {
   status: "idle",
   stale: false,
 };
+
+export function isWaiting<T>(state: EntryState<T>): boolean {
+  return state.status === "idle" || state.status === "loading";
+}

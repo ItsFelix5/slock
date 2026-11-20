@@ -1,7 +1,7 @@
 import { EmojiFreezeContext, Mrkdwn } from "@slock/blockkit";
 import { Slot, service, usePoint } from "@slock/core/solid";
 import { Icon, IconButton, InlineFeedback, Menu } from "@slock/ui";
-import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import { channelIconName } from "../../../../channels/client/api";
 import { usePaneView } from "../../../../conversations/client/api/paneView";
 import "./ChannelHeader.css";
@@ -20,15 +20,16 @@ export default function ChannelHeader() {
   const [topicEl, setTopicEl] = createSignal<HTMLSpanElement>();
   const [topicOverflowing, setTopicOverflowing] = createSignal(false);
   const [topicHovered, setTopicHovered] = createSignal(false);
-  createEffect(() => {
-    channelTopic();
-    const el = topicEl();
-    if (!el) return;
-    const measure = () => setTopicOverflowing(el.scrollWidth > el.clientWidth);
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    onCleanup(() => observer.disconnect());
-  });
+  createEffect(
+    () => ({ el: topicEl(), topic: channelTopic() }),
+    ({ el }) => {
+      if (!el) return;
+      const measure = () => setTopicOverflowing(el.scrollWidth > el.clientWidth);
+      const observer = new ResizeObserver(measure);
+      observer.observe(el);
+      return () => observer.disconnect();
+    },
+  );
   return (
     <div class="channel-header flex-align-center">
       <div class="channel-header-context flex-align-center">
@@ -62,20 +63,19 @@ export default function ChannelHeader() {
           </button>
         </div>
         <span
-          class="channel-header-topic-wrap"
-          classList={{ "is-overflowing": topicOverflowing() }}
+          class={["channel-header-topic-wrap", { "is-overflowing": topicOverflowing() }]}
           hidden={!channelTopic()}
           onFocusIn={() => setTopicHovered(true)}
           onFocusOut={() => setTopicHovered(false)}
           onMouseEnter={() => setTopicHovered(true)}
           onMouseLeave={() => setTopicHovered(false)}
-          tabIndex={topicOverflowing() ? 0 : undefined}
+          tabindex={topicOverflowing() ? 0 : undefined}
         >
-          <EmojiFreezeContext.Provider value={() => topicOverflowing() || !topicHovered()}>
+          <EmojiFreezeContext value={() => topicOverflowing() || !topicHovered()}>
             <span class="channel-header-topic truncate text-dim text-sm" ref={setTopicEl}>
               <Mrkdwn text={channelTopic()} />
             </span>
-          </EmojiFreezeContext.Provider>
+          </EmojiFreezeContext>
           <span class="channel-header-topic-tooltip text-dim text-sm">
             <Mrkdwn text={channelTopic()} />
           </span>

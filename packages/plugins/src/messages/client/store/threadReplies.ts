@@ -1,7 +1,7 @@
-import type { Message } from "@slock/types";
-import { createKeyedAsyncCache, createRecencyEviction } from "@slock/ui";
-import { createEffect, untrack } from "solid-js";
-import { createStore, produce } from "solid-js/store";
+import { isTs } from "@slock/slack";
+import type { ChannelId, Message, Ts } from "@slock/types";
+import { createConcurrencyQueue, createRecencyEviction } from "@slock/ui";
+import { createEffect, createStore, untrack } from "solid-js";
 import {
   fetchReplies,
   fetchRepliesBefore,
@@ -10,20 +10,19 @@ import {
 } from "../../../slack/client/api";
 import type { ThreadRef } from "../api";
 import { mergeMessages } from "../api/messageMerge";
+import {
+  coversAnchor,
+  forwardPatch,
+  idle,
+  missingReplyCount,
+  type ThreadPaging,
+} from "./history/threadPaging";
+import { replaceMessageList, updateMessageList } from "./storeWrites";
 
 const KEEP_RECENT_THREADS = 8;
+const THREAD_FETCH_CONCURRENCY = 4;
 
-type ThreadPaging = {
-  after?: string;
-  before?: string;
-  earlierError: boolean;
-  earlierLoading: boolean;
-  error: boolean;
-  hasEarlier: boolean;
-  hasMore: boolean;
-  loading: boolean;
-  span?: number;
-};
+type ThreadLoad = { error: boolean; loading: boolean };
 
 type ThreadApi = {
   fetchReplies: typeof fetchReplies;
@@ -32,36 +31,35 @@ type ThreadApi = {
   fetchThreadRoot: typeof fetchThreadRoot;
 };
 
-const idle = { earlierError: false, earlierLoading: false, error: false, loading: false };
-
 export function createThreadReplies(
   deps: { visibleThreads: () => ThreadRef[] },
   api: ThreadApi = { fetchReplies, fetchRepliesBefore, fetchRepliesFrom, fetchThreadRoot },
 ) {
-  const channelForThread = new Map<string, string>();
-  const anchorForThread = new Map<string, string>();
-  const anchorAttempted = new Map<string, string>();
-  const [paging, setPaging] = createStore<Record<string, ThreadPaging>>({});
+  const channelForThread = new Map<Ts, ChannelId>();
+  const anchorForThread = new Map<Ts, Ts>();
+  const anchorAttempted = new Map<Ts, Ts>();
+  const inFlight = new Map<Ts, Promise<void>>();
+  const queue = createConcurrencyQueue(THREAD_FETCH_CONCURRENCY);
+  const [threadMessages, setThreadMessages] = createStore<Record<Ts, Message[]>>({});
+  const [paging, setPaging] = createStore<Record<Ts, ThreadPaging>>({});
+  const [loads, setLoads] = createStore<Record<Ts, ThreadLoad>>({});
 
   let lastRun = 0;
-  const runs = new Map<string, number>();
-  const startRun = (ts: string) => {
+  const runs = new Map<Ts, number>();
+  const startRun = (ts: Ts) => {
     runs.set(ts, ++lastRun);
     return lastRun;
   };
-  const isRun = (ts: string, run: number | undefined) => run !== undefined && runs.get(ts) === run;
+  const isRun = (ts: Ts, run: number | undefined) => run !== undefined && runs.get(ts) === run;
 
-  function forwardPatch(ts: string, page: { edge?: string; hasMore: boolean }) {
-    const current = paging[ts]?.after;
-    if (page.edge !== undefined && current !== undefined && Number(page.edge) < Number(current))
-      return {};
-    return {
-      after: page.edge ?? current,
-      hasMore: page.hasMore && page.edge !== undefined && page.edge !== current,
-    };
-  }
+  const patchPaging = (ts: Ts, patch: Partial<ThreadPaging>) =>
+    setPaging((s) => {
+      const current = s[ts];
+      if (current) Object.assign(current, patch);
+      else s[ts] = { ...idle, hasEarlier: false, hasMore: false, ...patch };
+    });
 
-  async function loadAnchored(channelId: string, ts: string, anchor: string): Promise<Message[]> {
+  async function loadAnchored(channelId: ChannelId, ts: Ts, anchor: Ts): Promise<Message[]> {
     anchorAttempted.set(ts, anchor);
     const run = startRun(ts);
     const [root, forward, earlier] = await Promise.all([
@@ -69,11 +67,12 @@ export function createThreadReplies(
       api.fetchRepliesFrom(channelId, ts, anchor),
       api.fetchRepliesBefore(channelId, ts, anchor),
     ]);
-    if (!isRun(ts, run)) return cache.entry(ts) ?? [];
+    const current = threadMessages[ts] ?? [];
+    if (!isRun(ts, run)) return current;
     const live = forward.hasMore
       ? []
-      : (cache.entry(ts) ?? []).filter((m) => Number(m.ts) > Number(forward.edge ?? anchor));
-    setPaging(ts, {
+      : current.filter((m) => Number(m.ts) > Number(forward.edge ?? anchor));
+    patchPaging(ts, {
       ...idle,
       after: forward.edge,
       before: earlier.before,
@@ -84,112 +83,140 @@ export function createThreadReplies(
     return mergeMessages(live, [...(root ? [root] : []), ...earlier.messages, ...forward.messages]);
   }
 
-  async function loadFirst(channelId: string, ts: string) {
+  async function loadFirst(channelId: ChannelId, ts: Ts) {
     const run = startRun(ts);
     const page = await api.fetchRepliesFrom(channelId, ts, ts);
-    if (!isRun(ts, run)) return cache.entry(ts) ?? [];
-    setPaging(ts, {
+    const current = threadMessages[ts] ?? [];
+    if (!isRun(ts, run)) return current;
+    patchPaging(ts, {
       ...idle,
       after: page.edge,
       before: undefined,
       hasEarlier: false,
       hasMore: page.hasMore,
     });
-    return mergeMessages(cache.entry(ts) ?? [], page.messages);
+    return mergeMessages(current, page.messages);
   }
 
-  async function catchUp(channelId: string, ts: string, after: string) {
+  async function catchUp(channelId: ChannelId, ts: Ts, after: string) {
     const run = runs.get(ts);
     const page = await api.fetchRepliesFrom(channelId, ts, after);
-    if (!isRun(ts, run)) return cache.entry(ts) ?? [];
-    setPaging(ts, forwardPatch(ts, page));
-    return mergeMessages(cache.entry(ts) ?? [], page.messages);
+    const current = threadMessages[ts] ?? [];
+    if (!isRun(ts, run)) return current;
+    patchPaging(ts, forwardPatch(paging[ts]?.after, page));
+    return mergeMessages(current, page.messages);
   }
 
-  const cache = createKeyedAsyncCache<Message[]>(
-    (ts): Promise<Message[]> => {
-      const channelId = channelForThread.get(ts);
-      if (!channelId) return Promise.resolve([]);
-      const anchor = anchorForThread.get(ts);
-      anchorForThread.delete(ts);
-      if (anchor) return loadAnchored(channelId, ts, anchor);
-      const after = paging[ts]?.after;
-      return after && missing(ts) === 0 ? catchUp(channelId, ts, after) : loadFirst(channelId, ts);
-    },
-    { onError: (err, ts) => console.error("Failed to load thread", ts, err) },
-  );
+  const missing = (ts: Ts) => missingReplyCount(threadMessages[ts], ts, paging[ts]);
 
-  function missing(ts: string): number {
-    const entry = cache.store[ts];
-    const root = entry?.find((m) => m.ts === ts);
-    const state = paging[ts];
-    if (!(entry && root && state) || state.hasMore || state.hasEarlier) return 0;
-    return Math.max(0, (root.replyCount ?? 0) - (entry.length - 1));
+  function fetchThread(ts: Ts): Promise<Message[]> {
+    const channelId = channelForThread.get(ts);
+    if (!channelId) return Promise.resolve([]);
+    const anchor = anchorForThread.get(ts);
+    anchorForThread.delete(ts);
+    if (anchor) return loadAnchored(channelId, ts, anchor);
+    const after = paging[ts]?.after;
+    return after && missing(ts) === 0 ? catchUp(channelId, ts, after) : loadFirst(channelId, ts);
   }
 
-  const settledMissing = (ts: string) => {
-    const state = paging[ts];
-    const busy = state?.loading || state?.earlierLoading || cache.isLoading(ts);
-    return busy ? 0 : missing(ts);
-  };
-
-  function coversAnchor(ts: string, anchor: string): boolean {
-    const state = paging[ts];
-    if (!state) return false;
-    const lower = state.hasEarlier ? Number(state.before) : Number(ts);
-    const upper = state.hasMore ? Number(state.after) : Number.POSITIVE_INFINITY;
-    return Number(anchor) >= lower && Number(anchor) <= upper;
+  function refreshThread(ts: Ts): Promise<void> {
+    const existing = inFlight.get(ts);
+    if (existing) return existing;
+    setLoads((s) => {
+      s[ts] = { error: false, loading: true };
+    });
+    const isCurrent = () => inFlight.get(ts) === request;
+    const request: Promise<void> = queue
+      .run(() => fetchThread(ts))
+      .then((messages) => {
+        if (isCurrent()) setThreadMessages((s) => replaceMessageList(s, ts, messages));
+      })
+      .catch((err: unknown) => {
+        if (!isCurrent()) return;
+        console.error("Failed to load thread", ts, err);
+        setLoads((s) => {
+          s[ts] = { error: true, loading: true };
+        });
+      })
+      .finally(() => {
+        if (!isCurrent()) return;
+        inFlight.delete(ts);
+        setLoads((s) => {
+          const load = s[ts];
+          if (load) load.loading = false;
+        });
+      });
+    inFlight.set(ts, request);
+    return request;
   }
 
-  function ensureThreadRepliesLoaded(channelId: string, ts: string, anchor?: string): void {
+  const isLoadingThread = (ts: Ts) => !!loads[ts]?.loading;
+  const hasThreadError = (ts: Ts) => !!loads[ts]?.error;
+
+  function settledMissing(ts: Ts): number {
+    const state = paging[ts];
+    return state?.loading || state?.earlierLoading || isLoadingThread(ts) ? 0 : missing(ts);
+  }
+
+  function ensureThreadRepliesLoaded(channelId: ChannelId, ts: Ts, anchor?: Ts): boolean {
     channelForThread.set(ts, channelId);
     if (
       anchor &&
       anchor !== ts &&
       anchorAttempted.get(ts) !== anchor &&
-      !coversAnchor(ts, anchor)
+      !coversAnchor(paging[ts], ts, anchor)
     ) {
       anchorForThread.set(ts, anchor);
-      void cache.refresh(ts).then(() => {
-        if (anchorForThread.has(ts)) void cache.refresh(ts);
+      void refreshThread(ts).then(() => {
+        if (anchorForThread.has(ts)) void refreshThread(ts);
       });
-      return;
+      return true;
     }
-    if (!(paging[ts] || cache.hasError(ts))) void cache.refresh(ts);
+    if (paging[ts] || hasThreadError(ts)) return false;
+    void refreshThread(ts);
+    return true;
   }
-  createEffect(() => {
-    for (const thread of deps.visibleThreads())
-      untrack(() => ensureThreadRepliesLoaded(thread.channelId, thread.ts, thread.highlightTs));
-  });
 
-  async function loadMoreReplies(ts: string) {
+  createEffect(
+    () => deps.visibleThreads(),
+    (threads) => {
+      for (const thread of threads)
+        untrack(() => ensureThreadRepliesLoaded(thread.channelId, thread.ts, thread.highlightTs));
+    },
+  );
+
+  async function loadMoreReplies(ts: Ts) {
     const channelId = channelForThread.get(ts);
     const state = paging[ts];
     if (!(channelId && state?.hasMore && state.after) || state.loading) return;
     const run = runs.get(ts);
-    setPaging(ts, { error: false, loading: true });
+    patchPaging(ts, { error: false, loading: true });
     try {
       const page = await api.fetchReplies(channelId, ts, state.after);
       if (!isRun(ts, run)) return;
-      cache.update(ts, (existing) => mergeMessages(existing ?? [], page.messages));
-      setPaging(ts, { ...forwardPatch(ts, page), loading: false });
+      setThreadMessages((s) =>
+        updateMessageList(s, ts, (existing) => mergeMessages(existing, page.messages)),
+      );
+      patchPaging(ts, { ...forwardPatch(paging[ts]?.after, page), loading: false });
     } catch (err) {
       console.error("Failed to load more replies", ts, err);
-      if (isRun(ts, run)) setPaging(ts, { error: true, loading: false });
+      if (isRun(ts, run)) patchPaging(ts, { error: true, loading: false });
     }
   }
 
-  async function loadEarlierReplies(ts: string) {
+  async function loadEarlierReplies(ts: Ts) {
     const channelId = channelForThread.get(ts);
     const state = paging[ts];
     if (!(channelId && state?.hasEarlier && state.before) || state.earlierLoading) return;
     const run = runs.get(ts);
-    setPaging(ts, { earlierError: false, earlierLoading: true });
+    patchPaging(ts, { earlierError: false, earlierLoading: true });
     try {
       const page = await api.fetchRepliesBefore(channelId, ts, state.before, state.span);
       if (!isRun(ts, run)) return;
-      cache.update(ts, (existing) => mergeMessages(existing ?? [], page.messages));
-      setPaging(ts, {
+      setThreadMessages((s) =>
+        updateMessageList(s, ts, (existing) => mergeMessages(existing, page.messages)),
+      );
+      patchPaging(ts, {
         before: page.before,
         earlierLoading: false,
         hasEarlier: page.hasEarlier && page.before !== state.before,
@@ -197,40 +224,53 @@ export function createThreadReplies(
       });
     } catch (err) {
       console.error("Failed to load earlier replies", ts, err);
-      if (isRun(ts, run)) setPaging(ts, { earlierError: true, earlierLoading: false });
+      if (isRun(ts, run)) patchPaging(ts, { earlierError: true, earlierLoading: false });
     }
+  }
+
+  function evictThread(ts: Ts) {
+    if (threadMessages[ts]?.some((m) => m.deleted)) return;
+    inFlight.delete(ts);
+    runs.delete(ts);
+    channelForThread.delete(ts);
+    anchorForThread.delete(ts);
+    anchorAttempted.delete(ts);
+    setThreadMessages((s) => {
+      delete s[ts];
+    });
+    setPaging((s) => {
+      delete s[ts];
+    });
+    setLoads((s) => {
+      delete s[ts];
+    });
   }
 
   createRecencyEviction({
     evict: (ts) => {
-      if (cache.entry(ts)?.some((m) => m.deleted)) return;
-      cache.invalidate(ts);
-      runs.delete(ts);
-      channelForThread.delete(ts);
-      anchorForThread.delete(ts);
-      anchorAttempted.delete(ts);
-      setPaging(produce((s) => delete s[ts]));
+      if (isTs(ts)) evictThread(ts);
     },
     keepRecent: KEEP_RECENT_THREADS,
     visible: () => deps.visibleThreads().map((thread) => thread.ts),
   });
 
   return {
-    acceptsLiveReplies: (ts: string) => cache.isKnown(ts) && !paging[ts]?.hasMore,
+    acceptsLiveReplies: (ts: Ts) =>
+      (ts in threadMessages || isLoadingThread(ts)) && !paging[ts]?.hasMore,
     ensureThreadRepliesLoaded,
-    hasEarlierReplies: (ts: string) => paging[ts]?.hasEarlier ?? false,
-    hasEarlierRepliesError: (ts: string) => paging[ts]?.earlierError ?? false,
-    hasMoreReplies: (ts: string) => paging[ts]?.hasMore ?? false,
-    hasMoreRepliesError: (ts: string) => paging[ts]?.error ?? false,
-    hasThreadError: cache.hasError,
-    isLoadingEarlierReplies: (ts: string) => paging[ts]?.earlierLoading ?? false,
-    isLoadingMoreReplies: (ts: string) => paging[ts]?.loading ?? false,
-    isLoadingThread: cache.isLoading,
+    hasEarlierReplies: (ts: Ts) => paging[ts]?.hasEarlier ?? false,
+    hasEarlierRepliesError: (ts: Ts) => paging[ts]?.earlierError ?? false,
+    hasMoreReplies: (ts: Ts) => paging[ts]?.hasMore ?? false,
+    hasMoreRepliesError: (ts: Ts) => paging[ts]?.error ?? false,
+    hasThreadError,
+    isLoadingEarlierReplies: (ts: Ts) => paging[ts]?.earlierLoading ?? false,
+    isLoadingMoreReplies: (ts: Ts) => paging[ts]?.loading ?? false,
+    isLoadingThread,
     loadEarlierReplies,
     loadMoreReplies,
     missingReplies: settledMissing,
-    refreshThreadReplies: cache.refresh,
-    setThreadMessages: cache.setStore,
-    threadMessages: cache.store,
+    refreshThreadReplies: refreshThread,
+    setThreadMessages,
+    threadMessages,
   };
 }

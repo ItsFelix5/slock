@@ -10,7 +10,7 @@ const sidebarStore = service("sidebar");
 export default function ChannelSectionList(props: HomeSectionProps) {
   const sections = useChannelSections(props.unreadsOnly);
   sidebarStore.provideCycle(10, sections.cycleTargets);
-  const categoryIds = createMemo(() => sections.categories().map((c) => c.id), undefined, {
+  const categoryIds = createMemo(() => sections.categories().map((c) => c.id), {
     equals: idsEqual,
   });
   return (

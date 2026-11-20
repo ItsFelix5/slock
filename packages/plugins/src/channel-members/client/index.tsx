@@ -1,5 +1,5 @@
 import type { Setup } from "@slock/core";
-import { lazy } from "solid-js";
+import { lazy, Show } from "solid-js";
 
 import HeaderMembersButton from "./views/HeaderMembersButton";
 
@@ -14,12 +14,16 @@ const setup: Setup = (ctx) => {
       id: "members",
       label: "Members",
       view: (props) => (
-        <MembersTab
-          channelId={props.channelId}
-          channelName={props.channelName}
-          memberCount={props.memberCount}
-          onMembersChanged={props.refetch}
-        />
+        <Show keyed when={props.channelId}>
+          {(channelId) => (
+            <MembersTab
+              channelId={channelId}
+              channelName={props.channelName}
+              memberCount={props.memberCount}
+              onMembersChanged={props.refetch}
+            />
+          )}
+        </Show>
       ),
     },
     { order: 10 },

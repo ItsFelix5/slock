@@ -20,6 +20,7 @@ import MessageMeta from "./MessageMeta";
 import MessageActionsBar from "./parts/MessageActionsBar";
 import MessageRowAvatar from "./parts/MessageRowAvatar";
 import MessageTextContent from "./parts/MessageTextContent";
+import { MessageDayDivider, RepliesDivider } from "./parts/messageDividers";
 import SystemMessageContent from "./parts/SystemMessageContent";
 
 const unreadStore = service("unread");
@@ -117,14 +118,17 @@ export default function MessageRow(props: MessageRowProps) {
   const displayName = () => resolveAuthorDisplayName(msg(), user()?.name, "Unknown");
   const avatarUrl = () => resolveAuthorAvatarUrl(msg(), user()?.avatarUrl);
   const isEditing = () => props.editingTs?.() === msg().ts;
+  const focused = () => props.focusedTs?.() === msg().ts;
   const ctxMenu = useContextMenu();
   const deferred = useDeferredMount();
-  createEffect(() => {
-    if (isEditing() || focused()) deferred.now();
-  });
+  createEffect(
+    () => isEditing() || focused(),
+    (needsContent) => {
+      if (needsContent) deferred.now();
+    },
+  );
 
   const saved = () => !!later()?.isSavedForLater(props.channelId, msg().ts);
-  const focused = () => props.focusedTs?.() === msg().ts;
   const { engaged, events: rowEvents, keyboardFocus } = createRowEngagement();
   const isSystem = () => msg().kind === "system";
   const showActions = () =>
@@ -136,49 +140,42 @@ export default function MessageRow(props: MessageRowProps) {
 
   return (
     <Show when={neighbors().showMessage}>
-      <Show when={dayChanged() || showUnreadDivider()}>
-        <div
-          class="message-divider flex-align-center text-center font-bold text-xs"
-          classList={{ "day-divider": dayChanged(), "unread-divider": showUnreadDivider() }}
-        >
-          <span>
-            {dayChanged()
-              ? showUnreadDivider()
-                ? `${msg().day} · New messages`
-                : msg().day
-              : "New messages"}
-          </span>
-        </div>
-      </Show>
+      <MessageDayDivider day={msg().day} dayChanged={dayChanged()} unread={showUnreadDivider()} />
       <div
-        class="message-row-group"
-        classList={{
-          compact: sameAuthorAsPrev(),
-          deleted: msg().deleted,
-          ephemeral: msg().isEphemeral,
-          "has-actions": showActions(),
-          "is-first-message": props.index() === 0,
-          "kb-row": keyboardFocus() === "row",
-          "kb-within": keyboardFocus() === "within",
-          pending: msg().pending,
-          saved: saved(),
-          system: isSystem(),
-        }}
+        class={[
+          "message-row-group",
+          {
+            compact: sameAuthorAsPrev(),
+            deleted: msg().deleted,
+            ephemeral: msg().isEphemeral,
+            "has-actions": showActions(),
+            "is-first-message": props.index() === 0,
+            "kb-row": keyboardFocus() === "row",
+            "kb-within": keyboardFocus() === "within",
+            pending: msg().pending,
+            saved: saved(),
+            system: isSystem(),
+          },
+        ]}
       >
         <Show when={replyRef()}>
-          <ReplyReferenceRow
-            attachment={replyUnfurl()}
-            message={referencedMessage()}
-            onJump={() => props.onJumpToMessage?.(replyRef()?.ts ?? "")}
-            permalink={replyRef()?.url}
-          />
+          {(ref) => (
+            <ReplyReferenceRow
+              attachment={replyUnfurl()}
+              message={referencedMessage()}
+              onJump={() => props.onJumpToMessage?.(ref().ts)}
+              permalink={ref().url}
+            />
+          )}
         </Show>
-        <Show when={showThreadContext()}>
-          <ReplyReferenceRow
-            icon="threads"
-            message={threadParent()}
-            onJump={() => props.onOpenThread?.(msg().threadTs ?? "")}
-          />
+        <Show when={showThreadContext() && msg().threadTs}>
+          {(threadTs) => (
+            <ReplyReferenceRow
+              icon="threads"
+              message={threadParent()}
+              onJump={() => props.onOpenThread?.(threadTs())}
+            />
+          )}
         </Show>
         <div
           class="message-row"
@@ -189,7 +186,7 @@ export default function MessageRow(props: MessageRowProps) {
             if (!isMessageBackgroundContextMenu(e)) return;
             ctxMenu.open(e);
           }}
-          tabIndex={focused() ? 0 : -1}
+          tabindex={focused() ? 0 : -1}
         >
           <Show when={showActions()}>
             <MessageActionsBar
@@ -278,12 +275,7 @@ export default function MessageRow(props: MessageRowProps) {
         </div>
       </div>
       <Show when={showRepliesDivider()}>
-        <div class="day-divider message-divider flex-align-center text-center font-bold text-xs">
-          <span>
-            {neighbors().repliesCount} {neighbors().repliesCount === 1 ? "reply" : "replies"}
-            {neighbors().repliesDividerDay ? ` · ${neighbors().repliesDividerDay}` : ""}
-          </span>
-        </div>
+        <RepliesDivider count={neighbors().repliesCount} day={neighbors().repliesDividerDay} />
       </Show>
     </Show>
   );

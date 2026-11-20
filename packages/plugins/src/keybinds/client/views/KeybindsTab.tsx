@@ -1,18 +1,16 @@
+import { service } from "@slock/core/solid";
 import {
-  clearKeybindOverride,
+  ariaBoolean,
   comboLabel,
-  confirmDialog,
   Icon,
   inside,
   KeybindField,
   listNavigationIndex,
   listShortcuts,
-  resetAllKeybinds,
   rovingTabIndex,
   SHORTCUT_GROUPS,
   type ShortcutCombo,
   type ShortcutInfo,
-  setKeybindOverride,
   shortcutConflicts,
   useCancelShortcut,
   useConfirmShortcut,
@@ -20,7 +18,10 @@ import {
   useListShortcuts,
   useNavigationShortcuts,
 } from "@slock/ui";
-import { createEffect, createMemo, createSignal, Index, onMount, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, onSettled, Show } from "solid-js";
+
+const dialogs = service("shell.dialogs");
+const keybinds = service("keybinds");
 
 function includesText(text: string, query: string) {
   return text.toLowerCase().includes(query);
@@ -54,8 +55,8 @@ function ShortcutRow(props: { info: ShortcutInfo }) {
         combo={props.info.combo}
         isCustom={props.info.isCustom}
         label={props.info.label}
-        onChange={(combo) => setKeybindOverride(props.info.id, combo)}
-        onReset={() => clearKeybindOverride(props.info.id)}
+        onChange={(combo) => keybinds.set(props.info.id, combo)}
+        onReset={() => keybinds.clear(props.info.id)}
       />
     </div>
   );
@@ -91,21 +92,18 @@ export default function KeybindsTab() {
 
   const navRows = () => [...(listRef?.querySelectorAll<HTMLElement>("[data-nav-row]") ?? [])];
 
-  createEffect(() => {
-    groups();
-    queueMicrotask(() => {
-      const rows = navRows();
-      rovingTabIndex(
-        rows,
-        Math.max(
-          document.activeElement instanceof HTMLElement ? rows.indexOf(document.activeElement) : -1,
-          0,
-        ),
-      );
-    });
+  createEffect(groups, () => {
+    const rows = navRows();
+    rovingTabIndex(
+      rows,
+      Math.max(
+        document.activeElement instanceof HTMLElement ? rows.indexOf(document.activeElement) : -1,
+        0,
+      ),
+    );
   });
 
-  onMount(() => {
+  onSettled(() => {
     if (!document.activeElement?.closest('[role="tablist"]')) searchRef?.focus();
   });
 
@@ -155,14 +153,14 @@ export default function KeybindsTab() {
 
   async function resetAll() {
     if (
-      await confirmDialog({
+      await dialogs.confirm({
         title: "Reset all keybinds",
         message: "This puts every shortcut back to its default. Custom bindings are lost.",
         confirmLabel: "Reset all",
         danger: true,
       })
     )
-      resetAllKeybinds();
+      keybinds.resetAll();
   }
 
   return (
@@ -185,7 +183,7 @@ export default function KeybindsTab() {
           value={query()}
         />
         <button
-          aria-pressed={finder.recording()}
+          aria-pressed={ariaBoolean(finder.recording())}
           class="settings-status-clear settings-keybind-find btn-reset flex-align-center busy"
           onClick={finder.start}
           type="button"
@@ -196,16 +194,18 @@ export default function KeybindsTab() {
       </div>
 
       <div onFocusIn={onListFocusIn} onKeyDown={redirectTypingToSearch} ref={listRef}>
-        <Index each={groups()}>
+        <For each={groups()} keyed={false}>
           {(group) => (
             <div class="settings-section">
               <div class="settings-section-title">{group().label}</div>
               <div class="settings-list flex-col">
-                <Index each={group().shortcuts}>{(info) => <ShortcutRow info={info()} />}</Index>
+                <For each={group().shortcuts} keyed={false}>
+                  {(info) => <ShortcutRow info={info()} />}
+                </For>
               </div>
             </div>
           )}
-        </Index>
+        </For>
       </div>
 
       <Show when={groups().length === 0}>

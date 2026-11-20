@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { parseUserId } from "@slock/slack";
 import type { Channel, MembershipEvent } from "@slock/types";
 import { createMembershipHandler } from "../../../src/channels/client/membershipEvents";
 
@@ -11,7 +12,10 @@ function setup(currentUserId: string | undefined = "UME") {
       markChannelLeft: (id) => calls.push(`left:${id}`),
       patchChannel: (id, patch) => calls.push(`patch:${id}:${JSON.stringify(patch)}`),
     },
-    () => (currentUserId ? { avatarColor: "#000", id: currentUserId, name: "Me" } : undefined),
+    () =>
+      currentUserId
+        ? { avatarColor: "#000", id: parseUserId(currentUserId), name: "Me" }
+        : undefined,
   );
   return { calls, handle };
 }

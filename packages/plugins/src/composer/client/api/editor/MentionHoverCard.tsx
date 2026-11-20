@@ -13,9 +13,8 @@ export default function MentionHoverCard(props: {
         <Slot
           anchor={() => state().anchorEl}
           hoverIntent={props.hoverIntent}
-          id={state().id}
-          kind={state().kind}
           point="composer.mentionCard"
+          {...state().target}
         />
       )}
     </Show>

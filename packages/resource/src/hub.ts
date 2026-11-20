@@ -6,7 +6,7 @@ import type { ResourceEnv } from "./env";
 type Lifecycle = Pick<
   ResourceCache<never, never>,
   "clear" | "dispose" | "evictInactive" | "restore"
->;
+> & { revalidate(): void };
 
 export interface ResourceHub {
   cache<K, T>(options: Omit<CacheOptions<K, T>, "env">): ResourceCache<K, T>;
@@ -15,6 +15,7 @@ export interface ResourceHub {
   dispose(): void;
   evictInactive(): void;
   restore(): Promise<void>;
+  revalidate(): void;
 }
 
 export function createResourceHub(
@@ -35,6 +36,7 @@ export function createResourceHub(
         clear: cache.clear,
         dispose: cache.dispose,
         evictInactive: cache.evictInactive,
+        revalidate: () => cache.invalidateWhere(() => true),
         restore: cache.restore,
       });
       return cache;
@@ -46,6 +48,7 @@ export function createResourceHub(
       members.clear();
     },
     evictInactive: () => each((member) => member.evictInactive()),
+    revalidate: () => each((member) => member.revalidate()),
     restore: async () => {
       await Promise.all([...members].map((member) => member.restore()));
     },

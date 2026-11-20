@@ -1,7 +1,7 @@
-import type { ActivityItem } from "@slock/types";
-import { createMemo, createSignal } from "solid-js";
-import { createStore } from "solid-js/store";
-import { gatewayActivityCountsSnapshot, gatewayActivityPingCount } from "../kinds";
+import type { ActivityItem, ChannelId, Ts } from "@slock/types";
+import { createMemo, createSignal, createStore } from "solid-js";
+import { gatewayActivityCountsSnapshot, gatewayActivityPingCount, hasChannel } from "../kinds";
+import type { ActivityItems } from "./activityItems";
 
 const GLOW_KINDS = new Set<ActivityItem["kind"]>([
   "thread_reply",
@@ -19,26 +19,28 @@ function isMarkedViaActivityApi(
 }
 
 export function createActivityReadState(deps: {
-  activityItems: ActivityItem[];
-  activityReadSync: { request: (channelId: string, ts: string) => Promise<boolean> };
-  clearChannelUnread: (channelId: string) => void;
+  items: ActivityItems;
+  activityReadSync: { request: (channelId: ChannelId, ts: Ts) => Promise<boolean> };
+  clearChannelUnread: (channelId: ChannelId) => void;
   pingKinds: Set<ActivityItem["kind"]>;
   fetchActivityBadgeCounts: () => Promise<Record<string, number>>;
-  fetchChannelLastRead: (channelId: string) => Promise<number>;
-  lastReadByChannel: Record<string, number>;
-  markActivityRead: (type: string, feedTs: string, key: string) => Promise<void>;
-  setActivityItems: (
-    predicate: (item: ActivityItem) => boolean,
-    key: "unreadCount",
-    value: number,
-  ) => void;
-  setLastReadByChannel: (channelId: string, ts: number) => void;
-  setThreadRead: (channelId: string, threadTs: string, ts: string) => Promise<boolean>;
-  threadReadTsFor: (threadTs: string) => string | undefined;
+  fetchChannelLastRead: (channelId: ChannelId) => Promise<number>;
+  lastReadByChannel: Record<string, number | undefined>;
+  markActivityRead: (type: string, feedTs: Ts, key: string) => Promise<void>;
+  setLastReadByChannel: (channelId: ChannelId, ts: number) => void;
+  setThreadRead: (channelId: ChannelId, threadTs: Ts, ts: Ts) => Promise<boolean>;
+  threadReadTsFor: (threadTs: Ts) => Ts | undefined;
 }) {
   const [readActivityIds, setReadActivityIds] = createStore<Record<string, boolean | undefined>>(
     {},
   );
+  const setActivityRead = (id: string, read: boolean | undefined) =>
+    setReadActivityIds((state) => {
+      if (read === undefined) delete state[id];
+      else state[id] = read;
+    });
+  const setUnreadCount = (id: string, unreadCount: number) =>
+    deps.items.patchWhere((item) => item.id === id, { unreadCount });
   const [gatewayActivityCount, setGatewayActivityCount] = createSignal<number>();
   let lastGatewayActivityCountsSnapshot: string | undefined;
 
@@ -51,7 +53,7 @@ export function createActivityReadState(deps: {
   }
 
   function isBelowReadCursor(item: ActivityItem): boolean {
-    if (!item.channelId || isMarkedViaActivityApi(item)) return false;
+    if (!hasChannel(item) || isMarkedViaActivityApi(item)) return false;
     if (item.threadTs) {
       const threadCursor = deps.threadReadTsFor(item.threadTs);
       return threadCursor !== undefined && parseFloat(item.ts) <= parseFloat(threadCursor);
@@ -77,16 +79,16 @@ export function createActivityReadState(deps: {
 
   function markActivityItemUnread(item: ActivityItem) {
     if (item.kind === "thread_reply" && item.unreadCount !== undefined) {
-      deps.setActivityItems((i) => i.id === item.id, "unreadCount", Math.max(1, item.unreadCount));
+      setUnreadCount(item.id, Math.max(1, item.unreadCount));
       return;
     }
-    setReadActivityIds(item.id, false);
+    setActivityRead(item.id, false);
   }
 
   const attemptedReadCursorBackfill = new Set<string>();
 
   function needsReadCursorBackfill(item: ActivityItem): boolean {
-    if (!item.channelId) return false;
+    if (!hasChannel(item)) return false;
     return deps.lastReadByChannel[item.channelId] === undefined;
   }
 
@@ -107,44 +109,41 @@ export function createActivityReadState(deps: {
     );
   }
 
-  const unreadActivityCount = createMemo(
-    () => deps.activityItems.filter(isActivityItemUnread).length,
-  );
+  const unreadActivityCount = createMemo(() => deps.items.list.filter(isActivityItemUnread).length);
 
   const unreadPingCount = createMemo(
     () =>
       gatewayActivityCount() ??
-      deps.activityItems.filter((i) => deps.pingKinds.has(i.kind) && isActivityItemUnread(i))
-        .length,
+      deps.items.list.filter((i) => deps.pingKinds.has(i.kind) && isActivityItemUnread(i)).length,
   );
   const hasUnreadActivity = createMemo(
     () =>
       unreadPingCount() > 0 ||
-      deps.activityItems.some(
+      deps.items.list.some(
         (i) => (deps.pingKinds.has(i.kind) || GLOW_KINDS.has(i.kind)) && isActivityItemUnread(i),
       ),
   );
 
   function markActivityItemsRead(items: readonly ActivityItem[]) {
-    const latestTsByChannel = new Map<string, string>();
-    const latestByThread = new Map<string, { channelId: string; threadTs: string; ts: string }>();
+    const latestTsByChannel = new Map<ChannelId, Ts>();
+    const latestByThread = new Map<string, { channelId: ChannelId; threadTs: Ts; ts: Ts }>();
     for (const item of items) {
       if (activityItemReadState(item) === "read") continue;
       if (isMarkedViaActivityApi(item)) {
         void deps
           .markActivityRead(item.activityType, item.feedTs ?? item.ts, item.id)
           .then(async () => {
-            setReadActivityIds(item.id, true);
+            setActivityRead(item.id, true);
             setGatewayActivityBadgeCounts(await deps.fetchActivityBadgeCounts());
           })
           .catch(() => {});
         continue;
       }
-      setReadActivityIds(item.id, item.channelId ? undefined : true);
+      setActivityRead(item.id, hasChannel(item) ? undefined : true);
 
       if (item.kind === "thread_reply" && item.unreadCount !== undefined)
-        deps.setActivityItems((i) => i.id === item.id, "unreadCount", 0);
-      if (!item.channelId) continue;
+        setUnreadCount(item.id, 0);
+      if (!hasChannel(item)) continue;
       if (item.threadTs) {
         const key = `${item.channelId}:${item.threadTs}`;
         const prev = latestByThread.get(key);

@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import type { User } from "@slock/types";
+import type { User, UserId } from "@slock/types";
 import { Avatar } from "@slock/ui";
 import ComposePicker from "../../views/popovers/ComposePicker";
 import "./ComposeUserPicker.css";
@@ -7,9 +7,9 @@ import "./ComposeUserPicker.css";
 const usersStore = service("users");
 
 export default function ComposeUserPicker(props: {
-  excludeUserIds?: string[];
+  excludeUserIds?: UserId[];
   includeCurrentUser?: boolean;
-  onSelect: (userId: string) => void;
+  onSelect: (userId: UserId) => void;
   onClose: () => void;
 }) {
   const excludedUserIds = () => new Set(props.excludeUserIds ?? []);

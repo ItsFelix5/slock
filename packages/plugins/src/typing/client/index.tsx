@@ -1,5 +1,6 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { ifPresent, parseChannelId, parseTs, parseUserId } from "@slock/slack";
 import { TypingIndicator } from "@slock/ui";
 import type { MessageFooterProps } from "../../messages/client/api";
 import { sendTyping } from "./sendTyping";
@@ -21,18 +22,19 @@ const setup: Setup = (ctx) => {
   ctx.add("realtime.handler", {
     run: (event) => {
       if (event.type === "user_typing") {
-        if (event.channel && event.user && event.user !== currentUserId())
-          store.recordTyping(event.channel, event.thread_ts, event.user);
+        const channel = ifPresent(parseChannelId, event.channel);
+        const user = ifPresent(parseUserId, event.user);
+        if (channel && user && user !== currentUserId())
+          store.recordTyping(channel, ifPresent(parseTs, event.thread_ts), user);
         return;
       }
-      if (event.type === "message" && event.ts && event.channel) {
-        const threadTs = event.thread_ts;
-        const isThreadReply = !!threadTs && threadTs !== event.ts;
-        store.clearTyping(
-          event.channel,
-          isThreadReply ? threadTs : undefined,
-          event.user ?? event.bot_id ?? "",
-        );
+      if (event.type === "message") {
+        const channel = ifPresent(parseChannelId, event.channel);
+        const ts = ifPresent(parseTs, event.ts);
+        const author = ifPresent(parseUserId, event.user ?? event.bot_id);
+        if (!(channel && ts && author)) return;
+        const threadTs = ifPresent(parseTs, event.thread_ts);
+        store.clearTyping(channel, threadTs && threadTs !== ts ? threadTs : undefined, author);
       }
     },
     types: ["user_typing", "message"],

@@ -1,5 +1,5 @@
 import { apiDelete, apiGet, apiPut } from "@slock/slack";
-import type { Block, DraftEntry } from "@slock/types";
+import type { Block, ChannelId, DraftEntry, Ts } from "@slock/types";
 
 export async function fetchDrafts(): Promise<DraftEntry[]> {
   const data = await apiGet<{ drafts?: DraftEntry[] }>("/api/drafts");
@@ -8,8 +8,8 @@ export async function fetchDrafts(): Promise<DraftEntry[]> {
 }
 
 export async function saveDraft(
-  channelId: string,
-  threadTs: string | undefined,
+  channelId: ChannelId,
+  threadTs: Ts | undefined,
   blocks: Block[],
   draftId?: string,
   clientMsgId?: string,

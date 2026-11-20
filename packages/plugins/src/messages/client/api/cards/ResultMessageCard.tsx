@@ -1,6 +1,6 @@
 import type { AvatarUser, useContextMenu } from "@slock/ui";
 import { Avatar, NavRow, Tooltip } from "@slock/ui";
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { Show } from "solid-js";
 import { ClickableAuthorName } from "../../../../profile/client/api/AppBadge";
 import { SplitNavigation } from "../../../../shell/client/api/SplitNavigation";
@@ -28,7 +28,7 @@ export default function ResultMessageCard(props: {
           class="result-message-card-main"
           onActivate={props.onOpen}
           onContextMenu={props.ctxMenu?.open}
-          tabIndex={-1}
+          tabindex={-1}
         >
           <Show fallback={<Avatar size="medium" user={props.avatarUser} />} when={profileUserId()}>
             {(userId) => (
