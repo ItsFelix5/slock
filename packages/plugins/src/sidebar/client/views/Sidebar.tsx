@@ -1,7 +1,7 @@
 import { service, usePoint } from "@slock/core/solid";
 import { ariaBoolean, ResizeHandle, useTabStripShortcuts } from "@slock/ui";
-import { Dynamic } from "@solidjs/web";
-import { createEffect, createMemo, createSignal, For } from "solid-js";
+import { dynamic } from "@solidjs/web";
+import { createComponent, createEffect, createMemo, createSignal, For } from "solid-js";
 import type { SidebarNavItem } from "../api";
 import "./Sidebar.css";
 import SidebarToolbar from "./SidebarToolbar";
@@ -19,6 +19,7 @@ export default function Sidebar(props: { onWidth: (width: number) => void }) {
   const tabs = createMemo(() => items().filter((item) => !item.hidden));
   const active = createMemo(() => items().find((item) => item.id === sidebar.nav()));
   const feedMode = () => !!active()?.feed;
+  const ActiveView = dynamic(() => active()?.view);
   const [width, setWidth] = createSignal(DEFAULT_WIDTH);
   const [feedWidth, setFeedWidth] = createSignal(FEED_DEFAULT_WIDTH);
   createEffect(
@@ -75,12 +76,16 @@ export default function Sidebar(props: { onWidth: (width: number) => void }) {
               tabindex={sidebar.nav() === item.id || (!active() && index() === 0) ? 0 : -1}
               type="button"
             >
-              <Dynamic active={sidebar.nav() === item.id} component={item.button} />
+              {createComponent(item.button, {
+                get active() {
+                  return sidebar.nav() === item.id;
+                },
+              })}
             </button>
           )}
         </For>
       </div>
-      <Dynamic component={active()?.view} />
+      <ActiveView />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { defined } from "@slock/core";
-import { themeColorDefinitions, themeColorVar } from "./themeColorRegistry";
+import { themeColorVar } from "./themeColorRegistry";
 
 export function translucent(color: string, amount: number) {
   return `rgb(from ${color} r g b / ${amount}%)`;
@@ -46,15 +46,17 @@ export function formatColorRef({ source, deltaL, deltaC, alpha }: ColorRef): str
   return `@${source}${terms.join("")}`;
 }
 
-export function colorRefToCss(ref: string): string {
+export type IsKnownColor = (key: string) => boolean;
+
+export function colorRefToCss(ref: string, isKnown: IsKnownColor): string {
   const parsed = parseColorRef(ref);
-  if (!(parsed && themeColorDefinitions().some((def) => def.key === parsed.source))) return ref;
+  if (!(parsed && isKnown(parsed.source))) return ref;
   let expr = `var(${themeColorVar(parsed.source)})`;
   if (parsed.deltaL !== undefined || parsed.deltaC !== undefined)
     expr = channelShift(expr, parsed.deltaL, parsed.deltaC);
   return parsed.alpha === undefined ? expr : translucent(expr, parsed.alpha);
 }
 
-export function resolveThemeColorValue(value: string): string {
-  return isColorRef(value) ? colorRefToCss(value) : value;
+export function resolveThemeColorValue(value: string, isKnown: IsKnownColor): string {
+  return isColorRef(value) ? colorRefToCss(value, isKnown) : value;
 }

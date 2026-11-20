@@ -4,7 +4,6 @@ import { ifPresent, isChannelId, parseChannelId, parseTs } from "@slock/slack";
 import { narrowPaneContent, type Pane, useShortcut } from "@slock/ui";
 import { createEffect, lazy, Show } from "solid-js";
 import { liveOnly } from "../../messages/client/api/deletedMessages";
-import { active } from "../../messages/client/api/messageFocus";
 import type { PaneContent } from "../../shell/client/api/types";
 import type { PinnedPaneContent } from "./api";
 import { createPinnedSlice } from "./store";
@@ -12,6 +11,8 @@ import PinItem from "./views/PinItem";
 import PinnedBadge from "./views/PinnedBadge";
 import ViewPinnedItem from "./views/ViewPinnedItem";
 
+const messageFocus = service("messages.focus");
+const active = () => messageFocus.active();
 const PinnedPane = lazy(() => import("./views/PinnedPane"));
 const PINNED_MARK = "*";
 

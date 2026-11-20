@@ -7,11 +7,11 @@ import { type SortMode, sortParams } from "../../searchQuery";
 const SEARCH_DELAY_MS = 300;
 
 export function createMessageSearch(onSearched: (query: string) => void) {
-  const [state, setState] = createSignal({
-    error: false,
-    loading: false,
-    results: [] as SearchResult[],
-  });
+  const [state, setState] = createSignal<{
+    error: boolean;
+    loading: boolean;
+    results: SearchResult[];
+  }>({ error: false, loading: false, results: [] });
   let sortMode: SortMode = "relevant";
   const request = createDebouncedRequest((query) => searchMessages(query, sortParams(sortMode)), {
     delay: SEARCH_DELAY_MS,

@@ -8,8 +8,8 @@ export default function ConnectionStatus(props: {
   onRetry: () => void;
   state: ConnectionStatusState;
 }) {
-  const [visible, setVisible] = createSignal(props.state === "offline");
-  let hasConnected = props.state === "connected";
+  const [visible, setVisible] = createSignal(false);
+  let hasConnected = false;
 
   createEffect(
     () => props.state,
@@ -28,7 +28,7 @@ export default function ConnectionStatus(props: {
     },
   );
 
-  const shown = () => visible() && props.state !== "connected";
+  const shown = () => (visible() || props.state === "offline") && props.state !== "connected";
   return (
     <div
       class={[

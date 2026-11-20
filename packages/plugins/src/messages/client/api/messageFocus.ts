@@ -40,18 +40,25 @@ export interface ActiveMessageFocus {
   toggleReactionPicker: (ts: Ts) => void;
 }
 
-const [active, setActive] = createSignal<ActiveMessageFocus>();
-const editLastByPane = new Map<string, () => void>();
-
-export { active };
-
-export function editLastMessageInPane(paneId: string) {
-  editLastByPane.get(paneId)?.();
+export function createMessageFocusRegistry() {
+  const [active, setActive] = createSignal<ActiveMessageFocus>();
+  const editLastByPane = new Map<string, () => void>();
+  return {
+    active,
+    activate: setActive,
+    deactivate: (focus: ActiveMessageFocus) =>
+      setActive((current) => (current === focus ? undefined : current)),
+    editLastInPane: (paneId: string) => editLastByPane.get(paneId)?.(),
+    registerEditLast: (paneId: string, editLast: () => void) => {
+      editLastByPane.set(paneId, editLast);
+      return () => {
+        if (editLastByPane.get(paneId) === editLast) editLastByPane.delete(paneId);
+      };
+    },
+  };
 }
 
-export function clearActiveMessageFocus() {
-  setActive(undefined);
-}
+const focusRegistry = service("messages.focus");
 
 export function createMessageFocus(
   messages: Accessor<Message[]>,
@@ -141,10 +148,7 @@ export function createMessageFocus(
       const last = messages().findLast(isEditable);
       if (last) startEdit(last.ts);
     };
-    editLastByPane.set(paneId, editLast);
-    onCleanup(() => {
-      if (editLastByPane.get(paneId) === editLast) editLastByPane.delete(paneId);
-    });
+    onCleanup(focusRegistry.registerEditLast(paneId, editLast));
   }
 
   const toggleReactionPicker = (ts: Ts) =>
@@ -167,7 +171,7 @@ export function createMessageFocus(
     toggleMoreMenu,
     toggleReactionPicker,
   };
-  const deactivate = () => setActive((current) => (current === self ? undefined : current));
+  const deactivate = () => focusRegistry.deactivate(self);
   onCleanup(deactivate);
 
   return {
@@ -179,7 +183,7 @@ export function createMessageFocus(
     listFocused,
     onContainerFocusIn: (e: FocusEvent) => {
       setListFocused(true);
-      setActive(self);
+      focusRegistry.activate(self);
 
       const target = e.target instanceof Element ? e.target : null;
       const ts = ifPresent(

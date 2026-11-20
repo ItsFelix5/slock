@@ -4,7 +4,6 @@ import { isChannelId, isTs } from "@slock/slack";
 import { Icon, useShortcut } from "@slock/ui";
 import { lazy } from "solid-js";
 import { liveOnly } from "../../messages/client/api/deletedMessages";
-import { active } from "../../messages/client/api/messageFocus";
 import {
   fetchMessagesByIds,
   fetchSaved,
@@ -17,6 +16,8 @@ import SaveButton from "./views/SaveButton";
 import SavedBadge from "./views/SavedBadge";
 
 const feedback = service("feedback");
+const messageFocus = service("messages.focus");
+const active = () => messageFocus.active();
 const LaterView = lazy(() => import("./views/LaterView"));
 
 const setup: Setup = (ctx) => {

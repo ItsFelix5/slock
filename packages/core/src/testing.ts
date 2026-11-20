@@ -1,3 +1,4 @@
+import { createRoot, flush } from "solid-js";
 import { type Random, seededRandom } from "./fake/seededRandom";
 
 export { createFakeEnv, type FakeEnv } from "./fake/fakeEnv";
@@ -56,6 +57,18 @@ export async function forAllAsync<T>(
   }
 }
 
-export function partialService<Service>(members: Partial<Service>): Service {
-  return members as Service;
+export function partialService<Service extends object>(members: Partial<Service>): Service {
+  return Object.assign(Object.create(null), members);
+}
+
+export type TestRoot<T> = { value: T; dispose: () => void };
+
+export function inRoot<T>(create: () => T): TestRoot<T> {
+  let dispose = () => {};
+  const value = createRoot((d) => {
+    dispose = d;
+    return create();
+  });
+  flush();
+  return { value, dispose };
 }

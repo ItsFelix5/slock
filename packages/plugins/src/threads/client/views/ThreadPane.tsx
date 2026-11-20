@@ -11,10 +11,6 @@ import { createInPaneSearch } from "../../../messages/client/api/pane/inPaneSear
 import MessageRows from "../../../messages/client/api/pane/MessageRows";
 import { createFeedPagination } from "../../../messages/client/api/pane/scroll/feedPagination";
 import { createFeedScroll } from "../../../messages/client/api/pane/scroll/feedScroll";
-import {
-  getRememberedScrollAnchor,
-  rememberScrollAnchor,
-} from "../../../messages/client/api/pane/scroll/rememberedAnchors";
 import ThreadHeader from "./ThreadHeader";
 import ThreadJumpPills from "./ThreadJumpPills";
 import { ThreadEarlierStatus, ThreadLoadStatus, ThreadMoreStatus } from "./ThreadLoadStatus";
@@ -22,6 +18,7 @@ import "./ThreadPane.css";
 
 const feedback = service("feedback");
 const messagesStore = service("messages");
+const scrollAnchors = service("messages.anchors");
 const unreadStore = service("unread");
 
 export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
@@ -36,7 +33,7 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
     isLive: () => !hasMore(),
     onMove: (direction) => {
       if (!feed.ready()) return;
-      rememberScrollAnchor(
+      scrollAnchors.remember(
         thread().ts,
         feed.atBottom() && !hasMore() ? undefined : feed.topAnchor(),
       );
@@ -106,7 +103,7 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
       handledFocusKey = key;
       const found = highlightTs !== undefined && msgs.some((m) => m.ts === highlightTs);
       if (highlightTs && !found) feedback.flash("navigation", "Couldn't find that reply.", "error");
-      const remembered = highlightTs ? undefined : getRememberedScrollAnchor(ts);
+      const remembered = highlightTs ? undefined : scrollAnchors.get(ts);
       if (found && highlightTs) {
         messageFocus.focusMessage(highlightTs);
         feed.land({ align: "center", at: "row", flash: true, ts: highlightTs });

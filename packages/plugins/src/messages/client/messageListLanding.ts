@@ -3,12 +3,12 @@ import type { ChannelId, Message } from "@slock/types";
 import { createEffect, onCleanup, untrack } from "solid-js";
 import type { ChannelMessageTarget, View } from "../../conversations/client/api/types";
 import type { FeedScroll } from "./api/pane/scroll/feedScroll";
-import { getRememberedScrollAnchor } from "./api/pane/scroll/rememberedAnchors";
 import { tsFromMs, tsToMs } from "./lib/tsTime";
 import { findUnreadDividerIndex } from "./lib/unreadDivider";
 
 const unreadStore = service("unread");
 const messagesStore = service("messages");
+const scrollAnchors = service("messages.anchors");
 
 const DIVIDER_WAIT_MS = 3000;
 
@@ -50,7 +50,7 @@ export function createMessageListLanding(deps: {
   }
 
   function landOnRememberedOrBottom(view: View) {
-    const remembered = getRememberedScrollAnchor(view.id);
+    const remembered = scrollAnchors.get(view.id);
     if (remembered && deps.messages().some((m) => m.ts === remembered.ts))
       feed.land({ at: "offset", ...remembered });
     else landOnBottom();

@@ -39,7 +39,8 @@ export function service<K extends keyof Services>(key: K): Services[K] {
     if (found === undefined) throw new Error(`service ${String(key)} is missing`);
     return found;
   };
-  return new Proxy(Object.create(null) as Services[K], {
+  const target: Services[K] & object = Object.create(null);
+  return new Proxy(target, {
     get: (_target, property) => Reflect.get(new Object(resolve()), property),
     has: (_target, property) => Reflect.has(new Object(resolve()), property),
   });

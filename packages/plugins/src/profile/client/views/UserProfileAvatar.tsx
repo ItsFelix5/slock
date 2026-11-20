@@ -1,6 +1,6 @@
 import type { User } from "@slock/types";
 import { AvatarImage, ariaBoolean } from "@slock/ui";
-import { Dynamic } from "@solidjs/web";
+import { dynamic } from "@solidjs/web";
 import { createSignal, onSettled, Show } from "solid-js";
 import type { ProfileForm } from "./profileForm";
 
@@ -14,6 +14,7 @@ export default function UserProfileAvatar(props: {
 }) {
   const [photoInput, setPhotoInput] = createSignal<HTMLInputElement>();
   const saving = () => props.form.isSavingPhoto();
+  const Wrap = dynamic(() => (props.isSelf ? "button" : "div"));
 
   onSettled(() => {
     const onWindowPaste = (event: ClipboardEvent) => {
@@ -37,11 +38,10 @@ export default function UserProfileAvatar(props: {
 
   return (
     <div class="user-profile-avatar-wrap">
-      <Dynamic
+      <Wrap
         aria-busy={props.isSelf ? ariaBoolean(saving()) : undefined}
         aria-label={props.isSelf ? photoLabel() : undefined}
         class={["user-profile-avatar flex-center", { "is-editable": props.isSelf }]}
-        component={props.isSelf ? "button" : "div"}
         disabled={props.isSelf ? saving() : undefined}
         onClick={() => {
           if (!saving()) photoInput()?.click();
@@ -64,7 +64,7 @@ export default function UserProfileAvatar(props: {
             type="file"
           />
         </Show>
-      </Dynamic>
+      </Wrap>
       <Show when={props.isSelf}>
         <button
           aria-busy={ariaBoolean(props.form.isSavingPresence())}

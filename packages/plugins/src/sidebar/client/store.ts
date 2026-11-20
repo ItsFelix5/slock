@@ -1,4 +1,4 @@
-import { createSignal, onCleanup } from "solid-js";
+import { createSignal, onSettled } from "solid-js";
 import type { CycleTarget } from "./api";
 
 type CycleSource = { order: number; targets: () => CycleTarget[] };
@@ -14,8 +14,10 @@ export function createSidebarStore(isHidden: (id: string) => boolean, focusSideb
 
   function provideCycle(order: number, targets: () => CycleTarget[]) {
     const source = { order, targets };
-    setSources((current) => [...current, source].sort((a, b) => a.order - b.order));
-    onCleanup(() => setSources((current) => current.filter((item) => item !== source)));
+    onSettled(() => {
+      setSources((current) => [...current, source].sort((a, b) => a.order - b.order));
+      return () => setSources((current) => current.filter((item) => item !== source));
+    });
   }
 
   const cycleTargets = () => sources().flatMap((source) => source.targets());

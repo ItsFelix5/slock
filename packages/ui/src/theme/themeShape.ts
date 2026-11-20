@@ -165,17 +165,19 @@ function applyThemeShape(shape: ThemeShape) {
   root.style.setProperty("--radius-pill", `${roundness.pillRadius}px`);
 }
 
-const [themeShape, setThemeShapeSignal] = createImmediateSignal(loadThemeShape());
-applyThemeShape(themeShape());
-
-export function setThemeShape(next: Partial<ThemeShape>): void {
-  const merged = {
-    density: clampAxis(next.density ?? themeShape().density),
-    roundness: clampAxis(next.roundness ?? themeShape().roundness),
+export function createThemeShape() {
+  const [themeShape, setThemeShapeSignal] = createImmediateSignal(loadThemeShape());
+  applyThemeShape(themeShape());
+  return {
+    setThemeShape(next: Partial<ThemeShape>): void {
+      const merged = {
+        density: clampAxis(next.density ?? themeShape().density),
+        roundness: clampAxis(next.roundness ?? themeShape().roundness),
+      };
+      setThemeShapeSignal(merged);
+      localStorage.setItem(THEME_SHAPE_KEY, JSON.stringify(merged));
+      applyThemeShape(merged);
+    },
+    themeShape,
   };
-  setThemeShapeSignal(merged);
-  localStorage.setItem(THEME_SHAPE_KEY, JSON.stringify(merged));
-  applyThemeShape(merged);
 }
-
-export { themeShape };

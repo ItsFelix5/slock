@@ -4,11 +4,11 @@ import { createEffect, createSignal } from "solid-js";
 import type { ChannelMessageTarget, View } from "../../conversations/client/api/types";
 import { createFeedPagination } from "./api/pane/scroll/feedPagination";
 import { createFeedScroll } from "./api/pane/scroll/feedScroll";
-import { rememberScrollAnchor } from "./api/pane/scroll/rememberedAnchors";
 import { createMessageListLanding } from "./messageListLanding";
 
 const messagesStore = service("messages");
 const unreadStore = service("unread");
+const scrollAnchors = service("messages.anchors");
 
 export function createMessageListScroll(deps: {
   clearMessageTarget: () => void;
@@ -58,7 +58,7 @@ export function createMessageListScroll(deps: {
       if (!feed.ready()) return;
       whenView(
         (id) =>
-          rememberScrollAnchor(id, feed.atBottom() && isLive() ? undefined : feed.topAnchor()),
+          scrollAnchors.remember(id, feed.atBottom() && isLive() ? undefined : feed.topAnchor()),
         undefined,
       );
       pagination.check(direction);

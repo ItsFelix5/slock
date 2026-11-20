@@ -147,31 +147,13 @@ export {
   TRAILING_PUNCTUATION_RE,
   WHITESPACE_RE,
 } from "./textHighlight";
-export { font, setFont } from "./theme/font";
+export { createTheme } from "./theme/createTheme";
 export { activeFontPreset, FONT_PRESETS } from "./theme/fontPresets";
-export {
-  activePreset,
-  applyCopiedThemePalette,
-  applyPreset,
-  copyableThemePalette,
-  decoupleThemeColor,
-  getColorFormula,
-  getColorRef,
-  getEffectiveColor,
-  isThemeColorCustom,
-  registerThemeColors,
-  resetThemeColor,
-  setColorRef,
-  setThemeColors,
-  type ThemeColorDefinition,
-  themeColorDefinitions,
-} from "./theme/themeColors";
-export { setThemeCss, themeCss } from "./theme/themeCss";
+export type { ThemeColorDefinition } from "./theme/themeColors";
 export type { ColorRef } from "./theme/themeDerivations";
 export {
   THEME_FAMILIES,
   type ThemeFamily,
   type ThemePreset,
 } from "./theme/themePresets";
-export { setThemeShape, themeShape } from "./theme/themeShape";
 export { createUndoStack, useGlobalUndoShortcut } from "./undoStack";

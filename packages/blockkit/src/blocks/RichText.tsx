@@ -148,11 +148,11 @@ function RichTextListView(props: { list: RichTextListType }) {
   );
 }
 
-function SubBlockView(props: { sub: RichTextSubBlock }) {
-  const { sub } = props;
+function SubBlockView(props: { sub: RichTextSubBlock; trailing?: JSX.Element }) {
+  const sub = props.sub;
   switch (sub.type) {
     case "rich_text_section":
-      return <RichTextSectionView section={sub} />;
+      return <RichTextSectionView section={sub} trailing={props.trailing} />;
     case "rich_text_quote":
       return (
         <blockquote class="bk-quote quote-bar">
@@ -196,15 +196,12 @@ export default function RichText(props: { block: RichTextBlockType; trailing?: J
   return (
     <div class="bk-rich-text">
       <For each={props.block.elements}>
-        {(sub: RichTextSubBlock, index) => {
-          const isLastSection =
-            sub.type === "rich_text_section" && index() === props.block.elements.length - 1;
-          return isLastSection ? (
-            <RichTextSectionView section={sub} trailing={props.trailing} />
-          ) : (
-            <SubBlockView sub={sub} />
-          );
-        }}
+        {(sub: RichTextSubBlock, index) => (
+          <SubBlockView
+            sub={sub}
+            trailing={index() === props.block.elements.length - 1 ? props.trailing : undefined}
+          />
+        )}
       </For>
     </div>
   );

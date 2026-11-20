@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { forAll, int, pick } from "@slock/core/testing";
-import { addThemeColorDefinitions, themeColorVar } from "../src/theme/themeColorRegistry";
+import { createThemeColorRegistry, themeColorVar } from "../src/theme/themeColorRegistry";
 import {
   type ColorRef,
   colorRefToCss,
@@ -60,26 +60,28 @@ describe("color refs", () => {
 });
 
 describe("colorRefToCss", () => {
+  const registry = createThemeColorRegistry();
+  const isKnown = (key: string) => registry.themeColorDefinitions().some((def) => def.key === key);
   let remove = () => {};
   afterEach(() => remove());
 
   test("returns unknown sources untouched", () => {
-    expect(colorRefToCss("@ghost 10%L")).toBe("@ghost 10%L");
-    expect(resolveThemeColorValue("#123456")).toBe("#123456");
+    expect(colorRefToCss("@ghost 10%L", isKnown)).toBe("@ghost 10%L");
+    expect(resolveThemeColorValue("#123456", isKnown)).toBe("#123456");
   });
 
   test("builds channel shifts and alpha from the css variable", () => {
-    remove = addThemeColorDefinitions([{ key: "accentHover", label: "Hover" }]);
+    remove = registry.add([{ key: "accentHover", label: "Hover" }]);
     const variable = `var(${themeColorVar("accentHover")})`;
-    expect(colorRefToCss("@accentHover")).toBe(variable);
-    expect(colorRefToCss("@accentHover -5%L")).toBe(`oklch(from ${variable} calc(l + -0.05) c h)`);
-    expect(colorRefToCss("@accentHover 2%C")).toBe(`oklch(from ${variable} l calc(c + 0.02) h)`);
-    expect(colorRefToCss("@accentHover 30%")).toBe(`rgb(from ${variable} r g b / 30%)`);
+    expect(colorRefToCss("@accentHover", isKnown)).toBe(variable);
+    expect(colorRefToCss("@accentHover -5%L", isKnown)).toBe(`oklch(from ${variable} calc(l + -0.05) c h)`);
+    expect(colorRefToCss("@accentHover 2%C", isKnown)).toBe(`oklch(from ${variable} l calc(c + 0.02) h)`);
+    expect(colorRefToCss("@accentHover 30%", isKnown)).toBe(`rgb(from ${variable} r g b / 30%)`);
   });
 
   test("stops resolving once the definition is removed", () => {
-    addThemeColorDefinitions([{ key: "removedColor", label: "Hover" }])();
-    expect(colorRefToCss("@removedColor")).toBe("@removedColor");
+    registry.add([{ key: "removedColor", label: "Hover" }])();
+    expect(colorRefToCss("@removedColor", isKnown)).toBe("@removedColor");
   });
 });
 

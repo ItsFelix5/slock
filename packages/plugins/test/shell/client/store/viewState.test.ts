@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { forAll, int, pick } from "@slock/core/testing";
-import { createRoot, flush } from "solid-js";
+import { forAll, inRoot, int, pick } from "@slock/core/testing";
+import { flush } from "solid-js";
 import type { PaneContent } from "../../../../src/shell/client/api/types";
 import { kinds, loadShellStore, main, side } from "../../../../src/shell/client/store/paneTestKit";
 
@@ -76,17 +76,16 @@ function flushing<Args extends unknown[], Result>(action: (...args: Args) => Res
 function boot(initialPath: string, defaultView?: PaneContent) {
   const browser = createFakeWindow(initialPath);
   browser.install();
-  let dispose = () => {};
-  const { panes, viewState: view } = createRoot((d) => {
-    dispose = d;
-    const store = createShellStore({
+  const root = inRoot(() =>
+    createShellStore({
       defaultView: () => defaultView,
       paneKinds: () => kinds,
       ready: () => true,
-    });
-    store.viewState.start();
-    return store;
-  });
+    }),
+  );
+  const { dispose } = root;
+  const { panes, viewState: view } = root.value;
+  view.start();
   const layout = () => {
     flush();
     return panes.panes().map((pane) => pane.content);

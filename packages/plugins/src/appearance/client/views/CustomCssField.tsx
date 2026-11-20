@@ -1,4 +1,6 @@
-import { setThemeCss, themeCss } from "@slock/ui";
+import { service } from "@slock/core/solid";
+
+const theme = service("theme");
 
 export default function CustomCssField() {
   return (
@@ -7,9 +9,9 @@ export default function CustomCssField() {
       <textarea
         aria-label="Custom CSS"
         class="settings-custom-css text-field"
-        onInput={(e) => setThemeCss(e.currentTarget.value)}
+        onInput={(e) => theme.setThemeCss(e.currentTarget.value)}
         spellcheck={false}
-        value={themeCss()}
+        value={theme.themeCss()}
       />
     </div>
   );

@@ -9,8 +9,8 @@ import type { View } from "../../conversations/client/api/types";
 import { parseSlackPermalink } from "../../message-links/client/api/slackPermalink";
 import type { PaneContent } from "../../shell/client/api/types";
 import { liveOnly } from "./api/deletedMessages";
-import { clearActiveMessageFocus } from "./api/messageFocus";
-import { forgetScrollAnchors } from "./api/pane/scroll/rememberedAnchors";
+import { createMessageFocusRegistry } from "./api/messageFocus";
+import { createScrollAnchors } from "./api/pane/scroll/rememberedAnchors";
 import { createBlockKitResolver } from "./blockKitResolver";
 import { installDocumentTitle } from "./documentTitle";
 import { createEntitySource } from "./entitySource";
@@ -84,8 +84,8 @@ const setup: Setup = (ctx) => {
   });
   ctx.provide("messages", messages);
   ctx.add("messages.prefetch", messages.prefetchHistory);
-  ctx.onCleanup(forgetScrollAnchors);
-  ctx.onCleanup(clearActiveMessageFocus);
+  ctx.provide("messages.anchors", createScrollAnchors());
+  ctx.provide("messages.focus", createMessageFocusRegistry());
   installDocumentTitle();
   useMessageShortcuts();
   unread.wireReadTracking({

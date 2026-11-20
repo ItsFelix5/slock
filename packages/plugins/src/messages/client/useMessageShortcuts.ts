@@ -3,11 +3,13 @@ import type { Message, Ts } from "@slock/types";
 import { useListShortcuts, useShortcut } from "@slock/ui";
 import { copyMessageLink } from "../../message-links/client/api/messageLinks";
 import { resolveProfileUserId } from "./api/messageAuthor";
-import { type ActiveMessageFocus, active, threadRootTs } from "./api/messageFocus";
+import { type ActiveMessageFocus, threadRootTs } from "./api/messageFocus";
 import { copyMessageText, deleteOrDismissMessage } from "./messageActions";
 
 const usersStore = service("users");
 const messagesStore = service("messages");
+const focusRegistry = service("messages.focus");
+const active = () => focusRegistry.active();
 
 export function useMessageShortcuts() {
   const enabled = () => active()?.focusedTs() != null;

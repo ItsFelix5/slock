@@ -1,5 +1,5 @@
 import type { JSX } from "@solidjs/web";
-import { type Accessor, type Component, createComponent, Errored, For, omit } from "solid-js";
+import { type Component, createComponent, createMemo, Errored, For, omit } from "solid-js";
 import { usePoint } from "./solidHost";
 import type { Points } from "./types";
 
@@ -11,9 +11,15 @@ type ComponentPoint = {
 
 type PropsOf<T> = T extends (props: infer Props) => JSX.Element ? Props : never;
 
+function isComponent<Props extends Record<string, unknown>>(item: unknown): item is Component<Props> {
+  return typeof item === "function";
+}
+
 export function Slot<P extends ComponentPoint>(props: { point: P } & PropsOf<Points[P]>) {
   const rest = omit(props, "point");
-  const items = usePoint(props.point) as Accessor<Component<typeof rest>[]>;
+  const items = createMemo(() =>
+    usePoint(props.point)().flatMap((item) => (isComponent<typeof rest>(item) ? [item] : [])),
+  );
   return (
     <For each={items()}>
       {(item) => (

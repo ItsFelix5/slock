@@ -32,6 +32,10 @@ type ShiftEntry = PerformanceEntry & {
 
 type ChromiumPerformance = Performance & { memory: { usedJSHeapSize: number } };
 
+function hasHeapStats(value: Performance): value is ChromiumPerformance {
+  return "memory" in value;
+}
+
 const MAX_RECORDS = 300;
 const HEAP_INTERVAL_MS = 30_000;
 const SLOW_EVENT_MS = 64;
@@ -132,11 +136,13 @@ export function startRecorder() {
     }),
   ];
 
-  const sampleHeap = () =>
-    keep(recording.heap, {
-      at: performance.now(),
-      mb: (performance as ChromiumPerformance).memory.usedJSHeapSize / BYTES_PER_MB,
-    });
+  const sampleHeap = () => {
+    if (hasHeapStats(performance))
+      keep(recording.heap, {
+        at: performance.now(),
+        mb: performance.memory.usedJSHeapSize / BYTES_PER_MB,
+      });
+  };
   sampleHeap();
   const timer = setInterval(sampleHeap, HEAP_INTERVAL_MS);
 

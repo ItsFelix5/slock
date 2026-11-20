@@ -1,4 +1,4 @@
-import { DEFAULT_FONT, font, GEIST_FONT } from "./font";
+import { DEFAULT_FONT, GEIST_FONT } from "./font";
 
 export interface FontPreset {
   id: string;
@@ -46,7 +46,7 @@ export const FONT_PRESETS: FontPreset[] = [
   },
 ];
 
-export function activeFontPreset(): string {
-  const current = font().toLowerCase();
+export function activeFontPreset(font: string): string {
+  const current = font.toLowerCase();
   return FONT_PRESETS.find((p) => p.value.toLowerCase() === current)?.id ?? "custom";
 }

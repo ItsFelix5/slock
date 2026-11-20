@@ -1,7 +1,10 @@
 import { defined } from "@slock/core";
-import { applyPreset, Icon, Menu, MenuItem, type ThemeFamily, type ThemePreset } from "@slock/ui";
+import { service } from "@slock/core/solid";
+import { Icon, Menu, MenuItem, type ThemeFamily, type ThemePreset } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
 import "./ThemeFamilyChip.css";
+
+const theme = service("theme");
 
 const previewBorder = (preset: ThemePreset) =>
   `color-mix(in srgb, ${preset.colors.textPrimary} 25%, transparent)`;
@@ -78,7 +81,7 @@ export default function ThemeFamilyChip(props: { activeId: string; family: Theme
               <MenuItem
                 leading={<Swatch preset={preset} />}
                 onClick={() => {
-                  applyPreset(preset);
+                  theme.applyPreset(preset);
                   setOpen(false);
                 }}
               >
@@ -101,7 +104,7 @@ export default function ThemeFamilyChip(props: { activeId: string; family: Theme
           checked={props.activeId === first().id}
           class="sr-input"
           name="theme-preset"
-          onChange={() => applyPreset(first())}
+          onChange={() => theme.applyPreset(first())}
           type="radio"
           value={first().id}
         />

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { systemEnv } from "@slock/core";
+import { inRoot } from "@slock/core/testing";
 import { ch, stamp, uid } from "@slock/slack/testing";
 import type { FeedEntry, Message, User } from "@slock/types";
-import { createRoot } from "solid-js";
 import { createActivityFeedLoad } from "../../../../src/activity/client/store/activityFeedLoad";
 import { createActivityItems } from "../../../../src/activity/client/store/activityItems";
 
@@ -28,29 +28,34 @@ type Pages = Record<string, { entries: FeedEntry[]; nextCursor?: string }>;
 function harness(pages: Pages) {
   const fetches: { cursor?: string; types?: string }[] = [];
   const reactionFlashes: string[] = [];
-  const activityItems = createActivityItems();
+  const roots = inRoot(createActivityItems);
+  disposers.push(roots.dispose);
+  const activityItems = roots.value;
   const items = activityItems.list;
   let failNextFetch = false;
   let delayFetchMs = 0;
-  const load = createActivityFeedLoad({
-    backfillMissingReadCursors: async () => {},
-    currentUser: () => me,
-    env: systemEnv,
-    fetchActivityFeedEntries: async (_limit, cursor, types) => {
-      fetches.push({ cursor, types });
-      if (delayFetchMs) await wait(delayFetchMs);
-      if (failNextFetch) {
-        failNextFetch = false;
-        throw new Error("down");
-      }
-      return pages[types ? `${types}:${cursor ?? ""}` : (cursor ?? "")] ?? { entries: [] };
-    },
-    fetchHistoryAround: async () => ({ messages: [] }),
-    fetchMessagesByIds: async () => new Map<string, Message>(),
-    items: activityItems,
-    onReactionPushed: (name) => reactionFlashes.push(name),
-    resolveActivityEntry: (raw) => ({ ...raw, text: raw.text ?? "" }),
-  });
+  const load = inRoot(() =>
+    createActivityFeedLoad({
+      backfillMissingReadCursors: async () => {},
+      currentUser: () => me,
+      env: systemEnv,
+      fetchActivityFeedEntries: async (_limit, cursor, types) => {
+        fetches.push({ cursor, types });
+        if (delayFetchMs) await wait(delayFetchMs);
+        if (failNextFetch) {
+          failNextFetch = false;
+          throw new Error("down");
+        }
+        return pages[types ? `${types}:${cursor ?? ""}` : (cursor ?? "")] ?? { entries: [] };
+      },
+      fetchHistoryAround: async () => ({ messages: [] }),
+      fetchMessagesByIds: async () => new Map<string, Message>(),
+      items: activityItems,
+      onReactionPushed: (name) => reactionFlashes.push(name),
+      resolveActivityEntry: (raw) => ({ ...raw, text: raw.text ?? "" }),
+    }),
+  );
+  disposers.push(load.dispose);
   return {
     failNextFetch: () => {
       failNextFetch = true;
@@ -58,7 +63,7 @@ function harness(pages: Pages) {
     fetches,
     ids: () => items.map((item) => item.id),
     items,
-    load,
+    load: load.value,
     reactionFlashes,
     setDelay: (ms: number) => {
       delayFetchMs = ms;
@@ -66,19 +71,19 @@ function harness(pages: Pages) {
   };
 }
 
-function inRoot<T>(run: () => Promise<T>): Promise<T> {
-  return createRoot(async (dispose) => {
-    try {
-      return await run();
-    } finally {
-      dispose();
-    }
-  });
+const disposers: (() => void)[] = [];
+
+async function scenario<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } finally {
+    for (const dispose of disposers.splice(0)) dispose();
+  }
 }
 
 describe("createActivityFeedLoad", () => {
   test("loads newest first and drops own thread replies", async () => {
-    await inRoot(async () => {
+    await scenario(async () => {
       const h = harness({
         "": {
           entries: [
@@ -95,7 +100,7 @@ describe("createActivityFeedLoad", () => {
   });
 
   test("a failed load can be retried", async () => {
-    await inRoot(async () => {
+    await scenario(async () => {
       const h = harness({ "": { entries: [entry("a", 100)] } });
       h.failNextFetch();
       await h.load.ensureActivityLoaded();
@@ -110,7 +115,7 @@ describe("createActivityFeedLoad", () => {
   });
 
   test("pagination appends older pages in order and stops without a cursor", async () => {
-    await inRoot(async () => {
+    await scenario(async () => {
       const h = harness({
         "": { entries: [entry("n3", 300), entry("n2", 200)], nextCursor: "p2" },
         p2: { entries: [entry("n1", 100)] },
@@ -126,7 +131,7 @@ describe("createActivityFeedLoad", () => {
   });
 
   test("a failed page load keeps the items and can be retried", async () => {
-    await inRoot(async () => {
+    await scenario(async () => {
       const h = harness({
         "": { entries: [entry("a", 200)], nextCursor: "p2" },
         p2: { entries: [entry("b", 100)] },
@@ -143,7 +148,7 @@ describe("createActivityFeedLoad", () => {
   });
 
   test("scoped feeds keep their own cursors", async () => {
-    await inRoot(async () => {
+    await scenario(async () => {
       const h = harness({
         "": { entries: [entry("a", 100)], nextCursor: "main" },
         "keyword:": { entries: [entry("s", 50)] },
@@ -157,7 +162,7 @@ describe("createActivityFeedLoad", () => {
   });
 
   test("duplicate ids and repeated reactions are pushed once", async () => {
-    await inRoot(async () => {
+    await scenario(async () => {
       const reaction = (id: string, time: number) =>
         entry(id, time, {
           kind: "reaction",
@@ -176,7 +181,7 @@ describe("createActivityFeedLoad", () => {
   });
 
   test("equal times keep arrival order", async () => {
-    await inRoot(async () => {
+    await scenario(async () => {
       const h = harness({
         "": { entries: [entry("x", 100), entry("y", 100), entry("z", 100)] },
       });
@@ -186,7 +191,7 @@ describe("createActivityFeedLoad", () => {
   });
 
   test("refreshing while loading more never duplicates items", async () => {
-    await inRoot(async () => {
+    await scenario(async () => {
       const h = harness({
         "": { entries: [entry("n3", 300), entry("n2", 200)], nextCursor: "p2" },
         p2: { entries: [entry("n1", 100)] },
@@ -203,7 +208,7 @@ describe("createActivityFeedLoad", () => {
   });
 
   test("a live refresh updates an item that got newer activity", async () => {
-    await inRoot(async () => {
+    await scenario(async () => {
       const h = harness({
         "": {
           entries: [
@@ -228,19 +233,15 @@ describe("createActivityFeedLoad", () => {
   });
 
   test("a pending live refresh is dropped when the store is disposed", async () => {
-    let fetches!: unknown[];
-    await createRoot(async (dispose) => {
-      const { fetches: recorded, load } = harness({ "": { entries: [entry("a", 100)] } });
-      fetches = recorded;
-      load.requestActivityRefresh();
-      dispose();
-      await wait(300);
-    });
+    const { fetches, load } = harness({ "": { entries: [entry("a", 100)] } });
+    load.requestActivityRefresh();
+    for (const dispose of disposers.splice(0)) dispose();
+    await wait(300);
     expect(fetches).toHaveLength(0);
   });
 
   test("an update refreshes the feed without the view open", async () => {
-    await inRoot(async () => {
+    await scenario(async () => {
       const h = harness({ "": { entries: [entry("a", 100)] } });
       h.load.requestActivityRefresh();
       await wait(300);
