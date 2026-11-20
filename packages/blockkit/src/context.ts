@@ -54,10 +54,10 @@ export interface TimeAnchor {
   tz?: string;
 }
 
-export const TimeAnchorContext = createContext<TimeAnchor | undefined>(undefined);
+export const TimeAnchorContext = createContext<TimeAnchor | null>(null);
 
 export function useTimeAnchor(): TimeAnchor | undefined {
-  return useContext(TimeAnchorContext);
+  return useContext(TimeAnchorContext) ?? undefined;
 }
 
 export const HighlightWordsContext = createContext<() => string[]>(() => []);
