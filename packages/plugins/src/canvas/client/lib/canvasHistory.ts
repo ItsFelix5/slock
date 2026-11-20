@@ -41,7 +41,7 @@ const canvasVersionView = defineQuery<
 });
 
 export function createCanvasHistory(
-  fileId: () => string,
+  fileId: () => FileId,
   content: () => LoadedCanvas | null | undefined,
   reload: () => unknown,
 ) {

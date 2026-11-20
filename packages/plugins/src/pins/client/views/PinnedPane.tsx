@@ -1,6 +1,8 @@
 import { service } from "@slock/core/solid";
 import { Button, type Pane, PanelHeader } from "@slock/ui";
-import { createEffect, createMemo, on, Show } from "solid-js";
+import { ifPresent, parseTs } from "@slock/slack";
+import type { Ts } from "@slock/types";
+import { createEffect, createMemo, Show } from "solid-js";
 import { createMessageFocus } from "../../../messages/client/api/messageFocus";
 import MessageRows from "../../../messages/client/api/pane/MessageRows";
 import { createFeedScroll } from "../../../messages/client/api/pane/scroll/feedScroll";
@@ -26,10 +28,10 @@ export default function PinnedPane(props: { pane: Pane<PinnedPaneContent> }) {
   const loading = () => pinned.isPinnedMessagesLoading(channelId());
   const loadError = () => pinned.hasPinnedMessagesError(channelId());
 
-  createEffect(on(channelId, (id) => pinned.refreshPinnedMessages(id)));
+  createEffect(channelId, (id) => void pinned.refreshPinnedMessages(id));
 
-  const openThread = (ts: string) => messageLinks.openThread(channelId(), ts);
-  const goTo = (ts: string) => {
+  const openThread = (ts: Ts) => messageLinks.openThread(channelId(), ts);
+  const goTo = (ts: Ts) => {
     const message = messages().find((m) => m.ts === ts);
     if (message) messageLinks.openChannelMessage(channelId(), ts, message.threadTs);
   };
@@ -39,9 +41,12 @@ export default function PinnedPane(props: { pane: Pane<PinnedPaneContent> }) {
   });
 
   const tsOf = (target: EventTarget | null) =>
-    target instanceof Element
-      ? target.closest<HTMLElement>("[data-message-ts]")?.dataset.messageTs
-      : undefined;
+    ifPresent(
+      parseTs,
+      target instanceof Element
+        ? target.closest<HTMLElement>("[data-message-ts]")?.dataset.messageTs
+        : undefined,
+    );
 
   return (
     <div class="pinned-panel-card surface-card" data-pane={props.pane.id}>
@@ -51,7 +56,7 @@ export default function PinnedPane(props: { pane: Pane<PinnedPaneContent> }) {
         title={`Pinned in ${titles.label(channelId())}`}
       />
       <div
-        aria-busy={loading()}
+        aria-busy={loading() ? "true" : "false"}
         class="pinned-panel-list"
         onClick={(e) => {
           if (e.target instanceof Element && e.target.closest(INTERACTIVE)) return;
@@ -61,7 +66,10 @@ export default function PinnedPane(props: { pane: Pane<PinnedPaneContent> }) {
         onFocusIn={messageFocus.onContainerFocusIn}
         onFocusOut={messageFocus.onContainerFocusOut}
         onKeyDown={(e) => {
-          const ts = e.target instanceof HTMLElement ? e.target.dataset.messageTs : undefined;
+          const ts = ifPresent(
+            parseTs,
+            e.target instanceof HTMLElement ? e.target.dataset.messageTs : undefined,
+          );
           if (e.key === "Enter" && ts) goTo(ts);
         }}
         ref={feed.attach}

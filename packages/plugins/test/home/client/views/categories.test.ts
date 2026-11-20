@@ -42,7 +42,7 @@ describe("buildCategories without sections", () => {
     expect(starred?.id).toBe("__starred");
     expect(starred?.name).toBe("Starred");
     expect(ids(starred?.channels ?? [])).toEqual(["C1"]);
-    expect(starred?.dmIds).toEqual(["D1"]);
+    expect(starred?.dmIds.map(String)).toEqual(["D1"]);
     expect(result.find((c) => c.id === "channels")?.channels).toEqual([]);
   });
 
@@ -141,8 +141,8 @@ describe("buildCategories with sections", () => {
       sections: [section("S1", "standard", ["D1", "D2"])],
       starred: ["D1"],
     });
-    expect(result.find((c) => c.id === "__starred")?.dmIds).toEqual(["D1"]);
-    expect(result.find((c) => c.id === "S1")?.dmIds).toEqual(["D2"]);
+    expect(result.find((c) => c.id === "__starred")?.dmIds.map(String)).toEqual(["D1"]);
+    expect(result.find((c) => c.id === "S1")?.dmIds.map(String)).toEqual(["D2"]);
   });
 
   test("recent sort orders by last activity and keeps missing activity last", () => {
@@ -172,7 +172,7 @@ describe("buildCategories with sections", () => {
       sections: [section("S1", "standard", ["D1", "D2"], { sidebar: "hid" })],
       unread: ["D2"],
     });
-    expect(result[0]?.dmIds).toEqual(["D2"]);
+    expect(result[0]?.dmIds.map(String)).toEqual(["D2"]);
   });
 
   test("empty usergroup sections are dropped but empty standard ones stay", () => {
