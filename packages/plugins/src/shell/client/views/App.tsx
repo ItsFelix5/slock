@@ -6,7 +6,6 @@ import {
   useFieldCommitShortcut,
   useGlobalUndoShortcut,
   usePaneNavigation,
-  windowWidth,
 } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { dynamic } from "@solidjs/web";
@@ -18,6 +17,7 @@ const feedback = service("feedback");
 const panesStore = service("shell.panes");
 const viewStore = service("shell.view");
 const layout = service("shell.layout");
+const dialogs = service("shell.dialogs");
 
 function Providers(props: { children: JSX.Element }) {
   const providers = usePoint("shell.provider");
@@ -42,7 +42,7 @@ export default function App() {
 
   return (
     <Providers>
-      <ConfirmDialog />
+      <ConfirmDialog dialog={dialogs} />
       <Show fallback={<Blocker />} when={!blocker()}>
         <div class="app">
           <InlineFeedback
@@ -58,7 +58,7 @@ export default function App() {
           <Slot point="shell.start" />
           <Arrangement
             activePaneId={panesStore.activePaneId}
-            containerWidth={() => windowWidth() - layout.startWidth()}
+            containerWidth={() => layout.windowWidth() - layout.startWidth()}
             onActivate={panesStore.activatePane}
             onCloseTab={(pane) => viewStore.closeTile(pane.id)}
             onResize={panesStore.resize}

@@ -1,12 +1,16 @@
 import { createSignal } from "solid-js";
 import { parseSlackPermalink, type SlackPermalinkTarget } from "./slackPermalink";
 
-const [pendingShareText, setPendingShareText] = createSignal<string>();
-
-export { pendingShareText };
-
-export function clearPendingShare(): void {
-  setPendingShareText(undefined);
+export function createIncomingShare() {
+  const [pendingShareText, setPendingShareText] = createSignal<string>();
+  return {
+    clearPendingShare: () => setPendingShareText(undefined),
+    consumeShareTarget(): void {
+      const text = takeParams("share-title", "share-text", "share-url").filter(Boolean).join("\n");
+      if (text) setPendingShareText(text);
+    },
+    pendingShareText,
+  };
 }
 
 function takeParams(...keys: string[]): (string | null)[] {
@@ -30,9 +34,4 @@ export function consumeSharedProtocolLink(opener: {
   if (!protocolUrl?.startsWith("web+slock:")) return;
   const target = parseSlackPermalink(`https:${protocolUrl.slice("web+slock:".length)}`);
   if (target) void opener.open(target);
-}
-
-export function consumeShareTarget(): void {
-  const text = takeParams("share-title", "share-text", "share-url").filter(Boolean).join("\n");
-  if (text) setPendingShareText(text);
 }

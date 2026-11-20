@@ -1,5 +1,5 @@
 import { apiGet, mapVisibleMessages } from "@slock/slack";
-import type { Message, RawMessage } from "@slock/types";
+import type { ChannelId, Message, RawMessage, Ts } from "@slock/types";
 
 type RepliesReply = { has_more?: boolean; messages?: RawMessage[] };
 
@@ -21,7 +21,7 @@ const FIRST_SPAN_SECONDS = 3600;
 const WIDEN_FACTOR = 8;
 const MIN_SPAN_SECONDS = 1e-6;
 
-async function fetchRange(channelId: string, threadTs: string, range: Range): Promise<ReplyPage> {
+async function fetchRange(channelId: ChannelId, threadTs: Ts, range: Range): Promise<ReplyPage> {
   const query = new URLSearchParams({ limit: String(range.limit) });
   if (range.oldest) query.set("oldest", range.oldest);
   if (range.latest) query.set("latest", range.latest);
@@ -54,22 +54,22 @@ function inRange(ts: string, range: Range): boolean {
 }
 
 export function fetchReplies(
-  channelId: string,
-  threadTs: string,
+  channelId: ChannelId,
+  threadTs: Ts,
   after?: string,
 ): Promise<ReplyPage> {
   return fetchRange(channelId, threadTs, { limit: FORWARD_PAGE, oldest: after });
 }
 
 export function fetchRepliesFrom(
-  channelId: string,
-  threadTs: string,
+  channelId: ChannelId,
+  threadTs: Ts,
   from: string,
 ): Promise<ReplyPage> {
   return fetchRange(channelId, threadTs, { inclusive: true, limit: WINDOW_PAGE, oldest: from });
 }
 
-export async function fetchThreadRoot(channelId: string, threadTs: string) {
+export async function fetchThreadRoot(channelId: ChannelId, threadTs: Ts) {
   const page = await fetchRange(channelId, threadTs, {
     inclusive: true,
     latest: threadTs,
@@ -79,8 +79,8 @@ export async function fetchThreadRoot(channelId: string, threadTs: string) {
 }
 
 export async function fetchRepliesBefore(
-  channelId: string,
-  threadTs: string,
+  channelId: ChannelId,
+  threadTs: Ts,
   before: string,
   spanHint = FIRST_SPAN_SECONDS,
 ): Promise<EarlierReplyPage> {

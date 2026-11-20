@@ -7,7 +7,13 @@ import {
   extractChannelSections,
   parseChannelId,
 } from "@slock/slack";
-import type { BootstrapSection, ChannelSection, RawChannelSection } from "@slock/types";
+import type {
+  BootstrapSection,
+  ChannelId,
+  ChannelSection,
+  RawChannelSection,
+  UserId,
+} from "@slock/types";
 import { fetchInitialData } from "../initialData";
 import {
   type PairedPreferenceValues,
@@ -82,7 +88,7 @@ export async function updateSectionChannels(
   return !!data.ok;
 }
 export async function setChannelNotifyAll(
-  channelId: string,
+  channelId: ChannelId,
   notifyAll: boolean,
   previous: { desktop?: string; mobile?: string } = {},
 ): Promise<void> {
@@ -100,14 +106,14 @@ export async function setChannelNotifyAll(
     return !!result.ok;
   });
 }
-export async function openDm(userId: string): Promise<string | null> {
+export async function openDm(userId: UserId): Promise<ChannelId | null> {
   const data = await apiPost<{ channel: { id: string } }>("/api/dms", { userId });
   if (!data.ok) return null;
-  return data.channel.id;
+  return parseChannelId(data.channel.id);
 }
 
-export async function openGroupDm(userIds: string[]): Promise<string> {
+export async function openGroupDm(userIds: UserId[]): Promise<ChannelId> {
   const data = await apiPost<{ channel: { id: string } }>("/api/dms", { userIds });
   if (!data.ok) throw new Error(data.error ?? "conversations.open failed");
-  return data.channel.id;
+  return parseChannelId(data.channel.id);
 }

@@ -193,18 +193,16 @@ export default function ChannelDetails() {
                   </Show>
 
                   <Show when={activeTab()?.item}>
-                    {(item) => (
-                      <ActiveTabView
-                        archived={d().archived}
-                        channelId={d().id}
-                        channelName={d().name}
-                        memberCount={
-                          d().memberCount ?? channelsStore.channelById(d().id)?.memberCount
-                        }
-                        private={d().private}
-                        refetch={refetch}
-                      />
-                    )}
+                    <ActiveTabView
+                      archived={d().archived}
+                      channelId={d().id}
+                      channelName={d().name}
+                      memberCount={
+                        d().memberCount ?? channelsStore.channelById(d().id)?.memberCount
+                      }
+                      private={d().private}
+                      refetch={refetch}
+                    />
                   </Show>
                 </div>
 
@@ -214,7 +212,12 @@ export default function ChannelDetails() {
                     <Button disabled={draft.saving()} onClick={draft.discardChanges} size="sm">
                       Discard
                     </Button>
-                    <Button disabled={draft.saving()} onClick={draft.saveChanges} size="sm" variant="primary">
+                    <Button
+                      disabled={draft.saving()}
+                      onClick={draft.saveChanges}
+                      size="sm"
+                      variant="primary"
+                    >
                       {draft.saving() ? "Saving…" : "Save"}
                     </Button>
                   </div>

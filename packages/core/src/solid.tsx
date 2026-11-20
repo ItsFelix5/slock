@@ -11,7 +11,9 @@ type ComponentPoint = {
 
 type PropsOf<T> = T extends (props: infer Props) => JSX.Element ? Props : never;
 
-function isComponent<Props extends Record<string, unknown>>(item: unknown): item is Component<Props> {
+function isComponent<Props extends Record<string, unknown>>(
+  item: unknown,
+): item is Component<Props> {
   return typeof item === "function";
 }
 

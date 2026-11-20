@@ -1,10 +1,10 @@
 import { isChannelId, isUserId } from "@slock/slack";
-import type { CanvasControl, TeamId } from "@slock/types";
+import type { CanvasControl, ChannelId, TeamId } from "@slock/types";
 import type { CanvasEmbed } from "../../protocol/api";
 import type { EmbedValue } from "./canvasHtml";
 
 export interface CanvasNames {
-  channel(id: string): string;
+  channel(id: ChannelId): string;
   controlLabel(embed: CanvasEmbed): string;
   emojiText(name: string): string | null;
   teamId: TeamId | null;

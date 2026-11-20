@@ -15,7 +15,7 @@ function stripLeadingHash(name: string): string {
 }
 
 export function createChannelDetailsDraft(
-  details: () => ChannelDetails | undefined,
+  details: () => ChannelDetails | null | undefined,
   refetch: () => unknown,
 ) {
   const [topicInput, setTopicInput] = createSignal("");

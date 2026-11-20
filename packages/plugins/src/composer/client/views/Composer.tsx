@@ -4,7 +4,7 @@ import { InlineFeedback, scrollActiveListOption, useEscapeClose } from "@slock/u
 import QuillEditor from "@slock/ui/editor/QuillEditor";
 import type Quill from "@slock/ui/editor/quill";
 import { indexAlignedText } from "@slock/ui/editor/quillText";
-import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
 import "./Composer.css";
 import { draftCacheKey } from "../../../drafts/client/api";
 import { composerFeedbackKey } from "../../../slash-commands/client/api";
@@ -83,7 +83,7 @@ export default function Composer(props: ComposerProps) {
   const feedbackKey = () => composerFeedbackKey(props.threadTs ?? props.channelId);
 
   const [existingFiles, setExistingFiles] = createSignal<SlackFile[]>(
-    props.editing?.initialFiles ?? [],
+    () => props.editing?.initialFiles ?? [],
   );
 
   const editAttachments = createEditAttachments(() => props.editing?.initialAttachments);
@@ -114,7 +114,7 @@ export default function Composer(props: ComposerProps) {
     loadRichTextIntoQuill(quill, blocks, resolveMention);
   };
 
-  const draftState = props.editing
+  const draftState = untrack(() => props.editing)
     ? undefined
     : drafts.createComposerState({
         blocks: editorBlocks,

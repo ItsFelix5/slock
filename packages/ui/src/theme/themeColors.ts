@@ -54,9 +54,7 @@ export function createThemeColors(deps: ThemeColorsDeps) {
   const rootStyle = document.documentElement.style;
   const registry = createThemeColorRegistry();
   const { themeColorDefinitions } = registry;
-  const [themeColors, setThemeColorsSignal] = createImmediateSignal<ThemeColors>(
-    loadThemeColors(),
-  );
+  const [themeColors, setThemeColorsSignal] = createImmediateSignal<ThemeColors>(loadThemeColors());
   const isKnown = (key: string) => themeColorDefinitions().some((def) => def.key === key);
   const resolve = (value: string) => resolveThemeColorValue(value, isKnown);
 
@@ -153,8 +151,7 @@ export function createThemeColors(deps: ThemeColorsDeps) {
     },
     getColorRef: (key: string): ColorRef | undefined => parseColorRef(effectiveRawValue(key)),
     getEffectiveColor,
-    isThemeColorCustom: (key: string): boolean =>
-      themeColors()[key] !== storedPreset().colors[key],
+    isThemeColorCustom: (key: string): boolean => themeColors()[key] !== storedPreset().colors[key],
     registerThemeColors,
     resetThemeColor(key: string): void {
       const next = { ...themeColors() };

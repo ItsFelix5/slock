@@ -85,3 +85,17 @@ export const EmojiFreezeContext = createContext<() => boolean>(() => false);
 export function useEmojiFreeze(): () => boolean {
   return useContext(EmojiFreezeContext);
 }
+
+export type BlockKitConfirm = (options: {
+  cancelLabel?: string;
+  confirmLabel?: string;
+  danger?: boolean;
+  message: string;
+  title?: string;
+}) => Promise<boolean>;
+
+export const BlockKitConfirmContext = createContext<BlockKitConfirm>(() => Promise.resolve(false));
+
+export function useBlockKitConfirm(): BlockKitConfirm {
+  return useContext(BlockKitConfirmContext);
+}

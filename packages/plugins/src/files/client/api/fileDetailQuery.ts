@@ -1,19 +1,20 @@
+import type { FileId } from "@slock/types";
 import { defineQuery } from "../../../query/client/api";
 import { fetchFileDetail } from "../../../slack/client/api";
 
-const fileDetail = defineQuery<string, Awaited<ReturnType<typeof fetchFileDetail>>>({
+const fileDetail = defineQuery<FileId, Awaited<ReturnType<typeof fetchFileDetail>>>({
   load: fetchFileDetail,
   name: "fileDetail",
 });
 
-export function createFileDetailQuery(fileId: () => string | undefined) {
+export function createFileDetailQuery(fileId: () => FileId | undefined) {
   return fileDetail.state(fileId);
 }
 
-export function useFileDetail(fileId: () => string | undefined) {
+export function useFileDetail(fileId: () => FileId | undefined) {
   return fileDetail.use(fileId);
 }
 
-export const refreshFileDetail = (fileId: string) => fileDetail.refresh(fileId).catch(() => {});
+export const refreshFileDetail = (fileId: FileId) => fileDetail.refresh(fileId).catch(() => {});
 
-export const loadFileDetail = (fileId: string) => fileDetail.ensure(fileId);
+export const loadFileDetail = (fileId: FileId) => fileDetail.ensure(fileId);

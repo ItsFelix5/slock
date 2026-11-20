@@ -20,10 +20,8 @@ export function narrowPaneContent<AllContent extends { kind: string }, T extends
   return hasContentKind<AllContent, T>(pane, kinds) ? pane : undefined;
 }
 
-let nextId = 0;
 export function createPaneId(): string {
-  nextId += 1;
-  return `pane-${Date.now().toString(36)}-${nextId}`;
+  return `pane-${crypto.randomUUID()}`;
 }
 
 const MIN_FRACTION = 0.12;

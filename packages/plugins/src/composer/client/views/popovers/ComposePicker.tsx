@@ -21,11 +21,11 @@ interface PickerItem {
 
 export default function ComposePicker<T extends PickerItem>(props: {
   emptyMessage: string;
-  excludeIds?: string[];
+  excludeIds?: T["id"][];
   localItems: () => T[];
   notFoundMessage: string;
   onClose: () => void;
-  onSelect: (id: string) => void;
+  onSelect: (id: T["id"]) => void;
   placeholder: string;
   remoteSearch: (query: string) => Promise<T[]>;
   renderItem: (item: T, isActive: boolean, optionId: string) => JSX.Element;

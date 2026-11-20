@@ -3,6 +3,7 @@ import { forAll, int, pick } from "@slock/core/testing";
 import { createRoot, flush } from "solid-js";
 import {
   focusCalls,
+  focusedId,
   follow,
   kinds,
   loadPanes,
@@ -32,7 +33,7 @@ function setup() {
   let dispose = () => {};
   const slice = createRoot((d) => {
     dispose = d;
-    return settled(createPanesSlice(() => kinds));
+    return settled(createPanesSlice(() => kinds, focusedId));
   });
   const layout = () => slice.panes().map((pane) => pane.content);
   const total = () => slice.panes().reduce((sum, pane) => sum + pane.size, 0);

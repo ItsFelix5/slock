@@ -1,5 +1,4 @@
 import type { Points } from "@slock/core/types";
-import { isChannelId } from "@slock/slack";
 import type { ChannelId, DirectMessage, User, UserId } from "@slock/types";
 import { isDmId } from "./api";
 
@@ -18,7 +17,6 @@ export function createDmTitleResolver(
   }
 
   return (id) => {
-    if (!isChannelId(id)) return;
     const dm = dmById(id);
     if (!isDmId(id, () => !!dm)) return;
     return { name: name(dm) || id };

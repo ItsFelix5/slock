@@ -22,7 +22,7 @@ declare module "../api/types" {
 
 const [focusedId, setFocusedId] = createSignal<string | null>(null);
 export const focusCalls: string[] = [];
-export { setFocusedId };
+export { focusedId, setFocusedId };
 
 type MockModule = (id: string, factory: () => object) => unknown;
 
@@ -36,7 +36,6 @@ function installUiBoundary(mockModule: MockModule) {
     createPaneId,
     findPane,
     findPaneByContent,
-    focusedPaneId: focusedId,
     focusPaneById: (id: string) => {
       focusCalls.push(id);
       return true;

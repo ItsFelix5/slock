@@ -1,13 +1,9 @@
 import { useHoverIntent } from "@slock/ui";
 import type Quill from "@slock/ui/editor/quill";
 import { createEffect, createSignal } from "solid-js";
-import { isMentionKind, type MentionValue } from "../../lib/embedValues";
+import { type MentionTarget, mentionTarget } from "./mentionTarget";
 
-export interface MentionHoverState {
-  anchorEl: HTMLElement;
-  kind: MentionValue["kind"];
-  id: string;
-}
+export type MentionHoverState = { anchorEl: HTMLElement; target: MentionTarget };
 
 function closestMention(target: EventTarget | null): HTMLElement | undefined {
   return target instanceof Element
@@ -28,9 +24,9 @@ export function createMentionHoverController() {
     const node = closestMention(event.target);
     if (!node || node === hoverEl) return;
     hoverEl = node;
-    const { kind, id } = node.dataset;
-    if (kind === "special" || !isMentionKind(kind) || !id) return;
-    setState({ anchorEl: node, id, kind });
+    const target = mentionTarget(node.dataset.kind, node.dataset.id);
+    if (!target) return;
+    setState({ anchorEl: node, target });
     hoverIntent.scheduleOpen();
   };
 

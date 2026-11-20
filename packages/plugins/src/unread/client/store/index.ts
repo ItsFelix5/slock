@@ -50,10 +50,10 @@ export function createUnreadStore(deps: {
   createEffect(
     () => {
       const data = deps.bootstrap();
-      return data?.countsLoaded ? data : undefined;
+      return data?.countsLoaded && !lastReadSeeded() ? data : undefined;
     },
     (data) => {
-      if (!data || lastReadSeeded()) return;
+      if (!data) return;
       setUnreadChannelIdsStore((state) => {
         for (const c of data.channels) if (c.unread) state[c.id] = true;
         for (const dm of data.directMessages) if (dm.unread) state[dm.id] = true;

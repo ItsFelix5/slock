@@ -17,12 +17,14 @@ export type {
   TimeAnchor,
 } from "./context";
 export {
+  BlockKitConfirmContext,
   BlockKitResolverContext,
   EmojiFreezeContext,
   HighlightWordsContext,
   MessageAttachmentsContext,
   noopBlockKitResolver,
   TimeAnchorContext,
+  useBlockKitConfirm,
   useBlockKitResolver,
   useEmojiFreeze,
   useHighlightWords,

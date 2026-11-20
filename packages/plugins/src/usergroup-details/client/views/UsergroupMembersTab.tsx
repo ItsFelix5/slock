@@ -1,11 +1,12 @@
 import { service } from "@slock/core/solid";
-import { isUserId } from "@slock/slack";
 import type { User, UserId } from "@slock/types";
-import { AddRowButton, Avatar, Button, confirmDialog, initRovingTabIndexDefault } from "@slock/ui";
+import { AddRowButton, Avatar, Button, initRovingTabIndexDefault } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import ComposeUserPicker from "../../../composer/client/api/pickers/ComposeUserPicker";
 import RemoveRowButton from "./RemoveRowButton";
 import "./UsergroupDetails.css";
+
+const dialogs = service("shell.dialogs");
 
 const details = service("usergroup-details");
 
@@ -50,7 +51,7 @@ export default function UsergroupMembersTab(props: {
   const removeMember = async (user: User) => {
     if (props.disabled) return;
 
-    const confirmed = await confirmDialog({
+    const confirmed = await dialogs.confirm({
       confirmLabel: "Remove",
       danger: true,
       message: `Remove ${user.name} from this pinggroup?`,
@@ -82,9 +83,7 @@ export default function UsergroupMembersTab(props: {
           <ComposeUserPicker
             excludeUserIds={props.memberIds}
             onClose={() => setAddingPeople(false)}
-            onSelect={(userId) => {
-              if (isUserId(userId)) void addMember(userId);
-            }}
+            onSelect={(userId) => void addMember(userId)}
           />
         </div>
       </Show>

@@ -1,6 +1,5 @@
 import { service } from "@slock/core/solid";
-import { parseChannelId } from "@slock/slack";
-import type { User } from "@slock/types";
+import type { User, UserId } from "@slock/types";
 import { Combobox, type ComboboxOption } from "@slock/ui";
 import { createSignal } from "solid-js";
 import { openGroupDm } from "../../../slack/client/api";
@@ -12,9 +11,13 @@ const users = service("users");
 
 const MAX_PEOPLE = 8;
 
-const toOption = (user: User): ComboboxOption => ({ avatar: user, id: user.id, label: user.name });
+const toOption = (user: User): ComboboxOption<UserId> => ({
+  avatar: user,
+  id: user.id,
+  label: user.name,
+});
 
-async function searchPeople(query: string): Promise<ComboboxOption[]> {
+async function searchPeople(query: string): Promise<ComboboxOption<UserId>[]> {
   const me = users.currentUser()?.id;
   const found = query
     ? await users.searchUsers(query, me)
@@ -23,7 +26,7 @@ async function searchPeople(query: string): Promise<ComboboxOption[]> {
 }
 
 export default function CreateGroupChatDialog(props: { onClose: () => void }) {
-  const [people, setPeople] = createSignal<ComboboxOption[]>([]);
+  const [people, setPeople] = createSignal<ComboboxOption<UserId>[]>([]);
 
   return (
     <CreateDialog
@@ -31,7 +34,7 @@ export default function CreateGroupChatDialog(props: { onClose: () => void }) {
       fallbackError="Couldn't create group chat."
       onClose={props.onClose}
       onSubmit={async () => {
-        const channelId = parseChannelId(await openGroupDm(people().map((person) => person.id)));
+        const channelId = await openGroupDm(people().map((person) => person.id));
         await dms.ensureMpdm(channelId);
         conversations.setActiveView({ id: channelId, kind: "dm" });
       }}

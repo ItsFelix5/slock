@@ -20,6 +20,7 @@ import MessageMeta from "./MessageMeta";
 import MessageActionsBar from "./parts/MessageActionsBar";
 import MessageRowAvatar from "./parts/MessageRowAvatar";
 import MessageTextContent from "./parts/MessageTextContent";
+import { MessageDayDivider, RepliesDivider } from "./parts/messageDividers";
 import SystemMessageContent from "./parts/SystemMessageContent";
 
 const unreadStore = service("unread");
@@ -139,22 +140,7 @@ export default function MessageRow(props: MessageRowProps) {
 
   return (
     <Show when={neighbors().showMessage}>
-      <Show when={dayChanged() || showUnreadDivider()}>
-        <div
-          class={[
-            "message-divider flex-align-center text-center font-bold text-xs",
-            { "day-divider": dayChanged(), "unread-divider": showUnreadDivider() },
-          ]}
-        >
-          <span>
-            {dayChanged()
-              ? showUnreadDivider()
-                ? `${msg().day} · New messages`
-                : msg().day
-              : "New messages"}
-          </span>
-        </div>
-      </Show>
+      <MessageDayDivider day={msg().day} dayChanged={dayChanged()} unread={showUnreadDivider()} />
       <div
         class={[
           "message-row-group",
@@ -289,12 +275,7 @@ export default function MessageRow(props: MessageRowProps) {
         </div>
       </div>
       <Show when={showRepliesDivider()}>
-        <div class="day-divider message-divider flex-align-center text-center font-bold text-xs">
-          <span>
-            {neighbors().repliesCount} {neighbors().repliesCount === 1 ? "reply" : "replies"}
-            {neighbors().repliesDividerDay ? ` · ${neighbors().repliesDividerDay}` : ""}
-          </span>
-        </div>
+        <RepliesDivider count={neighbors().repliesCount} day={neighbors().repliesDividerDay} />
       </Show>
     </Show>
   );

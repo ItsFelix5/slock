@@ -1,5 +1,5 @@
 import { apiGet, apiPut, isUserId } from "@slock/slack";
-import type { ChannelPostingPrefs, ChannelPostingPrefsPatch } from "@slock/types";
+import type { ChannelId, ChannelPostingPrefs, ChannelPostingPrefsPatch } from "@slock/types";
 
 const MAX_POSTING_EXCEPTIONS = 100;
 
@@ -101,7 +101,7 @@ export function serializeChannelPostingPrefsPatch(
   return { enable_at_channel: enabled, enable_at_here: enabled };
 }
 
-export async function fetchChannelPostingPrefs(channelId: string): Promise<ChannelPostingPrefs> {
+export async function fetchChannelPostingPrefs(channelId: ChannelId): Promise<ChannelPostingPrefs> {
   const data = await apiGet<{ prefs?: Record<string, unknown> }>(
     `/api/channels/${channelId}/posting-prefs`,
   );
@@ -110,7 +110,7 @@ export async function fetchChannelPostingPrefs(channelId: string): Promise<Chann
 }
 
 export async function setChannelPostingPrefs(
-  channelId: string,
+  channelId: ChannelId,
   patch: ChannelPostingPrefsPatch,
 ): Promise<void> {
   const data = await apiPut(`/api/channels/${channelId}/posting-prefs`, {

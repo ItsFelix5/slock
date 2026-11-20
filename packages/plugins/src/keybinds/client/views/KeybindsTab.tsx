@@ -1,19 +1,16 @@
+import { service } from "@slock/core/solid";
 import {
   ariaBoolean,
-  clearKeybindOverride,
   comboLabel,
-  confirmDialog,
   Icon,
   inside,
   KeybindField,
   listNavigationIndex,
   listShortcuts,
-  resetAllKeybinds,
   rovingTabIndex,
   SHORTCUT_GROUPS,
   type ShortcutCombo,
   type ShortcutInfo,
-  setKeybindOverride,
   shortcutConflicts,
   useCancelShortcut,
   useConfirmShortcut,
@@ -22,6 +19,9 @@ import {
   useNavigationShortcuts,
 } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, onSettled, Show } from "solid-js";
+
+const dialogs = service("shell.dialogs");
+const keybinds = service("keybinds");
 
 function includesText(text: string, query: string) {
   return text.toLowerCase().includes(query);
@@ -55,8 +55,8 @@ function ShortcutRow(props: { info: ShortcutInfo }) {
         combo={props.info.combo}
         isCustom={props.info.isCustom}
         label={props.info.label}
-        onChange={(combo) => setKeybindOverride(props.info.id, combo)}
-        onReset={() => clearKeybindOverride(props.info.id)}
+        onChange={(combo) => keybinds.set(props.info.id, combo)}
+        onReset={() => keybinds.clear(props.info.id)}
       />
     </div>
   );
@@ -153,14 +153,14 @@ export default function KeybindsTab() {
 
   async function resetAll() {
     if (
-      await confirmDialog({
+      await dialogs.confirm({
         title: "Reset all keybinds",
         message: "This puts every shortcut back to its default. Custom bindings are lost.",
         confirmLabel: "Reset all",
         danger: true,
       })
     )
-      resetAllKeybinds();
+      keybinds.resetAll();
   }
 
   return (

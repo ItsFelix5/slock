@@ -38,21 +38,8 @@ const setup: Setup = (ctx) => {
   );
   ctx.provide("later", store);
   ctx.add("realtime.handler", {
-    run: (event) => {
-      if (event.type === "saved_clear") store.applySavedEvent("clear");
-      else if (event.type === "saved_added" || event.type === "saved_deleted") {
-        const { channel, ts } = event.item;
-        if (channel && ts && isChannelId(channel) && isTs(ts))
-          store.applySavedEvent(event.type === "saved_added" ? "add" : "remove", channel, ts);
-      }
-    },
-    types: ["saved_added", "saved_deleted", "saved_clear"],
-  });
-  ctx.add("realtime.handler", {
-    run: () => {
-      if (store.laterLoaded()) void store.ensureLaterLoaded();
-    },
-    types: ["saved_updated", "saved_due"],
+    run: store.reloadIfRequested,
+    types: ["saved_added", "saved_deleted", "saved_clear", "saved_updated", "saved_due"],
   });
   useShortcut({
     combo: { key: "s" },

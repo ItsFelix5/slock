@@ -1,8 +1,9 @@
 import { service } from "@slock/core/solid";
-import { focusedPaneId, focusPaneById, inside, useEscapeClose, useShortcut } from "@slock/ui";
+import { focusPaneById, inside, useEscapeClose, useShortcut } from "@slock/ui";
 import type Quill from "@slock/ui/editor/quill";
 
 const focusRegistry = service("messages.focus");
+const panesStore = service("shell.panes");
 
 export function useComposerShortcuts(deps: {
   dismissPreviews: () => void;
@@ -13,7 +14,8 @@ export function useComposerShortcuts(deps: {
   quill: () => Quill | undefined;
   toggleDrafts: () => void;
 }) {
-  const paneFocused = () => !deps.editing() && !!deps.paneId() && focusedPaneId() === deps.paneId();
+  const paneFocused = () =>
+    !deps.editing() && !!deps.paneId() && panesStore.focusedPaneId() === deps.paneId();
   useShortcut({
     combo: { key: "i" },
     enabled: paneFocused,

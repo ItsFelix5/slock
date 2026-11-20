@@ -1,5 +1,6 @@
 import { EmojiText } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
+import { isFileId } from "@slock/slack";
 import { Avatar } from "@slock/ui";
 import { Errored, For, Loading, Match, Show, Switch } from "solid-js";
 import { useFileDetail } from "../../../files/client/api/fileDetailQuery";
@@ -11,7 +12,7 @@ const usersStore = service("users");
 const URL_VALUE_RE = /^https?:\/\/\S+$/i;
 
 function FileFieldValue(props: { id: string }) {
-  const detail = useFileDetail(() => props.id);
+  const detail = useFileDetail(() => (isFileId(props.id) ? props.id : undefined));
   const fallback = () => <span class="user-profile-field-value">{props.id}</span>;
   return (
     <Errored fallback={fallback}>

@@ -1,5 +1,4 @@
-import type { ThemeColorDefinition } from "@slock/ui";
-import type { createTheme } from "@slock/ui";
+import type { createTheme, ThemeColorDefinition } from "@slock/ui";
 
 declare module "@slock/core/types" {
   interface Points {

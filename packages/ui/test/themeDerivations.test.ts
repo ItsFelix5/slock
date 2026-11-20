@@ -74,8 +74,12 @@ describe("colorRefToCss", () => {
     remove = registry.add([{ key: "accentHover", label: "Hover" }]);
     const variable = `var(${themeColorVar("accentHover")})`;
     expect(colorRefToCss("@accentHover", isKnown)).toBe(variable);
-    expect(colorRefToCss("@accentHover -5%L", isKnown)).toBe(`oklch(from ${variable} calc(l + -0.05) c h)`);
-    expect(colorRefToCss("@accentHover 2%C", isKnown)).toBe(`oklch(from ${variable} l calc(c + 0.02) h)`);
+    expect(colorRefToCss("@accentHover -5%L", isKnown)).toBe(
+      `oklch(from ${variable} calc(l + -0.05) c h)`,
+    );
+    expect(colorRefToCss("@accentHover 2%C", isKnown)).toBe(
+      `oklch(from ${variable} l calc(c + 0.02) h)`,
+    );
     expect(colorRefToCss("@accentHover 30%", isKnown)).toBe(`rgb(from ${variable} r g b / 30%)`);
   });
 

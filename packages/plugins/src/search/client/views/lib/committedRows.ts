@@ -1,4 +1,4 @@
-import { createEffect, createSignal } from "solid-js";
+import { createEffect, createSignal, untrack } from "solid-js";
 
 export const MESSAGE_SEARCH_INDEX = 0;
 
@@ -20,7 +20,7 @@ export function createCommittedRows<Row>(deps: {
     () => deps.hasQuery() && !deps.searching(),
     (settled) => {
       if (!settled) return;
-      const ranked = deps.ranked();
+      const ranked = untrack(deps.ranked);
       const selected = firstResultIndex(ranked.length);
       setRows(ranked);
       deps.onCommit(selected);

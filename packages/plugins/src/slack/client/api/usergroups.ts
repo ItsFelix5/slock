@@ -7,7 +7,7 @@ import {
   parseChannelId,
   parseUserId,
 } from "@slock/slack";
-import type { RawUsergroup, Usergroup, UsergroupDetails, UserId } from "@slock/types";
+import type { ChannelId, RawUsergroup, Usergroup, UsergroupDetails, UserId } from "@slock/types";
 import { createBatchedIdFetcher } from "./cache/batchedIdFetcher";
 
 function mapUsergroup(raw: RawUsergroup | undefined): Usergroup | undefined {
@@ -78,12 +78,12 @@ export async function updateUsergroupProfile(
   if (!data.ok) throw new Error(data.error ?? "usergroups.update failed");
 }
 
-export async function setUsergroupMembers(id: string, userIds: string[]): Promise<void> {
+export async function setUsergroupMembers(id: string, userIds: UserId[]): Promise<void> {
   const data = await apiPut(`/api/usergroups/${id}/members`, { userIds });
   if (!data.ok) throw new Error(data.error ?? "usergroups.users.update failed");
 }
 
-export async function setUsergroupChannels(id: string, channelIds: string[]): Promise<void> {
+export async function setUsergroupChannels(id: string, channelIds: ChannelId[]): Promise<void> {
   const data = await apiPatch(`/api/usergroups/${id}`, { channelIds });
   if (!data.ok) throw new Error(data.error ?? "usergroups.update failed");
 }

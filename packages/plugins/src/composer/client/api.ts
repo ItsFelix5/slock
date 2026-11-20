@@ -3,8 +3,8 @@ import type { IconName, useHoverIntent } from "@slock/ui";
 import type Quill from "@slock/ui/editor/quill";
 import type { JSX } from "@solidjs/web";
 import type { Component } from "solid-js";
+import type { MentionTarget } from "./api/editor/mentionTarget";
 import type { ComposerProps } from "./composerTypes";
-import type { MentionValue } from "./lib/embedValues";
 import type { createPendingFilesStore } from "./lib/pendingFiles";
 
 export type { ComposerProps } from "./composerTypes";
@@ -43,9 +43,7 @@ export type ComposerSuggest = {
 export type MentionCardProps = {
   anchor: () => HTMLElement | undefined;
   hoverIntent: ReturnType<typeof useHoverIntent>;
-  id: string;
-  kind: MentionValue["kind"];
-};
+} & MentionTarget;
 
 export type OutgoingDraft = {
   channelId: ChannelId;

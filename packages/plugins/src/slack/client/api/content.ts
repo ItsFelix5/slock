@@ -1,12 +1,16 @@
 import { defined } from "@slock/core";
 import { apiGet, apiPost, ifPresent, mapFile, mapFileShare, parseUserId } from "@slock/slack";
 import type {
+  ChannelId,
+  FileId,
   FileUploadInput,
   RawFile,
   RawFileShare,
   SavedItem,
   SlackFile,
   SlackFileDetail,
+  Ts,
+  UserId,
 } from "@slock/types";
 
 export async function fetchSaved(): Promise<SavedItem[]> {
@@ -15,7 +19,7 @@ export async function fetchSaved(): Promise<SavedItem[]> {
   return data.items ?? [];
 }
 
-export async function fetchFileDetail(fileId: string): Promise<SlackFileDetail> {
+export async function fetchFileDetail(fileId: FileId): Promise<SlackFileDetail> {
   const data = await apiGet<{
     access: {
       org_id: string | null;
@@ -52,13 +56,13 @@ export async function fetchFileDetail(fileId: string): Promise<SlackFileDetail> 
   };
 }
 
-export async function renameFile(fileId: string, title: string): Promise<void> {
+export async function renameFile(fileId: FileId, title: string): Promise<void> {
   const data = await apiPost(`/api/files/${fileId}/rename`, { title });
   if (!data.ok) throw new Error(data.error ?? "Couldn't rename the file");
 }
 
 export async function runSlashCommand(
-  channelId: string,
+  channelId: ChannelId,
   command: string,
   text: string,
 ): Promise<string | null> {
@@ -123,9 +127,9 @@ async function completeUpload(
 }
 
 export async function uploadFiles(
-  channelId: string,
+  channelId: ChannelId,
   files: FileUploadInput[],
-  threadTs?: string,
+  threadTs?: Ts,
   comment?: string,
   onProgress?: (fileIndex: number, fraction: number) => void,
 ): Promise<void> {
@@ -147,23 +151,23 @@ export async function uploadFilesForEdit(
 }
 
 export function uploadFile(
-  channelId: string,
+  channelId: ChannelId,
   file: File,
-  threadTs?: string,
+  threadTs?: Ts,
   comment?: string,
 ): Promise<void> {
   return uploadFiles(channelId, [{ file }], threadTs, comment);
 }
 
-export type FileAccessTarget = { channelId: string } | { userId: string };
+export type FileAccessTarget = { channelId: ChannelId } | { userId: UserId };
 
-async function postFileAccess(fileId: string, path: string, body: object) {
+async function postFileAccess(fileId: FileId, path: string, body: object) {
   const data = await apiPost(`/api/files/${fileId}/${path}`, body);
   if (!data.ok) throw new Error(data.error ?? "Couldn't update access");
 }
 
 export function setFileAccess(
-  fileId: string,
+  fileId: FileId,
   orgId: string,
   target: FileAccessTarget,
   level: string,
@@ -171,10 +175,10 @@ export function setFileAccess(
   return postFileAccess(fileId, "access", { ...target, level, orgId });
 }
 
-export function removeFileAccess(fileId: string, target: FileAccessTarget) {
+export function removeFileAccess(fileId: FileId, target: FileAccessTarget) {
   return postFileAccess(fileId, "access/remove", target);
 }
 
-export function setFileOrgAccess(fileId: string, orgId: string, level: string) {
+export function setFileOrgAccess(fileId: FileId, orgId: string, level: string) {
   return postFileAccess(fileId, "org-access", { level, orgId });
 }

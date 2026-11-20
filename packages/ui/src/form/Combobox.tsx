@@ -9,31 +9,31 @@ import ComboboxLeading from "./ComboboxLeading";
 import { createListboxActiveIndex, listNavigationIndex } from "./listNavigation";
 import SuggestionList from "./SuggestionList";
 
-export interface ComboboxOption {
+export interface ComboboxOption<Id extends string = string> {
   avatar?: AvatarUser;
   description?: string;
   icon?: IconName;
-  id: string;
+  id: Id;
   label: string;
 }
 
-export interface ComboboxProps {
+export interface ComboboxProps<Id extends string = string> {
   ariaLabel?: string;
   disabled?: boolean;
   emptyText?: string;
   max?: number;
   multiple?: boolean;
-  onChange: (value: ComboboxOption[]) => void;
+  onChange: (value: ComboboxOption<Id>[]) => void;
   placeholder?: string;
-  search: (query: string) => ComboboxOption[] | Promise<ComboboxOption[]>;
-  value: ComboboxOption[];
+  search: (query: string) => ComboboxOption<Id>[] | Promise<ComboboxOption<Id>[]>;
+  value: ComboboxOption<Id>[];
 }
 
-export default function Combobox(props: ComboboxProps) {
+export default function Combobox<Id extends string = string>(props: ComboboxProps<Id>) {
   const listboxId = createUniqueId();
   const [open, setOpen] = createSignal(false);
   const [query, setQuery] = createSignal("");
-  const [results, setResults] = createSignal<ComboboxOption[]>([]);
+  const [results, setResults] = createSignal<ComboboxOption<Id>[]>([]);
   const [width, setWidth] = createSignal(0);
   let root: HTMLDivElement | undefined;
   let panel: HTMLDivElement | undefined;
@@ -74,7 +74,7 @@ export default function Combobox(props: ComboboxProps) {
     setOpen(true);
   };
 
-  const pick = (option: ComboboxOption | undefined) => {
+  const pick = (option: ComboboxOption<Id> | undefined) => {
     if (!option || full()) return;
     setQuery("");
     if (props.multiple) props.onChange([...props.value, option]);
@@ -84,7 +84,7 @@ export default function Combobox(props: ComboboxProps) {
     }
   };
 
-  const remove = (id: string) => props.onChange(props.value.filter((option) => option.id !== id));
+  const remove = (id: Id) => props.onChange(props.value.filter((option) => option.id !== id));
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -102,7 +102,8 @@ export default function Combobox(props: ComboboxProps) {
       const index = nav.activeIndex();
       if (index !== null) pick(visible()[index]);
     } else if (event.key === "Backspace" && !query() && props.multiple && props.value.length) {
-      remove(props.value[props.value.length - 1]?.id ?? "");
+      const last = props.value.at(-1);
+      if (last) remove(last.id);
     }
   };
 

@@ -17,6 +17,7 @@ function harness(initial: SavedItem[] = []) {
   let failing = false;
   let loadFailing = false;
   let server = initial;
+  let fetches = 0;
   const record =
     <A extends unknown[]>(name: string) =>
     (...args: A) => {
@@ -28,20 +29,31 @@ function harness(initial: SavedItem[] = []) {
       Promise.resolve(
         new Map(entries.map((entry) => [`${entry.channelId}:${entry.ts}`, savedMessage(entry.ts)])),
       ),
-    fetchSaved: () =>
-      loadFailing
+    fetchSaved: () => {
+      fetches++;
+      return loadFailing
         ? Promise.reject(new Error("offline"))
-        : Promise.resolve(server.map((item) => ({ ...item }))),
-    saveWithReminder: async (...args) => {
-      await record("saveWithReminder")(...args);
+        : Promise.resolve(server.map((item) => ({ ...item })));
+    },
+    saveWithReminder: async (channelId, ts, dateDue) => {
+      await record("saveWithReminder")(channelId, ts, dateDue);
+      server = [...server, { channelId, dateDue, ts }];
       return { ok: true };
     },
-    toggleSaved: async (...args) => {
-      await record("toggleSaved")(...args);
+    toggleSaved: async (channelId, ts, currentlySaved) => {
+      await record("toggleSaved")(channelId, ts, currentlySaved);
+      server = currentlySaved
+        ? server.filter((entry) => !(entry.channelId === channelId && entry.ts === ts))
+        : [...server, { channelId, ts }];
       return { ok: true };
     },
-    updateSaved: async (...args) => {
-      await record("updateSaved")(...args);
+    updateSaved: async (channelId, ts, patch) => {
+      await record("updateSaved")(channelId, ts, patch);
+      server = server.map((entry) =>
+        entry.channelId === channelId && entry.ts === ts
+          ? { ...entry, dateDue: patch.dateDue || undefined }
+          : entry,
+      );
       return { ok: true };
     },
   };
@@ -50,6 +62,7 @@ function harness(initial: SavedItem[] = []) {
   const later = root.value;
   return {
     calls,
+    fetches: () => fetches,
     fail: (value: boolean) => {
       failing = value;
     },
@@ -63,6 +76,11 @@ function harness(initial: SavedItem[] = []) {
     },
   };
 }
+
+const settle = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  flush();
+};
 
 const savedMessage = (ts: string): Message => ({
   day: "",
@@ -92,11 +110,17 @@ afterEach(() => {
 });
 
 describe("createLaterSlice", () => {
-  test("loads saved items and their messages", async () => {
+  test("loads saved items", async () => {
     const { later } = await loaded([item(stamp("1.1")), item(stamp("2.2"))]);
-    expect(later.laterItems.map((i) => i.ts)).toEqual([stamp("1.1"), stamp("2.2")]);
-    await Promise.resolve();
-    expect(later.laterMessageFor(C1, stamp("1.1"))?.ts).toBe(stamp("1.1"));
+    expect(later.laterItems().map((i) => i.ts)).toEqual([stamp("1.1"), stamp("2.2")]);
+  });
+
+  test("resolves a saved message through the api", async () => {
+    const { later } = await loaded([item(stamp("1.1"))]);
+    const message = inRoot(() => later.createLaterMessage(() => item(stamp("1.1"))));
+    roots.push(message.dispose);
+    await settle();
+    expect(message.value()?.ts).toBe(stamp("1.1"));
   });
 
   test("toggle saves an unsaved message and unsaves a saved one", async () => {
@@ -116,7 +140,7 @@ describe("createLaterSlice", () => {
     h.fail(true);
     expect(await h.later.setReminder(C1, stamp("2.2"), 500)).toBe(false);
     expect(await h.later.toggleSaveForLater(C1, stamp("3.3"))).toBe(false);
-    expect(h.later.laterItems.map((i) => [String(i.ts), i.dateDue])).toEqual([
+    expect(h.later.laterItems().map((i) => [String(i.ts), i.dateDue])).toEqual([
       ["1.1", 100],
       ["2.2", undefined],
     ]);
@@ -159,35 +183,31 @@ describe("createLaterSlice", () => {
     expect(h.calls).toHaveLength(0);
   });
 
-  test("realtime events add and remove once and are ignored before the first load", async () => {
+  test("reloads on realtime events only after the list was requested", async () => {
     const h = harness([item(stamp("1.1"))]);
-    h.later.applySavedEvent("add", C1, stamp("5.5"));
-    expect(h.later.laterItems).toHaveLength(0);
+    h.later.reloadIfRequested();
+    await settle();
+    expect(h.fetches()).toBe(0);
     await h.later.ensureLaterLoaded();
-    h.later.applySavedEvent("add", C1, stamp("5.5"));
-    h.later.applySavedEvent("add", C1, stamp("5.5"));
-    flush();
-    expect(h.later.laterItems.map((i) => i.ts)).toEqual([stamp("1.1"), stamp("5.5")]);
-    h.later.applySavedEvent("remove", C1, stamp("1.1"));
-    h.later.applySavedEvent("remove", C1, stamp("9.9"));
-    flush();
-    expect(h.later.laterItems.map((i) => i.ts)).toEqual([stamp("5.5")]);
-    h.later.applySavedEvent("clear");
-    flush();
-    expect(h.later.laterItems).toHaveLength(0);
+    h.setServer([item(stamp("1.1")), item(stamp("5.5"))]);
+    h.later.reloadIfRequested();
+    await settle();
+    expect(h.later.laterItems().map((i) => i.ts)).toEqual([stamp("1.1"), stamp("5.5")]);
+    h.setServer([]);
+    h.later.reloadIfRequested();
+    await settle();
+    expect(h.later.laterItems()).toHaveLength(0);
   });
 
-  test("a failed load sets the error flag and a retry clears it", async () => {
+  test("a failed load surfaces as an error and a retry recovers", async () => {
     const h = harness([item(stamp("1.1"))]);
     h.failLoad(true);
     await h.later.ensureLaterLoaded();
-    expect(h.later.laterLoadError()).toBe(true);
-    expect(h.later.laterLoaded()).toBe(false);
+    expect(h.later.laterLoadFailed()).toBe(true);
     expect(h.later.laterLoading()).toBe(false);
     h.failLoad(false);
     await h.later.ensureLaterLoaded();
-    expect(h.later.laterLoadError()).toBe(false);
-    expect(h.later.laterLoaded()).toBe(true);
-    expect(h.later.laterItems).toHaveLength(1);
+    await settle();
+    expect(h.later.laterItems()).toHaveLength(1);
   });
 });

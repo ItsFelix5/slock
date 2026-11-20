@@ -8,10 +8,6 @@ import {
   Modal,
 } from "@slock/ui";
 import { createMemo, createSignal, createUniqueId, Show } from "solid-js";
-import {
-  clearPendingShare,
-  pendingShareText,
-} from "../../../message-links/client/api/incomingLinks";
 import "./GlobalSearch.css";
 import GlobalSearchInput from "./GlobalSearchInput";
 import GlobalSearchResults, { type GlobalSearchRow, type JumpChannel } from "./GlobalSearchResults";
@@ -24,6 +20,7 @@ const searchStore = service("search");
 const viewStore = service("conversations");
 const dmsStore = service("dms");
 const drafts = service("drafts");
+const share = service("message-links.share");
 
 type SearchItem = { kind: "message-search" } | GlobalSearchRow;
 export default function GlobalSearch(props: {
@@ -69,10 +66,10 @@ export default function GlobalSearch(props: {
     return "No matching people, channels, or files.";
   });
   const deliverPendingShare = (channelId: ChannelId) => {
-    const text = pendingShareText();
+    const text = share.pendingShareText();
     if (!text) return;
     void drafts.seedDraft(channelId, undefined, text);
-    clearPendingShare();
+    share.clearPendingShare();
   };
   const goToChannel = (c: JumpChannel) => {
     viewStore.setActiveView({ id: c.id, kind: "channel" });
@@ -132,7 +129,7 @@ export default function GlobalSearch(props: {
   const submitActiveRow = () => committed.submit(activeIndex());
   return (
     <Modal align="top" ariaLabel="Search Slack" class="global-search-card" onClose={props.onClose}>
-      <Show when={pendingShareText()}>
+      <Show when={share.pendingShareText()}>
         {(text) => (
           <div class="global-search-share-banner flex-align-center">
             <Icon class="flex-shrink-0" name="share" size={13} />

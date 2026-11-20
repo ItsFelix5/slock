@@ -1,4 +1,4 @@
-import { BlockKitResolverContext } from "@slock/blockkit";
+import { BlockKitConfirmContext, BlockKitResolverContext } from "@slock/blockkit";
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { isChannelId } from "@slock/slack";
@@ -43,6 +43,7 @@ const setup: Setup = (ctx) => {
   const unread = service("unread");
   const titles = service("titles");
   const panes = service("shell.panes");
+  const dialogs = service("shell.dialogs");
   const conversations = service("conversations");
   const threadsIn = (list: ReturnType<typeof panes.panes>) =>
     list.flatMap(({ content }) =>
@@ -135,7 +136,9 @@ const setup: Setup = (ctx) => {
   ctx.add("message-links.loaded", (channelId, ts) => !!loadedMessage(channelId, ts));
   const blockKitResolver = createBlockKitResolver(ctx.use("messages.blockKit"));
   ctx.add("shell.provider", (props) => (
-    <BlockKitResolverContext value={blockKitResolver}>{props.children}</BlockKitResolverContext>
+    <BlockKitResolverContext value={blockKitResolver}>
+      <BlockKitConfirmContext value={dialogs.confirm}>{props.children}</BlockKitConfirmContext>
+    </BlockKitResolverContext>
   ));
   ctx.add("messages.blockKit", {
     wrapLink: (url, trigger, attachments) => {

@@ -1,7 +1,7 @@
 import { BLOCKS_CLIPBOARD_TYPE, stripTrackingParams } from "@slock/blockkit";
 import { escapeRegExp } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { decodeTextEntities } from "@slock/slack";
+import { decodeTextEntities, isChannelId } from "@slock/slack";
 import type { Block } from "@slock/types";
 import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
 import type Quill from "@slock/ui/editor/quill";
@@ -88,7 +88,7 @@ function insertMrkdwnLineAt(
         name: user?.name ?? userId,
       });
       cursor += 1;
-    } else if (channelId) {
+    } else if (channelId && isChannelId(channelId)) {
       const name = channelLabel || titles.title(channelId);
       quill.insertEmbed(cursor, "mention", { id: channelId, kind: "channel", name });
       cursor += 1;

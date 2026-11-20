@@ -4,7 +4,6 @@ import {
   createPaneId,
   findPane,
   findPaneByContent,
-  focusedPaneId,
   focusPaneById,
   insertPane,
   isPaneRightAfter,
@@ -22,12 +21,16 @@ function focusPaneSoon(id: string) {
   queueMicrotask(() => focusPaneById(id));
 }
 
-function focusedIdIn(panes: ShellPane[], activeId: string | null): string {
+function focusedIdIn(
+  panes: ShellPane[],
+  activeId: string | null,
+  focusedPaneId: () => string | null,
+): string {
   const id = activeId ?? focusedPaneId();
   return id && findPane(panes, id) ? id : defined(panes[0]).id;
 }
 
-export function createPanesSlice(paneKinds: () => PaneKind[]) {
+export function createPanesSlice(paneKinds: () => PaneKind[], focusedPaneId: () => string | null) {
   const kindOf = (content: PaneContent | null | undefined) =>
     paneKinds().find((kind) => kind.kind === content?.kind);
 
@@ -48,7 +51,7 @@ export function createPanesSlice(paneKinds: () => PaneKind[]) {
   }
 
   function primaryContentIn(panes: ShellPane[], activeId: string | null): PaneContent | null {
-    const id = nearestPrimaryId(panes, focusedIdIn(panes, activeId));
+    const id = nearestPrimaryId(panes, focusedIdIn(panes, activeId, focusedPaneId));
     return findPane(panes, id)?.content ?? null;
   }
 
@@ -100,7 +103,7 @@ export function createPanesSlice(paneKinds: () => PaneKind[]) {
   }
 
   function navigateFocusedPane(content: PaneContent): string {
-    const id = nearestPrimaryId(latest, focusedIdIn(latest, active));
+    const id = nearestPrimaryId(latest, focusedIdIn(latest, active, focusedPaneId));
     commit(replacePaneContent(latest, id, content));
     activateId(id);
     return id;
@@ -131,7 +134,7 @@ export function createPanesSlice(paneKinds: () => PaneKind[]) {
   }
 
   function openInNewPane(content: PaneContent): string {
-    const focusedId = focusedIdIn(latest, active);
+    const focusedId = focusedIdIn(latest, active, focusedPaneId);
     const existing = isSingletonKind(content)
       ? findPaneByContent(latest, (c) => !!c && c.kind === content.kind && isSingletonKind(c))
       : undefined;
@@ -170,6 +173,7 @@ export function createPanesSlice(paneKinds: () => PaneKind[]) {
     activatePane: activateId,
     activePaneId,
     closePane,
+    focusedPaneId,
     currentPanes: () => latest,
     focusedPrimaryContent: () => primaryContentIn(state.panes, activePaneId()),
     insertContentPane,

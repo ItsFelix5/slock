@@ -79,6 +79,7 @@ function boot(initialPath: string, defaultView?: PaneContent) {
   const root = inRoot(() =>
     createShellStore({
       defaultView: () => defaultView,
+      focusedPaneId: () => null,
       paneKinds: () => kinds,
       ready: () => true,
     }),

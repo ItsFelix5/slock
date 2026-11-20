@@ -1,8 +1,8 @@
 import { defined } from "@slock/core";
+import { service } from "@slock/core/solid";
 import type { Message } from "@slock/types";
 import {
   findTextRanges,
-  focusedPaneId,
   indexElementText,
   type TextIndex,
   useEscapeClose,
@@ -101,7 +101,7 @@ export function createInPaneSearch(
     allowInInputs: true,
     allowRepeat: false,
     combo: { key: "f", mod: true },
-    enabled: () => focusedPaneId() === paneId(),
+    enabled: () => service("shell.panes").focusedPaneId() === paneId(),
     handler: () => setOpen(true),
     id: "messages.searchInPane",
     label: "Search in this view",

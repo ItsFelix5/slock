@@ -65,18 +65,14 @@ export {
   shortcutConflicts,
   useShortcut,
 } from "./hooks/useShortcut";
-export {
-  clearKeybindOverride,
-  resetAllKeybinds,
-  setKeybindOverride,
-} from "./keybindOverrides";
+export { createKeybindOverrides, installKeybindOverrides } from "./keybindOverrides";
 export {
   createKeyedAsyncCache,
   type KeyedAsyncCache,
   type KeyedCacheSetter,
 } from "./keyedAsyncCache";
 export { default as PanelHeader } from "./layout/PanelHeader";
-export { default as ResizeHandle, windowWidth } from "./layout/ResizeHandle";
+export { createWindowWidth, default as ResizeHandle } from "./layout/ResizeHandle";
 export { formatSize } from "./media/formatSize";
 export {
   default as Icon,
@@ -100,7 +96,12 @@ export { formatDuration } from "./media/video/videoTime";
 export { default as NavRow } from "./nav/NavRow";
 export { focusPaneById, usePaneNavigation } from "./nav/paneNav";
 export { initRovingTabIndexDefault } from "./nav/rovingFocus";
-export { ConfirmDialog, confirmDialog } from "./overlay/dialog/ConfirmDialog";
+export {
+  ConfirmDialog,
+  type ConfirmDialogOptions,
+  type ConfirmDialogState,
+  createConfirmDialog,
+} from "./overlay/dialog/ConfirmDialog";
 export { CopyJsonButton, default as JsonTree } from "./overlay/dialog/JsonTree";
 export {
   default as Modal,
@@ -118,7 +119,7 @@ export { default as Overlay } from "./overlay/Overlay";
 export { default as Popover } from "./overlay/Popover";
 export { default as Tooltip } from "./overlay/Tooltip";
 export { pageIdle } from "./pageIdle";
-export { focusedPaneId } from "./panes/focusedPane";
+export { createFocusedPane } from "./panes/focusedPane";
 export { default as PaneDivider } from "./panes/PaneDivider";
 export {
   default as PaneRow,

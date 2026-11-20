@@ -1,4 +1,6 @@
 import { defined } from "@slock/core";
+import { isChannelId, isUserId } from "@slock/slack";
+import type { ChannelId, UserId } from "@slock/types";
 
 const TRAILING_URL_PUNCTUATION_RE = /[),.!?;:'"]+$/;
 
@@ -8,13 +10,15 @@ const USER_PROFILE_LINK_RE =
 const ARCHIVE_LINK_RE =
   /^https:\/\/[a-z0-9-]+(?:\.enterprise)?\.slack\.com\/archives\/([A-Z0-9]+)(\/p\d+)?\/?(?:[?#].*)?$/i;
 
-export function parseUserProfileLink(url: string): string | null {
-  return USER_PROFILE_LINK_RE.exec(url)?.[1] ?? null;
+export function parseUserProfileLink(url: string): UserId | null {
+  const id = USER_PROFILE_LINK_RE.exec(url)?.[1];
+  return id && isUserId(id) ? id : null;
 }
 
-export function parseArchiveLink(url: string): { channelId: string; isMessage: boolean } | null {
+export function parseArchiveLink(url: string): { channelId: ChannelId; isMessage: boolean } | null {
   const match = ARCHIVE_LINK_RE.exec(url);
-  return match ? { channelId: defined(match[1]), isMessage: !!match[2] } : null;
+  const channelId = match?.[1];
+  return match && channelId && isChannelId(channelId) ? { channelId, isMessage: !!match[2] } : null;
 }
 
 export function messageLinkLabel(channelName: string, authorName?: string): string {

@@ -1,6 +1,7 @@
 import { service } from "@slock/core/solid";
 import type { ChannelId, Message } from "@slock/types";
-import { confirmDialog } from "@slock/ui";
+
+const dialogs = service("shell.dialogs");
 
 const feedback = service("feedback");
 
@@ -24,7 +25,7 @@ export async function deleteOrDismissMessage(channelId: ChannelId, msg: Message)
     messagesStore.dismissMessage(channelId, msg.ts);
     return true;
   }
-  const confirmed = await confirmDialog({
+  const confirmed = await dialogs.confirm({
     confirmLabel: "Delete",
     danger: true,
     message: "Delete this message?",

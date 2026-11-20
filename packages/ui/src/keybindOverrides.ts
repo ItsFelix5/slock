@@ -40,9 +40,15 @@ export function createKeybindOverrides(storage: KeyValueStorage) {
   };
 }
 
-const store = createKeybindOverrides(globalThis.localStorage);
+const NO_OVERRIDES: KeybindOverrides = {};
+let source: () => KeybindOverrides = () => NO_OVERRIDES;
 
-export const keybindOverrides = store.overrides;
-export const setKeybindOverride = store.set;
-export const clearKeybindOverride = store.clear;
-export const resetAllKeybinds = store.resetAll;
+export const keybindOverrides = (): KeybindOverrides => source();
+
+export function installKeybindOverrides(store: { overrides: () => KeybindOverrides }): () => void {
+  const read = store.overrides;
+  source = read;
+  return () => {
+    if (source === read) source = () => NO_OVERRIDES;
+  };
+}

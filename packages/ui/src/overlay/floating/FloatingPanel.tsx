@@ -1,7 +1,7 @@
 import { clamp } from "@slock/core";
 import type { JSX } from "@solidjs/web";
 import { Portal } from "@solidjs/web";
-import { createContext, createEffect, getOwner, runWithOwner, Show, useContext } from "solid-js";
+import { createContext, createEffect, Show, untrack, useContext } from "solid-js";
 
 export const FloatingMountContext = createContext<() => Element | undefined>(() => undefined);
 export type VerticalPlacement = "top" | "bottom";
@@ -74,7 +74,6 @@ export default function FloatingPanel(props: FloatingPanelProps) {
   let frame: number | undefined;
   let resizeObserver: ResizeObserver | undefined;
   const parentMount = useContext(FloatingMountContext);
-  const owner = getOwner();
 
   const position = () => {
     const anchorElement = props.anchor();
@@ -122,7 +121,7 @@ export default function FloatingPanel(props: FloatingPanelProps) {
     cancelAnimationFrame(frame ?? 0);
     frame = requestAnimationFrame(() => {
       frame = undefined;
-      runWithOwner(owner, position);
+      position();
     });
   };
 
@@ -147,11 +146,11 @@ export default function FloatingPanel(props: FloatingPanelProps) {
 
   createEffect(
     () => props.anchor(),
-    () => schedulePosition(),
+    () => untrack(schedulePosition),
   );
 
-  const onResize = () => runWithOwner(owner, schedulePosition);
-  const onWindowScroll = (e: Event) => runWithOwner(owner, () => handleScroll(e));
+  const onResize = () => schedulePosition();
+  const onWindowScroll = (e: Event) => handleScroll(e);
 
   createEffect(
     () => props.open,
@@ -182,16 +181,18 @@ export default function FloatingPanel(props: FloatingPanelProps) {
           onMouseDown={props.onMouseDown}
           onMouseEnter={props.onMouseEnter}
           onMouseLeave={props.onMouseLeave}
-          ref={(element) => {
-            panel = element;
-            props.panelRef?.(element);
-            resizeObserver?.disconnect();
-            resizeObserver = new ResizeObserver(() => runWithOwner(owner, schedulePosition));
-            resizeObserver.observe(element);
-            const anchorElement = props.anchor();
-            if (anchorElement) resizeObserver.observe(anchorElement);
-            schedulePosition();
-          }}
+          ref={(element) =>
+            untrack(() => {
+              panel = element;
+              props.panelRef?.(element);
+              resizeObserver?.disconnect();
+              resizeObserver = new ResizeObserver(() => schedulePosition());
+              resizeObserver.observe(element);
+              const anchorElement = props.anchor();
+              if (anchorElement) resizeObserver.observe(anchorElement);
+              schedulePosition();
+            })
+          }
           style={{
             ...props.style,
             left: "0",

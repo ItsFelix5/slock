@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
 import { isMyRelayedMessage } from "@slock/slack";
-import type { Block, ChannelId, Message, Ts, User } from "@slock/types";
+import type { Block, ChannelId, FileId, Message, Ts, User } from "@slock/types";
 import {
   broadcastReply,
   deleteAttachment,
@@ -29,7 +29,7 @@ export function createMessageMutations(deps: {
     ts: Ts,
     text: string,
     blocks?: Block[],
-    fileIds?: string[],
+    fileIds?: FileId[],
     removedAttachmentIds: number[] = [],
   ) {
     const trimmed = text.trim();

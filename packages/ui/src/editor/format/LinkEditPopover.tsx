@@ -1,4 +1,4 @@
-import { createEffect, createSignal } from "solid-js";
+import { createEffect, createSignal, untrack } from "solid-js";
 import { useClickOutside } from "../../hooks/useClickOutside";
 import { useEscapeClose } from "../../hooks/useEscapeClose";
 import { useEditShortcuts } from "../../hooks/useNavShortcuts";
@@ -15,8 +15,8 @@ export interface LinkEditPopoverProps {
 }
 
 export default function LinkEditPopover(props: LinkEditPopoverProps) {
-  const [url, setUrl] = createSignal(props.url);
-  const [text, setText] = createSignal(props.text);
+  const [url, setUrl] = createSignal("");
+  const [text, setText] = createSignal("");
   let panelRef: HTMLDivElement | undefined;
   let urlInput: HTMLInputElement | undefined;
 
@@ -24,8 +24,10 @@ export default function LinkEditPopover(props: LinkEditPopoverProps) {
     () => props.open,
     (isOpen, wasOpen) => {
       if (!isOpen || wasOpen) return;
-      setUrl(props.url);
-      setText(props.text);
+      untrack(() => {
+        setUrl(props.url);
+        setText(props.text);
+      });
       queueMicrotask(() => urlInput?.select());
     },
   );

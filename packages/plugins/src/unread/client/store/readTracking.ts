@@ -1,5 +1,5 @@
 import type { ChannelId, Message, Ts } from "@slock/types";
-import { createEffect } from "solid-js";
+import { createEffect, untrack } from "solid-js";
 import type { View } from "../../../conversations/client/api/types";
 import type { ThreadRef } from "../../../messages/client/api";
 import { isPendingMessage } from "../../../messages/client/api/messageMerge";
@@ -107,9 +107,10 @@ export function wireReadTracking(deps: ReadTrackingDeps, input: ReadTrackingInpu
         unread: !!deps.unreadChannelIds[id],
         viewed: deps.isViewed(id),
       })),
-    (snapshots) => {
-      for (const view of snapshots) markChannelRead(view);
-    },
+    (snapshots) =>
+      untrack(() => {
+        for (const view of snapshots) markChannelRead(view);
+      }),
   );
 
   function markChannelRead({
@@ -151,9 +152,10 @@ export function wireReadTracking(deps: ReadTrackingDeps, input: ReadTrackingInpu
           viewed: deps.isViewed(ts),
         };
       }),
-    (snapshots) => {
-      for (const thread of snapshots) markThreadRead(thread);
-    },
+    (snapshots) =>
+      untrack(() => {
+        for (const thread of snapshots) markThreadRead(thread);
+      }),
   );
 
   function markThreadRead({ channelId, latest, root, ts, viewed }: ThreadSnapshot) {

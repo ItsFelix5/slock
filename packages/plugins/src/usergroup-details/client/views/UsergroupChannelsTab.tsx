@@ -1,7 +1,6 @@
 import { service } from "@slock/core/solid";
-import { isChannelId } from "@slock/slack";
 import type { ChannelId } from "@slock/types";
-import { AddRowButton, confirmDialog, Icon, Switch } from "@slock/ui";
+import { AddRowButton, Icon, Switch } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { channelDisplayName } from "../../../channels/client/api";
 import ComposeChannelPicker from "../../../composer/client/api/pickers/ComposeChannelPicker";
@@ -9,6 +8,8 @@ import { openConversationInSplit } from "../../../conversations/client/api/nav";
 import { SplitNavigation } from "../../../shell/client/api/SplitNavigation";
 import RemoveRowButton from "./RemoveRowButton";
 import "./UsergroupDetails.css";
+
+const dialogs = service("shell.dialogs");
 
 const details = service("usergroup-details");
 
@@ -41,7 +42,7 @@ export default function UsergroupChannelsTab(props: {
   const removeChannel = async (id: ChannelId, name: string) => {
     if (props.disabled) return;
 
-    const confirmed = await confirmDialog({
+    const confirmed = await dialogs.confirm({
       confirmLabel: "Remove",
       danger: true,
       message: `Remove #${name} as a default channel for this pinggroup?`,
@@ -92,9 +93,7 @@ export default function UsergroupChannelsTab(props: {
           <ComposeChannelPicker
             excludeChannelIds={props.channelIds}
             onClose={() => setAddingChannel(false)}
-            onSelect={(channelId) => {
-              if (isChannelId(channelId)) void addChannel(channelId);
-            }}
+            onSelect={(channelId) => void addChannel(channelId)}
           />
         </div>
       </Show>

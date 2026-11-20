@@ -1,11 +1,11 @@
 import { isRecord } from "@slock/core";
 import { apiPost, isRawMessage, mapVisibleMessage } from "@slock/slack";
-import type { Message, RawMessage } from "@slock/types";
+import type { ChannelId, Message, RawMessage, Ts } from "@slock/types";
 import { defineQuery } from "../../../query/client/api";
 import { createBatchedIdFetcher } from "./cache/batchedIdFetcher";
 
 type MessageIdGroup = { channel: string; timestamps: string[] };
-type MessageRef = { channelId: string; ts: string };
+type MessageRef = { channelId: ChannelId; ts: Ts };
 
 const MESSAGES_LIST_BATCH_SIZE = 25;
 

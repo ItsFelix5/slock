@@ -1,6 +1,13 @@
 import type { Services } from "@slock/core/types";
 import type { ChannelId, Message, SavedItem, Ts } from "@slock/types";
-import { createMemo, createSignal, createStore, reconcile } from "solid-js";
+import {
+  action,
+  createMemo,
+  createOptimisticStore,
+  createSignal,
+  NotReadyError,
+  refresh,
+} from "solid-js";
 import type {
   fetchMessagesByIds,
   fetchSaved,
@@ -18,217 +25,154 @@ export type LaterApi = {
   updateSaved: typeof updateSaved;
 };
 
-type ListStatus = "idle" | "loading" | "error";
-type MessageStatus = "loading" | "error";
+type ListStatus = "idle" | "loading" | "ready" | "error";
+
+type Change = {
+  optimistic: (list: SavedItem[]) => void;
+  request: () => Promise<unknown>;
+};
 
 export function createLaterSlice(api: LaterApi, flash: Services["feedback"]["flash"]) {
-  const [laterItems, setLaterItems] = createStore<SavedItem[]>([]);
-  const [laterLoaded, setLaterLoaded] = createSignal(false);
-  const [listStatus, setListStatus] = createSignal<ListStatus>("idle");
-  const [laterMessages, setLaterMessages] = createStore<Record<string, Message | null>>({});
-  const [messageStatus, setMessageStatus] = createStore<Record<string, MessageStatus>>({});
-  const [savePending, setSavePending] = createStore<Record<string, boolean>>({});
-
+  const [requested, setRequested] = createSignal(false);
+  const [saved, setSaved] = createOptimisticStore(
+    async (): Promise<{ failed: boolean; items: SavedItem[] }> => {
+      if (!requested()) return { failed: false, items: [] };
+      try {
+        return { failed: false, items: await api.fetchSaved() };
+      } catch (err) {
+        console.error("Failed to load Later", err);
+        return { failed: true, items: [] };
+      }
+    },
+    null,
+    { key: (item: SavedItem) => laterKey(item.channelId, item.ts) },
+  );
+  const laterItems = () => saved.items;
+  const [saving, setSaving] = createOptimisticStore<Record<string, boolean>>({});
   const changing = new Set<string>();
-  const loadingMessages = new Set<string>();
-  let inflight: Promise<void> | undefined;
 
-  const laterLoading = () => listStatus() === "loading";
-  const laterLoadError = () => listStatus() === "error";
+  const status = createMemo<ListStatus>(() => {
+    if (!requested()) return "idle";
+    try {
+      return saved.failed ? "error" : "ready";
+    } catch (err) {
+      if (err instanceof NotReadyError) return "loading";
+      throw err;
+    }
+  });
 
-  const isSaveForLaterPending = (channelId: ChannelId, ts: Ts) =>
-    !!savePending[laterKey(channelId, ts)];
+  const laterLoading = () => status() === "loading";
 
   const savedKeys = createMemo(
-    () => new Set(laterItems.map((item) => laterKey(item.channelId, item.ts))),
+    () =>
+      new Set(
+        status() === "ready" ? saved.items.map((item) => laterKey(item.channelId, item.ts)) : [],
+      ),
   );
 
   const isSavedForLater = (channelId: ChannelId, ts: Ts) =>
     savedKeys().has(laterKey(channelId, ts));
 
-  async function changeSaved(
-    channelId: ChannelId,
-    ts: Ts,
-    optimistic: (list: SavedItem[]) => void,
-    request: () => Promise<unknown>,
-  ): Promise<boolean> {
-    const pendingKey = laterKey(channelId, ts);
-    if (inflight || changing.has(pendingKey)) return false;
-    changing.add(pendingKey);
-    setSavePending((pending) => {
-      pending[pendingKey] = true;
-    });
-    const before = laterItems.map((item) => ({ ...item }));
-    setLaterItems(optimistic);
-    try {
-      await request();
-      return true;
-    } catch (err) {
-      console.error("Failed to update Later", err);
-      flash(ts, "Failed to update Later.", "error");
-      setLaterItems(reconcile(before));
-      return false;
-    } finally {
-      changing.delete(pendingKey);
-      setSavePending((pending) => {
-        delete pending[pendingKey];
-      });
-    }
+  const isSaveForLaterPending = (channelId: ChannelId, ts: Ts) => !!saving[laterKey(channelId, ts)];
+
+  const reloadList = () => refresh(saved).then(() => undefined);
+
+  async function ensureLaterLoaded(): Promise<void> {
+    if (requested() && status() !== "error") return;
+    setRequested(true);
+    await reloadList();
   }
 
-  function toggleSaveForLater(channelId: ChannelId, ts: Ts): Promise<boolean> {
-    const currentlySaved = isSavedForLater(channelId, ts);
-    return changeSaved(
-      channelId,
-      ts,
-      (list) => {
+  const laterLoadFailed = () => status() === "error";
+
+  const reloadIfRequested = () => {
+    if (requested()) void reloadList();
+  };
+
+  const change = action(function* (
+    channelId: ChannelId,
+    ts: Ts,
+    plan: (currentlySaved: boolean) => Change,
+  ) {
+    const key = laterKey(channelId, ts);
+    if (changing.has(key) || status() === "loading") return false;
+    changing.add(key);
+    try {
+      if (status() !== "ready") yield ensureLaterLoaded();
+      if (status() !== "ready") return false;
+      const { optimistic, request } = plan(isSavedForLater(channelId, ts));
+      setSaving((pending) => {
+        pending[key] = true;
+      });
+      setSaved((draft) => optimistic(draft.items));
+      try {
+        yield request();
+      } catch (err) {
+        console.error("Failed to update Later", err);
+        flash(ts, "Failed to update Later.", "error");
+        return false;
+      }
+      yield reloadList();
+      return true;
+    } finally {
+      changing.delete(key);
+    }
+  });
+
+  const toggleSaveForLater = (channelId: ChannelId, ts: Ts): Promise<boolean> =>
+    change(channelId, ts, (currentlySaved) => ({
+      optimistic: (list) => {
         if (currentlySaved) {
           const index = list.findIndex(matchesSaved(channelId, ts));
           if (index !== -1) list.splice(index, 1);
         } else list.push({ channelId, ts });
       },
-      () => api.toggleSaved(channelId, ts, currentlySaved),
-    );
-  }
+      request: () => api.toggleSaved(channelId, ts, currentlySaved),
+    }));
 
-  function setReminder(channelId: ChannelId, ts: Ts, dateDue: number): Promise<boolean> {
-    const currentlySaved = isSavedForLater(channelId, ts);
-    return changeSaved(
-      channelId,
-      ts,
-      (list) => {
+  const setReminder = (channelId: ChannelId, ts: Ts, dateDue: number): Promise<boolean> =>
+    change(channelId, ts, (currentlySaved) => ({
+      optimistic: (list) => {
         const item = list.find(matchesSaved(channelId, ts));
         if (item) item.dateDue = dateDue;
         else list.push({ channelId, dateDue, ts });
       },
-      () =>
+      request: () =>
         currentlySaved
           ? api.updateSaved(channelId, ts, { dateDue })
           : api.saveWithReminder(channelId, ts, dateDue),
-    );
-  }
+    }));
 
-  function clearReminder(channelId: ChannelId, ts: Ts): Promise<boolean> {
-    return changeSaved(
-      channelId,
-      ts,
-      (list) => {
+  const clearReminder = (channelId: ChannelId, ts: Ts): Promise<boolean> =>
+    change(channelId, ts, () => ({
+      optimistic: (list) => {
         const item = list.find(matchesSaved(channelId, ts));
         if (item) item.dateDue = undefined;
       },
-      () => api.updateSaved(channelId, ts, { dateDue: 0 }),
-    );
-  }
+      request: () => api.updateSaved(channelId, ts, { dateDue: 0 }),
+    }));
 
   const reminderDue = (channelId: ChannelId, ts: Ts) =>
-    laterItems.find(matchesSaved(channelId, ts))?.dateDue;
+    status() === "ready" ? saved.items.find(matchesSaved(channelId, ts))?.dateDue : undefined;
 
-  async function loadLater() {
-    setListStatus("loading");
-    try {
-      const items = await api.fetchSaved();
-      setLaterItems(reconcile(items));
-      setLaterLoaded(true);
-      setListStatus("idle");
-      void loadLaterMessages(items, true);
-    } catch (err) {
-      console.error("Failed to load Later", err);
-      setListStatus("error");
-    } finally {
-      inflight = undefined;
-    }
-  }
-
-  function ensureLaterLoaded(): Promise<void> {
-    inflight ??= loadLater();
-    return inflight;
-  }
-
-  async function loadLaterMessages(items: SavedItem[], force = false) {
-    const pending = items.filter((item) => {
-      const key = laterKey(item.channelId, item.ts);
-      return !loadingMessages.has(key) && (force || !(key in laterMessages));
+  function createLaterMessage(item: () => SavedItem) {
+    return createMemo(async (): Promise<Message | null> => {
+      const { channelId, ts } = item();
+      const found = await api.fetchMessagesByIds([{ channelId, ts }]);
+      return found.get(laterKey(channelId, ts)) ?? null;
     });
-    if (!pending.length) return;
-    const keys = pending.map((item) => laterKey(item.channelId, item.ts));
-    for (const key of keys) loadingMessages.add(key);
-    setMessageStatus((status) => {
-      for (const key of keys) status[key] = "loading";
-    });
-    const resolved = new Set<string>();
-    try {
-      const messages = await api.fetchMessagesByIds(
-        pending,
-        (batch) => {
-          setLaterMessages((cache) => {
-            for (const [key, message] of batch) {
-              resolved.add(key);
-              cache[key] = message;
-            }
-          });
-        },
-        force,
-      );
-      setLaterMessages((cache) => {
-        for (const key of keys) cache[key] = messages.get(key) ?? null;
-      });
-      setMessageStatus((status) => {
-        for (const key of keys) delete status[key];
-      });
-    } catch (err) {
-      console.error("Failed to load saved message", err);
-      setMessageStatus((status) => {
-        for (const key of keys) {
-          if (resolved.has(key)) delete status[key];
-          else status[key] = "error";
-        }
-      });
-    } finally {
-      for (const key of keys) loadingMessages.delete(key);
-    }
-  }
-
-  const ensureLaterMessageLoaded = (item: SavedItem) => loadLaterMessages([item]);
-  const hasLaterMessageError = (channelId: ChannelId, ts: Ts) =>
-    messageStatus[laterKey(channelId, ts)] === "error";
-  const isLaterMessageLoading = (channelId: ChannelId, ts: Ts) =>
-    messageStatus[laterKey(channelId, ts)] === "loading";
-  const laterMessageFor = (channelId: ChannelId, ts: Ts): Message | null | undefined =>
-    laterMessages[laterKey(channelId, ts)];
-
-  function applySavedEvent(action: "add" | "remove" | "clear", channelId?: ChannelId, ts?: Ts) {
-    if (!laterLoaded()) return;
-    if (action === "clear") {
-      setLaterItems(reconcile([]));
-      return;
-    }
-    if (!(channelId && ts)) return;
-    if (action === "remove") {
-      setLaterItems((list) => {
-        const index = list.findIndex(matchesSaved(channelId, ts));
-        if (index !== -1) list.splice(index, 1);
-      });
-    } else {
-      setLaterItems((list) => {
-        if (!list.some(matchesSaved(channelId, ts))) list.push({ channelId, ts });
-      });
-    }
   }
 
   return {
-    applySavedEvent,
     clearReminder,
+    createLaterMessage,
     ensureLaterLoaded,
-    ensureLaterMessageLoaded,
-    hasLaterMessageError,
-    isLaterMessageLoading,
     isSavedForLater,
     isSaveForLaterPending,
     laterItems,
-    laterLoaded,
+    laterLoadFailed,
     laterLoading,
-    laterLoadError,
-    laterMessageFor,
+    reloadIfRequested,
     reminderDue,
     setReminder,
     toggleSaveForLater,

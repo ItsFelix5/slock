@@ -5,10 +5,11 @@ import { createViewStateSlice } from "./viewState";
 
 export function createShellStore(deps: {
   defaultView: () => PaneContent | undefined;
+  focusedPaneId: () => string | null;
   paneKinds: () => PaneKind[];
   ready: () => boolean;
 }) {
-  const panes = createPanesSlice(deps.paneKinds);
+  const panes = createPanesSlice(deps.paneKinds, deps.focusedPaneId);
   const viewState = createViewStateSlice({
     defaultView: deps.defaultView,
     paneKinds: deps.paneKinds,

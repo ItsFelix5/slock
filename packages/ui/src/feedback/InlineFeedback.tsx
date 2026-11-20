@@ -12,23 +12,17 @@ export interface InlineFeedbackProps {
 }
 
 interface FeedbackClaim {
-  order: number;
   priority: number;
   select: (selected: boolean) => void;
 }
 
 const claimsByFeedback = new WeakMap<Feedback, Map<symbol, FeedbackClaim>>();
-let claimOrder = 0;
 
 function updateClaims(claims: Map<symbol, FeedbackClaim>) {
   let winner: symbol | undefined;
   let winningClaim: FeedbackClaim | undefined;
   for (const [owner, claim] of claims) {
-    if (
-      !winningClaim ||
-      claim.priority > winningClaim.priority ||
-      (claim.priority === winningClaim.priority && claim.order < winningClaim.order)
-    ) {
+    if (!winningClaim || claim.priority > winningClaim.priority) {
       winner = owner;
       winningClaim = claim;
     }
@@ -47,7 +41,7 @@ function claimFeedback(
     claims = new Map();
     claimsByFeedback.set(feedback, claims);
   }
-  claims.set(owner, { order: claimOrder++, priority, select });
+  claims.set(owner, { priority, select });
   updateClaims(claims);
 
   return () => {

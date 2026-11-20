@@ -1,9 +1,11 @@
 import { service } from "@slock/core/solid";
 import type { ChannelId, ChannelMembersPage, User, UserId } from "@slock/types";
-import { confirmDialog, createDebouncedRequest } from "@slock/ui";
+import { createDebouncedRequest } from "@slock/ui";
 import { createEffect, createMemo, createSignal, onSettled } from "solid-js";
 import type { MemberFilter } from "../../channel-details/client/api";
 import { createKeyedPageLoader } from "./keyedPageLoader";
+
+const dialogs = service("shell.dialogs");
 
 const channelDetails = service("channel-details");
 
@@ -194,7 +196,7 @@ export function createChannelMembers(deps: {
 
   async function removeMember(user: User) {
     if (removing.has(user.id)) return;
-    const confirmed = await confirmDialog({
+    const confirmed = await dialogs.confirm({
       confirmLabel: "Remove",
       danger: true,
       message: `Remove ${user.name} from #${deps.channelName()}?`,

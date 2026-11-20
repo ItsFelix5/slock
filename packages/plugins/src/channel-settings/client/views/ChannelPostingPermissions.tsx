@@ -1,7 +1,6 @@
 import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { isWaiting } from "@slock/resource";
-import { isUserId } from "@slock/slack";
 import type { ChannelId, UserId } from "@slock/types";
 import { AddRowButton, Avatar, IconButton, Switch } from "@slock/ui";
 import { createEffect, createSignal, For, Show } from "solid-js";
@@ -189,9 +188,7 @@ export default function ChannelPostingPermissions(props: { channelId: ChannelId 
                 excludeUserIds={postingExceptionUserIds()}
                 includeCurrentUser
                 onClose={() => setAddingPostingException(false)}
-                onSelect={(userId) => {
-                  if (isUserId(userId)) addPostingException(userId);
-                }}
+                onSelect={addPostingException}
               />
             </div>
           </Show>

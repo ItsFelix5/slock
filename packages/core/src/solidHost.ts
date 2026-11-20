@@ -35,7 +35,7 @@ export function usePoint<P extends keyof Points>(point: P): Accessor<Points[P][]
 
 export function service<K extends keyof Services>(key: K): Services[K] {
   const resolve = () => {
-    const found = getHost().service(key);
+    const found = untrack(() => getHost().service(key));
     if (found === undefined) throw new Error(`service ${String(key)} is missing`);
     return found;
   };

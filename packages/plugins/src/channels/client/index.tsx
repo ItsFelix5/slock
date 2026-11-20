@@ -1,6 +1,6 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { ifPresent, isChannelId, parseChannelId } from "@slock/slack";
+import { ifPresent, parseChannelId } from "@slock/slack";
 import { gatewayHandler } from "../../realtime/client/api";
 import { channelDisplayName } from "./api";
 import { createMembershipHandler, MEMBERSHIP_EVENTS } from "./membershipEvents";
@@ -22,7 +22,6 @@ const setup: Setup = (ctx) => {
   ctx.add(
     "shell.title",
     (id) => {
-      if (!isChannelId(id)) return;
       const channel = store.channelById(id);
       return { name: channelDisplayName(channel, id), prefix: channel?.canvasFileId ? "" : "#" };
     },

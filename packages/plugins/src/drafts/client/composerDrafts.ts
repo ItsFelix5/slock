@@ -1,7 +1,7 @@
 import type { Env, TimerHandle } from "@slock/core";
 import { blockPreviewText, isSlackError } from "@slock/slack";
 import type { Block, ChannelId, DraftEntry, Ts } from "@slock/types";
-import { createEffect, createSignal, onCleanup } from "solid-js";
+import { createEffect, createSignal, onCleanup, untrack } from "solid-js";
 import { saveDraft } from "./draftApi";
 import { type DraftStore, draftCacheKey, isNewerDraft } from "./draftStore";
 
@@ -141,12 +141,15 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
     ({ draftKey, ready }) => {
       if (!ready || draftKey === defaultForKey) return;
       defaultForKey = draftKey;
-      const top = ((draftKey && drafts[draftKey]) || []).reduce<DraftEntry | undefined>(
-        (best, entry) => (best && !isNewerDraft(entry, best) ? best : entry),
-        undefined,
-      );
-      clientMsgId = top?.clientMsgId;
-      setActiveDraftId(top?.id);
+      const top = untrack(() => {
+        const newest = ((draftKey && drafts[draftKey]) || []).reduce<DraftEntry | undefined>(
+          (best, entry) => (best && !isNewerDraft(entry, best) ? best : entry),
+          undefined,
+        );
+        return { clientMsgId: newest?.clientMsgId, id: newest?.id };
+      });
+      clientMsgId = top.clientMsgId;
+      setActiveDraftId(top.id);
     },
   );
 
@@ -162,7 +165,7 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
       if (!(orphaned && draftKey)) return;
       sessionGeneration += 1;
       clientMsgId = undefined;
-      if (blockPreviewText(opts.blocks()).trim()) {
+      if (untrack(() => blockPreviewText(opts.blocks()).trim())) {
         loadedFor = `${draftKey}::new`;
         persistedFor = loadedFor;
       }
@@ -181,8 +184,10 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
       const token = `${draftKey}::${id ?? "new"}`;
       if (token === loadedFor) return;
       loadedFor = token;
-      const entry = draftKey && id ? drafts[draftKey]?.find((e) => e.id === id) : undefined;
-      opts.loadIntoEditor(entry?.blocks ?? (draftKey ? unsaved.get(draftKey) : undefined) ?? []);
+      untrack(() => {
+        const entry = draftKey && id ? drafts[draftKey]?.find((e) => e.id === id) : undefined;
+        opts.loadIntoEditor(entry?.blocks ?? (draftKey ? unsaved.get(draftKey) : undefined) ?? []);
+      });
     },
   );
 
@@ -191,11 +196,12 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
       blocks: opts.blocks(),
       channelId: opts.channelId(),
       draftKey: key(),
+      empty: !blockPreviewText(opts.blocks()).trim(),
       id: activeDraftId(),
       ready: opts.ready() && store.ready(),
       threadTs: opts.threadTs(),
     }),
-    ({ blocks, channelId, draftKey, id, ready, threadTs }) => {
+    ({ blocks, channelId, draftKey, empty, id, ready, threadTs }) => {
       if (!(ready && draftKey && channelId)) return;
       const token = `${draftKey}::${id ?? "new"}`;
       const skip = token !== persistedFor;
@@ -205,7 +211,6 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
         return;
       }
 
-      const empty = !blockPreviewText(blocks).trim();
       if (!empty && id) {
         store.upsert({ blocks, channelId, clientMsgId: clientMsgId ?? "", id, threadTs });
       } else if (empty && id) {

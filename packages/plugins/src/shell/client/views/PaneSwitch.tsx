@@ -1,5 +1,5 @@
 import { getHost, service, usePoint } from "@slock/core/solid";
-import { focusedPaneId, type Pane, useEscapeClose } from "@slock/ui";
+import { type Pane, useEscapeClose } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { dynamic } from "@solidjs/web";
 import { createEffect, createMemo, onSettled } from "solid-js";
@@ -23,7 +23,7 @@ export default function PaneSwitch(props: { pane: Pane<PaneContent | null> }) {
   onSettled(() => panes.markMounted(props.pane.id));
   useEscapeClose(
     () => view.closeTile(props.pane.id),
-    () => focusedPaneId() === props.pane.id,
+    () => panes.focusedPaneId() === props.pane.id,
   );
 
   const kind = createMemo(() => kinds().find((item) => item.kind === props.pane.content?.kind));

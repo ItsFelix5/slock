@@ -1,14 +1,6 @@
 import { EmojiText } from "@slock/blockkit";
 import { Slot, service } from "@slock/core/solid";
-import {
-  Button,
-  focusedPaneId,
-  IconButton,
-  InlineFeedback,
-  type Pane,
-  PanelHeader,
-  useShortcut,
-} from "@slock/ui";
+import { Button, IconButton, InlineFeedback, type Pane, PanelHeader, useShortcut } from "@slock/ui";
 import { createEffect, createSignal, Show } from "solid-js";
 import { copyCanvasLink } from "../../../message-links/client/api/messageLinks";
 import type { CanvasPaneContent } from "../api";
@@ -25,6 +17,7 @@ import CanvasVersionBanner from "./CanvasVersionBanner";
 const feedback = service("feedback");
 
 const viewStore = service("shell.view");
+const panesStore = service("shell.panes");
 const canvas = service("canvas");
 
 export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
@@ -69,7 +62,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
 
   useShortcut({
     combo: { alt: true, key: "ArrowDown" },
-    enabled: () => focusedPaneId() === props.pane.id && headings().length > 1,
+    enabled: () => panesStore.focusedPaneId() === props.pane.id && headings().length > 1,
     handler: () => jumpRelative(1),
     id: "canvas.jumpNextHeading",
     label: "Jump to the next heading",
@@ -78,7 +71,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
   });
   useShortcut({
     combo: { alt: true, key: "ArrowUp" },
-    enabled: () => focusedPaneId() === props.pane.id && headings().length > 1,
+    enabled: () => panesStore.focusedPaneId() === props.pane.id && headings().length > 1,
     handler: () => jumpRelative(-1),
     id: "canvas.jumpPrevHeading",
     label: "Jump to the previous heading",

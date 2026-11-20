@@ -13,9 +13,7 @@ export function themeColorVar(key: string): string {
 }
 
 export function createThemeColorRegistry() {
-  const [themeColorDefinitions, setDefinitions] = createImmediateSignal<ThemeColorDefinition[]>(
-    [],
-  );
+  const [themeColorDefinitions, setDefinitions] = createImmediateSignal<ThemeColorDefinition[]>([]);
   return {
     add(definitions: ThemeColorDefinition[]): () => void {
       setDefinitions([...themeColorDefinitions(), ...definitions]);
