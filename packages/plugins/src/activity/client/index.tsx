@@ -36,11 +36,15 @@ const setup: Setup = (ctx) => {
   const messages = service("messages");
   const unread = service("unread");
   const users = service("users");
+  const bootstrap = service("bootstrap");
+  const prefs = service("prefs");
   const store = createActivityStore({
     cacheResolvedMessages: createReactionCache(messages),
     clearChannelUnread: unread.clearChannelUnread,
     currentUser: users.currentUser,
     env: ctx.get("env"),
+    ready: () =>
+      !!users.currentUser() && (prefs.preferencesReady() || !!bootstrap.userPrefs().error),
     isBotUser: (userId) => !!users.userById(userId)?.isBot,
     lastReadByChannel: unread.lastReadByChannel,
     reactionMessageFor: messages.reactionMessageFor,
@@ -50,14 +54,6 @@ const setup: Setup = (ctx) => {
     threadReadTsFor: unread.threadReadTsFor,
   });
   ctx.provide("activity", store);
-  const bootstrap = service("bootstrap");
-  const prefs = service("prefs");
-  createEffect(
-    () => !!users.currentUser() && (prefs.preferencesReady() || !!bootstrap.userPrefs().error),
-    (ready) => {
-      if (ready) void store.ensureActivityLoaded();
-    },
-  );
   const conversations = service("conversations");
   createEffect(
     () => {

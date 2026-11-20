@@ -1,5 +1,6 @@
-import { createEffect, createSignal, onCleanup, onSettled } from "solid-js";
+import { createSignal, onCleanup, onSettled } from "solid-js";
 import { startFrameCoalescedPointerDrag } from "../../pointerDrag";
+import { createResetSignal } from "../../resetSignal";
 import { createMediaVolume } from "./createMediaVolume";
 import { useVideoShortcuts } from "./useVideoShortcuts";
 import { ratioFromPointer, ratioOf, timeFromRatio } from "./videoTime";
@@ -15,9 +16,9 @@ export function createVideoPlayback(options: {
   const [videoElement, setVideoElement] = createSignal<HTMLVideoElement>();
   const mediaVolume = createMediaVolume(videoElement);
 
-  const [failed, setFailed] = createSignal(false);
-  const [playing, setPlaying] = createSignal(false);
-  const [currentTime, setCurrentTime] = createSignal(0);
+  const [failed, setFailed] = createResetSignal(options.src, false);
+  const [playing, setPlaying] = createResetSignal(options.src, false);
+  const [currentTime, setCurrentTime] = createResetSignal(options.src, 0);
   const [mediaDuration, setMediaDuration] = createSignal<number>();
   const [buffered, setBuffered] = createSignal(0);
   const [fullscreen, setFullscreen] = createSignal(false);
@@ -26,16 +27,6 @@ export function createVideoPlayback(options: {
 
   const duration = () => options.duration() ?? mediaDuration() ?? 0;
   const progress = () => ratioOf(currentTime(), duration());
-
-  createEffect(
-    options.src,
-    () => {
-      setFailed(false);
-      setPlaying(false);
-      setCurrentTime(0);
-    },
-    { defer: true },
-  );
 
   onSettled(() => {
     const onFullscreenChange = () => setFullscreen(document.fullscreenElement === wrapRef);

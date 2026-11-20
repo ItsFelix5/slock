@@ -5,7 +5,7 @@ import { createEffect, lazy } from "solid-js";
 const view = lazy(() => import("./views/AppearanceTab"));
 
 const setup: Setup = (ctx) => {
-  const theme = createTheme();
+  const theme = createTheme(ctx.get("env").storage);
   ctx.onCleanup(theme.dispose);
   ctx.provide("theme", theme);
   const colors = ctx.use("appearance.colors");

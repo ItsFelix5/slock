@@ -1,11 +1,12 @@
 import { clamp } from "@slock/core";
 import type { JSX } from "@solidjs/web";
-import { createEffect, createSignal, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import IconButton from "../../button/IconButton";
 import { useEscapeClose } from "../../hooks/useEscapeClose";
 import { useNavigationShortcuts } from "../../hooks/useNavShortcuts";
 import { inside, useShortcut } from "../../hooks/useShortcut";
 import Overlay from "../../overlay/Overlay";
+import { createResetSignal } from "../../resetSignal";
 import Icon from "../Icon";
 import { imageSrc } from "../mediaSrc";
 import "./ImageLightbox.css";
@@ -36,27 +37,17 @@ export function ImageLightbox(props: {
 
   let imgRef: HTMLImageElement | undefined;
   const [lens, setLens] = createSignal<{ x: number; y: number } | null>(null);
-  const [lensZoom, setLensZoom] = createSignal(LENS_ZOOM_DEFAULT);
-  const [loading, setLoading] = createSignal(true);
-  const [failed, setFailed] = createSignal(false);
-  const [naturalSize, setNaturalSize] = createSignal<{
-    w: number;
-    h: number;
-  } | null>(null);
   const index = () => clamp(props.index, 0, props.gallery.length - 1);
   const image = () => defined(props.gallery[index()]);
   const hasPrevious = () => index() > 0;
   const hasNext = () => index() < props.gallery.length - 1;
-
-  createEffect(
-    () => image().src,
-    () => {
-      setFailed(false);
-      setLoading(true);
-      setLensZoom(LENS_ZOOM_DEFAULT);
-      setNaturalSize(null);
-    },
-    { defer: true },
+  const src = () => image().src;
+  const [lensZoom, setLensZoom] = createResetSignal(src, LENS_ZOOM_DEFAULT);
+  const [loading, setLoading] = createResetSignal(src, true);
+  const [failed, setFailed] = createResetSignal(src, false);
+  const [naturalSize, setNaturalSize] = createResetSignal<{ w: number; h: number } | null>(
+    src,
+    null,
   );
 
   const clearLens = () => {

@@ -5,8 +5,9 @@ import { lazy } from "solid-js";
 const view = lazy(() => import("./views/KeybindsTab"));
 
 const setup: Setup = (ctx) => {
-  const keybinds = createKeybindOverrides(localStorage);
+  const keybinds = createKeybindOverrides(ctx.get("env").storage);
   ctx.provide("keybinds", keybinds);
+  ctx.onCleanup(keybinds.dispose);
   ctx.onCleanup(installKeybindOverrides(keybinds));
   const settings = ctx.get("settings");
   ctx.add("settings.tab", { id: "keybinds", label: "Keybinds", view }, { order: 30 });

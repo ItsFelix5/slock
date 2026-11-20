@@ -1,7 +1,7 @@
 import { Slot, service } from "@slock/core/solid";
 import type { Message, Ts } from "@slock/types";
-import type { Pane } from "@slock/ui";
-import { createEffect, createMemo, createSignal, Show } from "solid-js";
+import { createResetSignal, type Pane } from "@slock/ui";
+import { createEffect, createMemo, Show } from "solid-js";
 import { prepareReplyLink } from "../../../message-links/client/api/messageLinks";
 import type { ThreadPaneContent } from "../../../messages/client/api";
 import { createMessageFocus } from "../../../messages/client/api/messageFocus";
@@ -23,7 +23,10 @@ const unreadStore = service("unread");
 
 export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
   const thread = () => props.pane.content;
-  const [replyTarget, setReplyTarget] = createSignal<{ ts: Ts; permalink: string } | null>(null);
+  const [replyTarget, setReplyTarget] = createResetSignal<{ ts: Ts; permalink: string } | null>(
+    () => thread().ts,
+    null,
+  );
 
   const messages = createMemo(() => messagesStore.messagesInThread(thread().ts) ?? []);
   const hasMore = () =>
@@ -79,7 +82,6 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
     () => {
       feed.reset();
       pagination.reset();
-      setReplyTarget(null);
     },
   );
 

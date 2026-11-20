@@ -1,25 +1,23 @@
 import type { Env } from "@slock/core";
 import type { ActivityItem, ChannelId, FeedEntry, Message, Ts, User, UserId } from "@slock/types";
-import { createSignal, createStore, onCleanup } from "solid-js";
-import {
-  channelPostKey,
-  isOwnOrUnresolved,
-  NO_CHANNEL,
-  NO_USER,
-  reactionActivityKey,
-} from "../kinds";
+import { createEffect, createMemo, createSignal, onCleanup, refresh } from "solid-js";
+import { NO_CHANNEL } from "../kinds";
 import { createActivityFeedRefreshScheduler } from "./activityFeedRefresh";
 import type { ActivityItems } from "./activityItems";
 import { createEntryResolution } from "./entryResolution";
+import { applyStaleEntries, seenSetsFor, staleEntries } from "./feedMerge";
+import { createFeedScopes, MAIN_SCOPE, scopeKey } from "./feedScopes";
 
 const LIVE_ACTIVITY_REFRESH_DELAY_MS = 250;
+const PAGE_SIZE = 50;
 
-type FetchStatus = "idle" | "loading" | "error";
+type MoreRequest = { id: number; types?: string; unreadOnly?: boolean };
 
-export function createActivityFeedLoad(deps: {
+export type ActivityFeedLoadDeps = {
   items: ActivityItems;
   cacheResolvedMessages?: (messages: Map<string, Message>) => void;
   currentUser: () => User | undefined;
+  ready: () => boolean;
   env: Env;
   backfillMissingReadCursors: (items: readonly ActivityItem[]) => Promise<void>;
   fetchActivityFeedEntries: (
@@ -39,167 +37,117 @@ export function createActivityFeedLoad(deps: {
   isBotUser?: (userId: UserId) => boolean;
   onReactionPushed?: (name: string) => void;
   resolveActivityEntry: (entry: FeedEntry, batch?: Map<string, Message>) => ActivityItem;
-}) {
-  const { createEntryPusher, resolvePendingEntries } = createEntryResolution({
-    cacheResolvedMessages: deps.cacheResolvedMessages,
-    env: deps.env,
-    fetchHistoryAround: deps.fetchHistoryAround,
-    fetchMessagesByIds: deps.fetchMessagesByIds,
-    isBotUser: deps.isBotUser,
-    onReactionPushed: deps.onReactionPushed,
-    resolveActivityEntry: deps.resolveActivityEntry,
-    items: deps.items,
+};
+
+export function createActivityFeedLoad(deps: ActivityFeedLoadDeps) {
+  const { createEntryPusher, resolvePendingEntries } = createEntryResolution(deps);
+  const scopes = createFeedScopes();
+  let busy = false;
+
+  async function exclusive(job: () => Promise<void>): Promise<void> {
+    if (busy) return;
+    busy = true;
+    try {
+      await job();
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function mergePage(me: User, entries: FeedEntry[]) {
+    const { seen, seenChannelPosts, seenReactions } = seenSetsFor(deps.items.list);
+    const pending = entries.filter((entry) => !seen.has(entry.id));
+    const { push, pushed } = createEntryPusher(me, seen, seenChannelPosts, seenReactions);
+    await resolvePendingEntries(pending, seen, seenChannelPosts, push);
+    return pushed;
+  }
+
+  async function reloadStale(me: User, entries: FeedEntry[]) {
+    const stale = staleEntries(entries, deps.items.list);
+    if (!stale.length) return;
+    const batch = await deps.fetchMessagesByIds(
+      stale.filter((entry) => entry.channelId !== NO_CHANNEL),
+    );
+    if (batch.size) deps.cacheResolvedMessages?.(batch);
+    deps.items.update((list) =>
+      applyStaleEntries(list, stale, deps.resolveActivityEntry, batch, me),
+    );
+  }
+
+  async function loadNewest(me: User) {
+    const page = await deps.fetchActivityFeedEntries();
+    scopes.record(MAIN_SCOPE, page, true);
+    const pushed = await mergePage(me, page.entries);
+    await reloadStale(me, page.entries);
+    void deps.backfillMissingReadCursors([...deps.items.list, ...pushed]);
+  }
+
+  async function loadOlder(me: User, { types, unreadOnly }: MoreRequest) {
+    const key = scopeKey(types, unreadOnly);
+    const page = await deps.fetchActivityFeedEntries(
+      PAGE_SIZE,
+      scopes.cursor(key),
+      types,
+      unreadOnly,
+    );
+    scopes.record(key, page);
+    const pushed = await mergePage(me, page.entries);
+    void deps.backfillMissingReadCursors([...deps.items.list, ...pushed]);
+  }
+
+  const feed = createMemo(async () => {
+    const me = deps.currentUser();
+    if (!(deps.ready() && me)) return false;
+    await exclusive(() => loadNewest(me));
+    return true;
   });
 
-  const [loadStatus, setLoadStatus] = createSignal<FetchStatus>("idle");
-  const [moreStatus, setMoreStatus] = createSignal<FetchStatus>("idle");
-  const [activityLoaded, setActivityLoaded] = createSignal(false);
-  const [activityHasMore, setActivityHasMore] = createSignal(true);
-  let fetching = false;
-  let activityFeedCursor: string | undefined;
+  const [moreRequest, setMoreRequest] = createSignal<MoreRequest>();
+  let requestId = 0;
 
-  const scopedActivityFeedCursors = new Map<string, string | undefined>();
-  const [scopedActivityHasMore, setScopedActivityHasMore] = createStore<Record<string, boolean>>(
-    {},
-  );
-
-  function activityFeedScopeKey(types?: string, unreadOnly?: boolean): string | undefined {
-    if (!(types || unreadOnly)) return;
-    return `${types ?? ""}${unreadOnly ? "|unread" : ""}`;
-  }
-
-  function activityHasMoreFor(types?: string, unreadOnly?: boolean): boolean {
-    const scopeKey = activityFeedScopeKey(types, unreadOnly);
-    return scopeKey ? (scopedActivityHasMore[scopeKey] ?? true) : activityHasMore();
-  }
-
-  function seenSetsFor(items: readonly ActivityItem[]) {
-    const seen = new Set(items.map((i) => i.id));
-    const seenChannelPosts = new Set(
-      items
-        .filter((item) => item.kind === "channel_all")
-        .map((item) => channelPostKey(item.channelId, item.ts)),
-    );
-    const seenReactions = new Set(
-      items.map(reactionActivityKey).filter((key): key is string => !!key),
-    );
-    return { seen, seenChannelPosts, seenReactions };
-  }
-
-  async function refreshActivityFeed() {
-    if (fetching) return;
+  const more = createMemo(async () => {
+    const request = moreRequest();
     const me = deps.currentUser();
-    if (!me) return;
-    fetching = true;
-    setLoadStatus("loading");
-    try {
-      const { entries, nextCursor } = await deps.fetchActivityFeedEntries();
-      activityFeedCursor = nextCursor;
-      setActivityHasMore(!!nextCursor);
-      const { seen, seenChannelPosts, seenReactions } = seenSetsFor(deps.items.list);
-      const pending = entries.filter((entry) => !seen.has(entry.id));
+    if (!(request && me)) return request;
+    await exclusive(() => loadOlder(me, request));
+    return request;
+  });
 
-      const knownTimes = new Map(deps.items.list.map((item) => [item.id, item.time]));
-      const stale = entries.filter((entry) => entry.time > (knownTimes.get(entry.id) ?? Infinity));
-      const { push, pushed } = createEntryPusher(me, seen, seenChannelPosts, seenReactions);
-      await resolvePendingEntries(pending, seen, seenChannelPosts, push);
-      if (stale.length) {
-        const toFetch = stale.filter((entry) => entry.channelId !== NO_CHANNEL);
-        const batch = await deps.fetchMessagesByIds(toFetch);
-        if (batch.size) deps.cacheResolvedMessages?.(batch);
-        deps.items.update((list) => {
-          for (const entry of stale) {
-            const index = list.findIndex((i) => i.id === entry.id);
-            const known = list[index];
-            if (!known) continue;
-            const resolved = deps.resolveActivityEntry(entry, batch);
-            if (resolved.time < known.time) continue;
-            if (isOwnOrUnresolved(resolved, me)) {
-              list.splice(index, 1);
-              continue;
-            }
-            Object.assign(known, {
-              ...resolved,
-              text: resolved.text || known.text,
-              userId: resolved.userId === NO_USER ? known.userId : resolved.userId,
-            });
-          }
-          list.sort((a, b) => b.time - a.time);
-        });
-      }
-      setActivityLoaded(true);
-      setLoadStatus("idle");
-      void deps.backfillMissingReadCursors([...deps.items.list, ...pushed]);
-    } catch (err) {
-      console.error("Failed to load activity", err);
-      setLoadStatus("error");
-    } finally {
-      fetching = false;
-    }
-  }
+  createEffect(feed, {
+    effect: () => {},
+    error: (err) => console.error("Failed to load activity", err),
+  });
+  createEffect(more, {
+    effect: () => {},
+    error: (err) => console.error("Failed to load more activity", err),
+  });
 
-  async function ensureActivityLoaded() {
-    if (activityLoaded() || loadStatus() === "error") return;
-    await refreshActivityFeed();
-  }
-
-  async function loadMoreActivity(types?: string, unreadOnly?: boolean) {
-    const scopeKey = activityFeedScopeKey(types, unreadOnly);
-    if (!activityLoaded() || fetching || !activityHasMoreFor(types, unreadOnly)) return;
-    const me = deps.currentUser();
-    if (!me) return;
-    fetching = true;
-    setMoreStatus("loading");
-    try {
-      const cursor = scopeKey ? scopedActivityFeedCursors.get(scopeKey) : activityFeedCursor;
-      const { entries, nextCursor } = await deps.fetchActivityFeedEntries(
-        50,
-        cursor,
-        types,
-        unreadOnly,
-      );
-      if (scopeKey) scopedActivityFeedCursors.set(scopeKey, nextCursor);
-      else activityFeedCursor = nextCursor;
-      const hasMore = !!nextCursor && entries.length > 0;
-      if (scopeKey)
-        setScopedActivityHasMore((scoped) => {
-          scoped[scopeKey] = hasMore;
-        });
-      else setActivityHasMore(hasMore);
-      const { seen, seenChannelPosts, seenReactions } = seenSetsFor(deps.items.list);
-      const pending = entries.filter((entry) => !seen.has(entry.id));
-      const { push, pushed } = createEntryPusher(me, seen, seenChannelPosts, seenReactions);
-      await resolvePendingEntries(pending, seen, seenChannelPosts, push);
-      setMoreStatus("idle");
-      void deps.backfillMissingReadCursors([...deps.items.list, ...pushed]);
-    } catch (err) {
-      console.error("Failed to load more activity", err);
-      setMoreStatus("error");
-    } finally {
-      fetching = false;
-    }
+  function loadMoreActivity(types?: string, unreadOnly?: boolean): void {
+    if (!scopes.loaded() || busy || !scopes.hasMore(scopeKey(types, unreadOnly))) return;
+    setMoreRequest({ id: ++requestId, types, unreadOnly });
   }
 
   const liveRefresh = createActivityFeedRefreshScheduler({
     delayMs: LIVE_ACTIVITY_REFRESH_DELAY_MS,
     env: deps.env,
-    isLoading: () => fetching,
-    refresh: refreshActivityFeed,
+    isLoading: () => busy,
+    refresh: () =>
+      refresh(feed).then(
+        () => {},
+        () => {},
+      ),
   });
 
   onCleanup(liveRefresh.cancel);
-  const requestActivityRefresh = liveRefresh.request;
 
   return {
-    activityHasMore: activityHasMoreFor,
-    activityLoaded,
-    activityLoading: () => loadStatus() === "loading",
-    activityLoadError: () => loadStatus() === "error",
-    activityLoadingMore: () => moreStatus() === "loading",
-    activityLoadMoreError: () => moreStatus() === "error",
-    ensureActivityLoaded,
+    activityFeed: feed,
+    activityLoaded: scopes.loaded,
+    activityHasMore: (types?: string, unreadOnly?: boolean) =>
+      scopes.hasMore(scopeKey(types, unreadOnly)),
+    activityMore: more,
     loadMoreActivity,
-    requestActivityRefresh,
-    retryActivityLoad: refreshActivityFeed,
+    requestActivityRefresh: liveRefresh.request,
+    retryActivityLoad: () => refresh(feed),
   };
 }

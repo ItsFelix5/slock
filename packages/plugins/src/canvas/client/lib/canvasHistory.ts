@@ -1,6 +1,7 @@
 import { service } from "@slock/core/solid";
 import type { CanvasVersion, FileId } from "@slock/types";
-import { createEffect, createMemo, createSignal } from "solid-js";
+import { createResetSignal } from "@slock/ui";
+import { createMemo, createSignal } from "solid-js";
 import { defineQuery } from "../../../query/client/api";
 import { type CanvasMeta, diffNodes } from "../../protocol/api";
 import type { CanvasDocModel } from "./canvasDelta";
@@ -45,8 +46,8 @@ export function createCanvasHistory(
   content: () => LoadedCanvas | null | undefined,
   reload: () => unknown,
 ) {
-  const [open, setOpen] = createSignal(false);
-  const [selected, setSelected] = createSignal<CanvasVersion | null>(null);
+  const [open, setOpen] = createResetSignal(fileId, false);
+  const [selected, setSelected] = createResetSignal<CanvasVersion | null>(fileId, null);
   const [restoring, setRestoring] = createSignal(false);
   const versions = canvasVersions.state(() => (open() || selected() ? fileId() : undefined));
   const viewing = canvasVersionView.state(() => {
@@ -63,11 +64,6 @@ export function createCanvasHistory(
   const diff = createMemo(() => {
     const view = viewing().data;
     return view ? diffNodes(view.previous?.nodes ?? [], view.doc.nodes) : undefined;
-  });
-
-  createEffect(fileId, () => {
-    setOpen(false);
-    setSelected(null);
   });
 
   function close() {

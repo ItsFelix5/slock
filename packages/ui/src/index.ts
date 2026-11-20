@@ -140,6 +140,7 @@ export {
 } from "./panes/paneList";
 export { distributeResize } from "./panes/resize";
 export { createRecencyEviction } from "./recencyEviction";
+export { createResetSignal } from "./resetSignal";
 export { comboLabel, type ShortcutCombo } from "./shortcutCombo";
 export {
   findTextRanges,

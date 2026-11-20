@@ -1,10 +1,8 @@
 import { createImmediateSignal } from "../immediateSignal";
 import { metricsAt } from "../keyframeMetrics";
+import { clampShape, type ThemePrefs, type ThemeShape } from "./themePrefs";
 
-export interface ThemeShape {
-  density: number;
-  roundness: number;
-}
+export type { ThemeShape } from "./themePrefs";
 
 type DensityMetrics = Record<
   | "avatarFontSize"
@@ -113,32 +111,6 @@ const ROUNDNESS_KEYFRAMES: [number, RoundnessMetrics][] = [
   ],
 ];
 
-const THEME_SHAPE_KEY = "slock-theme-shape";
-
-function clampAxis(value: number): number {
-  return Math.min(2, Math.max(0, value));
-}
-
-function loadThemeShape(): ThemeShape {
-  try {
-    const stored = localStorage.getItem(THEME_SHAPE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (typeof parsed.density === "number" && typeof parsed.roundness === "number")
-        return {
-          density: clampAxis(parsed.density),
-          roundness: clampAxis(parsed.roundness),
-        };
-    }
-  } catch {
-    localStorage.removeItem(THEME_SHAPE_KEY);
-  }
-
-  const shape = { density: 1, roundness: 1 };
-  localStorage.setItem(THEME_SHAPE_KEY, JSON.stringify(shape));
-  return shape;
-}
-
 function applyThemeShape(shape: ThemeShape) {
   const root = document.documentElement;
   const density = metricsAt(DENSITY_KEYFRAMES, shape.density);
@@ -165,17 +137,17 @@ function applyThemeShape(shape: ThemeShape) {
   root.style.setProperty("--radius-pill", `${roundness.pillRadius}px`);
 }
 
-export function createThemeShape() {
-  const [themeShape, setThemeShapeSignal] = createImmediateSignal(loadThemeShape());
+export function createThemeShape(pref: ThemePrefs["shape"]) {
+  const [themeShape, setThemeShapeSignal] = createImmediateSignal(pref.get());
   applyThemeShape(themeShape());
   return {
     setThemeShape(next: Partial<ThemeShape>): void {
-      const merged = {
-        density: clampAxis(next.density ?? themeShape().density),
-        roundness: clampAxis(next.roundness ?? themeShape().roundness),
-      };
+      const merged = clampShape({
+        density: next.density ?? themeShape().density,
+        roundness: next.roundness ?? themeShape().roundness,
+      });
       setThemeShapeSignal(merged);
-      localStorage.setItem(THEME_SHAPE_KEY, JSON.stringify(merged));
+      pref.set(merged);
       applyThemeShape(merged);
     },
     themeShape,

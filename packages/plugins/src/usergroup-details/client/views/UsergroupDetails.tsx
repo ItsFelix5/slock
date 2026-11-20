@@ -2,6 +2,7 @@ import { service } from "@slock/core/solid";
 import {
   ariaBoolean,
   Button,
+  createResetSignal,
   InlineFeedback,
   type Pane,
   PanelHeader,
@@ -37,7 +38,7 @@ const TABS: { key: Tab; label: string }[] = [
 
 export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPaneContent> }) {
   const usergroupId = () => props.pane.content.usergroupId;
-  const [tab, setTab] = createSignal<Tab>("about");
+  const [tab, setTab] = createResetSignal<Tab>(usergroupId, "about");
   const tabButtonRefs: (HTMLButtonElement | undefined)[] = [];
   let tabListRef: HTMLDivElement | undefined;
   useTabStripShortcuts({
@@ -53,10 +54,6 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
   const [descriptionInput, setDescriptionInput] = createSignal("");
 
   const details = createMemo(() => usergroups.usergroupDetailsById(usergroupId()));
-
-  createEffect(usergroupId, () => {
-    setTab("about");
-  });
 
   createEffect(usergroupId, (id) => void groupActions.loadUsergroupDetails(id));
 

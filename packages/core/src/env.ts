@@ -18,5 +18,13 @@ export const systemEnv: Env = {
     get: (key) => localStorage.getItem(key),
     remove: (key) => localStorage.removeItem(key),
     set: (key, value) => localStorage.setItem(key, value),
+    subscribe: (listener) => {
+      if (typeof window === "undefined") return () => {};
+      const onStorage = (event: StorageEvent) => {
+        if (event.storageArea === null || event.storageArea === localStorage) listener(event.key);
+      };
+      window.addEventListener("storage", onStorage);
+      return () => window.removeEventListener("storage", onStorage);
+    },
   },
 };

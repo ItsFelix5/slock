@@ -3,7 +3,7 @@ import { isRecord } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { apiPost } from "@slock/slack";
 import type { ModalView, TextObject } from "@slock/types";
-import { Button, IconButton, Modal, ModalHeader } from "@slock/ui";
+import { Button, createResetSignal, IconButton, Modal, ModalHeader } from "@slock/ui";
 import { createEffect, createSignal, Show } from "solid-js";
 import { createViewSession } from "../viewSession";
 import "./ViewModal.css";
@@ -33,18 +33,11 @@ export default function ViewModal() {
   const view = () => modals.topView();
   const canGoBack = () => modals.viewStack().length > 1;
   const [submitting, setSubmitting] = createSignal(false);
-  const [failed, setFailed] = createSignal(false);
+  const [failed, setFailed] = createResetSignal(() => view()?.id, false);
 
   createEffect(
     () => modals.viewStack().map((open) => open.id),
     (openIds) => session.forget(openIds),
-  );
-  createEffect(
-    () => view()?.id,
-    () => {
-      setFailed(false);
-    },
-    { defer: true },
   );
 
   const notifyClosed = (closing: ModalView) =>

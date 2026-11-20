@@ -38,7 +38,10 @@ const ABOUT_TAB: TabEntry = { key: "about", label: "About" };
 export default function ChannelDetails() {
   const tabButtonRefs: (HTMLButtonElement | undefined)[] = [];
   let tabListRef: HTMLDivElement | undefined;
-  const [tab, setTab] = createSignal<ChannelDetailsTab>("about");
+  const [tab, setTab] = createSignal<ChannelDetailsTab>(() => {
+    channelDetails.channelDetailsId();
+    return channelDetails.channelDetailsTab();
+  });
 
   useEscapeClose(channelDetails.closeChannelDetails, () => !!channelDetails.channelDetailsId());
 
@@ -84,15 +87,6 @@ export default function ChannelDetails() {
     root: () => tabListRef,
   });
 
-  createEffect(
-    () => {
-      channelDetails.channelDetailsId();
-      return channelDetails.channelDetailsTab();
-    },
-    (requested) => {
-      setTab(requested);
-    },
-  );
   createEffect(
     () => !!activeTab()?.item?.managerOnly && !isWaiting(managerIds()) && !isManager(),
     (locked) => {

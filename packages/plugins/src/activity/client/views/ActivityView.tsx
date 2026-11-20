@@ -1,11 +1,13 @@
 import { formatDayFromMs } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { Button, Icon, initRovingTabIndexDefault } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
+import { createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 import { createPingCoverage } from "../kinds";
+import { ActivityFeedStatus, ActivityMoreStatus, WhenMoreIdle } from "./activityLoadStatus";
 import ActivityRow, { type ActivityRow as ActivityRowData } from "./ActivityRow";
 import ActivityToolbar from "./ActivityToolbar";
 import { openActivityRow } from "./activityRowOpen";
+import { createActivityTopUp } from "./activityTopUp";
 import "./ActivityView.css";
 import { createActivityRows } from "./activityRows";
 import {
@@ -20,9 +22,6 @@ import {
 
 const activityStore = service("activity");
 const sidebarStore = service("sidebar");
-
-const NEAR_BOTTOM_VIEWPORT_FRACTION = 1.5;
-const MAX_AUTO_TOP_UP_ATTEMPTS = 25;
 
 export default function ActivityView() {
   let listRef: HTMLDivElement | undefined;
@@ -134,54 +133,16 @@ export default function ActivityView() {
   const activeUnreadOnly = createMemo(() => readState() === "unread");
 
   let scrollRef: HTMLDivElement | undefined;
-
-  function handleScroll() {
-    const el = scrollRef;
-    if (
-      !el ||
-      activityStore.activityLoadMoreError() ||
-      el.scrollHeight - el.scrollTop - el.clientHeight >
-        el.clientHeight * NEAR_BOTTOM_VIEWPORT_FRACTION
-    )
-      return;
-    void activityStore.loadMoreActivity(activeFeedTypes(), activeUnreadOnly());
-  }
-
-  let topUpKey: string | undefined;
-  let topUpAttempts = 0;
-  createEffect(
-    () => {
-      visibleRows();
-      const types = activeFeedTypes();
-      const unreadOnly = activeUnreadOnly();
-      const canLoadMore =
-        activityStore.activityLoaded() &&
-        activityStore.activityHasMore(types, unreadOnly) &&
-        !activityStore.activityLoading() &&
-        !activityStore.activityLoadingMore() &&
-        !activityStore.activityLoadMoreError();
-      return { canLoadMore, key: `${selectedTag()}|${readState()}`, types, unreadOnly };
-    },
-    ({ canLoadMore, key, types, unreadOnly }) => {
-      if (key !== topUpKey) {
-        topUpKey = key;
-        topUpAttempts = 0;
-      }
-      const el = scrollRef;
-      if (!el || el.scrollHeight > el.clientHeight || !canLoadMore) return;
-      if (topUpAttempts >= MAX_AUTO_TOP_UP_ATTEMPTS) return;
-      topUpAttempts++;
-      void activityStore.loadMoreActivity(types, unreadOnly);
-    },
-  );
+  const topUp = createActivityTopUp({
+    container: () => scrollRef,
+    key: () => `${selectedTag()}|${readState()}`,
+    rows: visibleRows,
+    types: activeFeedTypes,
+    unreadOnly: activeUnreadOnly,
+  });
 
   return (
-    <div
-      aria-busy={activityStore.activityLoading() ? "true" : "false"}
-      class="activity-view"
-      onScroll={handleScroll}
-      ref={scrollRef}
-    >
+    <div class="activity-view" onScroll={topUp.onScroll} ref={scrollRef}>
       <ActivityToolbar
         onReadStateChange={setReadState}
         onSelectTag={setSelectedTag}
@@ -190,32 +151,7 @@ export default function ActivityView() {
         tabCount={tabCount}
       />
 
-      <Show
-        when={
-          !(activityStore.activityLoaded() || activityStore.activityLoadError()) &&
-          rows().length === 0
-        }
-      >
-        <div class="activity-load-state empty-state">Loading activity…</div>
-      </Show>
-
-      <Show when={activityStore.activityLoadError() && rows().length === 0}>
-        <div class="activity-load-state activity-load-error empty-state">
-          <span>Couldn't load activity.</span>
-          <Button onClick={activityStore.retryActivityLoad} size="sm">
-            Try again
-          </Button>
-        </div>
-      </Show>
-
-      <Show when={activityStore.activityLoadError() && rows().length > 0}>
-        <div class="activity-load-notice flex-center gap-sm activity-load-warning">
-          <span>Couldn't refresh activity.</span>
-          <Button onClick={activityStore.retryActivityLoad} size="sm">
-            Try again
-          </Button>
-        </div>
-      </Show>
+      <ActivityFeedStatus empty={rows().length === 0} />
 
       <Show when={activityStore.activityReadSyncError()}>
         <div class="activity-load-notice flex-center gap-sm activity-load-warning">
@@ -230,14 +166,14 @@ export default function ActivityView() {
         </div>
       </Show>
 
-      <Show when={activityStore.activityLoaded() || rows().length > 0}>
+      <Show when={rows().length > 0 || activityStore.activityLoaded()}>
         <Show
           fallback={
             <div class="activity-empty flex-col empty-state">
               <Icon name="check-circle" size={28} />
-              <Show when={!activityStore.activityLoadingMore()}>
+              <WhenMoreIdle>
                 <div>Nothing in {selectedTagLabel().toLowerCase()}.</div>
-              </Show>
+              </WhenMoreIdle>
             </div>
           }
           when={visibleRows().length > 0}
@@ -255,32 +191,9 @@ export default function ActivityView() {
               }
             </For>
           </div>
-
-          <Show when={activityStore.activityLoadMoreError()}>
-            <div class="activity-load-notice flex-center gap-sm activity-load-warning">
-              <span>Couldn't load more activity.</span>
-              <Button
-                onClick={() =>
-                  activityStore.loadMoreActivity(activeFeedTypes(), activeUnreadOnly())
-                }
-                size="sm"
-              >
-                Try again
-              </Button>
-            </div>
-          </Show>
         </Show>
 
-        <Show when={activityStore.activityHasMore(activeFeedTypes(), activeUnreadOnly())}>
-          <div
-            class={[
-              "activity-load-notice flex-center gap-sm text-dim text-sm",
-              { "activity-load-idle": !activityStore.activityLoadingMore() },
-            ]}
-          >
-            Loading more…
-          </div>
-        </Show>
+        <ActivityMoreStatus types={activeFeedTypes()} unreadOnly={activeUnreadOnly()} />
       </Show>
     </div>
   );

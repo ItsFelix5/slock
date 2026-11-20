@@ -49,6 +49,7 @@ export function createActivityStore(
     clearChannelUnread: (channelId: ChannelId) => void;
     currentUser: () => User | undefined;
     env: Env;
+    ready: () => boolean;
     isBotUser?: (userId: UserId) => boolean;
     lastReadByChannel: Record<string, number | undefined>;
     reactionMessageFor?: (channelId: ChannelId, ts: Ts) => Message | undefined;
@@ -103,13 +104,10 @@ export function createActivityStore(
   }
 
   const {
+    activityFeed,
     activityHasMore,
     activityLoaded,
-    activityLoading,
-    activityLoadError,
-    activityLoadingMore,
-    activityLoadMoreError,
-    ensureActivityLoaded,
+    activityMore,
     loadMoreActivity,
     requestActivityRefresh,
     retryActivityLoad,
@@ -123,6 +121,7 @@ export function createActivityStore(
     fetchMessagesByIds: api.fetchMessagesByIds,
     isBotUser: deps.isBotUser,
     items,
+    ready: deps.ready,
     onReactionPushed: recentReactionFlash.flash,
     resolveActivityEntry: api.resolveActivityEntry,
   });
@@ -159,20 +158,17 @@ export function createActivityStore(
   }
 
   return {
+    activityFeed,
     activityHasMore,
     activityItems,
     activityItemReadState,
     activityLoaded,
-    activityLoading,
-    activityLoadError,
-    activityLoadingMore,
-    activityLoadMoreError,
+    activityMore,
     activityReadSyncError: activityReadSync.error,
     activityReadSyncPending: activityReadSync.isPending,
     applyThreadMarked,
     archiveActivity,
     currentRowKey,
-    ensureActivityLoaded,
     hasUnreadActivity,
     isActivityItemArchived,
     isActivityItemUnread,

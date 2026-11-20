@@ -13,6 +13,7 @@ export type Env = {
     get(key: string): string | null;
     set(key: string, value: string): void;
     remove(key: string): void;
+    subscribe(listener: (key: string | null) => void): () => void;
   };
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
 };

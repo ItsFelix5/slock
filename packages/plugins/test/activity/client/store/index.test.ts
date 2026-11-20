@@ -44,6 +44,7 @@ function setup(options: { failArchive?: boolean; reactedBy?: ReturnType<typeof u
         currentUser: () => me,
         env: systemEnv,
         lastReadByChannel: {},
+        ready: () => false,
         reactionMessageFor: () => reactedMessage(options.reactedBy ?? []),
         setLastReadByChannel: () => {},
         syncChannelRead: () => Promise.resolve(true),

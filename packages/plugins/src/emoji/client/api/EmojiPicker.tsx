@@ -2,6 +2,7 @@ import { hasEmojiLoadError, isEmojiLoading, loadCustomEmoji } from "@slock/block
 import { service } from "@slock/core/solid";
 import {
   Button,
+  createResetSignal,
   gridNavigationIndex,
   inside,
   type NavDirection,
@@ -31,7 +32,7 @@ export default function EmojiPicker(props: {
   existingReactions?: { name: string; mine: boolean }[];
 }) {
   const [query, setQuery] = createSignal("");
-  const [activeIndex, setActiveIndex] = createSignal(0);
+  const [activeIndex, setActiveIndex] = createResetSignal(query, 0);
 
   let bodyRef: HTMLDivElement | undefined;
 
@@ -77,7 +78,7 @@ export default function EmojiPicker(props: {
 
   const layout = createMemo(() => layoutChunks(visibleEntries()));
 
-  const [scrollTop, setScrollTop] = createSignal(0);
+  const [scrollTop, setScrollTop] = createResetSignal(query, 0);
   const [viewportHeight, setViewportHeight] = createSignal(360);
 
   onSettled(() => {
@@ -91,9 +92,7 @@ export default function EmojiPicker(props: {
   createEffect(
     query,
     () => {
-      setScrollTop(0);
       if (bodyRef) bodyRef.scrollTop = 0;
-      setActiveIndex(0);
     },
     { defer: true },
   );

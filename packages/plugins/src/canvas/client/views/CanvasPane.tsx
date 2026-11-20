@@ -1,6 +1,14 @@
 import { EmojiText } from "@slock/blockkit";
 import { Slot, service } from "@slock/core/solid";
-import { Button, IconButton, InlineFeedback, type Pane, PanelHeader, useShortcut } from "@slock/ui";
+import {
+  Button,
+  createResetSignal,
+  IconButton,
+  InlineFeedback,
+  type Pane,
+  PanelHeader,
+  useShortcut,
+} from "@slock/ui";
 import { createEffect, createSignal, Show } from "solid-js";
 import { copyCanvasLink } from "../../../message-links/client/api/messageLinks";
 import type { CanvasPaneContent } from "../api";
@@ -41,10 +49,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
   let bodyRef: HTMLDivElement | undefined;
   const [activeIndex, setActiveIndex] = createSignal<number | null>(null);
 
-  const [editorOutline, setEditorOutline] = createSignal<OutlineSource | null>(null);
-  createEffect(fileId, () => {
-    setEditorOutline(null);
-  });
+  const [editorOutline, setEditorOutline] = createResetSignal<OutlineSource | null>(fileId, null);
   const outline = () => editorOutline();
   const headings = (): OutlineItem[] => (outline()?.items() ?? []).filter((item) => item.text);
 

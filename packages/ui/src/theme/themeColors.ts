@@ -15,25 +15,14 @@ import {
   parseColorRef,
   resolveThemeColorValue,
 } from "./themeDerivations";
+import type { ThemePrefs } from "./themePrefs";
 import { THEME_PRESETS, type ThemePreset } from "./themePresets";
 
 export type { ThemeColorDefinition } from "./themeColorRegistry";
 
-const THEME_COLORS_KEY = "slock-theme-colors";
-const THEME_PRESET_KEY = "slock-theme-preset";
-
-export function storedPreset(): ThemePreset {
-  const id = localStorage.getItem(THEME_PRESET_KEY);
+export function storedPreset(pref: ThemePrefs["preset"]): ThemePreset {
+  const id = pref.get();
   return THEME_PRESETS.find((preset) => preset.id === id) ?? defined(THEME_PRESETS[0]);
-}
-
-function loadThemeColors(): ThemeColors {
-  try {
-    const raw = localStorage.getItem(THEME_COLORS_KEY);
-    return { ...storedPreset().colors, ...(raw ? JSON.parse(raw) : {}) };
-  } catch {
-    return {};
-  }
 }
 
 function applyThemeColorScheme(scheme: "dark" | "light") {
@@ -49,11 +38,15 @@ export interface ThemeColorsDeps {
   setThemeCss: (css: string) => void;
 }
 
-export function createThemeColors(deps: ThemeColorsDeps) {
+export function createThemeColors(deps: ThemeColorsDeps, prefs: ThemePrefs) {
+  const preset = () => storedPreset(prefs.preset);
   const rootStyle = document.documentElement.style;
   const registry = createThemeColorRegistry();
   const { themeColorDefinitions } = registry;
-  const [themeColors, setThemeColorsSignal] = createImmediateSignal<ThemeColors>(loadThemeColors());
+  const [themeColors, setThemeColorsSignal] = createImmediateSignal<ThemeColors>({
+    ...preset().colors,
+    ...prefs.colors.get(),
+  });
   const isKnown = (key: string) => themeColorDefinitions().some((def) => def.key === key);
   const resolve = (value: string) => resolveThemeColorValue(value, isKnown);
 
@@ -69,7 +62,7 @@ export function createThemeColors(deps: ThemeColorsDeps) {
 
   function storeThemeColors(colors: ThemeColors) {
     setThemeColorsSignal(colors);
-    localStorage.setItem(THEME_COLORS_KEY, JSON.stringify(colors));
+    prefs.colors.set(colors);
     applyAllThemeColors();
   }
 
@@ -83,7 +76,7 @@ export function createThemeColors(deps: ThemeColorsDeps) {
   }
 
   const removeBuiltins = registerThemeColors(BUILTIN_THEME_COLORS);
-  applyThemeColorScheme(storedPreset().colorScheme ?? "dark");
+  applyThemeColorScheme(preset().colorScheme ?? "dark");
 
   function setThemeColors(overrides: ThemeColors): void {
     storeThemeColors({ ...themeColors(), ...overrides });
@@ -125,14 +118,14 @@ export function createThemeColors(deps: ThemeColorsDeps) {
       setThemeColors(Object.fromEntries(colors));
       return true;
     },
-    applyPreset(preset: ThemePreset): void {
-      setThemeColorsSignal(preset.colors);
+    applyPreset(next: ThemePreset): void {
+      setThemeColorsSignal(next.colors);
       applyAllThemeColors();
-      localStorage.setItem(THEME_PRESET_KEY, preset.id);
-      localStorage.removeItem(THEME_COLORS_KEY);
-      applyThemeColorScheme(preset.colorScheme ?? "dark");
-      deps.setThemeCss(preset.css ?? "");
-      if (preset.font) deps.setFont(preset.font);
+      prefs.preset.set(next.id);
+      prefs.colors.reset();
+      applyThemeColorScheme(next.colorScheme ?? "dark");
+      deps.setThemeCss(next.css ?? "");
+      if (next.font) deps.setFont(next.font);
     },
     copyableThemePalette(): string {
       return themeColorDefinitions()
@@ -149,11 +142,11 @@ export function createThemeColors(deps: ThemeColorsDeps) {
     },
     getColorRef: (key: string): ColorRef | undefined => parseColorRef(effectiveRawValue(key)),
     getEffectiveColor,
-    isThemeColorCustom: (key: string): boolean => themeColors()[key] !== storedPreset().colors[key],
+    isThemeColorCustom: (key: string): boolean => themeColors()[key] !== preset().colors[key],
     registerThemeColors,
     resetThemeColor(key: string): void {
       const next = { ...themeColors() };
-      const presetValue = storedPreset().colors[key];
+      const presetValue = preset().colors[key];
       if (presetValue === undefined) delete next[key];
       else next[key] = presetValue;
       storeThemeColors(next);
