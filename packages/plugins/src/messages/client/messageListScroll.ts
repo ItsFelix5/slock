@@ -57,7 +57,8 @@ export function createMessageListScroll(deps: {
     onMove: (direction) => {
       if (!feed.ready()) return;
       whenView(
-        (id) => rememberScrollAnchor(id, feed.atBottom() && isLive() ? undefined : feed.topAnchor()),
+        (id) =>
+          rememberScrollAnchor(id, feed.atBottom() && isLive() ? undefined : feed.topAnchor()),
         undefined,
       );
       pagination.check(direction);

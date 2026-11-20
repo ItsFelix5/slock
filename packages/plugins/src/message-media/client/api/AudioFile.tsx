@@ -112,8 +112,7 @@ export default function AudioFile(props: { file: SlackFile }) {
             onClick={togglePlayback}
           />
           <div
-            class="audio-file-waveform"
-            classList={{ disabled: duration() <= 0 }}
+            class={["audio-file-waveform", { disabled: duration() <= 0 }]}
             onClick={(event) => {
               const rect = event.currentTarget.getBoundingClientRect();
               seekTo((event.clientX - rect.left) / rect.width);
@@ -124,8 +123,10 @@ export default function AudioFile(props: { file: SlackFile }) {
             <For each={samples()}>
               {(sample, index) => (
                 <div
-                  class="audio-file-bar"
-                  classList={{ played: (index() + 1) / samples().length <= progress() }}
+                  class={[
+                    "audio-file-bar",
+                    { played: (index() + 1) / samples().length <= progress() },
+                  ]}
                   style={{ height: `${Math.min(100, Math.max(Number(sample) || 0, 8))}%` }}
                 />
               )}

@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
-import { Button, type Pane, PanelHeader } from "@slock/ui";
 import { ifPresent, parseTs } from "@slock/slack";
 import type { Ts } from "@slock/types";
+import { Button, type Pane, PanelHeader } from "@slock/ui";
 import { createEffect, createMemo, Show } from "solid-js";
 import { createMessageFocus } from "../../../messages/client/api/messageFocus";
 import MessageRows from "../../../messages/client/api/pane/MessageRows";

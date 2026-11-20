@@ -1,8 +1,8 @@
 import { HighlightWordsContext } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import type { ChannelId, Message, Ts } from "@slock/types";
-import { createMemo, For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { createMemo, For, Show } from "solid-js";
 import MessageRow from "../../views/MessageRow";
 import { retainsDeleted } from "../deletedMessages";
 import type { OpenThreadHandler } from "../messageFocus";

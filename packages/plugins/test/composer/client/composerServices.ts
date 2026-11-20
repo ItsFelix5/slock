@@ -1,10 +1,12 @@
 import type { PluginDef } from "@slock/core";
-import { partialService } from "@slock/core/testing";
+import { createFakeEnv, partialService } from "@slock/core/testing";
 import type { Services } from "@slock/core/types";
 import { parseChannelId, parseUserId } from "@slock/slack";
 import type { Channel, User, UserId } from "@slock/types";
 import { createMemo, createRoot } from "solid-js";
 import { createPendingFilesStore } from "../../../src/composer/client/lib/pendingFiles";
+import { createDraftStore } from "../../../src/drafts/client/draftStore";
+import { createDraftsService } from "../../../src/drafts/client/draftsService";
 import { emojiAutoconvert } from "../../../src/emoji/client/api/emojiAutoconvert";
 import { createEmojiIndex } from "../../../src/emoji/client/api/emojiSearch";
 
@@ -122,6 +124,11 @@ export function composerServices(outbox: Outbox): PluginDef[] {
         usedEmojiNames: () => [],
       }),
     ),
+    {
+      id: "drafts",
+      setup: (ctx) =>
+        ctx.provide("drafts", createDraftsService(createDraftStore(), createFakeEnv())),
+    },
     provide("templates", partialService<Services["templates"]>({ templates: sourceOf([]) })),
     provide("composer", {
       pendingFiles: createPendingFilesStore(),

@@ -10,22 +10,17 @@ import {
 } from "../../../slack/client/api";
 import type { ThreadRef } from "../api";
 import { mergeMessages } from "../api/messageMerge";
+import {
+  coversAnchor,
+  forwardPatch,
+  idle,
+  missingReplyCount,
+  type ThreadPaging,
+} from "./history/threadPaging";
 import { replaceMessageList, updateMessageList } from "./storeWrites";
 
 const KEEP_RECENT_THREADS = 8;
 const THREAD_FETCH_CONCURRENCY = 4;
-
-type ThreadPaging = {
-  after?: string;
-  before?: string;
-  earlierError: boolean;
-  earlierLoading: boolean;
-  error: boolean;
-  hasEarlier: boolean;
-  hasMore: boolean;
-  loading: boolean;
-  span?: number;
-};
 
 type ThreadLoad = { error: boolean; loading: boolean };
 
@@ -35,8 +30,6 @@ type ThreadApi = {
   fetchRepliesFrom: typeof fetchRepliesFrom;
   fetchThreadRoot: typeof fetchThreadRoot;
 };
-
-const idle = { earlierError: false, earlierLoading: false, error: false, loading: false };
 
 export function createThreadReplies(
   deps: { visibleThreads: () => ThreadRef[] },
@@ -65,16 +58,6 @@ export function createThreadReplies(
       if (current) Object.assign(current, patch);
       else s[ts] = { ...idle, hasEarlier: false, hasMore: false, ...patch };
     });
-
-  function forwardPatch(ts: Ts, page: { edge?: string; hasMore: boolean }) {
-    const current = paging[ts]?.after;
-    if (page.edge !== undefined && current !== undefined && Number(page.edge) < Number(current))
-      return {};
-    return {
-      after: page.edge ?? current,
-      hasMore: page.hasMore && page.edge !== undefined && page.edge !== current,
-    };
-  }
 
   async function loadAnchored(channelId: ChannelId, ts: Ts, anchor: Ts): Promise<Message[]> {
     anchorAttempted.set(ts, anchor);
@@ -120,17 +103,11 @@ export function createThreadReplies(
     const page = await api.fetchRepliesFrom(channelId, ts, after);
     const current = threadMessages[ts] ?? [];
     if (!isRun(ts, run)) return current;
-    patchPaging(ts, forwardPatch(ts, page));
+    patchPaging(ts, forwardPatch(paging[ts]?.after, page));
     return mergeMessages(current, page.messages);
   }
 
-  function missing(ts: Ts): number {
-    const entry = threadMessages[ts];
-    const root = entry?.find((m) => m.ts === ts);
-    const state = paging[ts];
-    if (!(entry && root && state) || state.hasMore || state.hasEarlier) return 0;
-    return Math.max(0, (root.replyCount ?? 0) - (entry.length - 1));
-  }
+  const missing = (ts: Ts) => missingReplyCount(threadMessages[ts], ts, paging[ts]);
 
   function fetchThread(ts: Ts): Promise<Message[]> {
     const channelId = channelForThread.get(ts);
@@ -181,21 +158,13 @@ export function createThreadReplies(
     return state?.loading || state?.earlierLoading || isLoadingThread(ts) ? 0 : missing(ts);
   }
 
-  function coversAnchor(ts: Ts, anchor: Ts): boolean {
-    const state = paging[ts];
-    if (!state) return false;
-    const lower = state.hasEarlier ? Number(state.before) : Number(ts);
-    const upper = state.hasMore ? Number(state.after) : Number.POSITIVE_INFINITY;
-    return Number(anchor) >= lower && Number(anchor) <= upper;
-  }
-
   function ensureThreadRepliesLoaded(channelId: ChannelId, ts: Ts, anchor?: Ts): boolean {
     channelForThread.set(ts, channelId);
     if (
       anchor &&
       anchor !== ts &&
       anchorAttempted.get(ts) !== anchor &&
-      !coversAnchor(ts, anchor)
+      !coversAnchor(paging[ts], ts, anchor)
     ) {
       anchorForThread.set(ts, anchor);
       void refreshThread(ts).then(() => {
@@ -228,7 +197,7 @@ export function createThreadReplies(
       setThreadMessages((s) =>
         updateMessageList(s, ts, (existing) => mergeMessages(existing, page.messages)),
       );
-      patchPaging(ts, { ...forwardPatch(ts, page), loading: false });
+      patchPaging(ts, { ...forwardPatch(paging[ts]?.after, page), loading: false });
     } catch (err) {
       console.error("Failed to load more replies", ts, err);
       if (isRun(ts, run)) patchPaging(ts, { error: true, loading: false });

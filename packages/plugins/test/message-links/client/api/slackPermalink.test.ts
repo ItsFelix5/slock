@@ -114,7 +114,9 @@ describe("navigateToSlackPermalink", () => {
 
   test("opens a reply as a peek highlighting the reply", () => {
     const reply = { ...target, messageTs: stamp("1700000005.000100") };
-    expect(run(reply)).toEqual([["peek", ch("C0123ABCD"), stamp("1700000000.123456"), stamp("1700000005.000100")]]);
+    expect(run(reply)).toEqual([
+      ["peek", ch("C0123ABCD"), stamp("1700000000.123456"), stamp("1700000005.000100")],
+    ]);
   });
 });
 

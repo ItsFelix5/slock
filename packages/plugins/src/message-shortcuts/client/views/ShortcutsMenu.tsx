@@ -42,7 +42,10 @@ export default function ShortcutsMenu(props: MessageMenuProps) {
         </div>
       </Show>
       <Show when={shortcuts().error}>
-        <MenuItem icon="refresh" onClick={() => void messageShortcuts.refresh(null).catch(() => {})}>
+        <MenuItem
+          icon="refresh"
+          onClick={() => void messageShortcuts.refresh(null).catch(() => {})}
+        >
           Retry
         </MenuItem>
       </Show>

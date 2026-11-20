@@ -40,7 +40,10 @@ export default function GifPicker(props: { onClose: () => void; onSelect: (gif: 
 
   useEscapeClose(props.onClose);
   useClickOutside(".gif-picker", props.onClose);
-  onSettled(() => requestAnimationFrame(() => searchRef?.focus()));
+  onSettled(() => {
+    const frame = requestAnimationFrame(() => searchRef?.focus());
+    return () => cancelAnimationFrame(frame);
+  });
   onCleanup(() => clearTimeout(delay));
 
   const showingFavorites = () => tab() === "favorites" && !query();

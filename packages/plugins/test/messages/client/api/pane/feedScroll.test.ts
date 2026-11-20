@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { defined } from "@slock/core";
-import { stamp } from "@slock/slack/testing";
 import { forAll, int, pick, type Random } from "@slock/core/testing";
+import { stamp } from "@slock/slack/testing";
 import { createRoot, flush } from "solid-js";
 import {
   createFeedScroll,

@@ -13,7 +13,9 @@ export function resolveBotProfileUserId(
 ): UserId | undefined {
   if (msg.botId?.startsWith("B") && isUserId(msg.botId)) return msg.botId;
   if (msg.botName === "Slackbot") return SLACKBOT_ID;
-  return msg.botName && msg.userId && (USER_PROFILE_ID_RE.test(msg.userId) || msg.userId.startsWith("B"))
+  return msg.botName &&
+    msg.userId &&
+    (USER_PROFILE_ID_RE.test(msg.userId) || msg.userId.startsWith("B"))
     ? msg.userId
     : undefined;
 }

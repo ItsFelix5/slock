@@ -112,7 +112,10 @@ export function createCanvasStore(deps: {
     refreshCanvasContent: (fileId: FileId) => canvasContent.refresh(fileId).catch(() => undefined),
     isCanvasNotVisible: (fileId: FileId) => notVisible().has(fileId),
     loadLatestCanvas: (fileId: FileId) => fetchVisibleCanvas(fileId).catch(() => null),
-    noteRemoteChange: (fileId: FileId) => setRemoteChanges(fileId, (n) => (n ?? 0) + 1),
+    noteRemoteChange: (fileId: FileId) =>
+      setRemoteChanges((draft) => {
+        draft[fileId] = (draft[fileId] ?? 0) + 1;
+      }),
     openCanvasPane,
     remoteChangeTick: (fileId: FileId) => remoteChanges[fileId] ?? 0,
     setCanvasContent: (fileId: FileId, content: LoadedCanvas) => canvasContent.set(fileId, content),

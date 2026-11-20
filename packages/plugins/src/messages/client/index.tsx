@@ -1,8 +1,8 @@
 import { BlockKitResolverContext } from "@slock/blockkit";
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
-import type { ChannelId, Ts } from "@slock/types";
 import { isChannelId } from "@slock/slack";
+import type { ChannelId, Ts } from "@slock/types";
 import { narrowPaneContent, type Pane } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
 import type { View } from "../../conversations/client/api/types";
@@ -135,9 +135,7 @@ const setup: Setup = (ctx) => {
   ctx.add("message-links.loaded", (channelId, ts) => !!loadedMessage(channelId, ts));
   const blockKitResolver = createBlockKitResolver(ctx.use("messages.blockKit"));
   ctx.add("shell.provider", (props) => (
-    <BlockKitResolverContext value={blockKitResolver}>
-      {props.children}
-    </BlockKitResolverContext>
+    <BlockKitResolverContext value={blockKitResolver}>{props.children}</BlockKitResolverContext>
   ));
   ctx.add("messages.blockKit", {
     wrapLink: (url, trigger, attachments) => {

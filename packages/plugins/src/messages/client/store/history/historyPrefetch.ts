@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
 import type { ChannelId } from "@slock/types";
-import type { MessageHistoryApi } from "../messageHistory";
+import type { MessageHistoryApi } from "./historyApi";
 
 const TTL_MS = 10_000;
 

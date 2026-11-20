@@ -10,7 +10,7 @@ export interface FeedAnchor {
 const ANCHOR_COUNT = 4;
 
 export function captureAnchors(scroller: HTMLElement): FeedAnchor[] {
-  const top = scroller.getBoundingClientRect().top;
+  const { top } = scroller.getBoundingClientRect();
   const groups = feedGroups(scroller);
   const first = firstIndexWhere(
     groups.length,

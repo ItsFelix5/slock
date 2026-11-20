@@ -19,3 +19,13 @@ export function updateMessageList<K extends string>(
 ) {
   replaceMessageList(draft, key, compute(draft[key] ?? []));
 }
+
+export function ensureMessageList<K extends string>(
+  draft: Record<K, Message[]>,
+  key: K,
+): Message[] {
+  const existing = draft[key];
+  if (existing) return existing;
+  draft[key] = [];
+  return draft[key] ?? [];
+}

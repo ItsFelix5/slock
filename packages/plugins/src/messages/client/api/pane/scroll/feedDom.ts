@@ -1,5 +1,6 @@
 import { isTs } from "@slock/slack";
 import type { Ts } from "@slock/types";
+
 const GROUP = "message-row-group";
 const DIVIDER = "message-divider";
 const FLASH_CLASS = "message-flash";

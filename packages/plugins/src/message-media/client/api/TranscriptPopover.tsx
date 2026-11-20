@@ -1,8 +1,8 @@
 import { formatDuration } from "@slock/blockkit";
+import { isWaiting } from "@slock/resource";
 import type { SlackFile } from "@slock/types";
 import { IconButton, Popover } from "@slock/ui";
-import { createEffect, createSignal, For, Match, onCleanup, Switch } from "solid-js";
-import { isWaiting } from "@slock/resource";
+import { createEffect, createSignal, For, Match, Switch } from "solid-js";
 import { createFileDetailQuery } from "../../../files/client/api/fileDetailQuery";
 import "./TranscriptPopover.css";
 
@@ -15,13 +15,15 @@ export default function TranscriptPopover(props: {
   const [currentTime, setCurrentTime] = createSignal(0);
   let bodyRef: HTMLDivElement | undefined;
 
-  createEffect(() => {
-    const media = props.media();
-    if (!(media && open())) return;
-    const onTimeUpdate = () => setCurrentTime(media.currentTime);
-    media.addEventListener("timeupdate", onTimeUpdate);
-    onCleanup(() => media.removeEventListener("timeupdate", onTimeUpdate));
-  });
+  createEffect(
+    () => ({ media: props.media(), listening: open() }),
+    ({ media, listening }) => {
+      if (!(media && listening)) return;
+      const onTimeUpdate = () => setCurrentTime(media.currentTime);
+      media.addEventListener("timeupdate", onTimeUpdate);
+      return () => media.removeEventListener("timeupdate", onTimeUpdate);
+    },
+  );
 
   const detail = createFileDetailQuery(() =>
     open() && !props.file.transcriptionLines ? props.file.id : undefined,
@@ -36,13 +38,15 @@ export default function TranscriptPopover(props: {
     void media.play();
   };
 
-  createEffect(() => {
-    currentTime();
-    if (!open()) return;
-    bodyRef
-      ?.querySelector<HTMLElement>('[data-active="true"]')
-      ?.scrollIntoView({ block: "nearest" });
-  });
+  createEffect(
+    () => ({ time: currentTime(), visible: open() }),
+    ({ visible }) => {
+      if (!visible) return;
+      bodyRef
+        ?.querySelector<HTMLElement>('[data-active="true"]')
+        ?.scrollIntoView({ block: "nearest" });
+    },
+  );
 
   return (
     <Popover
@@ -71,8 +75,7 @@ export default function TranscriptPopover(props: {
                   currentTime() * 1000 >= line.startMs && currentTime() * 1000 < line.endMs;
                 return (
                   <button
-                    class="btn-reset"
-                    classList={{ "transcript-line": true, active: active() }}
+                    class={["btn-reset transcript-line", { active: active() }]}
                     data-active={active() ? "true" : undefined}
                     onClick={() => seek(line.startMs)}
                     type="button"

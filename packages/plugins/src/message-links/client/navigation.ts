@@ -6,12 +6,7 @@ export function createMessageNavigation(deps: {
   openInNewPane: Services["shell.panes"]["openInNewPane"];
   setActiveView: Services["conversations"]["setActiveView"];
 }) {
-  function openThread(
-    channelId: ChannelId,
-    ts: Ts,
-    highlightTs?: Ts,
-    opts?: { pinned?: boolean },
-  ) {
+  function openThread(channelId: ChannelId, ts: Ts, highlightTs?: Ts, opts?: { pinned?: boolean }) {
     deps.openInNewPane({ channelId, highlightTs, kind: "thread", pinned: opts?.pinned, ts });
   }
 

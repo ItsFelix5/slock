@@ -16,7 +16,7 @@ import { createCanvasComments } from "../lib/canvasComments";
 import { createCanvasHistory } from "../lib/canvasHistory";
 import type { OutlineItem, OutlineSource } from "../lib/canvasOutline";
 import "./CanvasPane.css";
-import { defined } from "@slock/core";
+import { defined, errorMessage } from "@slock/core";
 import CanvasEditor from "./CanvasEditor";
 import CanvasHistory from "./CanvasHistory";
 import CanvasOutlineNav from "./CanvasOutlineNav";
@@ -25,16 +25,18 @@ import CanvasVersionBanner from "./CanvasVersionBanner";
 const feedback = service("feedback");
 
 const viewStore = service("shell.view");
+const canvas = service("canvas");
 
 export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
   const fileId = () => props.pane.content.fileId;
 
-  const content = service("canvas").createCanvasContentQuery(fileId);
-  const permalink = service("canvas").createCanvasPermalinkQuery(fileId);
-  const refetch = () => content.refetch();
+  const content = canvas.createCanvasContentQuery(fileId);
+  const permalink = canvas.createCanvasPermalinkQuery(fileId);
+  const loading = () => content().status === "loading";
+  const refetch = () => canvas.refreshCanvasContent(fileId());
 
   const files = service("files");
-  const history = createCanvasHistory(fileId, () => content.data, refetch);
+  const history = createCanvasHistory(fileId, () => content().data, refetch);
   const canvasComments = createCanvasComments(fileId);
 
   let historyButton: HTMLButtonElement | undefined;
@@ -98,7 +100,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
   }
 
   createEffect(
-    () => [content.data, outline()?.items()],
+    () => [content().data, outline()?.items()],
     () => queueMicrotask(updateActiveHeading),
   );
 
@@ -112,7 +114,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
           <div class="canvas-panel-title truncate title-sm">
             <EmojiText text={props.pane.content.title || "Untitled canvas"} />
           </div>
-          <Show when={permalink.data}>
+          <Show when={permalink().data}>
             {(link) => (
               <IconButton
                 class="canvas-panel-copy-link"
@@ -152,40 +154,40 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
             }}
             size="sm"
           />
-          <Slot doc={content.data?.doc ?? null} fileId={fileId()} point="canvas.headerAction" />
+          <Slot doc={content().data?.doc ?? null} fileId={fileId()} point="canvas.headerAction" />
           <InlineFeedback feedback={feedback.get(fileId())} priority={2} variant="icon" />
         </div>
       </PanelHeader>
       <div class="canvas-panel-body" onScroll={updateActiveHeading} ref={bodyRef}>
-        <Show when={content.isLoading}>
+        <Show when={loading()}>
           <div class="canvas-panel-loading flex-center text-dim text-sm">Loading…</div>
         </Show>
-        <Show when={!(content.isLoading || content.data?.doc)}>
+        <Show when={!(loading() || content().data?.doc)}>
           <div class="canvas-panel-load-error flex-center flex-col" role="alert">
             <Show
               fallback={
                 <>
-                  <span>{content.error?.message ?? "Something went wrong."}</span>
+                  <span>{errorMessage(content().error, "Something went wrong.")}</span>
                   <Button onClick={() => refetch()} size="sm">
                     Try again
                   </Button>
                 </>
               }
-              when={service("canvas").isCanvasNotVisible(fileId())}
+              when={canvas.isCanvasNotVisible(fileId())}
             >
               <span>This canvas is no longer available.</span>
             </Show>
           </div>
         </Show>
-        <Show when={!content.isLoading && content.data?.doc}>
+        <Show when={!loading() && content().data?.doc}>
           <div class="canvas-panel-scroll-row">
             <Show
               fallback={
-                <Show keyed when={content.data?.doc}>
+                <Show keyed when={content().data?.doc}>
                   {(doc) => (
                     <CanvasEditor
                       doc={doc}
-                      editable={content.data?.editable ?? false}
+                      editable={content().data?.editable ?? false}
                       fileId={fileId()}
                       onComment={(annotationId) => void canvasComments.openAnnotation(annotationId)}
                       onOpenThread={(thread) => canvasComments.openThread(thread)}
@@ -197,14 +199,10 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
                       }
                       threads={canvasComments.comments()?.threads}
                       onOutline={setEditorOutline}
-                      fetchLatest={() => service("canvas").loadLatestCanvas(fileId())}
-                      remoteChangeTick={() => service("canvas").remoteChangeTick(fileId())}
-                      onRemoteChange={(latest) =>
-                        service("canvas").setCanvasContent(fileId(), latest)
-                      }
-                      onTitle={(title) =>
-                        service("canvas").setCanvasTitle(props.pane.id, fileId(), title)
-                      }
+                      fetchLatest={() => canvas.loadLatestCanvas(fileId())}
+                      remoteChangeTick={() => canvas.remoteChangeTick(fileId())}
+                      onRemoteChange={(latest) => canvas.setCanvasContent(fileId(), latest)}
+                      onTitle={(title) => canvas.setCanvasTitle(props.pane.id, fileId(), title)}
                     />
                   )}
                 </Show>
@@ -215,7 +213,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
               {(version) => (
                 <div class="canvas-version-view">
                   <CanvasVersionBanner
-                    canRestore={content.data?.editable ?? false}
+                    canRestore={content().data?.editable ?? false}
                     onExit={() => history.setSelected(null)}
                     onRestore={() => void history.restore(version)}
                     restoring={history.restoring()}
@@ -226,7 +224,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
                       <div class="canvas-panel-loading flex-center text-dim text-sm">Loading…</div>
                     }
                     keyed
-                    when={history.viewing.data?.doc}
+                    when={history.viewing().data?.doc}
                   >
                     {(doc) => (
                       <CanvasEditor
@@ -247,12 +245,12 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
               <div class="canvas-history-slot">
                 <CanvasHistory
                   anchor={() => historyButton}
-                  error={!!history.versions.error}
-                  loading={history.versions.isFetching || history.viewing.isFetching}
+                  error={history.versions().status === "error"}
+                  loading={history.versions().refreshing || history.viewing().refreshing}
                   onClose={() => history.setOpen(false)}
                   onSelect={history.setSelected}
                   selected={history.selected()}
-                  versions={history.versions.data ?? []}
+                  versions={history.versions().data ?? []}
                 />
               </div>
             </Show>

@@ -3,13 +3,13 @@ import type { CanvasVersion, FileId } from "@slock/types";
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { defineQuery } from "../../../query/client/api";
 import { type CanvasMeta, diffNodes } from "../../protocol/api";
+import type { CanvasDocModel } from "./canvasDelta";
 import {
   fetchCanvasVersion,
   fetchCanvasVersions,
   type LoadedCanvas,
   restoreCanvasVersion,
 } from "./canvasRequests";
-import type { CanvasDocModel } from "./canvasDelta";
 import { olderVersion } from "./canvasVersions";
 
 const feedback = service("feedback");

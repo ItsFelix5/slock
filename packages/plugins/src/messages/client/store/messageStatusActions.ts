@@ -134,11 +134,7 @@ export function createMessageStatusActions(deps: {
     }
     return markMessageUnread(channelId, ts, threadTs);
   }
-  async function markMessageUnread(
-    channelId: ChannelId,
-    ts: Ts,
-    threadTs?: Ts,
-  ): Promise<boolean> {
+  async function markMessageUnread(channelId: ChannelId, ts: Ts, threadTs?: Ts): Promise<boolean> {
     if (threadTs) {
       const list = threadMessages[threadTs] ?? [];
       const idx = list.findIndex((m) => m.ts === ts);
@@ -153,11 +149,7 @@ export function createMessageStatusActions(deps: {
     const idx = list.findIndex((m) => m.ts === ts);
     const atRealStart = idx === 0 && !deps.hasMoreHistory(channelId);
     const previousTs =
-      idx > 0
-        ? defined(list[idx - 1]).ts
-        : atRealStart
-          ? parseTs("0")
-          : tsJustBefore(ts);
+      idx > 0 ? defined(list[idx - 1]).ts : atRealStart ? parseTs("0") : tsJustBefore(ts);
     const previousMs = tsToMs(previousTs);
     const priorLastRead = deps.lastReadFor(channelId);
     deps.setLastReadByChannel(channelId, previousMs);

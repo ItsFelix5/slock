@@ -84,15 +84,15 @@ export function createInPaneSearch(
         return;
       }
       const currentRanges: Range[] = [];
-    const otherRanges: Range[] = [];
-    for (const m of list) {
-      const row = index.get(m.ts);
-      if (!row) continue;
-      const ranges = findTextRanges(row, q);
-      (m.ts === current?.ts ? currentRanges : otherRanges).push(...ranges);
-    }
-    CSS.highlights.set(ALL_MATCHES, new Highlight(...otherRanges));
-    CSS.highlights.set(CURRENT_MATCH, new Highlight(...currentRanges));
+      const otherRanges: Range[] = [];
+      for (const m of list) {
+        const row = index.get(m.ts);
+        if (!row) continue;
+        const ranges = findTextRanges(row, q);
+        (m.ts === current?.ts ? currentRanges : otherRanges).push(...ranges);
+      }
+      CSS.highlights.set(ALL_MATCHES, new Highlight(...otherRanges));
+      CSS.highlights.set(CURRENT_MATCH, new Highlight(...currentRanges));
     },
   );
   onCleanup(clearHighlights);

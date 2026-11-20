@@ -1,4 +1,5 @@
 import { mapFile } from "@slock/slack";
+import type { FileId } from "@slock/types";
 import { Show } from "solid-js";
 import MessageFiles from "../../../../message-media/client/api/MessageFiles";
 import type {
@@ -13,16 +14,16 @@ import CanvasColumnsView from "./CanvasColumnsView";
 import CanvasTableView from "./CanvasTableView";
 import { defineCanvasEmbed } from "./defineCanvasEmbed";
 
-function CanvasFileView(props: { fileId: string }) {
+function CanvasFileView(props: { fileId: FileId }) {
   const file = createCanvasFileQuery(() => props.fileId);
   return (
     <Show
       fallback={
-        <Show when={!file.isPending}>
+        <Show when={file().status !== "loading"}>
           <div class="canvas-file-missing text-dim">This file is no longer available.</div>
         </Show>
       }
-      when={file.data}
+      when={file().data}
     >
       {(loaded) => <MessageFiles files={[mapFile(loaded())]} />}
     </Show>

@@ -60,7 +60,7 @@ export default function AttachmentContent(props: {
         <div class="attachment-fields">
           <For each={a.fields}>
             {(f) => (
-              <div class="attachment-field" classList={{ short: f.short }}>
+              <div class={["attachment-field", { short: f.short }]}>
                 <div class="attachment-field-title">
                   <Mrkdwn text={f.title} />
                 </div>

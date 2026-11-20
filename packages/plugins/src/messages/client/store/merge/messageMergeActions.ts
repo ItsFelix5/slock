@@ -4,10 +4,7 @@ import type { ChannelId, Message } from "@slock/types";
 import { confirmsPending, dedupeMessages, isPendingMessage } from "../../api/messageMerge";
 
 export function createMessageMergeActions(deps: {
-  updateChannelMessages: (
-    channelId: ChannelId,
-    update: (existing: Message[]) => Message[],
-  ) => void;
+  updateChannelMessages: (channelId: ChannelId, update: (existing: Message[]) => Message[]) => void;
 }) {
   function insertMessageInOrder(channelId: ChannelId, msg: Message) {
     deps.updateChannelMessages(channelId, (existing) => {

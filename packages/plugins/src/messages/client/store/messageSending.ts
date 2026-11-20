@@ -69,9 +69,7 @@ export function createMessageSending(deps: {
       const confirmedTs = parseTs(res.ts);
       deps.editList(location, (list) => {
         const confirmed = dedupeMessages(
-          list.map((m) =>
-            m.id === optimistic.id ? { ...m, pending: false, ts: confirmedTs } : m,
-          ),
+          list.map((m) => (m.id === optimistic.id ? { ...m, pending: false, ts: confirmedTs } : m)),
         );
         reconcile(confirmed, "id")(list);
       });

@@ -3,40 +3,18 @@ import type { ChannelId, ConversationViewData, Message, Ts } from "@slock/types"
 import { createRecencyEviction } from "@slock/ui";
 import { createEffect, createStore, untrack } from "solid-js";
 import type { ChannelMessageTarget, View } from "../../../conversations/client/api/types";
-import {
-  fetchChannelDetails,
-  fetchConversationView,
-  fetchHistory,
-  fetchHistoryAround,
-  fetchHistoryNewer,
-} from "../../../slack/client/api";
 import type { ThreadRef } from "../api";
 import { mergeMessages } from "../api/messageMerge";
+import { DEFAULT_HISTORY_API, type MessageHistoryApi } from "./history/historyApi";
 import { createHistoryFlags, type HistoryMeta } from "./history/historyFlags";
 import { createHistoryPrefetch } from "./history/historyPrefetch";
+import { mergeNewerWindow, mergeOlderWindow } from "./history/historyWindow";
 import { createRemovedMessages } from "./history/removedMessages";
 import { createRequestEpochs } from "./history/requestEpoch";
 import { createHistoryJump } from "./historyJump";
 import { replaceMessageList, updateMessageList } from "./storeWrites";
 import { createThreadReplies } from "./threadReplies";
 
-export type MessageHistoryApi = {
-  fetchChannelDetails: (channelId: ChannelId) => ReturnType<typeof fetchChannelDetails>;
-  fetchConversationView: (channelId: ChannelId) => ReturnType<typeof fetchConversationView>;
-  fetchHistory: (channelId: ChannelId, cursor?: string) => ReturnType<typeof fetchHistory>;
-  fetchHistoryAround: (channelId: ChannelId, ts: Ts) => ReturnType<typeof fetchHistoryAround>;
-  fetchHistoryNewer: (channelId: ChannelId, oldest: Ts) => ReturnType<typeof fetchHistoryNewer>;
-};
-
-const DEFAULT_HISTORY_API: MessageHistoryApi = {
-  fetchChannelDetails,
-  fetchConversationView,
-  fetchHistory,
-  fetchHistoryAround,
-  fetchHistoryNewer,
-};
-
-const MAX_LOADED_MESSAGES = 120;
 const KEEP_RECENT_CHANNELS = 8;
 
 export function createMessageHistory(
@@ -100,9 +78,9 @@ export function createMessageHistory(
   function mergeOlder(channelId: ChannelId, older: Message[]) {
     let cut = false;
     const kept = replaceMessages(channelId, (existing) => {
-      const merged = mergeMessages(existing, older);
-      cut = merged.length > MAX_LOADED_MESSAGES;
-      return merged.slice(0, MAX_LOADED_MESSAGES);
+      const { cut: trimmed, list } = mergeOlderWindow(existing, older);
+      cut = trimmed;
+      return list;
     });
     const newest = kept.at(-1);
     if (!(cut && newest)) return;
@@ -112,11 +90,11 @@ export function createMessageHistory(
   function mergeNewer(channelId: ChannelId, newer: Message[]) {
     let cut = false;
     const kept = replaceMessages(channelId, (existing) => {
-      const merged = mergeMessages(existing, newer);
-      cut = merged.length > MAX_LOADED_MESSAGES;
-      return merged.slice(-MAX_LOADED_MESSAGES);
+      const { cut: trimmed, list } = mergeNewerWindow(existing, newer);
+      cut = trimmed;
+      return list;
     });
-    const oldest = kept[0];
+    const [oldest] = kept;
     if (!(cut && oldest)) return;
     historyCursor.set(channelId, `before:${oldest.ts}`);
     patchMeta(channelId, { hasMore: true });

@@ -1,4 +1,6 @@
 import { EmojiText } from "@slock/blockkit";
+import { isFileId } from "@slock/slack";
+import type { FileId } from "@slock/types";
 import { Icon } from "@slock/ui";
 import Quill, { getEmbedBlot } from "@slock/ui/editor/quill";
 import { asElement } from "@slock/ui/editor/quillText";
@@ -7,17 +9,17 @@ import { Show } from "solid-js";
 import { canvasFileTitle, createCanvasFileQuery } from "../../lib/canvasRequests";
 
 export interface CanvasControlValue {
-  fileId?: string;
+  fileId?: FileId;
   id: string;
   label: string;
 }
 
 function CanvasControlLabel(props: CanvasControlValue) {
-  const file = createCanvasFileQuery(() => props.fileId ?? "");
+  const file = createCanvasFileQuery(() => props.fileId);
   return (
     <Show fallback={props.label} when={props.fileId}>
       <Icon name="canvas-content" size={12} />
-      <EmojiText text={canvasFileTitle(file.data) ?? props.label} />
+      <EmojiText text={canvasFileTitle(file().data) ?? props.label} />
     </Show>
   );
 }
@@ -40,7 +42,9 @@ export class CanvasControlBlot extends Embed {
 
   static value(node: HTMLElement): CanvasControlValue | undefined {
     const { fileId, id, label } = node.dataset;
-    return id ? { fileId, id, label: label ?? "" } : undefined;
+    return id
+      ? { fileId: fileId && isFileId(fileId) ? fileId : undefined, id, label: label ?? "" }
+      : undefined;
   }
 
   private disposeLabel: () => void;

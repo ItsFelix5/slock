@@ -11,7 +11,7 @@ export default function CommentQuote(props: { fileId: FileId; text: string; thre
   const content = canvasStore.createCanvasContentQuery(() => props.fileId);
   const title = () => canvasStore.canvasTitle(props.fileId) ?? "Canvas";
   const quote = createMemo(
-    () => annotationQuote(canvasHtmlLines(content.data?.doc), props.threadId) ?? props.text,
+    () => annotationQuote(canvasHtmlLines(content().data?.doc), props.threadId) ?? props.text,
   );
 
   return (

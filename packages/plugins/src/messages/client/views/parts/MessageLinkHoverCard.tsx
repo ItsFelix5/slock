@@ -2,8 +2,8 @@ import { service } from "@slock/core/solid";
 import { isWaiting } from "@slock/resource";
 import type { Attachment, Block, ChannelId, Ts } from "@slock/types";
 import { Avatar, DEFAULT_AVATAR_COLOR, HoverCard, type useHoverIntent } from "@slock/ui";
-import { createSignal, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { createSignal, Show } from "solid-js";
 import { splitReplyLink } from "../../../../message-links/client/api/replyLink";
 import { fetchPermalinkMessage } from "../../../../slack/client/api";
 import MessageReferenceSnippet from "../../api/cards/MessageReferenceSnippet";
@@ -14,7 +14,6 @@ import {
 } from "../../api/messageAuthor";
 import "./MessageLinkHoverCard.css";
 import { defineQuery } from "../../../../query/client/api";
-
 
 const usersStore = service("users");
 

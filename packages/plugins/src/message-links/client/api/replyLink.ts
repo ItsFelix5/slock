@@ -92,9 +92,7 @@ function parseReplyLink(
   };
 }
 
-function replyTargetFromElement(
-  element: RichTextInlineElement,
-): ReplyTarget | null {
+function replyTargetFromElement(element: RichTextInlineElement): ReplyTarget | null {
   if (element.type === "message_mention") {
     const parsed =
       (element.channel_id && element.message_ts

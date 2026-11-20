@@ -77,9 +77,7 @@ export default function MessageTextContent(props: {
               ]}
             >
               <MessageAttachmentsContext value={() => props.msg.attachments}>
-                <TimeAnchorContext
-                  value={{ ms: parseFloat(props.msg.ts) * 1000, tz: props.tz }}
-                >
+                <TimeAnchorContext value={{ ms: parseFloat(props.msg.ts) * 1000, tz: props.tz }}>
                   <Show
                     fallback={
                       <>

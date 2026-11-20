@@ -16,6 +16,7 @@ import { createMessageReactionToggle } from "./messageReactionToggle";
 import { createMessageSending } from "./messageSending";
 import { createMessageStatusActions } from "./messageStatusActions";
 import { createReactionEvents } from "./reactionEvents";
+import { ensureMessageList } from "./storeWrites";
 
 export function createMessagesStore(deps: {
   currentUser: () => User | undefined;
@@ -107,9 +108,11 @@ export function createMessagesStore(deps: {
     reactionMessages,
   );
   function editList(location: MessageLocation, edit: (list: Message[]) => void) {
-    if (location.store === "channel") setMessagesByChannel((s) => edit((s[location.key] ??= [])));
-    else if (location.store === "thread") setThreadMessages((s) => edit((s[location.key] ??= [])));
-    else setReactionMessages((s) => edit((s[location.key] ??= [])));
+    if (location.store === "channel")
+      setMessagesByChannel((s) => edit(ensureMessageList(s, location.key)));
+    else if (location.store === "thread")
+      setThreadMessages((s) => edit(ensureMessageList(s, location.key)));
+    else setReactionMessages((s) => edit(ensureMessageList(s, location.key)));
   }
   const latestMessageTsMsByUser = (userId: UserId) =>
     findLatestMessageTsMsByUser(messagesByChannel, threadMessages, userId);

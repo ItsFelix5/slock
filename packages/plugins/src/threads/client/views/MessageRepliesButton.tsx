@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import type { Message } from "@slock/types";
+import type { ChannelId, Message } from "@slock/types";
 import { AvatarStack, Icon, Tooltip, TypingIndicator } from "@slock/ui";
 import { Show } from "solid-js";
 import type { OpenThreadHandler } from "../../../messages/client/api/messageFocus";
@@ -10,7 +10,7 @@ const usersStore = service("users");
 const typingStore = service("typing");
 
 export default function MessageRepliesButton(props: {
-  channelId: string;
+  channelId: ChannelId;
   msg: Message;
   onOpenThread: OpenThreadHandler;
 }) {

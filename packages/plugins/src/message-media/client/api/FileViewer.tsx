@@ -1,8 +1,8 @@
 import { safeMediaUrl } from "@slock/blockkit";
 import type { SlackFile } from "@slock/types";
 import { Button, Icon, Overlay, PanelHeader, useEscapeClose } from "@slock/ui";
-import { createSignal, createUniqueId, Match, Show, Switch } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { createSignal, createUniqueId, Match, Show, Switch } from "solid-js";
 import "./FileViewer.css";
 import { isWaiting } from "@slock/resource";
 import { defineQuery } from "../../../query/client/api";
@@ -138,10 +138,13 @@ function MailBody(props: { file: SlackFile }) {
         <Match when={raw().error}>
           <div class="file-viewer-error flex-center flex-col">
             <div>Couldn't preview this email.</div>
-            <Button onClick={() => {
+            <Button
+              onClick={() => {
                 const url = mailUrl();
                 if (url) void mailPreview.refresh(url).catch(() => {});
-              }} size="sm">
+              }}
+              size="sm"
+            >
               Try again
             </Button>
           </div>

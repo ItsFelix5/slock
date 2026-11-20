@@ -26,9 +26,7 @@ const unreadStore = service("unread");
 
 export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
   const thread = () => props.pane.content;
-  const [replyTarget, setReplyTarget] = createSignal<{ ts: Ts; permalink: string } | null>(
-    null,
-  );
+  const [replyTarget, setReplyTarget] = createSignal<{ ts: Ts; permalink: string } | null>(null);
 
   const messages = createMemo(() => messagesStore.messagesInThread(thread().ts) ?? []);
   const hasMore = () =>
@@ -96,28 +94,28 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
       thread: thread(),
     }),
     ({ loading, msgs, thread: { channelId, highlightTs, ts } }) => {
-    const key = `${ts}:${highlightTs ?? ""}`;
-    if (handledFocusKey === key) return;
-    const [first] = msgs;
-    if (!first) return;
-    const highlightMissing = highlightTs !== undefined && !msgs.some((m) => m.ts === highlightTs);
-    if (highlightMissing) {
-      if (loading) return;
-      if (messagesStore.ensureThreadRepliesLoaded(channelId, ts, highlightTs)) return;
-    }
-    handledFocusKey = key;
-    const found = highlightTs !== undefined && msgs.some((m) => m.ts === highlightTs);
-    if (highlightTs && !found) feedback.flash("navigation", "Couldn't find that reply.", "error");
-    const remembered = highlightTs ? undefined : getRememberedScrollAnchor(ts);
-    if (found && highlightTs) {
-      messageFocus.focusMessage(highlightTs);
-      feed.land({ align: "center", at: "row", flash: true, ts: highlightTs });
-    } else if (remembered && msgs.some((m) => m.ts === remembered.ts)) {
-      feed.land({ at: "offset", offset: remembered.offset, ts: remembered.ts });
-    } else {
-      messageFocus.focusMessage(first.ts);
-      feed.land({ align: "start", at: "row", ts: first.ts });
-    }
+      const key = `${ts}:${highlightTs ?? ""}`;
+      if (handledFocusKey === key) return;
+      const [first] = msgs;
+      if (!first) return;
+      const highlightMissing = highlightTs !== undefined && !msgs.some((m) => m.ts === highlightTs);
+      if (highlightMissing) {
+        if (loading) return;
+        if (messagesStore.ensureThreadRepliesLoaded(channelId, ts, highlightTs)) return;
+      }
+      handledFocusKey = key;
+      const found = highlightTs !== undefined && msgs.some((m) => m.ts === highlightTs);
+      if (highlightTs && !found) feedback.flash("navigation", "Couldn't find that reply.", "error");
+      const remembered = highlightTs ? undefined : getRememberedScrollAnchor(ts);
+      if (found && highlightTs) {
+        messageFocus.focusMessage(highlightTs);
+        feed.land({ align: "center", at: "row", flash: true, ts: highlightTs });
+      } else if (remembered && msgs.some((m) => m.ts === remembered.ts)) {
+        feed.land({ at: "offset", offset: remembered.offset, ts: remembered.ts });
+      } else {
+        messageFocus.focusMessage(first.ts);
+        feed.land({ align: "start", at: "row", ts: first.ts });
+      }
     },
   );
 

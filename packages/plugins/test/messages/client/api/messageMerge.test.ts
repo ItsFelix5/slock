@@ -78,7 +78,11 @@ describe("dedupeMessages", () => {
       message(stamp("9.999999")),
       message(stamp("100.5")),
     ]);
-    expect(result.map((m) => m.ts)).toEqual([stamp("9.999999"), stamp("10.000001"), stamp("100.5")]);
+    expect(result.map((m) => m.ts)).toEqual([
+      stamp("9.999999"),
+      stamp("10.000001"),
+      stamp("100.5"),
+    ]);
   });
 
   test("the last duplicate wins", () => {
@@ -133,7 +137,10 @@ describe("mergeMessages", () => {
 
   test("a deleted flag from history sticks to the known message", () => {
     const known = message(stamp("5.000001"), { text: "keep" });
-    const [merged] = mergeMessages([known], [message(stamp("5.000001"), { deleted: true, text: "" })]);
+    const [merged] = mergeMessages(
+      [known],
+      [message(stamp("5.000001"), { deleted: true, text: "" })],
+    );
     expect(merged).toEqual({ ...known, deleted: true });
   });
 
@@ -151,7 +158,11 @@ describe("mergeMessages", () => {
 
   test("merging a page into an empty list returns it ordered", () => {
     const page = [message(stamp("3.1")), message(stamp("1.1")), message(stamp("2.1"))];
-    expect(mergeMessages([], page).map((m) => m.ts)).toEqual([stamp("1.1"), stamp("2.1"), stamp("3.1")]);
+    expect(mergeMessages([], page).map((m) => m.ts)).toEqual([
+      stamp("1.1"),
+      stamp("2.1"),
+      stamp("3.1"),
+    ]);
   });
 
   test("output is ordered, unique and contains every fresh message", () => {

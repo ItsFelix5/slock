@@ -1,7 +1,7 @@
 import { Slot, service, usePoint } from "@slock/core/solid";
 import type { Pane } from "@slock/ui";
+import { dynamic } from "@solidjs/web";
 import { Show } from "solid-js";
-import { Dynamic } from "@solidjs/web";
 import { PaneViewProvider } from "../../../conversations/client/api/paneView";
 import type { View } from "../../../conversations/client/api/types";
 import "./ConversationPane.css";
@@ -14,6 +14,7 @@ const conversationsStore = service("conversations");
 export default function ConversationPane(props: { pane: Pane<View> }) {
   const takeovers = usePoint("messages.takeover");
   const takeover = () => takeovers().find((item) => item.active(props.pane.content));
+  const TakeoverView = dynamic(() => takeover()?.view);
 
   return (
     <PaneViewProvider
@@ -29,7 +30,7 @@ export default function ConversationPane(props: { pane: Pane<View> }) {
         <Show
           fallback={
             <Show when={takeover()}>
-              {(item) => <Dynamic component={item().view} {...props.pane.content} />}
+              <TakeoverView {...props.pane.content} />
             </Show>
           }
           when={!takeover()}

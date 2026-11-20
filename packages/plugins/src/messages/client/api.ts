@@ -1,7 +1,7 @@
 import type { BlockKitResolver } from "@slock/blockkit";
 import type { Attachment, ChannelId, Message, Ts, User, UserId } from "@slock/types";
-import type { Accessor, Component } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import type { Accessor, Component } from "solid-js";
 import type { PaneContentOf } from "../../shell/client/api/types";
 import type { createMessagesStore } from "./store";
 
