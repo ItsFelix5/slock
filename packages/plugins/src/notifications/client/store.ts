@@ -50,7 +50,7 @@ export function createDesktopNotificationsStore(deps: Deps) {
     if (document.hasFocus() && document.visibilityState === "visible") return;
     const link = parseSlackDeepLink(payload.launchUri);
     const channelId = payload.channel ?? link.get("id");
-    if (!channelId || !isChannelId(channelId) || deps.isChannelMuted(channelId)) return;
+    if (!(channelId && isChannelId(channelId)) || deps.isChannelMuted(channelId)) return;
     if (deps.activeView()?.id === channelId) return;
 
     const text = payload.msg ?? payload.content ?? "";

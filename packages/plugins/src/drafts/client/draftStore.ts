@@ -27,7 +27,8 @@ export function createDraftStore() {
     const key = draftCacheKey(entry.channelId, entry.threadTs);
     let applied = false;
     setDrafts((all) => {
-      const list = (all[key] ??= []);
+      all[key] ??= [];
+      const list = all[key] ?? [];
       const index = list.findIndex((e) => e.id === entry.id);
       const known = list[index];
       if (known && onlyIfNewer && !isNewerDraft(entry, known)) return;
@@ -121,7 +122,14 @@ export function createDraftStore() {
       },
     ];
     const result = await saveDraft(channelId, threadTs, blocks, undefined, clientMsgId);
-    upsert({ blocks, channelId, clientMsgId, id: result.id, lastUpdatedTs: result.lastUpdatedTs, threadTs });
+    upsert({
+      blocks,
+      channelId,
+      clientMsgId,
+      id: result.id,
+      lastUpdatedTs: result.lastUpdatedTs,
+      threadTs,
+    });
   }
 
   return {

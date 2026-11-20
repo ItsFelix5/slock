@@ -18,7 +18,9 @@ export default function AppHomeTakeover(props: MessageHeaderProps) {
     <div class="app-home">
       <Show
         fallback={
-          <p class="app-home-empty text-dim">{isWaiting(home()) ? "Loading" : "Nothing here yet"}</p>
+          <p class="app-home-empty text-dim">
+            {isWaiting(home()) ? "Loading" : "Nothing here yet"}
+          </p>
         }
         keyed
         when={home().data?.view}

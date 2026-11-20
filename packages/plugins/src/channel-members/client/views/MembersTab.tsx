@@ -8,8 +8,8 @@ import {
   initRovingTabIndexDefault,
   SegmentedControl,
 } from "@slock/ui";
-import { For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { For, Show } from "solid-js";
 import type { MemberFilter } from "../../../channel-details/client/api";
 import { createChannelMembers } from "../channelMembers";
 import "../../../channel-details/client/api/ChannelDetails.css";

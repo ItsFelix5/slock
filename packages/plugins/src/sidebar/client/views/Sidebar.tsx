@@ -1,7 +1,7 @@
 import { service, usePoint } from "@slock/core/solid";
 import { ariaBoolean, ResizeHandle, useTabStripShortcuts } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For } from "solid-js";
 import { Dynamic } from "@solidjs/web";
+import { createEffect, createMemo, createSignal, For } from "solid-js";
 import type { SidebarNavItem } from "../api";
 import "./Sidebar.css";
 import SidebarToolbar from "./SidebarToolbar";

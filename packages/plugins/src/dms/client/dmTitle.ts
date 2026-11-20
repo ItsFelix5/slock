@@ -1,6 +1,6 @@
 import type { Points } from "@slock/core/types";
-import type { ChannelId, DirectMessage, User, UserId } from "@slock/types";
 import { isChannelId } from "@slock/slack";
+import type { ChannelId, DirectMessage, User, UserId } from "@slock/types";
 import { isDmId } from "./api";
 
 export function createDmTitleResolver(

@@ -1,5 +1,5 @@
-import { type Accessor, type Component, createComponent, Errored, For, omit } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { type Accessor, type Component, createComponent, Errored, For, omit } from "solid-js";
 import { usePoint } from "./solidHost";
 import type { Points } from "./types";
 

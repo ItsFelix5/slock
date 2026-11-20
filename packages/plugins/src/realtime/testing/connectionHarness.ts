@@ -64,6 +64,7 @@ export function createConnectionHarness(opts: { online?: boolean } = {}) {
         dispose: disposeRoot,
       }));
       ({ dispose } = started);
+      flush();
       return started;
     },
   };

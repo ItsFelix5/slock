@@ -1,9 +1,15 @@
 import type { Env } from "@slock/core";
 import type { ActivityItem, ChannelId, FeedEntry, Message, Ts, User, UserId } from "@slock/types";
 import { createSignal, createStore, onCleanup } from "solid-js";
-import { channelPostKey, isOwnOrUnresolved, NO_CHANNEL, NO_USER, reactionActivityKey } from "../kinds";
-import type { ActivityItems } from "./activityItems";
+import {
+  channelPostKey,
+  isOwnOrUnresolved,
+  NO_CHANNEL,
+  NO_USER,
+  reactionActivityKey,
+} from "../kinds";
 import { createActivityFeedRefreshScheduler } from "./activityFeedRefresh";
+import type { ActivityItems } from "./activityItems";
 import { createEntryResolution } from "./entryResolution";
 
 const LIVE_ACTIVITY_REFRESH_DELAY_MS = 250;

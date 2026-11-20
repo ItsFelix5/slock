@@ -1,5 +1,5 @@
-import type { ChannelId, Ts } from "@slock/types";
 import { service } from "@slock/core/solid";
+import type { ChannelId, Ts } from "@slock/types";
 import type { View } from "./types";
 
 const conversations = service("conversations");

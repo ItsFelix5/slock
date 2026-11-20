@@ -65,7 +65,7 @@ export function resolveActivityEntry(
   const broadcastRange = entry.broadcastRange ?? (msg && broadcastRangeOf(msg));
 
   const userId = isReaction
-    ? (entry.userId === NO_USER ? msg?.userId : entry.userId) ?? NO_USER
+    ? ((entry.userId === NO_USER ? msg?.userId : entry.userId) ?? NO_USER)
     : (msg?.userId ?? entry.userId);
   return {
     ...entry,

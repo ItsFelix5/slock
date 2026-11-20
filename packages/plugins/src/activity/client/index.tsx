@@ -1,8 +1,8 @@
 import { EmojiText } from "@slock/blockkit";
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { Icon } from "@slock/ui";
 import { isTs } from "@slock/slack";
+import { Icon } from "@slock/ui";
 import { createEffect, lazy, Show } from "solid-js";
 import { createReactionCache } from "./reactionCache";
 import { createActivityStore } from "./store";

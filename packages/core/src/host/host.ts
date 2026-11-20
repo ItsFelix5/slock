@@ -142,7 +142,11 @@ export function createHost(options: HostOptions = {}) {
       running.set(def.id, { cleanups, dispose });
     } catch (error) {
       if (error instanceof Unavailable) unavailable.add(def.id);
-      else console.error(`plugin ${def.id} failed to start`, error);
+      else
+        console.error(
+          `plugin ${def.id} failed to start`,
+          error instanceof Error ? (error.stack ?? error.message) : error,
+        );
       teardown(cleanups, dispose);
       registry.removeOwner(def.id);
       setups.delete(def.id);

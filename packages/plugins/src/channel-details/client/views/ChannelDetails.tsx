@@ -10,8 +10,8 @@ import {
   useEscapeClose,
   useTabStripShortcuts,
 } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { Dynamic } from "@solidjs/web";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { channelIconName } from "../../../channels/client/api";
 import type { ChannelDetailsTabItem } from "../api";
 import type { ChannelDetailsTab } from "../channelDetails";

@@ -3,8 +3,8 @@ import { systemEnv } from "@slock/core";
 import { ch, stamp, uid } from "@slock/slack/testing";
 import type { FeedEntry, Message, User } from "@slock/types";
 import { createRoot } from "solid-js";
-import { createActivityItems } from "../../../../src/activity/client/store/activityItems";
 import { createActivityFeedLoad } from "../../../../src/activity/client/store/activityFeedLoad";
+import { createActivityItems } from "../../../../src/activity/client/store/activityItems";
 
 const me: User = { avatarColor: "", id: uid("U1"), name: "me" };
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -159,7 +159,12 @@ describe("createActivityFeedLoad", () => {
   test("duplicate ids and repeated reactions are pushed once", async () => {
     await inRoot(async () => {
       const reaction = (id: string, time: number) =>
-        entry(id, time, { kind: "reaction", reactionName: "tada", ts: stamp("5.5"), userId: uid("U3") });
+        entry(id, time, {
+          kind: "reaction",
+          reactionName: "tada",
+          ts: stamp("5.5"),
+          userId: uid("U3"),
+        });
       const h = harness({
         "": {
           entries: [entry("a", 100), entry("a", 100), reaction("r1", 200), reaction("r2", 300)],
@@ -201,7 +206,9 @@ describe("createActivityFeedLoad", () => {
     await inRoot(async () => {
       const h = harness({
         "": {
-          entries: [entry("t", 100, { kind: "thread_reply", threadTs: stamp("9.9"), unreadCount: 1 })],
+          entries: [
+            entry("t", 100, { kind: "thread_reply", threadTs: stamp("9.9"), unreadCount: 1 }),
+          ],
         },
       });
       await h.load.ensureActivityLoaded();

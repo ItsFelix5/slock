@@ -1,5 +1,12 @@
 import { service } from "@slock/core/solid";
-import { ariaBoolean, Button, InlineFeedback, type Pane, PanelHeader, useTabStripShortcuts } from "@slock/ui";
+import {
+  ariaBoolean,
+  Button,
+  InlineFeedback,
+  type Pane,
+  PanelHeader,
+  useTabStripShortcuts,
+} from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import MrkdwnComposer from "../../../composer/client/api/MrkdwnComposer";
 import type { UsergroupDetailsPaneContent } from "../api";

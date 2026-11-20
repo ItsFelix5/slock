@@ -1,5 +1,5 @@
 import type { Env, TimerHandle } from "@slock/core";
-import { createEffect, createSignal, onCleanup } from "solid-js";
+import { createEffect, createSignal, onCleanup, onSettled } from "solid-js";
 import { createHeartbeat } from "./heartbeat";
 import { createReconnectScheduler } from "./reconnectScheduler";
 
@@ -134,7 +134,7 @@ export function createRealtimeConnection(opts: {
   window.addEventListener("offline", handleOffline);
   window.addEventListener("online", handleOnline);
   document.addEventListener("visibilitychange", handleVisibility);
-  connect();
+  onSettled(connect);
 
   onCleanup(() => {
     disposed = true;

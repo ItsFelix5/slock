@@ -39,13 +39,13 @@ export function createChannelSections(deps: {
   const [sectionStructurePending, setSectionStructurePending] = createSignal(false);
   const sidebarPending = createFlags<string>();
   const setSectionSidebarPendingById = sidebarPending.set;
-  async function refreshSections() {
+  function refreshSections() {
     return sectionsQuery.refresh(null).catch(() => undefined);
   }
 
   const sections = createMemo(() => {
     const { data: list, error } = rawSections();
-    if (error) return undefined;
+    if (error) return;
     if (!list) return list;
     const prefs = deps.userPrefs();
     const sectionSort = prefs?.sectionSort ?? {};

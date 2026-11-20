@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { parseUserId } from "@slock/slack";
 import { forAll, int, pick } from "@slock/core/testing";
+import { parseUserId } from "@slock/slack";
 import type { User } from "@slock/types";
 import { createRoot } from "solid-js";
 import {

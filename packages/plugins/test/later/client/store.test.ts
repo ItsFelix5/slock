@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
-import type { Message, SavedItem, Ts } from "@slock/types";
 import { ch, stamp, uid } from "@slock/slack/testing";
+import type { Message, SavedItem, Ts } from "@slock/types";
 import { createRoot, flush } from "solid-js";
 import { createLaterSlice, type LaterApi } from "../../../src/later/client/store";
 

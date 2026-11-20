@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { ch, stamp } from "@slock/slack/testing";
 import type { Block, DraftEntry } from "@slock/types";
 import { createEffect, createRoot, flush } from "solid-js";
-import { ch, stamp } from "@slock/slack/testing";
 import { createDraftStore, draftCacheKey } from "../../../src/drafts/client/draftStore";
 import { fakeDraftServer } from "./fakeDraftServer";
 
@@ -12,7 +12,12 @@ const blocks = (value: string): Block[] => [
   },
 ];
 
-const entry = (id: string, channelId: string, lastUpdatedTs = "1", threadTs?: string): DraftEntry => ({
+const entry = (
+  id: string,
+  channelId: string,
+  lastUpdatedTs = "1",
+  threadTs?: string,
+): DraftEntry => ({
   blocks: blocks(id),
   channelId: ch(channelId),
   clientMsgId: `cmid-${id}`,

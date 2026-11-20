@@ -14,7 +14,9 @@ const OwnMessageFilteredKinds = new Set<ActivityItem["kind"]>([
   "dm",
 ]);
 export function isOwnOrUnresolved(item: Pick<ActivityItem, "kind" | "userId">, me: User): boolean {
-  return OwnMessageFilteredKinds.has(item.kind) && (item.userId === NO_USER || item.userId === me.id);
+  return (
+    OwnMessageFilteredKinds.has(item.kind) && (item.userId === NO_USER || item.userId === me.id)
+  );
 }
 
 export function reactionActivityKey(item: ActivityItem): string | undefined {

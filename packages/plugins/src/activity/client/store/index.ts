@@ -14,8 +14,8 @@ import {
   resolveActivityEntry,
 } from "../fetch";
 import { PING_KINDS } from "../kinds";
-import { createActivityItems } from "./activityItems";
 import { createActivityFeedLoad } from "./activityFeedLoad";
+import { createActivityItems } from "./activityItems";
 import { createActivityReadState } from "./activityReadState";
 import { createActivityReadSync } from "./activityReadSync";
 import { createRecentReactionFlash } from "./recentReaction";

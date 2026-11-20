@@ -6,9 +6,9 @@ import type { ProfilePaneContent } from "../api";
 import ProfilePhotoEditor from "./ProfilePhotoEditor";
 import "./UserProfile.css";
 import { defineQuery } from "../../../query/client/api";
+import { createProfileForm } from "./profileForm";
 import UserProfileContact from "./UserProfileContact";
 import UserProfileInfo from "./UserProfileInfo";
-import { createProfileForm } from "./profileForm";
 import { isCustomFieldDef } from "./userProfileFieldValues";
 import { createLocalTime, createTzDiff, createTzSuffix } from "./userProfileTime";
 

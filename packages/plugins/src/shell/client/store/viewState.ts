@@ -138,12 +138,12 @@ export function createViewStateSlice(deps: {
   function start() {
     if (started) return;
     started = true;
-    runWithOwner(owner, installUrlSync);
-  }
-
-  function installUrlSync() {
     const initialPanes = parseNavPath(new URL(window.location.href), deps.paneKinds());
     panes.setAllPanes(initialPanes);
+    runWithOwner(owner, () => installUrlSync(initialPanes));
+  }
+
+  function installUrlSync(initialPanes: ReturnType<typeof parseNavPath>) {
     const initialSnap: NavSnapshot = { panes: initialPanes };
     pushOrReplace(initialSnap, true);
     lastStructuralKey = structuralKey(initialSnap);

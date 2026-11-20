@@ -1,14 +1,14 @@
 import { service } from "@slock/core/solid";
-import {
-  type EntryState,
-  type EnsureOptions,
-  type FetchContext,
-  type PersistOptions,
-  type RetryPolicy,
-  type ResourceCache,
-  type ResourceHub,
-  type SubscribeOptions,
-  type Undo,
+import type {
+  EnsureOptions,
+  EntryState,
+  FetchContext,
+  PersistOptions,
+  ResourceCache,
+  ResourceHub,
+  RetryPolicy,
+  SubscribeOptions,
+  Undo,
 } from "@slock/resource";
 import {
   type CacheReader,

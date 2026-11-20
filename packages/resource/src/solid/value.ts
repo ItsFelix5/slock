@@ -12,7 +12,7 @@ export function createCacheValue<K, T>(
 
   return createMemo(() => {
     const current = stable();
-    if (current === undefined) return undefined;
+    if (current === undefined) return;
     const snapshot = state();
     if (snapshot.status === "ready") return snapshot.data;
     if (snapshot.status === "error") {

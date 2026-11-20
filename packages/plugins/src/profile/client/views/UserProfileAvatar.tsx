@@ -1,7 +1,7 @@
 import type { User } from "@slock/types";
-import { ariaBoolean, AvatarImage } from "@slock/ui";
-import { createSignal, onSettled, Show } from "solid-js";
+import { AvatarImage, ariaBoolean } from "@slock/ui";
 import { Dynamic } from "@solidjs/web";
+import { createSignal, onSettled, Show } from "solid-js";
 import type { ProfileForm } from "./profileForm";
 
 const TEXT_INPUT_TAG_RE = /^(INPUT|TEXTAREA)$/;

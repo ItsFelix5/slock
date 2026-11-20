@@ -1,12 +1,12 @@
 import { afterEach, beforeAll, describe, expect, mock, spyOn, test } from "bun:test";
 import { createHost } from "@slock/core";
 import { setHost } from "@slock/core/services";
-import slack from "../../../src/slack/server/index";
 import {
   type EmailChallenge,
   exchangeEmailCode,
   requestEmailCode,
 } from "../../../src/hackclub-login/server/hackclubAuth";
+import slack from "../../../src/slack/server/index";
 
 const HC = "https://auth.hackclub.com";
 const XOXC = "xoxc-111-222-abcdef";

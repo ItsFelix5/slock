@@ -121,7 +121,7 @@ export function wireReadTracking(deps: ReadTrackingDeps, input: ReadTrackingInpu
     unread,
     viewed,
   }: ChannelSnapshot) {
-    if (!hasDivider || !viewed || hasNewer) return;
+    if (!(hasDivider && viewed) || hasNewer) return;
     if (!latest || latest.pending) return;
     const markedTs = lastMarkedRead.get(id);
     if (markedTs && (lastRead ?? 0) < toMs(markedTs)) return;
@@ -157,7 +157,7 @@ export function wireReadTracking(deps: ReadTrackingDeps, input: ReadTrackingInpu
   );
 
   function markThreadRead({ channelId, latest, root, ts, viewed }: ThreadSnapshot) {
-    if (!viewed || !root?.isSubscribed) return;
+    if (!(viewed && root?.isSubscribed)) return;
     if (!latest || latest.ts === ts || latest.pending) return;
     if (lastMarkedThreadRead.get(ts) === latest.ts) return;
     lastMarkedThreadRead.set(ts, latest.ts);

@@ -26,13 +26,13 @@
 import type { PersistAdapter, ResourceHub } from "@slock/resource";
 
 export { retryPolicy, shouldRetry } from "../retryPolicy";
-export { createLatestValueSync } from "./latestValueSync";
 export {
   defineQuery,
   type Query,
   type QueryDefinition,
   type QueryPersistence,
 } from "./defineQuery";
+export { createLatestValueSync } from "./latestValueSync";
 
 declare module "@slock/core/types" {
   interface Services {

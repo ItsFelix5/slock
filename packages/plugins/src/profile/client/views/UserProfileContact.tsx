@@ -58,7 +58,9 @@ export default function UserProfileContact(props: {
                   disabled={props.form.isSavingField(`custom:${field.id}`)}
                   id={`profile-field-${field.id}`}
                   onBlur={() => props.form.commitCustomField(field.id)}
-                  onInput={(event) => props.form.setCustomValue(field.id, event.currentTarget.value)}
+                  onInput={(event) =>
+                    props.form.setCustomValue(field.id, event.currentTarget.value)
+                  }
                   data-commit-on-enter
                   type={field.type === "date" ? "date" : "text"}
                   value={props.form.customValues[field.id] ?? ""}

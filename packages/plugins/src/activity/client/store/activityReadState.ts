@@ -109,15 +109,12 @@ export function createActivityReadState(deps: {
     );
   }
 
-  const unreadActivityCount = createMemo(
-    () => deps.items.list.filter(isActivityItemUnread).length,
-  );
+  const unreadActivityCount = createMemo(() => deps.items.list.filter(isActivityItemUnread).length);
 
   const unreadPingCount = createMemo(
     () =>
       gatewayActivityCount() ??
-      deps.items.list.filter((i) => deps.pingKinds.has(i.kind) && isActivityItemUnread(i))
-        .length,
+      deps.items.list.filter((i) => deps.pingKinds.has(i.kind) && isActivityItemUnread(i)).length,
   );
   const hasUnreadActivity = createMemo(
     () =>

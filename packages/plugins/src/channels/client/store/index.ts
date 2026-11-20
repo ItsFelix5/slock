@@ -1,7 +1,6 @@
 import { service } from "@slock/core/solid";
 import type { BrowsableChannel, Channel, ChannelId, UserId, UserPrefs } from "@slock/types";
-import { createEffect, createMemo, createSignal } from "solid-js";
-import { createStore } from "solid-js";
+import { createEffect, createMemo, createSignal, createStore } from "solid-js";
 import type { View } from "../../../conversations/client/api/types";
 import { isDmId } from "../../../dms/client/api";
 import {
@@ -12,15 +11,14 @@ import {
   leaveChannel,
 } from "../../../slack/client/api";
 import type { ChannelDecorator } from "../api";
-import { channelManagers, channelRosters } from "./queries";
 import { createFlags } from "./flags";
+import { channelManagers, channelRosters } from "./queries";
 import { createChannelSections } from "./sections";
 import { createChannelStarPlacement } from "./starPlacement";
 
 const env = service("env");
 
 const feedback = service("feedback");
-
 
 export function createChannelsStore(deps: {
   bootstrap: () => { channels: Channel[]; starredChannelIds: ChannelId[] } | undefined;

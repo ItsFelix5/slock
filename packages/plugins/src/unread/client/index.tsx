@@ -1,12 +1,6 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
-import {
-  buildUnreadMap,
-  isChannelId,
-  isTs,
-  parseBadgeCounts,
-  parseCountGroup,
-} from "@slock/slack";
+import { buildUnreadMap, isChannelId, isTs, parseBadgeCounts, parseCountGroup } from "@slock/slack";
 import { isDmId } from "../../dms/client/api";
 import { gatewayHandler } from "../../realtime/client/api";
 import { fetchCounts, markChannelRead, markThreadRead } from "../../slack/client/api";

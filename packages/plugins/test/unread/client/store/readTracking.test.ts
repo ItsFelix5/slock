@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import type { Message } from "@slock/types";
-import type { ThreadRef } from "../../../../src/messages/client/api";
 import { createSignal, createStore } from "solid-js";
+import type { ThreadRef } from "../../../../src/messages/client/api";
 import {
-  ch,
   C1,
+  ch,
   channel,
   fakeWindow,
   flush,
@@ -53,7 +53,9 @@ function wired(initialMessages: Message[], lastRead = 0) {
       flushSolid();
     };
     const setVisibleThreads = (threads: { channelId: string; ts: string }[]) => {
-      setVisibleThreadsSignal(threads.map((t) => ({ channelId: ch(t.channelId), ts: stamp(t.ts) })));
+      setVisibleThreadsSignal(
+        threads.map((t) => ({ channelId: ch(t.channelId), ts: stamp(t.ts) })),
+      );
       flushSolid();
     };
     env.store.wireReadTracking({

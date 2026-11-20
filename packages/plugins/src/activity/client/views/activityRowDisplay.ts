@@ -7,8 +7,8 @@ import {
   resolveAuthorDisplayName,
   unresolvedAuthorFallback,
 } from "../../../messages/client/api/messageAuthor";
-import { hasChannel } from "../kinds";
 import { formatInteractorNames } from "../../../users/client/api";
+import { hasChannel } from "../kinds";
 
 const titles = service("titles");
 const usersStore = service("users");

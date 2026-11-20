@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { Host } from "@slock/core";
-import { parseUserId } from "@slock/slack";
 import { setHost } from "@slock/core/solid";
+import { parseUserId } from "@slock/slack";
 import { createUsergroupDetails } from "../../../src/usergroup-details/client/usergroupDetails";
 
 const originalFetch = globalThis.fetch;
