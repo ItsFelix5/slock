@@ -1,10 +1,10 @@
 import { Mrkdwn } from "@slock/blockkit";
-import { Slot, service } from "@slock/core/solid";
+import { service } from "@slock/core/solid";
+import { channelDisplayName } from "@slock/plugins/channels/client/api";
 import type { ChannelId } from "@slock/types";
 import { HoverCard, Icon, Skeleton, type useHoverIntent } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { createSignal, Show } from "solid-js";
-import { channelDisplayName } from "../../../channels/client/api";
 import "./ChannelHoverCard.css";
 
 const channelsStore = service("channels");
@@ -23,7 +23,7 @@ export default function ChannelHoverCard(props: {
     <HoverCard
       anchor={props.anchor}
       hoverIntent={props.hoverIntent}
-      content={(close) => (
+      content={() => (
         <Show when={channel()}>
           {(c) => (
             <>
@@ -56,7 +56,6 @@ export default function ChannelHoverCard(props: {
                   </Show>
                 </div>
               </Show>
-              <Slot channelId={props.channelId} close={close} point="channel-details.hoverAction" />
             </>
           )}
         </Show>

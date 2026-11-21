@@ -1,5 +1,5 @@
-import type { HistoryReply } from "../../slack/server/api/slackReplies";
-import { trimMessage } from "../../slack/server/api/trim/slackMessages";
+import type { HistoryReply } from "@slock/plugins/slack/server/api/slackReplies";
+import { trimMessage } from "@slock/plugins/slack/server/api/trim/slackMessages";
 
 const HISTORY_PARAM_KEYS = ["cursor", "latest", "oldest", "inclusive", "limit"] as const;
 

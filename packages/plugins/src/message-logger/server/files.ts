@@ -1,5 +1,5 @@
-import { slackAssetResponse, slackAssetUrlsIn } from "../../slack/server/api/assets";
-import type { Credentials } from "../../slack/server/api/auth";
+import { slackAssetResponse, slackAssetUrlsIn } from "@slock/plugins/slack/server/api/assets";
+import type { Credentials } from "@slock/plugins/slack/server/api/auth";
 import type { LogStore } from "./store";
 import { ownerOf } from "./workspace";
 

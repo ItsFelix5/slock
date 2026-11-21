@@ -1,21 +1,21 @@
 import type { Setup } from "@slock/core";
-import { slackUploadResponse } from "../../slack/server/api/assets";
+import { slackUploadResponse } from "@slock/plugins/slack/server/api/assets";
 import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
-} from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { mutate, route, routes } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
+} from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
 import type {
   FileInfoReply,
   FileSharesReply,
   FilesCompleteReply,
   UploadReservationReply,
-} from "../../slack/server/api/slackReplies";
-import { hostedChannelId } from "../../slack/server/api/trim/slackChannels";
-import { trimFile } from "../../slack/server/api/trim/slackMessages";
+} from "@slock/plugins/slack/server/api/slackReplies";
+import { hostedChannelId } from "@slock/plugins/slack/server/api/trim/slackChannels";
+import { trimFile } from "@slock/plugins/slack/server/api/trim/slackMessages";
 
 function flattenShares(sharesRoot: unknown): Record<string, unknown>[] {
   const out: Record<string, unknown>[] = [];

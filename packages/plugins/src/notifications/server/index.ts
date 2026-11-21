@@ -1,9 +1,9 @@
 import type { Setup } from "@slock/core";
-import { errorResponse } from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { prefWrite, route, routes } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
-import type { PrefsReply } from "../../slack/server/api/slackReplies";
+import { errorResponse } from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { prefWrite, route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
+import type { PrefsReply } from "@slock/plugins/slack/server/api/slackReplies";
 
 const list: Route[] = [
   route("PUT", "preferences/highlight-words", async (ctx) => {

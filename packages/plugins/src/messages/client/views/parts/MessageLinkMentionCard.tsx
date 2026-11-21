@@ -1,8 +1,8 @@
 import { service } from "@slock/core/solid";
+import type { MentionCardProps } from "@slock/plugins/composer/client/api";
+import { parseSlackPermalink } from "@slock/plugins/message-links/client/api/slackPermalink";
 import type { ChannelId, Ts } from "@slock/types";
 import { createMemo, Show } from "solid-js";
-import type { MentionCardProps } from "../../../../composer/client/api";
-import { parseSlackPermalink } from "../../../../message-links/client/api/slackPermalink";
 import MessageLinkHoverCard, { messageToHoverPreview } from "./MessageLinkHoverCard";
 
 const messagesStore = service("messages");

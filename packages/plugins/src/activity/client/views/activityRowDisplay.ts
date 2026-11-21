@@ -1,13 +1,13 @@
 import { service } from "@slock/core/solid";
-import type { ActivityItem, UserId } from "@slock/types";
-import { createMemo } from "solid-js";
 import {
   hasRealMessageAuthor,
   resolveAuthorAvatarUrl,
   resolveAuthorDisplayName,
   unresolvedAuthorFallback,
-} from "../../../messages/client/api/messageAuthor";
-import { formatInteractorNames } from "../../../users/client/api";
+} from "@slock/plugins/messages/client/api/messageAuthor";
+import { formatInteractorNames } from "@slock/plugins/users/client/api";
+import type { ActivityItem, UserId } from "@slock/types";
+import { createMemo } from "solid-js";
 import { hasChannel } from "../kinds";
 
 const titles = service("titles");

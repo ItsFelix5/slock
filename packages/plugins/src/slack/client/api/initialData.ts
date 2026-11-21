@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import { defineQuery } from "@slock/plugins/query/client/api";
 import { forceReauth, isAuthError, isConfigured, slackErrorOf } from "@slock/slack";
 import type { BootstrapPayload } from "@slock/types";
-import { defineQuery } from "../../../query/client/api";
 
 const env = service("env");
 

@@ -1,7 +1,7 @@
 import { BlockKit, TimeAnchorContext } from "@slock/blockkit";
+import TextOrFiles from "@slock/plugins/files/client/api/TextOrFiles";
 import type { Block, ChannelId, SlackFile, Ts } from "@slock/types";
 import { Show } from "solid-js";
-import TextOrFiles from "../../../../files/client/api/TextOrFiles";
 
 export default function MessageReferenceSnippet(props: {
   blocks?: Block[];

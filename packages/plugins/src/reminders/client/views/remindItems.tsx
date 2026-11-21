@@ -1,8 +1,8 @@
 import { service } from "@slock/core/solid";
+import type { ActivityMenuProps } from "@slock/plugins/activity/client/api";
+import { hasChannel } from "@slock/plugins/activity/client/api";
+import type { MessageMenuProps } from "@slock/plugins/messages/client/api";
 import { Show } from "solid-js";
-import type { ActivityMenuProps } from "../../../activity/client/api";
-import { hasChannel } from "../../../activity/client/api";
-import type { MessageMenuProps } from "../../../messages/client/api";
 import RemindMenu from "./RemindMenu";
 
 const activityStore = service("activity");

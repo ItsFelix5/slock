@@ -1,7 +1,7 @@
 import { BlockKit, createViewState } from "@slock/blockkit";
+import type { MessageHeaderProps } from "@slock/plugins/messages/client/api";
 import { isWaiting } from "@slock/resource";
 import { createEffect, createMemo, Show } from "solid-js";
-import type { MessageHeaderProps } from "../../../messages/client/api";
 import { dispatchHomeOpen } from "../fetch";
 import "./AppHome.css";
 import { useAppHome } from "./useAppHome";

@@ -1,6 +1,1 @@
-{
-  "id": "reactions",
-  "core": true,
-  "name": "Reactions",
-  "requires": ["messages", "shell", "users"]
-}
+{ "id": "reactions", "name": "Reactions", "requires": ["messages", "shell", "users"] }

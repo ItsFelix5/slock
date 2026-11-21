@@ -1,9 +1,9 @@
 import type { Setup } from "@slock/core";
+import { errorResponse, jsonResponse } from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
 import { parseUserId } from "@slock/slack";
-import { errorResponse, jsonResponse } from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { mutate, route, routes } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
 import type { PresenceSeen } from "./api";
 
 function presenceRoutes(seen: () => PresenceSeen[]): Route[] {

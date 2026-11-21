@@ -1,1 +1,1 @@
-{ "id": "usergroups", "core": true, "name": "Pinggroups", "requires": ["bootstrap", "query"] }
+{ "id": "usergroups", "name": "Pinggroups", "requires": ["bootstrap", "query"], "boot": true }

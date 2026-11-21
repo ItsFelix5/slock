@@ -1,17 +1,20 @@
 import type { Setup } from "@slock/core";
 import { isRecord } from "@slock/core";
-import { isTs, richTextBlocksToPlainText } from "@slock/slack";
-import type { RawActivityEntry, RawActivityFeedEntry, RawActivityMessage } from "@slock/types";
-import type { Credentials } from "../../slack/server/api/auth";
+import type { Credentials } from "@slock/plugins/slack/server/api/auth";
 import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
-} from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { mutate, route, routes } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
-import type { ActivityFeedReply, SavedListReply } from "../../slack/server/api/slackReplies";
+} from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
+import type {
+  ActivityFeedReply,
+  SavedListReply,
+} from "@slock/plugins/slack/server/api/slackReplies";
+import { isTs, richTextBlocksToPlainText } from "@slock/slack";
+import type { RawActivityEntry, RawActivityFeedEntry, RawActivityMessage } from "@slock/types";
 import { ACTIVITY_FEED_TYPES_PARAM } from "../protocol/feedTypes";
 
 const NO_TS = "0000000000.000000";

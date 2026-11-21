@@ -1,11 +1,11 @@
 import { service } from "@slock/core/solid";
+import { channelDisplayName } from "@slock/plugins/channels/client/api";
+import ComposeChannelPicker from "@slock/plugins/composer/client/api/pickers/ComposeChannelPicker";
+import { openConversationInSplit } from "@slock/plugins/conversations/client/api/nav";
+import { SplitNavigation } from "@slock/plugins/shell/client/api/SplitNavigation";
 import type { ChannelId } from "@slock/types";
 import { AddRowButton, Icon, Switch } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import { channelDisplayName } from "../../../channels/client/api";
-import ComposeChannelPicker from "../../../composer/client/api/pickers/ComposeChannelPicker";
-import { openConversationInSplit } from "../../../conversations/client/api/nav";
-import { SplitNavigation } from "../../../shell/client/api/SplitNavigation";
 import RemoveRowButton from "./RemoveRowButton";
 import "./UsergroupDetails.css";
 

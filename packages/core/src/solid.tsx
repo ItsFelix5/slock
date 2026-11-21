@@ -1,6 +1,6 @@
 import type { JSX } from "@solidjs/web";
-import { type Component, createComponent, createMemo, Errored, For, omit } from "solid-js";
-import { usePoint } from "./solidHost";
+import { type Component, createComponent, createMemo, Errored, For, lazy, omit } from "solid-js";
+import { getHost, usePoint } from "./solidHost";
 import type { Points } from "./types";
 
 export { createFlags, createOptimisticFlags } from "./flags";
@@ -37,4 +37,10 @@ export function Slot<P extends ComponentPoint>(props: { point: P } & PropsOf<Poi
       )}
     </For>
   );
+}
+
+export function lazyChunk<Props extends object>(
+  load: () => Promise<{ default: (props: Props) => JSX.Element }>,
+) {
+  return lazy(() => getHost().loadChunk(load));
 }

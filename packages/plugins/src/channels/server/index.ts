@@ -1,22 +1,22 @@
 import type { Setup } from "@slock/core";
-import { isChannelId } from "@slock/slack";
-import { teamIdFromRoute } from "../../slack/server/api/auth";
-import { cachedEntityForId } from "../../slack/server/api/cachedEntity";
+import { teamIdFromRoute } from "@slock/plugins/slack/server/api/auth";
+import { cachedEntityForId } from "@slock/plugins/slack/server/api/cachedEntity";
 import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
-} from "../../slack/server/api/jsonResponse";
-import type { Route, RouteCtx } from "../../slack/server/api/router";
-import { mutate, route, routes } from "../../slack/server/api/router";
-import { callSlack, callSlackEdge } from "../../slack/server/api/slackClient";
+} from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route, RouteCtx } from "@slock/plugins/slack/server/api/router";
+import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack, callSlackEdge } from "@slock/plugins/slack/server/api/slackClient";
 import type {
   ChannelInfoReply,
   ChannelReply,
   EdgeChannelsInfoReply,
   EdgeChannelsReply,
-} from "../../slack/server/api/slackReplies";
-import { isHostedChannel, trimChannel } from "../../slack/server/api/trim/slackChannels";
+} from "@slock/plugins/slack/server/api/slackReplies";
+import { isHostedChannel, trimChannel } from "@slock/plugins/slack/server/api/trim/slackChannels";
+import { isChannelId } from "@slock/slack";
 import type { ChannelResolver } from "./api";
 
 async function mutateChannel(

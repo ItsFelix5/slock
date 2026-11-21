@@ -9,18 +9,17 @@ describe("list", () => {
   test("reports manifest fields, transitive dependents and enabled state", async () => {
     const host = createHost();
     await host.register(
-      { core: true, id: "a", name: "Alpha", setup: () => {} },
+      { id: "a", name: "Alpha", setup: () => {} },
       { hidden: true, id: "b", requires: ["a"], setup: () => {} },
       { defaultEnabled: false, id: "c", requires: ["b"], setup: () => {} },
     );
     const byId = Object.fromEntries(host.list().map((info) => [info.id, info]));
     expect(byId.a).toMatchObject({
-      core: true,
       dependents: ["b", "c"],
       enabled: true,
       name: "Alpha",
     });
-    expect(byId.b).toMatchObject({ core: false, dependents: ["c"], hidden: true, name: "b" });
+    expect(byId.b).toMatchObject({ dependents: ["c"], hidden: true, name: "b" });
     expect(byId.c).toMatchObject({ dependents: [], enabled: false, requires: ["b"] });
   });
 

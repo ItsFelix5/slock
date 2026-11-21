@@ -1,16 +1,16 @@
 import { service } from "@slock/core/solid";
-import type { SlackFile, SlackFileDetail, SlackFileShare } from "@slock/types";
-import { AddRowButton, FloatingPanel, Icon } from "@slock/ui";
-import { createSignal, For, Show } from "solid-js";
-import ComposeChannelPicker from "../../../../composer/client/api/pickers/ComposeChannelPicker";
-import ComposeUserPicker from "../../../../composer/client/api/pickers/ComposeUserPicker";
-import { SplitNavigation } from "../../../../shell/client/api/SplitNavigation";
+import ComposeChannelPicker from "@slock/plugins/composer/client/api/pickers/ComposeChannelPicker";
+import ComposeUserPicker from "@slock/plugins/composer/client/api/pickers/ComposeUserPicker";
+import { SplitNavigation } from "@slock/plugins/shell/client/api/SplitNavigation";
 import {
   type FileAccessTarget,
   removeFileAccess,
   setFileAccess,
   setFileOrgAccess,
-} from "../../../../slack/client/api";
+} from "@slock/plugins/slack/client/api";
+import type { SlackFile, SlackFileDetail, SlackFileShare } from "@slock/types";
+import { AddRowButton, FloatingPanel, Icon } from "@slock/ui";
+import { createSignal, For, Show } from "solid-js";
 import AccessRow from "./AccessRow";
 import { ACCESS_OPTIONS, ORG_ACCESS_OPTIONS } from "./accessLevels";
 import UserChip from "./UserChip";

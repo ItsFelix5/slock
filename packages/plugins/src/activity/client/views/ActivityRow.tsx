@@ -1,9 +1,9 @@
 import { maybeService, service } from "@slock/core/solid";
+import ReactionRow from "@slock/plugins/reactions/client/api/ReactionRow";
+import { SplitNavigation } from "@slock/plugins/shell/client/api/SplitNavigation";
 import type { ActivityItem, Ts } from "@slock/types";
 import { ContextMenu, Icon, NavRow, useContextMenu } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import ReactionRow from "../../../reactions/client/api/ReactionRow";
-import { SplitNavigation } from "../../../shell/client/api/SplitNavigation";
 import "./ActivityRow.css";
 import ActivityAvatar from "./ActivityAvatar";
 import ActivityHeadline from "./ActivityHeadline";

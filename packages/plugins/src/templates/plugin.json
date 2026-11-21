@@ -1,1 +1,1 @@
-{ "id": "templates", "core": true, "name": "Templates", "requires": [] }
+{ "id": "templates", "name": "Templates", "requires": [], "boot": true }

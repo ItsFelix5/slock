@@ -1,6 +1,6 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { gatewayHandler } from "../../realtime/client/api";
+import { gatewayHandler } from "@slock/plugins/realtime/client/api";
 import { createUsergroupsSlice } from "./store";
 
 const setup: Setup = (ctx) => {

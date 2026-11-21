@@ -1,13 +1,16 @@
 import { EmojiText } from "@slock/blockkit";
 import { formatDayFromMs, formatTimeFromMs } from "@slock/core";
 import { service } from "@slock/core/solid";
+import {
+  openConversation,
+  openConversationInSplit,
+} from "@slock/plugins/conversations/client/api/nav";
+import { resolveProfileUserId } from "@slock/plugins/messages/client/api/messageAuthor";
+import { ClickableAuthorName } from "@slock/plugins/profile/client/api/AppBadge";
+import { SplitNavigation } from "@slock/plugins/shell/client/api/SplitNavigation";
 import type { ActivityItem } from "@slock/types";
 import { ClickableInline, Icon, Tooltip } from "@slock/ui";
 import { Show } from "solid-js";
-import { openConversation, openConversationInSplit } from "../../../conversations/client/api/nav";
-import { resolveProfileUserId } from "../../../messages/client/api/messageAuthor";
-import { ClickableAuthorName } from "../../../profile/client/api/AppBadge";
-import { SplitNavigation } from "../../../shell/client/api/SplitNavigation";
 import { activityVerb } from "./activityMetadata";
 import type { ActivityRowDisplay } from "./activityRowDisplay";
 import { ACTIVITY_KIND_ICONS } from "./activityViewFilters";

@@ -1,5 +1,6 @@
 import { EmojiText } from "@slock/blockkit";
-import { service } from "@slock/core/solid";
+import { lazyChunk, service } from "@slock/core/solid";
+import { formatInteractorNames } from "@slock/plugins/users/client/api";
 import type { Reaction, UserId } from "@slock/types";
 import {
   AvatarStack,
@@ -10,14 +11,15 @@ import {
   Tooltip,
   useContextMenu,
 } from "@slock/ui";
-import { createMemo, createSignal, For, lazy, Show } from "solid-js";
-import { formatInteractorNames } from "../../../users/client/api";
+import { createMemo, createSignal, For, Show } from "solid-js";
 
 const feedback = service("feedback");
 
 const usersStore = service("users");
 
-const FloatingEmojiPicker = lazy(() => import("../../../emoji/client/api/FloatingEmojiPicker"));
+const FloatingEmojiPicker = lazyChunk(
+  () => import("@slock/plugins/emoji/client/api/FloatingEmojiPicker"),
+);
 
 function reactorNames(users: UserId[]) {
   return formatInteractorNames(users, usersStore.currentUser()?.id, usersStore.userById);

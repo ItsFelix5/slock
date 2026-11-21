@@ -8,7 +8,7 @@ import {
   fetchUserPresence,
   fetchUserProfile,
   searchDirectory,
-} from "../../../slack/client/api";
+} from "@slock/plugins/slack/client/api";
 
 export type UsersApi = {
   fetchAppDescription: typeof fetchAppDescription;

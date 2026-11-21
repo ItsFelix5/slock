@@ -1,4 +1,4 @@
-import type { PaneContentOf } from "../../shell/client/api/types";
+import type { PaneContentOf } from "@slock/plugins/shell/client/api/types";
 
 export type DebugPaneContent = PaneContentOf<"debug">;
 

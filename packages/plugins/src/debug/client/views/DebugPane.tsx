@@ -1,9 +1,9 @@
 import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { defineQuery } from "@slock/plugins/query/client/api";
 import { isWaiting } from "@slock/resource";
 import { CopyJsonButton, IconButton, JsonTree, type Pane, PanelHeader } from "@slock/ui";
 import { For, Show } from "solid-js";
-import { defineQuery } from "../../../query/client/api";
 import type { DebugPaneContent } from "../api";
 import { entities } from "../entities";
 import "./DebugPane.css";

@@ -1,15 +1,15 @@
 import { createFlags, service } from "@slock/core/solid";
-import type { BrowsableChannel, Channel, ChannelId, UserId, UserPrefs } from "@slock/types";
-import { createEffect, createMemo, createSignal, createStore } from "solid-js";
-import type { View } from "../../../conversations/client/api/types";
-import { isDmId } from "../../../dms/client/api";
+import type { View } from "@slock/plugins/conversations/client/api/types";
+import { isDmId } from "@slock/plugins/dms/client/api";
 import {
   fetchBrowsableChannels,
   fetchChannel,
   fetchChannelDetails,
   joinChannel,
   leaveChannel,
-} from "../../../slack/client/api";
+} from "@slock/plugins/slack/client/api";
+import type { BrowsableChannel, Channel, ChannelId, UserId, UserPrefs } from "@slock/types";
+import { createEffect, createMemo, createSignal, createStore } from "solid-js";
 import type { ChannelDecorator } from "../api";
 import { channelManagers, channelRosters } from "./queries";
 import { createChannelSections } from "./sections";

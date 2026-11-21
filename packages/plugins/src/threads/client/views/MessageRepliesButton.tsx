@@ -1,9 +1,9 @@
 import { service } from "@slock/core/solid";
+import type { OpenThreadHandler } from "@slock/plugins/messages/client/api/messageFocus";
+import { formatInteractorNames } from "@slock/plugins/users/client/api";
 import type { ChannelId, Message } from "@slock/types";
 import { AvatarStack, Icon, Tooltip, TypingIndicator } from "@slock/ui";
 import { Show } from "solid-js";
-import type { OpenThreadHandler } from "../../../messages/client/api/messageFocus";
-import { formatInteractorNames } from "../../../users/client/api";
 
 const unreadStore = service("unread");
 const usersStore = service("users");

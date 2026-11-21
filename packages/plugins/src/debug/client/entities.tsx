@@ -1,11 +1,11 @@
 import type { BlockKitResolver } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
+import { openConversation } from "@slock/plugins/conversations/client/api/nav";
 import { isChannelId, isFileId, isTs, isUserId } from "@slock/slack";
 import type { ChannelId, Ts } from "@slock/types";
 import { Avatar, Icon } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { Show } from "solid-js";
-import { openConversation } from "../../conversations/client/api/nav";
 import { loadCanvasDebug } from "./canvasDebugData";
 
 const users = service("users");

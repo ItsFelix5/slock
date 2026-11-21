@@ -1,5 +1,5 @@
-import type { Credentials } from "../../slack/server/api/auth";
-import { callSlack } from "../../slack/server/api/slackClient";
+import type { Credentials } from "@slock/plugins/slack/server/api/auth";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
 import {
   extractCsrfToken,
   extractFlashError,

@@ -1,9 +1,9 @@
 import type { TimerHandle } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { loadFileDetail } from "@slock/plugins/files/client/api/fileDetailQuery";
+import { fetchMessagesByIds, searchChannelFilesAndLinks } from "@slock/plugins/slack/client/api";
 import type { ChannelId, FileId, Ts } from "@slock/types";
 import { createSignal } from "solid-js";
-import { loadFileDetail } from "../../../files/client/api/fileDetailQuery";
-import { fetchMessagesByIds, searchChannelFilesAndLinks } from "../../../slack/client/api";
 import { appendEntries, type FilesLinksEntry, mergeEntries } from "./entries";
 
 export type { FilesLinksEntry } from "./entries";

@@ -1,11 +1,11 @@
 import { service } from "@slock/core/solid";
+import { channelIconName } from "@slock/plugins/channels/client/api";
+import { openConversationInSplit } from "@slock/plugins/conversations/client/api/nav";
+import { SplitNavigation } from "@slock/plugins/shell/client/api/SplitNavigation";
 import type { ChannelId, DirectMessage, SlackFile, User, UserId } from "@slock/types";
 import { Avatar, AvatarStack, Icon } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { For, Show } from "solid-js";
-import { channelIconName } from "../../../channels/client/api";
-import { openConversationInSplit } from "../../../conversations/client/api/nav";
-import { SplitNavigation } from "../../../shell/client/api/SplitNavigation";
 
 const dmsStore = service("dms");
 const titles = service("titles");

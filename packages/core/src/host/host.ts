@@ -9,10 +9,11 @@ import type {
   Setup,
 } from "../types";
 import { errorMessage } from "../util/errorMessage";
+import { createChunkPool } from "./chunkPool";
 import { planStart } from "./plan";
 import { createRegistry } from "./registry";
 
-const CORE_NAMES = new Set(["root", "http", "ws", "cli"]);
+const CORE_NAMES = new Set(["root", "http", "ws", "instance"]);
 
 const plainReactive: Reactive = {
   scope: (fn) => ({ dispose: () => {}, value: fn() }),
@@ -42,7 +43,6 @@ export type HostOptions = {
 
 export type PluginInfo = {
   id: string;
-  core: boolean;
   hidden: boolean;
   dependents: string[];
   name: string;
@@ -67,6 +67,7 @@ export function createHost(options: HostOptions = {}) {
   const [defsVersion, setDefsVersion] = reactive.signal(0);
   let defsRevision = 0;
   let queue: Promise<void> = Promise.resolve();
+  const loadChunk = createChunkPool();
 
   function resolveId(id: string): string | undefined {
     if (defs.has(id)) return id;
@@ -123,7 +124,10 @@ export function createHost(options: HostOptions = {}) {
   function setupOf(def: PluginDef): Promise<Setup> {
     let loaded = setups.get(def.id);
     if (!loaded) {
-      loaded = "setup" in def ? Promise.resolve(def.setup) : def.load().then((mod) => mod.default);
+      loaded =
+        "setup" in def
+          ? Promise.resolve(def.setup)
+          : loadChunk(def.load).then((mod) => mod.default);
       setups.set(def.id, loaded);
     }
     return loaded;
@@ -220,12 +224,12 @@ export function createHost(options: HostOptions = {}) {
     add: registry.add,
     idle: (): Promise<void> => enqueue(() => {}),
     items: registry.items,
+    loadChunk,
     list(): PluginInfo[] {
       void defsVersion();
       const current = statuses();
       void overrides();
       return [...defs.values()].map((def) => ({
-        core: def.core === true,
         hidden: def.hidden === true,
         dependents: [...defs.keys()].filter((other) => dependsOn(other, def.id)),
         enabled: isEnabled(def.id),

@@ -1,6 +1,5 @@
 {
   "id": "canvas",
-  "core": true,
   "name": "Canvas",
   "requires": ["files", "message-links", "query", "shell", "users"]
 }

@@ -1,8 +1,9 @@
 import type { Setup } from "@slock/core";
+import { lazyChunk } from "@slock/core/solid";
 import { IconButton } from "@slock/ui";
-import { createSignal, lazy, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 
-const SettingsModal = lazy(() => import("./views/SettingsModal"));
+const SettingsModal = lazyChunk(() => import("./views/SettingsModal"));
 
 const setup: Setup = (ctx) => {
   const [isOpen, setIsOpen] = createSignal(false);

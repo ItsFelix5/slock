@@ -1,6 +1,6 @@
 import type { Setup } from "@slock/core";
+import { gatewayHandler } from "@slock/plugins/realtime/client/api";
 import { isUserId } from "@slock/slack";
-import { gatewayHandler } from "../../realtime/client/api";
 import { userDnd } from "./queries";
 import UserDnd from "./UserDnd";
 import DndButton from "./views/DndButton";

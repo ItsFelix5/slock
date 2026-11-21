@@ -1,6 +1,6 @@
+import { defineQuery } from "@slock/plugins/query/client/api";
+import { fetchFileDetail } from "@slock/plugins/slack/client/api";
 import type { FileId } from "@slock/types";
-import { defineQuery } from "../../../query/client/api";
-import { fetchFileDetail } from "../../../slack/client/api";
 
 const fileDetail = defineQuery<FileId, Awaited<ReturnType<typeof fetchFileDetail>>>({
   load: fetchFileDetail,

@@ -1,11 +1,11 @@
 import { service } from "@slock/core/solid";
+import { fetchProfileFieldDefs } from "@slock/plugins/slack/client/api";
 import { Button, createClock, InlineFeedback, type Pane, PanelHeader } from "@slock/ui";
 import { createMemo, createSignal, Show } from "solid-js";
-import { fetchProfileFieldDefs } from "../../../slack/client/api";
 import type { ProfilePaneContent } from "../api";
 import ProfilePhotoEditor from "./ProfilePhotoEditor";
 import "./UserProfile.css";
-import { defineQuery } from "../../../query/client/api";
+import { defineQuery } from "@slock/plugins/query/client/api";
 import { createProfileForm } from "./profileForm";
 import UserProfileContact from "./UserProfileContact";
 import UserProfileInfo from "./UserProfileInfo";

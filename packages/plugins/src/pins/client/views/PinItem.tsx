@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
+import type { MessageMenuProps } from "@slock/plugins/messages/client/api";
 import { MenuItem } from "@slock/ui";
-import type { MessageMenuProps } from "../../../messages/client/api";
 
 export default function PinItem(props: MessageMenuProps) {
   const pins = service("pins");

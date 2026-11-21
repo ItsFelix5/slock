@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { type Action, perform } from "./actions";
 import { hasWorkspace } from "./slack";
 
-const PORT = Number(Bun.env.PORT) || 5176;
+const PORT = Number(Bun.env.SLOCK_RELAY_PORT) || 5176;
 const MAX_AGE_SECONDS = 300;
 const signingSecret = Bun.env.SLACK_SIGNING_SECRET;
 if (!signingSecret) throw new Error("SLACK_SIGNING_SECRET is required");

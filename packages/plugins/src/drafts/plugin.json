@@ -1,6 +1,1 @@
-{
-  "id": "drafts",
-  "core": true,
-  "name": "Drafts",
-  "requires": []
-}
+{ "id": "drafts", "name": "Drafts", "requires": [], "boot": true }

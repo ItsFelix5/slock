@@ -1,9 +1,5 @@
-import { brotliCompressSync, constants, gzipSync } from "node:zlib";
-import {
-  acceptsEncoding,
-  headersWithVary,
-  isCompressible,
-} from "../../http/server/api/compression";
+import { isCompressible } from "@slock/installer/compressible";
+import { acceptsEncoding, headersWithVary } from "@slock/plugins/http/server/api/compression";
 
 const ENCODINGS = [
   { encoding: "br", extension: ".br" },
@@ -18,21 +14,6 @@ function cacheControlFor(pathname: string): string {
   if (pathname.startsWith("/public/fonts/")) return IMMUTABLE;
   if (pathname.startsWith("/public/")) return ONE_WEEK;
   return "no-cache";
-}
-
-function brotli(contents: string | Uint8Array): Uint8Array {
-  return brotliCompressSync(contents, {
-    params: { [constants.BROTLI_PARAM_QUALITY]: constants.BROTLI_MAX_QUALITY },
-  });
-}
-
-export async function writePrecompressed(path: string, contents: Blob): Promise<void> {
-  if (!isCompressible(contents.type)) return;
-  const bytes = new Uint8Array(await contents.arrayBuffer());
-  await Promise.all([
-    Bun.write(`${path}.br`, brotli(bytes)),
-    Bun.write(`${path}.gz`, gzipSync(bytes, { level: 9 })),
-  ]);
 }
 
 export async function serveFile(

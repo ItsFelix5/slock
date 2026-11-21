@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import type { ChannelMessageTarget, View } from "@slock/plugins/conversations/client/api/types";
 import type { ChannelId, Message } from "@slock/types";
 import { createSignal } from "solid-js";
-import type { ChannelMessageTarget, View } from "../../conversations/client/api/types";
 import { createFeedPagination } from "./api/pane/scroll/feedPagination";
 import { createFeedScroll } from "./api/pane/scroll/feedScroll";
 import { createMessageListLanding } from "./messageListLanding";

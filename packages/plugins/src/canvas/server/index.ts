@@ -4,12 +4,12 @@ import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
-} from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { route, routes } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
-import type { FileInfoReply } from "../../slack/server/api/slackReplies";
-import { trimFile } from "../../slack/server/api/trim/slackMessages";
+} from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
+import type { FileInfoReply } from "@slock/plugins/slack/server/api/slackReplies";
+import { trimFile } from "@slock/plugins/slack/server/api/trim/slackMessages";
 import { canEditCanvas, lookupThread, notConfigured } from "./api";
 import { commentRoutes } from "./comments";
 import { applyCanvasEdit } from "./edit";

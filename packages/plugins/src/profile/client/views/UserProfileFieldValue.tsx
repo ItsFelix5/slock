@@ -1,10 +1,10 @@
 import { EmojiText } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
+import { useFileDetail } from "@slock/plugins/files/client/api/fileDetailQuery";
+import MessageFiles from "@slock/plugins/message-media/client/api/MessageFiles";
 import { isFileId, isUserId } from "@slock/slack";
 import { Avatar } from "@slock/ui";
 import { Errored, For, Loading, Match, Show, Switch } from "solid-js";
-import { useFileDetail } from "../../../files/client/api/fileDetailQuery";
-import MessageFiles from "../../../message-media/client/api/MessageFiles";
 import { formatStartDate } from "./userProfileTime";
 
 const usersStore = service("users");

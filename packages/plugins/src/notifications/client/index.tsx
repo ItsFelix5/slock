@@ -1,9 +1,9 @@
 import type { Setup } from "@slock/core";
-import { service } from "@slock/core/solid";
-import { lazy } from "solid-js";
+import { lazyChunk, service } from "@slock/core/solid";
+
 import { createDesktopNotificationsStore } from "./store";
 
-const view = lazy(() => import("./views/NotificationsTab"));
+const view = lazyChunk(() => import("./views/NotificationsTab"));
 
 const setup: Setup = (ctx) => {
   const prefs = service("prefs");

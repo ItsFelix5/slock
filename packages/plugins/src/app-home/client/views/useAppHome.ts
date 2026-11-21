@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
+import { defineQuery } from "@slock/plugins/query/client/api";
 import type { ChannelId } from "@slock/types";
-import { defineQuery } from "../../../query/client/api";
 import { fetchAppHome } from "../fetch";
 
 const dms = service("dms");

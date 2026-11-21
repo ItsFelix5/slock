@@ -1,10 +1,14 @@
 import type { Setup, TimerHandle } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { isDmId } from "@slock/plugins/dms/client/api";
+import { gatewayHandler } from "@slock/plugins/realtime/client/api";
+import {
+  fetchLatestCounts,
+  markChannelRead,
+  markThreadRead,
+} from "@slock/plugins/slack/client/api";
 import { buildUnreadMap, isChannelId, isTs, parseBadgeCounts, parseCountGroup } from "@slock/slack";
 import type { ChannelId } from "@slock/types";
-import { isDmId } from "../../dms/client/api";
-import { gatewayHandler } from "../../realtime/client/api";
-import { fetchLatestCounts, markChannelRead, markThreadRead } from "../../slack/client/api";
 import { createUnreadStore } from "./store";
 
 const feedback = service("feedback");

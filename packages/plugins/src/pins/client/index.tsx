@@ -1,10 +1,10 @@
 import type { Setup } from "@slock/core";
-import { service } from "@slock/core/solid";
+import { lazyChunk, service } from "@slock/core/solid";
+import { liveOnly } from "@slock/plugins/messages/client/api/deletedMessages";
+import type { PaneContent } from "@slock/plugins/shell/client/api/types";
 import { ifPresent, isChannelId, parseChannelId, parseTs } from "@slock/slack";
 import { narrowPaneContent, type Pane, useShortcut } from "@slock/ui";
-import { createEffect, lazy, Show } from "solid-js";
-import { liveOnly } from "../../messages/client/api/deletedMessages";
-import type { PaneContent } from "../../shell/client/api/types";
+import { createEffect, Show } from "solid-js";
 import type { PinnedPaneContent } from "./api";
 import { createPinnedSlice } from "./store";
 import PinItem from "./views/PinItem";
@@ -13,7 +13,7 @@ import ViewPinnedItem from "./views/ViewPinnedItem";
 
 const messageFocus = service("messages.focus");
 const active = () => messageFocus.active();
-const PinnedPane = lazy(() => import("./views/PinnedPane"));
+const PinnedPane = lazyChunk(() => import("./views/PinnedPane"));
 const PINNED_MARK = "*";
 
 function PinnedView(props: { pane: Pane<PaneContent | null> }) {

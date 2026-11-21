@@ -1,12 +1,12 @@
 import type { Env } from "@slock/core";
 import { createFlags } from "@slock/core/solid";
-import type { ActivityItem, ChannelId, Message, Ts, User, UserId } from "@slock/types";
-import { createSignal } from "solid-js";
 import {
   fetchChannelLastRead,
   fetchHistoryAround,
   fetchMessagesByIds,
-} from "../../../slack/client/api";
+} from "@slock/plugins/slack/client/api";
+import type { ActivityItem, ChannelId, Message, Ts, User, UserId } from "@slock/types";
+import { createSignal } from "solid-js";
 import {
   archiveActivityItem,
   fetchActivityBadgeCounts,

@@ -1,5 +1,5 @@
 import { EmojiText, Mrkdwn } from "@slock/blockkit";
-import { Slot, service } from "@slock/core/solid";
+import { service } from "@slock/core/solid";
 import type { UserId } from "@slock/types";
 import { AvatarImage, HoverCard, Icon, type useHoverIntent } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
@@ -106,7 +106,6 @@ export default function UserHoverCard(props: {
                   Message
                 </button>
               </Show>
-              <Slot close={close} point="profile.hoverAction" userId={u().id} />
             </>
           )}
         </Show>

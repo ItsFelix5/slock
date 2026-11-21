@@ -1,8 +1,8 @@
+import type { ChannelMessageTarget, View } from "@slock/plugins/conversations/client/api/types";
 import { isChannelId, parseTs } from "@slock/slack";
 import type { ChannelId, ConversationViewData, Message, Ts } from "@slock/types";
 import { createRecencyEviction } from "@slock/ui";
 import { createEffect, createStore, untrack } from "solid-js";
-import type { ChannelMessageTarget, View } from "../../../conversations/client/api/types";
 import type { ThreadRef } from "../api";
 import { mergeMessages } from "../api/messageMerge";
 import { DEFAULT_HISTORY_API, type MessageHistoryApi } from "./history/historyApi";

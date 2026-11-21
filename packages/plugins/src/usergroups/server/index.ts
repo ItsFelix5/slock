@@ -1,19 +1,19 @@
 import type { Setup } from "@slock/core";
-import type { RawUsergroup } from "@slock/types";
-import { teamIdFromRoute } from "../../slack/server/api/auth";
-import { cachedEntityForId } from "../../slack/server/api/cachedEntity";
+import { teamIdFromRoute } from "@slock/plugins/slack/server/api/auth";
+import { cachedEntityForId } from "@slock/plugins/slack/server/api/cachedEntity";
 import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
-} from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { mutate, route, routes } from "../../slack/server/api/router";
-import { callSlack, callSlackEdge } from "../../slack/server/api/slackClient";
+} from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack, callSlackEdge } from "@slock/plugins/slack/server/api/slackClient";
 import type {
   EdgeUsergroupsInfoReply,
   UsergroupMembersReply,
-} from "../../slack/server/api/slackReplies";
+} from "@slock/plugins/slack/server/api/slackReplies";
+import type { RawUsergroup } from "@slock/types";
 
 function trimUsergroup(group: RawUsergroup): RawUsergroup {
   return {

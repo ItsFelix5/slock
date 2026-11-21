@@ -1,4 +1,4 @@
-import type { BindEditor } from "../../../composer/client/api";
+import type { BindEditor } from "@slock/plugins/composer/client/api";
 import { dateAt } from "./dateAt";
 import { openDatePicker } from "./openDatePicker";
 

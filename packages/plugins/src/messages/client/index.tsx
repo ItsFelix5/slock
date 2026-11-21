@@ -1,13 +1,13 @@
 import { BlockKitConfirmContext, BlockKitResolverContext } from "@slock/blockkit";
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import type { View } from "@slock/plugins/conversations/client/api/types";
+import { parseSlackPermalink } from "@slock/plugins/message-links/client/api/slackPermalink";
+import type { PaneContent } from "@slock/plugins/shell/client/api/types";
 import { isChannelId } from "@slock/slack";
 import type { ChannelId, Ts } from "@slock/types";
 import { narrowPaneContent, type Pane } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
-import type { View } from "../../conversations/client/api/types";
-import { parseSlackPermalink } from "../../message-links/client/api/slackPermalink";
-import type { PaneContent } from "../../shell/client/api/types";
 import { liveOnly } from "./api/deletedMessages";
 import { createMessageFocusRegistry } from "./api/messageFocus";
 import { createScrollAnchors } from "./api/pane/scroll/rememberedAnchors";

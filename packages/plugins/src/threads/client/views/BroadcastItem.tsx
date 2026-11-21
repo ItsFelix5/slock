@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import type { MessageMenuProps } from "@slock/plugins/messages/client/api";
 import { MenuItem } from "@slock/ui";
 import { Show } from "solid-js";
-import type { MessageMenuProps } from "../../../messages/client/api";
 
 export default function BroadcastItem(props: MessageMenuProps) {
   const messages = service("messages");

@@ -1,6 +1,9 @@
 import type { Services } from "@slock/core/types";
+import {
+  openConversationInSplit,
+  viewForConversation,
+} from "@slock/plugins/conversations/client/api/nav";
 import type { ChannelId, Ts } from "@slock/types";
-import { openConversationInSplit, viewForConversation } from "../../conversations/client/api/nav";
 
 export function createMessageNavigation(deps: {
   openInNewPane: Services["shell.panes"]["openInNewPane"];

@@ -1,6 +1,6 @@
 import { errorMessage } from "@slock/core";
+import type { ConnectMethodProps } from "@slock/plugins/account/client/api";
 import { connectWith } from "@slock/slack";
-import type { ConnectMethodProps } from "../../../account/client/api";
 
 export default function CurlForm(props: ConnectMethodProps) {
   return (

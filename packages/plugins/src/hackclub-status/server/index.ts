@@ -1,10 +1,10 @@
 import type { Setup } from "@slock/core";
 import { errorMessage, isRecord } from "@slock/core";
 import { service } from "@slock/core/services";
+import { errorResponse, jsonResponse } from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { route, routes } from "@slock/plugins/slack/server/api/router";
 import type { UserId } from "@slock/types";
-import { errorResponse, jsonResponse } from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { route, routes } from "../../slack/server/api/router";
 
 const env = service("env");
 

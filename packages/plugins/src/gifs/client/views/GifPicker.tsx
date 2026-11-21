@@ -1,5 +1,6 @@
 import type { TimerHandle } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { defineQuery } from "@slock/plugins/query/client/api";
 import {
   gridNavigationIndex,
   IconButton,
@@ -11,7 +12,6 @@ import {
   useListShortcuts,
 } from "@slock/ui";
 import { createMemo, createSignal, For, onCleanup, onSettled, Show } from "solid-js";
-import { defineQuery } from "../../../query/client/api";
 import type { Gif } from "../store";
 import { loadGifs } from "../tenor";
 import "./GifPicker.css";

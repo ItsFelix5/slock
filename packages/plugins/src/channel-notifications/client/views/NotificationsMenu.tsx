@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import type { ChannelMenuProps } from "@slock/plugins/messages/client/api";
 import { Icon, Menu, MenuItem } from "@slock/ui";
 import { createSignal } from "solid-js";
-import type { ChannelMenuProps } from "../../../messages/client/api";
 import "./NotificationsMenu.css";
 
 export default function NotificationsMenu(props: ChannelMenuProps) {

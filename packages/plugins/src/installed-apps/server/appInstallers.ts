@@ -1,6 +1,6 @@
 import { service } from "@slock/core/services";
+import type { Credentials } from "@slock/plugins/slack/server/api/auth";
 import { decodeTextEntities } from "@slock/slack";
-import type { Credentials } from "../../slack/server/api/auth";
 
 const env = service("env");
 

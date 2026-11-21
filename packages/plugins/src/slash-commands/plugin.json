@@ -1,6 +1,1 @@
-{
-  "id": "slash-commands",
-  "core": true,
-  "name": "Slash commands",
-  "requires": ["query", "shell"]
-}
+{ "id": "slash-commands", "name": "Slash commands", "requires": ["query", "shell"], "boot": true }

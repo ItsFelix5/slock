@@ -1,5 +1,5 @@
+import type { PaneContent } from "@slock/plugins/shell/client/api/types";
 import type { FileId } from "@slock/types";
-import type { PaneContent } from "../../../shell/client/api/types";
 
 export interface UntitledCanvas {
   id: string;

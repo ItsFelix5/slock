@@ -1,4 +1,5 @@
 import { service } from "@slock/core/solid";
+import MrkdwnComposer from "@slock/plugins/composer/client/api/MrkdwnComposer";
 import {
   ariaBoolean,
   Button,
@@ -9,7 +10,6 @@ import {
   useTabStripShortcuts,
 } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
-import MrkdwnComposer from "../../../composer/client/api/MrkdwnComposer";
 import type { UsergroupDetailsPaneContent } from "../api";
 import UsergroupChannelsTab from "./UsergroupChannelsTab";
 import "./UsergroupDetails.css";

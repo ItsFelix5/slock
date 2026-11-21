@@ -1,6 +1,1 @@
-{
-  "id": "channel-canvas",
-  "core": true,
-  "name": "Channel canvases",
-  "requires": ["channels", "canvas"]
-}
+{ "id": "channel-canvas", "name": "Channel canvases", "requires": ["channels", "canvas"] }

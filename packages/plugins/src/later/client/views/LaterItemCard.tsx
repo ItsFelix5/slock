@@ -1,6 +1,19 @@
 import { formatSlackDateTokens } from "@slock/blockkit";
 import { formatTime } from "@slock/core";
 import { service } from "@slock/core/solid";
+import {
+  openConversation,
+  openConversationInSplit,
+} from "@slock/plugins/conversations/client/api/nav";
+import MessageActionsMenuItems from "@slock/plugins/messages/client/api/cards/MessageActionsMenuItems";
+import MessageReferenceSnippet from "@slock/plugins/messages/client/api/cards/MessageReferenceSnippet";
+import ResultMessageCard from "@slock/plugins/messages/client/api/cards/ResultMessageCard";
+import {
+  resolveAuthorAvatarUrl,
+  resolveAuthorDisplayName,
+  resolveProfileUserId,
+} from "@slock/plugins/messages/client/api/messageAuthor";
+import { SplitNavigation } from "@slock/plugins/shell/client/api/SplitNavigation";
 import type { ChannelId, Message, SavedItem, Ts } from "@slock/types";
 import {
   ClickableInline,
@@ -11,16 +24,6 @@ import {
   useContextMenu,
 } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
-import { openConversation, openConversationInSplit } from "../../../conversations/client/api/nav";
-import MessageActionsMenuItems from "../../../messages/client/api/cards/MessageActionsMenuItems";
-import MessageReferenceSnippet from "../../../messages/client/api/cards/MessageReferenceSnippet";
-import ResultMessageCard from "../../../messages/client/api/cards/ResultMessageCard";
-import {
-  resolveAuthorAvatarUrl,
-  resolveAuthorDisplayName,
-  resolveProfileUserId,
-} from "../../../messages/client/api/messageAuthor";
-import { SplitNavigation } from "../../../shell/client/api/SplitNavigation";
 
 const feedback = service("feedback");
 const messageLinks = service("message-links");

@@ -1,9 +1,9 @@
 import { type Setup, sameItems } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { gatewayHandler } from "@slock/plugins/realtime/client/api";
+import { fetchUserPresence } from "@slock/plugins/slack/client/api";
 import { isUserId } from "@slock/slack";
 import { createEffect, createMemo } from "solid-js";
-import { gatewayHandler } from "../../realtime/client/api";
-import { fetchUserPresence } from "../../slack/client/api";
 import { createHydrationQueue } from "./hydrationQueue";
 import { watchedUserIds } from "./watchedIds";
 

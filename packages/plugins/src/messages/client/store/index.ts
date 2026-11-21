@@ -1,7 +1,7 @@
+import type { ChannelMessageTarget, View } from "@slock/plugins/conversations/client/api/types";
 import { isMyRelayedMessage } from "@slock/slack";
 import type { ChannelId, ConversationViewData, Message, Ts, User, UserId } from "@slock/types";
 import { reconcile, snapshot } from "solid-js";
-import type { ChannelMessageTarget, View } from "../../../conversations/client/api/types";
 import type { ThreadRef } from "../api";
 import {
   createMessageLocator,

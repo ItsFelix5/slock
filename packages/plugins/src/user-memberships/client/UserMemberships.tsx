@@ -1,10 +1,10 @@
 import { service } from "@slock/core/solid";
+import type { ProfileMetaProps } from "@slock/plugins/profile/client/api";
+import { defineQuery } from "@slock/plugins/query/client/api";
 import { isChannelId } from "@slock/slack";
 import type { UserId } from "@slock/types";
 import { Button, SegmentedControl } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import type { ProfileMetaProps } from "../../profile/client/api";
-import { defineQuery } from "../../query/client/api";
 import {
   fetchMemberships,
   MEMBERSHIPS_STALE_MS,

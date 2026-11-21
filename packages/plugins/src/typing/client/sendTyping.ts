@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import type { BindEditor } from "../../composer/client/api";
+import type { BindEditor } from "@slock/plugins/composer/client/api";
 
 const SEND_INTERVAL_MS = 3000;
 

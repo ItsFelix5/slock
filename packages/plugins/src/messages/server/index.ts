@@ -1,25 +1,25 @@
 import type { Setup } from "@slock/core";
 import { isRecord } from "@slock/core";
-import { isRawMessage } from "@slock/slack";
 import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
-} from "../../slack/server/api/jsonResponse";
-import { relayDelete, relayEdit } from "../../slack/server/api/relayMessages";
-import type { Route } from "../../slack/server/api/router";
-import { mutate, route, routes } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
+} from "@slock/plugins/slack/server/api/jsonResponse";
+import { relayDelete, relayEdit } from "@slock/plugins/slack/server/api/relayMessages";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
 import type {
   ConversationViewReply,
   HistoryReply,
   MessagesListReply,
   PostMessageReply,
   UnfurlLinkReply,
-} from "../../slack/server/api/slackReplies";
-import { trimChannel } from "../../slack/server/api/trim/slackChannels";
-import { trimUser } from "../../slack/server/api/trim/slackEntities";
-import { trimAttachment, trimMessage } from "../../slack/server/api/trim/slackMessages";
+} from "@slock/plugins/slack/server/api/slackReplies";
+import { trimChannel } from "@slock/plugins/slack/server/api/trim/slackChannels";
+import { trimUser } from "@slock/plugins/slack/server/api/trim/slackEntities";
+import { trimAttachment, trimMessage } from "@slock/plugins/slack/server/api/trim/slackMessages";
+import { isRawMessage } from "@slock/slack";
 import { historyParams, trimHistory } from "./api";
 import { channelPreloads } from "./preload";
 

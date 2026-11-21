@@ -1,6 +1,6 @@
+import { parseSlackPermalink } from "@slock/plugins/message-links/client/api/slackPermalink";
 import type { Block, RichTextInlineElement, RichTextStyle, RichTextSubBlock } from "@slock/types";
 import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
-import { parseSlackPermalink } from "../../../message-links/client/api/slackPermalink";
 import { type DeltaLine, type DeltaOp, type DeltaSegment, deltaLines } from "./deltaLines";
 import { MENTION_PREFIX, userlinkUrl } from "./embedValues";
 import { cutHeaderText } from "./headerLimit";

@@ -1,11 +1,12 @@
 import type { Setup } from "@slock/core";
-import { lazy } from "solid-js";
-import { definePluginSettings } from "../../plugins/client/api";
+import { lazyChunk } from "@slock/core/solid";
+
+import { definePluginSettings } from "@slock/plugins/plugins/client/api";
 import { createPendingFilesStore } from "./lib/pendingFiles";
 import FileInput from "./views/FileInput";
 
-const Composer = lazy(() => import("./views/Composer"));
-const RichTextInput = lazy(() => import("./views/RichTextInput"));
+const Composer = lazyChunk(() => import("./views/Composer"));
+const RichTextInput = lazyChunk(() => import("./views/RichTextInput"));
 
 const setup: Setup = (ctx) => {
   void Composer.preload();

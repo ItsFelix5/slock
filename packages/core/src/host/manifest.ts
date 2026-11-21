@@ -5,6 +5,11 @@ const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
 export type ManifestResult = { ok: true; manifest: Manifest } | { ok: false; errors: string[] };
 
+const REMOVED_FIELDS: Record<string, string> = {
+  core: "core was removed",
+  defaultEnabled: "defaultEnabled is set by the instance (bun plugin install --off)",
+};
+
 const isStringList = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
 
@@ -14,7 +19,10 @@ function listErrors(value: Record<string, unknown>): string[] {
     if (value[key] !== undefined && !isStringList(value[key]))
       errors.push(`${key} must be a list of strings`);
   }
-  for (const key of ["core", "defaultEnabled", "hidden"]) {
+  for (const [key, message] of Object.entries(REMOVED_FIELDS)) {
+    if (key in value) errors.push(message);
+  }
+  for (const key of ["boot", "hidden"]) {
     if (value[key] !== undefined && typeof value[key] !== "boolean")
       errors.push(`${key} must be true or false`);
   }
@@ -31,8 +39,7 @@ export function parseManifest(value: unknown): ManifestResult {
   if (errors.length > 0 || typeof value.id !== "string") return { errors, ok: false };
   return {
     manifest: {
-      core: value.core === true ? true : undefined,
-      defaultEnabled: value.defaultEnabled === false ? false : undefined,
+      boot: value.boot === true ? true : undefined,
       hidden: value.hidden === true ? true : undefined,
       id: value.id,
       name: typeof value.name === "string" ? value.name : undefined,

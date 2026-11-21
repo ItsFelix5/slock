@@ -1,1 +1,1 @@
-{ "id": "web", "core": true, "name": "Web client", "requires": [] }
+{ "id": "web", "name": "Web client", "requires": ["slack"] }

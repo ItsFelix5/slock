@@ -1,16 +1,5 @@
 import { service } from "@slock/core/solid";
-import type {
-  ChannelDetails,
-  ChannelId,
-  ChannelMembersPage,
-  ChannelPostingPrefs,
-  ChannelPostingPrefsPatch,
-  MemberPermissionsPatch,
-  User,
-  UserId,
-} from "@slock/types";
-import { createSignal } from "solid-js";
-import { defineQuery, type Query } from "../../query/client/api";
+import { defineQuery, type Query } from "@slock/plugins/query/client/api";
 import {
   archiveChannel,
   convertChannelToPrivate,
@@ -29,7 +18,18 @@ import {
   setChannelTopic,
   setMemberPermissions,
   unarchiveChannel,
-} from "../../slack/client/api";
+} from "@slock/plugins/slack/client/api";
+import type {
+  ChannelDetails,
+  ChannelId,
+  ChannelMembersPage,
+  ChannelPostingPrefs,
+  ChannelPostingPrefsPatch,
+  MemberPermissionsPatch,
+  User,
+  UserId,
+} from "@slock/types";
+import { createSignal } from "solid-js";
 
 const feedback = service("feedback");
 

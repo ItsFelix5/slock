@@ -1,6 +1,6 @@
+import { defineQuery } from "@slock/plugins/query/client/api";
 import { apiGet, apiPost, replyError } from "@slock/slack";
 import type { ChannelId, MessageShortcut, Ts } from "@slock/types";
-import { defineQuery } from "../../../query/client/api";
 
 interface AppDescriptionArg {
   appId: string;

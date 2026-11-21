@@ -1,8 +1,8 @@
 import { defined } from "@slock/core";
 import { Slot, service } from "@slock/core/solid";
+import { copyMessageLink } from "@slock/plugins/message-links/client/api/messageLinks";
 import { MenuItem } from "@slock/ui";
 import { Show } from "solid-js";
-import { copyMessageLink } from "../../../message-links/client/api/messageLinks";
 import type { ActivityRow } from "./ActivityRow";
 
 const messageLinks = service("message-links");

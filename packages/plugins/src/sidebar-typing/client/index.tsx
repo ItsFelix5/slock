@@ -1,9 +1,9 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import type { HomeRowEndProps } from "@slock/plugins/home/client/api";
+import { definePluginSettings } from "@slock/plugins/plugins/client/api";
 import { TypingIndicator } from "@slock/ui";
 import { Show } from "solid-js";
-import type { HomeRowEndProps } from "../../home/client/api";
-import { definePluginSettings } from "../../plugins/client/api";
 
 const typingStore = service("typing");
 

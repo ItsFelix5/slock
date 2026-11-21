@@ -1,6 +1,6 @@
+import type { RawDraft } from "@slock/plugins/slack/server/api/slackReplies";
+import { trimDraft } from "@slock/plugins/slack/server/api/trim/slackDrafts";
 import type { ChannelUpdates, GatewayEvent } from "@slock/types";
-import type { RawDraft } from "../../slack/server/api/slackReplies";
-import { trimDraft } from "../../slack/server/api/trim/slackDrafts";
 
 type SyncPayload = {
   channel?: string | { id?: string };

@@ -1,8 +1,8 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { gatewayHandler } from "@slock/plugins/realtime/client/api";
 import { ifPresent, parseChannelId, parseUserId } from "@slock/slack";
 import type { MembershipEvent } from "@slock/types";
-import { gatewayHandler } from "../../realtime/client/api";
 import { createDmTitleResolver } from "./dmTitle";
 import { createDmsStore } from "./store";
 import DmIntro from "./views/DmIntro";

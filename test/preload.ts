@@ -1,7 +1,7 @@
 import { afterEach } from "bun:test";
 import { Window } from "happy-dom";
 import { trackSolidDiagnostics } from "../packages/core/src/testing";
-import { solidJsx } from "../packages/plugins/src/web/server/solidPlugin";
+import { solidJsx } from "../packages/installer/src/solid";
 
 const KEEP_BUN = new Set([
   "fetch",

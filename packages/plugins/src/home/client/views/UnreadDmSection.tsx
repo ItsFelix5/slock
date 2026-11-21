@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import { conversationTarget } from "../../../conversations/client/api/nav";
+import { conversationTarget } from "@slock/plugins/conversations/client/api/nav";
 import type { HomeSectionProps } from "../api";
 import { SidebarUnreadDmSection } from "./rows/SidebarUnreadDmSection";
 import { useDmSections } from "./useDmSections";

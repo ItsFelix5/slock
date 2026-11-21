@@ -1,8 +1,8 @@
 import { service } from "@slock/core/solid";
+import { annotationQuote, canvasHtmlLines } from "@slock/plugins/canvas/client/api/canvasQuote";
 import type { FileId } from "@slock/types";
 import { Icon } from "@slock/ui";
 import { createMemo } from "solid-js";
-import { annotationQuote, canvasHtmlLines } from "../../../canvas/client/api/canvasQuote";
 import "./CommentQuote.css";
 
 const canvasStore = service("canvas");

@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
+import type { MessageHeaderProps } from "@slock/plugins/messages/client/api";
 import { createMemo } from "solid-js";
-import type { MessageHeaderProps } from "../../../messages/client/api";
 
 const dmsStore = service("dms");
 const usersStore = service("users");

@@ -1,15 +1,15 @@
 import type { Setup } from "@slock/core";
-import { service } from "@slock/core/solid";
+import { lazyChunk, service } from "@slock/core/solid";
+import type { PaneContent } from "@slock/plugins/shell/client/api/types";
 import { narrowPaneContent, type Pane } from "@slock/ui";
-import { lazy, Show } from "solid-js";
-import type { PaneContent } from "../../shell/client/api/types";
+import { Show } from "solid-js";
 import type { UsergroupDetailsPaneContent } from "./api";
 
 import { createUsergroupDetails } from "./usergroupDetails";
 import UsergroupHoverCard from "./views/UsergroupHoverCard";
 import UsergroupMentionCard from "./views/UsergroupMentionCard";
 
-const UsergroupDetails = lazy(() => import("./views/UsergroupDetails"));
+const UsergroupDetails = lazyChunk(() => import("./views/UsergroupDetails"));
 
 function UsergroupView(props: { pane: Pane<PaneContent | null> }) {
   return (

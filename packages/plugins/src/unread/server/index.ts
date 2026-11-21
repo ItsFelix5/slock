@@ -1,19 +1,19 @@
 import type { Setup } from "@slock/core";
-import { slackPart } from "../../bootstrap/server/api";
+import { slackPart } from "@slock/plugins/bootstrap/server/api";
 import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
-} from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { mutate, route, routes } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
-import type { CountsReply } from "../../slack/server/api/slackReplies";
+} from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
+import type { CountsReply } from "@slock/plugins/slack/server/api/slackReplies";
 import {
   trimActivityCounts,
   trimCountGroup,
   trimCountGroups,
-} from "../../slack/server/api/trim/slackChannels";
+} from "@slock/plugins/slack/server/api/trim/slackChannels";
 
 function trimCounts(data: CountsReply) {
   return {

@@ -3,13 +3,11 @@ services:
     build:
       context: .
       args:
-        SLOCK_INSTALL: ${SLOCK_INSTALL:-}
+        PLUGINS: ${PLUGINS:-core}
     ports:
-      - "127.0.0.1:${PORT:-5175}:5175"
-    environment:
-      SLOCK_DISABLE: ${SLOCK_DISABLE:-}
+      - "127.0.0.1:${SLOCK_PORT:-5175}:5175"
     volumes:
-      - data:/data
+      - data:/app/data
     healthcheck:
       test: ["CMD", "bun", "-e", "fetch('http://localhost:5175').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
       interval: 30s

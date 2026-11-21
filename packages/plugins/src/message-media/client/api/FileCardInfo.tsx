@@ -1,8 +1,8 @@
 import { EmojiText, Mrkdwn } from "@slock/blockkit";
+import { fileKindLabel, isCanvasFile } from "@slock/plugins/files/client/api/fileSummary";
 import type { SlackFile } from "@slock/types";
 import { formatSize, Icon, type IconName } from "@slock/ui";
 import { Show } from "solid-js";
-import { fileKindLabel, isCanvasFile } from "../../../files/client/api/fileSummary";
 import "./MessageFiles.css";
 
 export default function FileCardInfo(props: {

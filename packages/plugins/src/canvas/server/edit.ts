@@ -1,5 +1,5 @@
+import type { Credentials } from "@slock/plugins/slack/server/api/auth";
 import type { CanvasEdit } from "@slock/types";
-import type { Credentials } from "../../slack/server/api/auth";
 import { decodeLoadData, planEdit } from "../protocol/api";
 import type { CanvasWire } from "./wire";
 

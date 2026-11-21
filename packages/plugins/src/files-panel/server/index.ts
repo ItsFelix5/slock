@@ -1,9 +1,12 @@
 import type { Setup } from "@slock/core";
-import { jsonResponse, slackErrorResponse } from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { route, routes } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
-import type { FilesSearchReply, LinksSearchReply } from "../../slack/server/api/slackReplies";
+import { jsonResponse, slackErrorResponse } from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
+import type {
+  FilesSearchReply,
+  LinksSearchReply,
+} from "@slock/plugins/slack/server/api/slackReplies";
 
 const list: Route[] = [
   route("GET", "channels/:id/files-links", async (ctx) => {

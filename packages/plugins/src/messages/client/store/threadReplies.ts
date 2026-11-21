@@ -1,13 +1,13 @@
-import { isTs } from "@slock/slack";
-import type { ChannelId, Message, Ts } from "@slock/types";
-import { createConcurrencyQueue, createRecencyEviction } from "@slock/ui";
-import { createEffect, createStore, untrack } from "solid-js";
 import {
   fetchReplies,
   fetchRepliesBefore,
   fetchRepliesFrom,
   fetchThreadRoot,
-} from "../../../slack/client/api";
+} from "@slock/plugins/slack/client/api";
+import { isTs } from "@slock/slack";
+import type { ChannelId, Message, Ts } from "@slock/types";
+import { createConcurrencyQueue, createRecencyEviction } from "@slock/ui";
+import { createEffect, createStore, untrack } from "solid-js";
 import type { ThreadRef } from "../api";
 import { mergeMessages } from "../api/messageMerge";
 import { planThreadLoad } from "./history/loadPlan";

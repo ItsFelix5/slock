@@ -1,8 +1,8 @@
 import { service } from "@slock/core/solid";
+import { openGroupDm } from "@slock/plugins/slack/client/api";
 import type { User, UserId } from "@slock/types";
 import { Combobox, type ComboboxOption } from "@slock/ui";
 import { createSignal } from "solid-js";
-import { openGroupDm } from "../../../slack/client/api";
 import CreateDialog from "./CreateDialog";
 
 const dms = service("dms");

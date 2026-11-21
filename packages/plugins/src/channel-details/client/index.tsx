@@ -1,17 +1,17 @@
 import type { Setup } from "@slock/core";
-import { service } from "@slock/core/solid";
+import { lazyChunk, service } from "@slock/core/solid";
+import { openConversationInSplit } from "@slock/plugins/conversations/client/api/nav";
+import type { ChannelMenuProps } from "@slock/plugins/messages/client/api";
+import { gatewayHandler } from "@slock/plugins/realtime/client/api";
+import { SplitNavigation } from "@slock/plugins/shell/client/api/SplitNavigation";
 import { ifPresent, isChannelId, parseChannelId } from "@slock/slack";
 import { MenuItem } from "@slock/ui";
-import { lazy, Show } from "solid-js";
-import { openConversationInSplit } from "../../conversations/client/api/nav";
-import type { ChannelMenuProps } from "../../messages/client/api";
-import { gatewayHandler } from "../../realtime/client/api";
-import { SplitNavigation } from "../../shell/client/api/SplitNavigation";
+import { Show } from "solid-js";
 import { createChannelDetailsStore } from "./channelDetails";
 import ChannelHoverCard from "./views/ChannelHoverCard";
 import ChannelMentionCard from "./views/ChannelMentionCard";
 
-const ChannelDetails = lazy(() => import("./views/ChannelDetails"));
+const ChannelDetails = lazyChunk(() => import("./views/ChannelDetails"));
 const TOPIC_OR_PURPOSE = /^(channel|group)_(topic|purpose)$/;
 const channelDetails = service("channel-details");
 

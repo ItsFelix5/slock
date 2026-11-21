@@ -1,5 +1,5 @@
+import type { Credentials } from "@slock/plugins/slack/server/api/auth";
 import type { ChannelId, RawChannel } from "@slock/types";
-import type { Credentials } from "../../slack/server/api/auth";
 
 export type ChannelResolver = (
   id: ChannelId,

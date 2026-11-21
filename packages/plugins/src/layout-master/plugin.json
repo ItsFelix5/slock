@@ -1,6 +1,1 @@
-{
-  "id": "layout-master",
-  "name": "Master+side layout",
-  "defaultEnabled": false,
-  "requires": ["shell"]
-}
+{ "id": "layout-master", "name": "Master+side layout", "requires": ["shell"] }

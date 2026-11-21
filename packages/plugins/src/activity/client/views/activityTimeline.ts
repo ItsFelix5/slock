@@ -1,8 +1,8 @@
 import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
+import type { MessageAuthorFields } from "@slock/plugins/messages/client/api/messageAuthor";
 import type { ActivityItem, Block, Message, SlackFile, Ts, UserId } from "@slock/types";
 import { createEffect, createMemo, untrack } from "solid-js";
-import type { MessageAuthorFields } from "../../../messages/client/api/messageAuthor";
 
 const messagesStore = service("messages");
 const activityStore = service("activity");

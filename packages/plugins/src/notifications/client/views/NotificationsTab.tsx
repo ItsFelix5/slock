@@ -1,10 +1,10 @@
 import { service } from "@slock/core/solid";
+import { TAG_FILTERS } from "@slock/plugins/activity/client/api";
+import { channelDisplayName, channelIconName } from "@slock/plugins/channels/client/api";
 import type { Channel, ChannelId } from "@slock/types";
 import { Button, Icon, InlineFeedback, Switch } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { createSignal, For, Show } from "solid-js";
-import { TAG_FILTERS } from "../../../activity/client/api";
-import { channelDisplayName, channelIconName } from "../../../channels/client/api";
 import { isNotificationKind } from "../classify";
 import "./NotificationsTab.css";
 

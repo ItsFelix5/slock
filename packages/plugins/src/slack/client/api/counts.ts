@@ -1,6 +1,6 @@
+import { defineQuery } from "@slock/plugins/query/client/api";
 import { apiGet, replyError } from "@slock/slack";
 import type { RawCounts } from "@slock/types";
-import { defineQuery } from "../../../query/client/api";
 
 type CountsReply = { notifications?: Record<string, number>; unreads?: RawCounts };
 

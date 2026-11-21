@@ -1,4 +1,4 @@
-import { createLocalPref } from "../../slack/client/api/localPref";
+import { createLocalPref } from "@slock/plugins/slack/client/api/localPref";
 
 export type Gif = { url: string; preview: string; media?: string };
 

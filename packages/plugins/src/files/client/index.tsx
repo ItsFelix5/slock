@@ -1,8 +1,9 @@
 import type { Setup } from "@slock/core";
+import { lazyChunk } from "@slock/core/solid";
 import type { SlackFile } from "@slock/types";
-import { createSignal, lazy, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 
-const FileDetailModal = lazy(() => import("./views/file-detail/FileDetailModal"));
+const FileDetailModal = lazyChunk(() => import("./views/file-detail/FileDetailModal"));
 
 const setup: Setup = (ctx) => {
   const [file, setFile] = createSignal<SlackFile>();

@@ -1,7 +1,7 @@
 import { EmojiText } from "@slock/blockkit";
+import type { MessageEditedProps } from "@slock/plugins/messages/client/api";
 import { Popover } from "@slock/ui";
 import { createSignal, For } from "solid-js";
-import type { MessageEditedProps } from "../../../messages/client/api";
 import { diffText } from "../textDiff";
 import "./EditedDiff.css";
 import { defined } from "@slock/core";

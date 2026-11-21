@@ -1,12 +1,12 @@
-import { teamIdFromRoute } from "../../slack/server/api/auth";
+import { teamIdFromRoute } from "@slock/plugins/slack/server/api/auth";
 import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
-} from "../../slack/server/api/jsonResponse";
-import { route } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
-import type { AppProfileReply } from "../../slack/server/api/slackReplies";
+} from "@slock/plugins/slack/server/api/jsonResponse";
+import { route } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
+import type { AppProfileReply } from "@slock/plugins/slack/server/api/slackReplies";
 
 export const appProfileRoutes = [
   route("GET", "apps/:id/profile", async (ctx) => {

@@ -1,6 +1,5 @@
 {
   "id": "notifications",
-  "core": true,
   "name": "Notifications",
   "requires": [
     "activity",

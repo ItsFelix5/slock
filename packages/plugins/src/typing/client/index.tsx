@@ -1,8 +1,8 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import type { MessageFooterProps } from "@slock/plugins/messages/client/api";
 import { ifPresent, parseChannelId, parseTs, parseUserId } from "@slock/slack";
 import { TypingIndicator } from "@slock/ui";
-import type { MessageFooterProps } from "../../messages/client/api";
 import { sendTyping } from "./sendTyping";
 import { createTypingSlice } from "./store";
 

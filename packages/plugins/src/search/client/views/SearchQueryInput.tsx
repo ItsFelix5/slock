@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import { fetchBrowsableChannels } from "@slock/plugins/slack/client/api";
 import { createListboxActiveIndex, FloatingPanel, Icon, SuggestionList } from "@slock/ui";
 import { createMemo, createSignal, createUniqueId, onSettled } from "solid-js";
-import { fetchBrowsableChannels } from "../../../slack/client/api";
 import { createSearchQueryEditor } from "./lib/searchQueryEditor";
 import { createTokenEntitySearch, mergeById } from "./lib/tokenEntitySearch";
 import {

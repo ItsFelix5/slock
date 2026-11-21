@@ -1,7 +1,7 @@
+import type { Credentials } from "@slock/plugins/slack/server/api/auth";
+import { callSlack, type SlackReply } from "@slock/plugins/slack/server/api/slackClient";
 import { ifPresent, parseChannelId, parseUserId } from "@slock/slack";
 import type { ChannelId, UserId } from "@slock/types";
-import type { Credentials } from "../../slack/server/api/auth";
-import { callSlack, type SlackReply } from "../../slack/server/api/slackClient";
 
 type RawConversation = {
   id: string;

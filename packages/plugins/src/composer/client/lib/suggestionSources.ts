@@ -1,8 +1,8 @@
 import { service } from "@slock/core/solid";
+import { fetchBrowsableChannels } from "@slock/plugins/slack/client/api";
 import type { ChannelId, User } from "@slock/types";
 import { fuzzySearch } from "@slock/ui";
 import type { Setter } from "solid-js";
-import { fetchBrowsableChannels } from "../../../slack/client/api";
 import type {
   ChannelSuggestItem,
   CommandSuggestItem,

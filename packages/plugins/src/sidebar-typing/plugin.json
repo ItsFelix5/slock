@@ -1,6 +1,1 @@
-{
-  "id": "sidebar-typing",
-  "core": true,
-  "name": "Typing in sidebar",
-  "requires": ["home", "typing"]
-}
+{ "id": "sidebar-typing", "name": "Typing in sidebar", "requires": ["home", "typing"] }

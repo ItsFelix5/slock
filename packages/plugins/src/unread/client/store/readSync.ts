@@ -1,6 +1,6 @@
 import type { Services } from "@slock/core/types";
+import { createLatestValueSync } from "@slock/plugins/query/client/api";
 import type { ChannelId, Ts } from "@slock/types";
-import { createLatestValueSync } from "../../../query/client/api";
 
 export type ReadApi = {
   markChannelRead: (channelId: ChannelId, ts: Ts) => Promise<unknown>;

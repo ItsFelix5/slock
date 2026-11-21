@@ -1,7 +1,7 @@
 import { narrowByType } from "@slock/core";
+import { INVISIBLE_LABEL } from "@slock/plugins/message-links/client/api/replyLink";
 import { isRichTextSubBlock } from "@slock/slack";
 import type { Block, RichTextBlock, RichTextSubBlock } from "@slock/types";
-import { INVISIBLE_LABEL } from "../../../message-links/client/api/replyLink";
 
 export function collapseLeadingMessageLink(blocks: Block[]): Block[] {
   const richText = narrowByType<Block, RichTextBlock>(blocks[0], "rich_text");

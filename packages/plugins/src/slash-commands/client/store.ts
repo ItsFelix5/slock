@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
+import { runSlashCommand } from "@slock/plugins/slack/client/api";
 import type { ChannelId, Ts } from "@slock/types";
-import { runSlashCommand } from "../../slack/client/api";
 import { slashCommands } from "./commands";
 import { handleSlashCommand } from "./slashCommand";
 

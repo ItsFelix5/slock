@@ -1,6 +1,6 @@
 import { formatSlackDate, formatSlackDateTokens } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
-import type { ComposerSuggest, ExtraSuggestion } from "../../../composer/client/api";
+import type { ComposerSuggest, ExtraSuggestion } from "@slock/plugins/composer/client/api";
 import { parseDateQuery } from "./parseDateQuery";
 
 const env = service("env");

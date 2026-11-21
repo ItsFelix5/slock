@@ -1,5 +1,5 @@
+import { type DateValue, dateValue } from "@slock/plugins/composer/client/api";
 import type Quill from "@slock/ui/editor/quill";
-import { type DateValue, dateValue } from "../../../composer/client/api";
 
 export interface DateTarget {
   index: number;

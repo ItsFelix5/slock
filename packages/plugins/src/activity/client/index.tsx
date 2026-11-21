@@ -1,12 +1,12 @@
 import { EmojiText } from "@slock/blockkit";
 import type { Setup } from "@slock/core";
-import { service } from "@slock/core/solid";
+import { lazyChunk, service } from "@slock/core/solid";
 import { isTs } from "@slock/slack";
 import { Icon } from "@slock/ui";
-import { createEffect, lazy, Show } from "solid-js";
+import { createEffect, Show } from "solid-js";
 import { createActivityStore } from "./store";
 
-const ActivityView = lazy(() => import("./views/ActivityView"));
+const ActivityView = lazyChunk(() => import("./views/ActivityView"));
 
 function ActivityButton() {
   const activity = service("activity");

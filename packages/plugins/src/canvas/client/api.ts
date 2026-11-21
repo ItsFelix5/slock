@@ -1,6 +1,6 @@
+import type { PaneContentOf } from "@slock/plugins/shell/client/api/types";
 import type { FileId } from "@slock/types";
 import type { Component } from "solid-js";
-import type { PaneContentOf } from "../../shell/client/api/types";
 import type { CanvasDocModel } from "./lib/canvasDelta";
 import type { createCanvasStore } from "./store";
 

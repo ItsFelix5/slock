@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import { defineQuery } from "@slock/plugins/query/client/api";
+import { toggleReaction } from "@slock/plugins/slack/client/api";
 import type { CanvasCommentThread, ChannelId, FileId } from "@slock/types";
-import { defineQuery } from "../../../query/client/api";
-import { toggleReaction } from "../../../slack/client/api";
 import { isThreadAnnotation } from "../api/canvasQuote";
 import { type CanvasComments, fetchCanvasComments, openCanvasComment } from "./canvasRequests";
 

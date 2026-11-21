@@ -1,5 +1,5 @@
+import type { Credentials } from "@slock/plugins/slack/server/api/auth";
 import { extractSlackSession } from "@slock/slack";
-import type { Credentials } from "../../slack/server/api/auth";
 import { parseCurlRequest, type SlackRequest } from "./curlRequest";
 import { parseFetchRequest } from "./fetchRequest";
 import { slackToken } from "./slackToken";

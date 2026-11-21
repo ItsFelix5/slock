@@ -1,9 +1,9 @@
 import { errorMessage } from "@slock/core";
 import { getHost, service } from "@slock/core/solid";
+import { encodeReplyLink, withReplyLink } from "@slock/plugins/message-links/client/api/replyLink";
+import { SLASH_COMMAND_RE } from "@slock/plugins/slash-commands/client/api";
 import { blockPreviewText, broadcastRangeOf } from "@slock/slack";
 import type { ChannelId, SlackFile, Ts } from "@slock/types";
-import { encodeReplyLink, withReplyLink } from "../../message-links/client/api/replyLink";
-import { SLASH_COMMAND_RE } from "../../slash-commands/client/api";
 import type { ComposerProps } from "./composerTypes";
 import { uploadAll } from "./lib/attachUpload";
 import { type DeltaOp, mrkdwnText } from "./lib/deltaLines";

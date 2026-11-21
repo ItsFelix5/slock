@@ -1,4 +1,7 @@
 import { safeMediaUrl } from "@slock/blockkit";
+import AudioFile from "@slock/plugins/message-media/client/api/AudioFile";
+import FileViewerTrigger from "@slock/plugins/message-media/client/api/FileViewer";
+import TranscriptPopover from "@slock/plugins/message-media/client/api/TranscriptPopover";
 import type { SlackFile } from "@slock/types";
 import {
   ConstrainedImage,
@@ -9,9 +12,6 @@ import {
 } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { createSignal, Match, Show, Switch } from "solid-js";
-import AudioFile from "../../../../message-media/client/api/AudioFile";
-import FileViewerTrigger from "../../../../message-media/client/api/FileViewer";
-import TranscriptPopover from "../../../../message-media/client/api/TranscriptPopover";
 
 function Frame(props: { children: JSX.Element }) {
   return <div class="file-detail-preview flex-center">{props.children}</div>;

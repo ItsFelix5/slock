@@ -1,8 +1,8 @@
-import { jsonResponse, slackErrorResponse } from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { route } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
-import type { TeamProfileReply } from "../../slack/server/api/slackReplies";
+import { jsonResponse, slackErrorResponse } from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { route } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
+import type { TeamProfileReply } from "@slock/plugins/slack/server/api/slackReplies";
 
 export const fieldRoutes: Route[] = [
   route("GET", "profile-fields", async (ctx) => {

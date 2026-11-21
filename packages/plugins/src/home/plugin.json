@@ -1,6 +1,5 @@
 {
   "id": "home",
-  "core": true,
   "name": "Home",
   "requires": [
     "bootstrap",

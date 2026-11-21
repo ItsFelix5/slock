@@ -1,5 +1,5 @@
+import type { ChannelMenuProps } from "@slock/plugins/messages/client/api";
 import { MenuItem } from "@slock/ui";
-import type { ChannelMenuProps } from "../../../messages/client/api";
 import { copyChannelLink } from "../api/messageLinks";
 
 export default function CopyChannelLinkItem(props: ChannelMenuProps) {

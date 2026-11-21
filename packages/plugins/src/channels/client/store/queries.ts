@@ -1,6 +1,6 @@
+import { defineQuery } from "@slock/plugins/query/client/api";
+import { fetchChannelManagerIds, fetchChannelMembers } from "@slock/plugins/slack/client/api";
 import type { ChannelId, UserId } from "@slock/types";
-import { defineQuery } from "../../../query/client/api";
-import { fetchChannelManagerIds, fetchChannelMembers } from "../../../slack/client/api";
 
 export const channelRosters = defineQuery<ChannelId, Set<UserId>>({
   load: async (channelId) => {

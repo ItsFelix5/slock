@@ -1,8 +1,8 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
+import type { ProfileMetaProps } from "@slock/plugins/profile/client/api";
 import { Avatar } from "@slock/ui";
 import { Errored, For, Loading, Show } from "solid-js";
-import type { ProfileMetaProps } from "../../profile/client/api";
 import { appInstallers } from "./fetch";
 import "./InstalledApps.css";
 

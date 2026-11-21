@@ -1,6 +1,6 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { liveOnly } from "../../messages/client/api/deletedMessages";
+import { liveOnly } from "@slock/plugins/messages/client/api/deletedMessages";
 import { createIncomingShare } from "./api/incomingLinks";
 import { createMessageNavigation } from "./navigation";
 import { installPermalinkHandler } from "./permalinkHandler";

@@ -1,6 +1,6 @@
+import { searchGlobal } from "@slock/plugins/slack/client/api";
 import type { GlobalSearchResults } from "@slock/types";
 import { createDebouncedSearch } from "@slock/ui";
-import { searchGlobal } from "../../../../slack/client/api";
 
 const EMPTY: GlobalSearchResults = { channels: [], files: [], users: [] };
 

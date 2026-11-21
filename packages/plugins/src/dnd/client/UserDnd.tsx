@@ -1,6 +1,6 @@
 import { CLOCK_24H } from "@slock/core";
+import type { ProfileMetaProps } from "@slock/plugins/profile/client/api";
 import { Errored, Loading, Show } from "solid-js";
-import type { ProfileMetaProps } from "../../profile/client/api";
 import { userDnd } from "./queries";
 
 export default function UserDnd(props: ProfileMetaProps) {

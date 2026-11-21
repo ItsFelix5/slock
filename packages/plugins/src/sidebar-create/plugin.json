@@ -1,6 +1,5 @@
 {
   "id": "sidebar-create",
-  "core": true,
   "name": "Add in sidebar",
   "requires": ["channels", "conversations", "dms", "home", "usergroup-details", "users"]
 }

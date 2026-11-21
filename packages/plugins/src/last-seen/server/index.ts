@@ -1,9 +1,9 @@
 import type { Setup } from "@slock/core";
+import type { Credentials } from "@slock/plugins/slack/server/api/auth";
+import { jsonResponse } from "@slock/plugins/slack/server/api/jsonResponse";
+import { route, routes } from "@slock/plugins/slack/server/api/router";
 import { isUserId } from "@slock/slack";
 import type { UserId } from "@slock/types";
-import type { Credentials } from "../../slack/server/api/auth";
-import { jsonResponse } from "../../slack/server/api/jsonResponse";
-import { route, routes } from "../../slack/server/api/router";
 
 function key(creds: Credentials, userId: string): string {
   return `${creds.route}:${userId}`;

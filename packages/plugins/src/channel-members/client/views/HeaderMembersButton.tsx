@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import type { MessageHeaderProps } from "@slock/plugins/messages/client/api";
 import { Icon, Tooltip } from "@slock/ui";
 import { Show } from "solid-js";
-import type { MessageHeaderProps } from "../../../messages/client/api";
 import "./HeaderMembersButton.css";
 
 const channels = service("channels");

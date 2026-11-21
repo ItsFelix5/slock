@@ -1,9 +1,8 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { resolve } from "node:path";
 import { createHost, readManifest } from "@slock/core";
+import { buildPlugin, libSpecifiers } from "@slock/installer";
 import { setupOf } from "../../src/plugins/client/data/loadPlugin";
-import { buildPlugin } from "../../src/web/server/buildPlugin";
-import { libSpecifiers } from "../../src/web/server/libs";
 
 const EXAMPLE = resolve(import.meta.dir, "../../../../examplePlugin");
 const BUNDLE = resolve(EXAMPLE, "node_modules/.tmp/example.js");

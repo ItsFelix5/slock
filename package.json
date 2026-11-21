@@ -8,10 +8,9 @@
     "examplePlugin"
   ],
   "scripts": {
-    "dev": "bun run --watch packages/server/src/index.ts --dev",
-    "build": "bun run packages/server/src/index.ts --build",
-    "plugin:build": "bun run packages/server/src/index.ts --build-plugin",
-    "start": "bun run packages/server/src/index.ts",
+    "dev": "bun run --watch packages/server/src/dev.ts",
+    "plugin": "bun packages/installer/src/cli.ts",
+    "start": "bun instance/server.js",
     "relay": "bun run packages/relay/src/index.ts",
     "test": "bun test --conditions browser --conditions development --timeout 30000",
     "check": "biome check . --write && tsc -b && bun scripts/checkPlugins.ts && bun scripts/checkPackages.ts && bun scripts/checkSource.ts",

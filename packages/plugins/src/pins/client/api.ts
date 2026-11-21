@@ -1,5 +1,5 @@
+import type { PaneContentOf } from "@slock/plugins/shell/client/api/types";
 import type { ChannelId } from "@slock/types";
-import type { PaneContentOf } from "../../shell/client/api/types";
 import type { createPinnedSlice } from "./store";
 
 export type PinnedPaneContent = PaneContentOf<"pinned">;

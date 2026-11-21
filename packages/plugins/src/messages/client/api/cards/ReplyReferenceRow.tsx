@@ -1,11 +1,11 @@
 import { BlockKitResolverContext, Mrkdwn, useBlockKitResolver } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
+import TextOrFiles from "@slock/plugins/files/client/api/TextOrFiles";
+import { splitReplyLink } from "@slock/plugins/message-links/client/api/replyLink";
+import { parseSlackPermalink } from "@slock/plugins/message-links/client/api/slackPermalink";
 import type { Attachment, Message } from "@slock/types";
 import { Avatar, Icon, type IconName, imageSrc } from "@slock/ui";
 import { Show } from "solid-js";
-import TextOrFiles from "../../../../files/client/api/TextOrFiles";
-import { splitReplyLink } from "../../../../message-links/client/api/replyLink";
-import { parseSlackPermalink } from "../../../../message-links/client/api/slackPermalink";
 import MessageLinkHoverCard, {
   attachmentToHoverPreview,
   type HoverPreview,

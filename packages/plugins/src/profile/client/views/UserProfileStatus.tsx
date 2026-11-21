@@ -1,10 +1,11 @@
 import { EmojiText } from "@slock/blockkit";
+import { lazyChunk } from "@slock/core/solid";
 import { Icon, IconButton, Popover } from "@slock/ui";
-import { createSignal, lazy, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import type { ProfileForm } from "./profileForm";
 import "./UserProfileStatus.css";
 
-const EmojiPicker = lazy(() => import("../../../emoji/client/api/EmojiPicker"));
+const EmojiPicker = lazyChunk(() => import("@slock/plugins/emoji/client/api/EmojiPicker"));
 
 interface UserProfileStatusProps {
   form: ProfileForm;

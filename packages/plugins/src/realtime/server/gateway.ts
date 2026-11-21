@@ -1,7 +1,7 @@
 import { backoff, defined, type Env, type TimerHandle } from "@slock/core";
+import { type Credentials, teamIdFromRoute } from "@slock/plugins/slack/server/api/auth";
 import { isUserId } from "@slock/slack";
 import type { UserId } from "@slock/types";
-import { type Credentials, teamIdFromRoute } from "../../slack/server/api/auth";
 import type { GatewayEvent, RealtimeEventHook, RealtimeTrim } from "./api";
 import { parseFrame } from "./frame";
 import { trimSlackGatewayPayload } from "./trim";

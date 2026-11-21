@@ -1,10 +1,16 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { readManifest } from "@slock/core";
+import { readUnits } from "../packages/installer/src/units";
+import { validateUnits } from "../packages/installer/src/validate";
 
 const PLUGINS_DIR = join(import.meta.dir, "../packages/plugins/src");
 const SOURCE = /\.(ts|tsx)$/;
-const IMPORT = /(?:from|import)\s*\(?\s*["'](\.{1,2}\/[^"']*)["']/g;
+const SPECIFIER = /^@slock\/plugins\/([^/]+)\/(.+)$/;
+const scanners = {
+  ts: new Bun.Transpiler({ loader: "ts" }),
+  tsx: new Bun.Transpiler({ loader: "tsx" }),
+};
 const SERVICE_USE = /(?:\bservice|ctx\.get|ctx\.maybe)\(\s*["']([^"']+)["']/g;
 const PUBLIC_NAMES = new Set(["api", "contract"]);
 const HANDLER_TYPES = /(?:types:|gatewayHandler\(|_EVENTS\s*=)\s*\[([^\]]*)\]/g;
@@ -66,14 +72,26 @@ for (const [id, manifest] of manifests) {
       const [owner] = match[1].split(".");
       if (owner !== id) used.add(owner);
     }
-    for (const match of text.matchAll(IMPORT)) {
-      const target = join(file, "..", match[1])
+    const imports = scanners[file.endsWith("x") ? "tsx" : "ts"]
+      .scanImports(text)
+      .map(({ path }) => path);
+    for (const specifier of imports.filter((path) => path.startsWith("."))) {
+      const target = join(file, "..", specifier)
         .slice(PLUGINS_DIR.length + 1)
         .split("/");
       const [targetId] = target;
       if (!(targetId && manifests.has(targetId)) || targetId === id) continue;
-      if (target.slice(1).some((segment) => PUBLIC_NAMES.has(segment))) continue;
-      errors.push(`${file.slice(PLUGINS_DIR.length + 1)} imports ${target.join("/")}`);
+      errors.push(
+        `${file.slice(PLUGINS_DIR.length + 1)} imports ${target.join("/")}, use @slock/plugins/${target.join("/")}`,
+      );
+    }
+    for (const [, targetId, path] of imports
+      .map((path) => path.match(SPECIFIER))
+      .filter((match) => match !== null)) {
+      const where = file.slice(PLUGINS_DIR.length + 1);
+      if (!manifests.has(targetId)) errors.push(`${where} imports unknown plugin ${targetId}`);
+      else if (targetId !== id && !path.split("/").some((segment) => PUBLIC_NAMES.has(segment)))
+        errors.push(`${where} imports ${targetId}/${path}, which is not public`);
     }
   }
   const missing = [...used].filter((owner) => {
@@ -94,6 +112,8 @@ for (const [id, manifest] of manifests) {
     } else errors.push(`${id}: uses ${missing.join(", ")} without requiring it`);
   }
 }
+
+errors.push(...validateUnits(await readUnits(PLUGINS_DIR)));
 
 for (const pkg of LIBRARY_PACKAGES) {
   const root = join(import.meta.dir, "../packages", pkg, "src");

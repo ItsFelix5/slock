@@ -1,6 +1,6 @@
+import { saveSearchHistory } from "@slock/plugins/slack/client/api";
+import { createLocalPref } from "@slock/plugins/slack/client/api/localPref";
 import { createSignal } from "solid-js";
-import { saveSearchHistory } from "../../slack/client/api";
-import { createLocalPref } from "../../slack/client/api/localPref";
 import { buildSearchQuery, EMPTY_FILTERS, type SearchFilters } from "./searchQuery";
 
 const MAX_ENTRIES = 15;

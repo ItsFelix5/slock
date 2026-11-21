@@ -1,6 +1,6 @@
 import type { Setup } from "@slock/core";
-import { slackPart } from "../../bootstrap/server/api";
-import type { PrefsReply } from "../../slack/server/api/slackReplies";
+import { slackPart } from "@slock/plugins/bootstrap/server/api";
+import type { PrefsReply } from "@slock/plugins/slack/server/api/slackReplies";
 
 const setup: Setup = (ctx) => {
   ctx.add(

@@ -1,7 +1,7 @@
+import type { MessageAuthorClass } from "@slock/plugins/messages/client/api";
+import { defineQuery } from "@slock/plugins/query/client/api";
 import { apiGet } from "@slock/slack";
 import type { UserId } from "@slock/types";
-import type { MessageAuthorClass } from "../../messages/client/api";
-import { defineQuery } from "../../query/client/api";
 
 const STALE_MS = 5 * 60_000;
 

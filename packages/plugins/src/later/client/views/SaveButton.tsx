@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
+import type { MessageBarProps } from "@slock/plugins/messages/client/api";
 import { IconButton } from "@slock/ui";
-import type { MessageBarProps } from "../../../messages/client/api";
 
 export default function SaveButton(props: MessageBarProps) {
   const later = service("later");

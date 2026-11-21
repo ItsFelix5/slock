@@ -1,11 +1,11 @@
 import { service } from "@slock/core/solid";
+import { splitReplyLink } from "@slock/plugins/message-links/client/api/replyLink";
+import { fetchPermalinkMessage } from "@slock/plugins/slack/client/api";
 import { isWaiting } from "@slock/resource";
 import type { Attachment, Block, ChannelId, Ts } from "@slock/types";
 import { Avatar, DEFAULT_AVATAR_COLOR, HoverCard, type useHoverIntent } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { createSignal, Show } from "solid-js";
-import { splitReplyLink } from "../../../../message-links/client/api/replyLink";
-import { fetchPermalinkMessage } from "../../../../slack/client/api";
 import MessageReferenceSnippet from "../../api/cards/MessageReferenceSnippet";
 import {
   type MessageAuthorAvatarView,
@@ -13,7 +13,7 @@ import {
   resolveMessageAuthorAvatar,
 } from "../../api/messageAuthor";
 import "./MessageLinkHoverCard.css";
-import { defineQuery } from "../../../../query/client/api";
+import { defineQuery } from "@slock/plugins/query/client/api";
 
 const usersStore = service("users");
 

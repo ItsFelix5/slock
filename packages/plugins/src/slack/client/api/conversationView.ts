@@ -1,3 +1,4 @@
+import { defineQuery } from "@slock/plugins/query/client/api";
 import { apiGet, mapChannel, mapChannelDetails, mapUser, parseFileId } from "@slock/slack";
 import type {
   CanvasListItem,
@@ -6,7 +7,6 @@ import type {
   RawChannel,
   RawUser,
 } from "@slock/types";
-import { defineQuery } from "../../../query/client/api";
 
 function mapCanvasTabs(channel: RawChannel): CanvasListItem[] {
   const seen = new Set<string>();

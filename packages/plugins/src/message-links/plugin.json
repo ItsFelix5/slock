@@ -1,6 +1,6 @@
 {
   "id": "message-links",
-  "core": true,
   "name": "Message links",
-  "requires": ["conversations", "shell"]
+  "requires": ["conversations", "shell"],
+  "boot": true
 }

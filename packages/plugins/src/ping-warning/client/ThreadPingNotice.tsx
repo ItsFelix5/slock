@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import type { ComposerProps } from "@slock/plugins/composer/client/api";
 import { usergroupIdsOf } from "@slock/slack";
 import { createEffect, createMemo, For, Show } from "solid-js";
-import type { ComposerProps } from "../../composer/client/api";
 import "./ThreadPingNotice.css";
 
 const messages = service("messages");

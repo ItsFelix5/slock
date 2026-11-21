@@ -1,11 +1,9 @@
+import type { ActivityMenuProps } from "@slock/plugins/activity/client/api";
+import type { CanvasDocModel } from "@slock/plugins/canvas/client/api";
+import type { ChannelMenuProps, MessageMenuProps } from "@slock/plugins/messages/client/api";
+import type { ProfileMetaProps } from "@slock/plugins/profile/client/api";
 import type { FileId } from "@slock/types";
 import { IconButton, MenuItem } from "@slock/ui";
-import type { ActivityMenuProps } from "../../../activity/client/api";
-import type { CanvasDocModel } from "../../../canvas/client/api";
-import type { ChannelDetailsHoverProps } from "../../../channel-details/client/api";
-import type { ChannelMenuProps, MessageMenuProps } from "../../../messages/client/api";
-import type { ProfileHoverProps, ProfileMetaProps } from "../../../profile/client/api";
-import type { UsergroupHoverProps } from "../../../usergroup-details/client/api";
 import { messageId, openDebug } from "../entities";
 
 function DebugItem(props: { close(): void; entity: string; id: string }) {
@@ -19,21 +17,6 @@ function DebugItem(props: { close(): void; entity: string; id: string }) {
     >
       Show debug info
     </MenuItem>
-  );
-}
-
-function HoverDebugButton(props: { close(): void; entity: string; id: string }) {
-  return (
-    <button
-      class="hover-card-action btn-reset flex-center"
-      onClick={() => {
-        props.close();
-        openDebug(props.entity, props.id);
-      }}
-      type="button"
-    >
-      Debug
-    </button>
   );
 }
 
@@ -67,16 +50,4 @@ export const ProfileDebugButton = (props: ProfileMetaProps) => (
 
 export const CanvasDebugButton = (props: { doc: CanvasDocModel | null; fileId: FileId }) => (
   <DebugButton entity="canvas" id={props.fileId} label="Canvas debug" />
-);
-
-export const UserHoverDebug = (props: ProfileHoverProps) => (
-  <HoverDebugButton close={props.close} entity="user" id={props.userId} />
-);
-
-export const ChannelHoverDebug = (props: ChannelDetailsHoverProps) => (
-  <HoverDebugButton close={props.close} entity="channel" id={props.channelId} />
-);
-
-export const UsergroupHoverDebug = (props: UsergroupHoverProps) => (
-  <HoverDebugButton close={props.close} entity="usergroup" id={props.usergroupId} />
 );

@@ -1,23 +1,21 @@
 import type { Setup } from "@slock/core";
+import { lazyChunk } from "@slock/core/solid";
+import type { PaneContent } from "@slock/plugins/shell/client/api/types";
 import { narrowPaneContent, type Pane } from "@slock/ui";
-import { lazy, Show } from "solid-js";
-import type { PaneContent } from "../../shell/client/api/types";
+import { Show } from "solid-js";
 import type { DebugPaneContent } from "./api";
 import { entities } from "./entities";
 import {
   ActivityDebugItem,
   CanvasDebugButton,
   ChannelDebugItem,
-  ChannelHoverDebug,
   MessageDebugItem,
   ProfileDebugButton,
-  UsergroupHoverDebug,
-  UserHoverDebug,
 } from "./views/debugItems";
 
-const DebugPane = lazy(() => import("./views/DebugPane"));
-const IconsTab = lazy(() => import("./views/IconsTab"));
-const CacheTab = lazy(() => import("./views/CacheTab"));
+const DebugPane = lazyChunk(() => import("./views/DebugPane"));
+const IconsTab = lazyChunk(() => import("./views/IconsTab"));
+const CacheTab = lazyChunk(() => import("./views/CacheTab"));
 
 const SEGMENT_PREFIX = "debug:";
 
@@ -51,9 +49,6 @@ const setup: Setup = (ctx) => {
   );
   ctx.add("canvas.headerAction", CanvasDebugButton, { order: 90 });
   ctx.add("profile.meta", ProfileDebugButton, { order: 90 });
-  ctx.add("profile.hoverAction", UserHoverDebug, { order: 90 });
-  ctx.add("channel-details.hoverAction", ChannelHoverDebug, { order: 90 });
-  ctx.add("usergroup-details.hoverAction", UsergroupHoverDebug, { order: 90 });
   ctx.add("messages.menu", MessageDebugItem, { order: 70 });
   ctx.add("messages.channelMenu", ChannelDebugItem, { order: 70 });
   ctx.add("activity.menu", ActivityDebugItem, { order: 70 });

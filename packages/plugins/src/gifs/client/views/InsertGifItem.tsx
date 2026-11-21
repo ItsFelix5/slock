@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
+import type { ComposerAttachProps } from "@slock/plugins/composer/client/api";
 import { MenuItem } from "@slock/ui";
-import type { ComposerAttachProps } from "../../../composer/client/api";
 import type { Gif } from "../store";
 import GifPicker from "./GifPicker";
 

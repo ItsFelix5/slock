@@ -1,5 +1,19 @@
 import { formatDay, formatTime } from "@slock/core";
 import { maybeService, service } from "@slock/core/solid";
+import { channelIconName } from "@slock/plugins/channels/client/api";
+import {
+  openConversation,
+  openConversationInSplit,
+} from "@slock/plugins/conversations/client/api/nav";
+import { copyMessageLink } from "@slock/plugins/message-links/client/api/messageLinks";
+import MessageReferenceSnippet from "@slock/plugins/messages/client/api/cards/MessageReferenceSnippet";
+import ResultMessageCard from "@slock/plugins/messages/client/api/cards/ResultMessageCard";
+import {
+  resolveAuthorAvatarUrl,
+  resolveAuthorDisplayName,
+  resolveProfileUserId,
+} from "@slock/plugins/messages/client/api/messageAuthor";
+import { SplitNavigation } from "@slock/plugins/shell/client/api/SplitNavigation";
 import type { SearchResult } from "@slock/types";
 import {
   ClickableInline,
@@ -10,17 +24,6 @@ import {
   useContextMenu,
 } from "@slock/ui";
 import { onSettled, Show } from "solid-js";
-import { channelIconName } from "../../../channels/client/api";
-import { openConversation, openConversationInSplit } from "../../../conversations/client/api/nav";
-import { copyMessageLink } from "../../../message-links/client/api/messageLinks";
-import MessageReferenceSnippet from "../../../messages/client/api/cards/MessageReferenceSnippet";
-import ResultMessageCard from "../../../messages/client/api/cards/ResultMessageCard";
-import {
-  resolveAuthorAvatarUrl,
-  resolveAuthorDisplayName,
-  resolveProfileUserId,
-} from "../../../messages/client/api/messageAuthor";
-import { SplitNavigation } from "../../../shell/client/api/SplitNavigation";
 
 const dmsStore = service("dms");
 const env = service("env");

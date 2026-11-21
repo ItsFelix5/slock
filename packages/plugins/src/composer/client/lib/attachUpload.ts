@@ -1,7 +1,7 @@
 import { defined } from "@slock/core";
+import { uploadFilesForEdit } from "@slock/plugins/slack/client/api";
 import type { SlackFile } from "@slock/types";
 import { type Accessor, createSignal } from "solid-js";
-import { uploadFilesForEdit } from "../../../slack/client/api";
 
 type Upload = { progress: Accessor<number | undefined>; result: Promise<SlackFile> };
 

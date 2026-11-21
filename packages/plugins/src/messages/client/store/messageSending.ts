@@ -1,9 +1,9 @@
 import { formatTimeFromMs } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { postBroadcastMessage, postMessage, uploadFiles } from "@slock/plugins/slack/client/api";
 import { broadcastRangeOf } from "@slock/slack";
 import type { Block, ChannelId, FileId, Message, PendingFile, Ts, User } from "@slock/types";
 import { reconcile } from "solid-js";
-import { postBroadcastMessage, postMessage, uploadFiles } from "../../../slack/client/api";
 import { dedupeMessages } from "../api/messageMerge";
 import type { MessageLocation } from "../lib/messageLocations";
 import { tsFromMs } from "../lib/tsTime";

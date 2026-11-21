@@ -1,11 +1,11 @@
+import MentionHoverCard from "@slock/plugins/composer/client/api/editor/MentionHoverCard";
+import { createMentionHoverController } from "@slock/plugins/composer/client/api/editor/mentionHover";
+import { useMentionResolution } from "@slock/plugins/composer/client/api/editor/mentionResolution";
+import { emojiAutoconvert } from "@slock/plugins/emoji/client/api/emojiAutoconvert";
 import QuillEditor from "@slock/ui/editor/QuillEditor";
 import type Quill from "@slock/ui/editor/quill";
 import type { Op } from "@slock/ui/editor/quill";
 import { onCleanup, onSettled } from "solid-js";
-import MentionHoverCard from "../../../composer/client/api/editor/MentionHoverCard";
-import { createMentionHoverController } from "../../../composer/client/api/editor/mentionHover";
-import { useMentionResolution } from "../../../composer/client/api/editor/mentionResolution";
-import { emojiAutoconvert } from "../../../emoji/client/api/emojiAutoconvert";
 import { bindCanvasKeys } from "../lib/canvasEditorSetup";
 import { type CanvasServices, canvasServicesFor } from "./canvasBlots/canvasServices";
 import { ignoreEmbedChurn, withoutHistory } from "./canvasBlots/embedHistory";

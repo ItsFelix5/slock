@@ -1,7 +1,7 @@
+import { defineQuery } from "@slock/plugins/query/client/api";
+import { fetchUsergroup, fetchUsergroupDetails } from "@slock/plugins/slack/client/api";
 import type { Usergroup, UsergroupDetails } from "@slock/types";
 import { createStore } from "solid-js";
-import { defineQuery } from "../../query/client/api";
-import { fetchUsergroup, fetchUsergroupDetails } from "../../slack/client/api";
 
 const usergroups = defineQuery<string, Usergroup | null>({
   load: fetchUsergroup,

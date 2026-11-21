@@ -18,8 +18,7 @@ describe("parseManifest", () => {
   test("reads a full manifest", () => {
     expect(
       manifestOf({
-        core: true,
-        defaultEnabled: false,
+        boot: true,
         hidden: true,
         id: "messages",
         name: "Messages",
@@ -27,8 +26,7 @@ describe("parseManifest", () => {
         requires: ["slack", "channels"],
       }),
     ).toEqual({
-      core: true,
-      defaultEnabled: false,
+      boot: true,
       hidden: true,
       id: "messages",
       name: "Messages",
@@ -39,8 +37,7 @@ describe("parseManifest", () => {
 
   test("a bare id gets empty lists and no flags", () => {
     expect(manifestOf({ id: "a" })).toEqual({
-      core: undefined,
-      defaultEnabled: undefined,
+      boot: undefined,
       hidden: undefined,
       id: "a",
       name: undefined,
@@ -65,14 +62,20 @@ describe("parseManifest", () => {
   });
 
   test("flags must be booleans and only count with their one meaningful value", () => {
-    expect(errorsOf({ core: "true", hidden: 1, id: "a" })).toEqual([
-      "core must be true or false",
+    expect(errorsOf({ boot: "true", hidden: 1, id: "a" })).toEqual([
+      "boot must be true or false",
       "hidden must be true or false",
     ]);
-    const parsed = manifestOf({ core: false, defaultEnabled: true, hidden: false, id: "a" });
-    expect(parsed.core).toBeUndefined();
-    expect(parsed.defaultEnabled).toBeUndefined();
+    const parsed = manifestOf({ boot: false, hidden: false, id: "a" });
+    expect(parsed.boot).toBeUndefined();
     expect(parsed.hidden).toBeUndefined();
+  });
+
+  test("fields the instance owns are rejected with a reason", () => {
+    expect(errorsOf({ core: true, defaultEnabled: false, id: "a" })).toEqual([
+      "core was removed",
+      "defaultEnabled is set by the instance (bun plugin install --off)",
+    ]);
   });
 
   test("lists must hold only strings, and order and duplicates are kept", () => {
@@ -94,13 +97,12 @@ describe("parseManifest", () => {
   });
 
   test("every problem is reported at once", () => {
-    expect(errorsOf({ core: 1, id: 7, name: 5, provides: 1, requires: 2 })).toHaveLength(5);
+    expect(errorsOf({ boot: 1, id: 7, name: 5, provides: 1, requires: 2 })).toHaveLength(5);
   });
 
   test("ignores unknown keys", () => {
     expect(Object.keys(manifestOf({ extra: 1, id: "a" })).sort()).toEqual([
-      "core",
-      "defaultEnabled",
+      "boot",
       "hidden",
       "id",
       "name",

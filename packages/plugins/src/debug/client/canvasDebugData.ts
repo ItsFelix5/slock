@@ -1,12 +1,12 @@
 import { errorMessage } from "@slock/core";
-import { isFileId } from "@slock/slack";
 import {
   fetchCanvasComments,
   fetchCanvasRaw,
   fetchCanvasVersions,
   resolveCanvasFile,
-} from "../../canvas/client/api";
-import { decodeLoadData, dumpRaw } from "../../canvas/protocol/api";
+} from "@slock/plugins/canvas/client/api";
+import { decodeLoadData, dumpRaw } from "@slock/plugins/canvas/protocol/api";
+import { isFileId } from "@slock/slack";
 
 async function settle<T>(promise: Promise<T>): Promise<T | { error: string }> {
   try {

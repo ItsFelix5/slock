@@ -4,7 +4,7 @@ import type { ChannelId } from "@slock/types";
 import { Button } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import ChannelDangerZone from "./ChannelDangerZone";
-import "../../../channel-details/client/api/ChannelDetails.css";
+import "@slock/plugins/channel-details/client/api/ChannelDetails.css";
 import ChannelPostingPermissions from "./ChannelPostingPermissions";
 import "./SettingsTab.css";
 import {

@@ -1,9 +1,10 @@
 import type { Setup } from "@slock/core";
-import { lazy, Show } from "solid-js";
+import { lazyChunk } from "@slock/core/solid";
+import { Show } from "solid-js";
 
 import HeaderMembersButton from "./views/HeaderMembersButton";
 
-const MembersTab = lazy(() => import("./views/MembersTab"));
+const MembersTab = lazyChunk(() => import("./views/MembersTab"));
 
 const setup: Setup = (ctx) => {
   ctx.add("messages.header", HeaderMembersButton, { order: 20 });

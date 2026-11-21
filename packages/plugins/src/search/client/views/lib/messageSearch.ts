@@ -1,6 +1,6 @@
+import { searchMessages } from "@slock/plugins/slack/client/api";
 import type { SearchResult } from "@slock/types";
 import { affects, createMemo, createSignal, isPending, onCleanup, refresh } from "solid-js";
-import { searchMessages } from "../../../../slack/client/api";
 import { type SortMode, sortParams } from "../../searchQuery";
 
 const NONE: SearchResult[] = [];

@@ -1,9 +1,9 @@
 import { EmojiFreezeContext, Mrkdwn } from "@slock/blockkit";
 import { Slot, service, usePoint } from "@slock/core/solid";
+import { channelIconName } from "@slock/plugins/channels/client/api";
+import { usePaneView } from "@slock/plugins/conversations/client/api/paneView";
 import { Icon, IconButton, InlineFeedback, Menu } from "@slock/ui";
 import { createEffect, createSignal, Show } from "solid-js";
-import { channelIconName } from "../../../../channels/client/api";
-import { usePaneView } from "../../../../conversations/client/api/paneView";
 import "./ChannelHeader.css";
 import { createChannelHeaderState } from "./channelHeaderState";
 

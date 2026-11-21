@@ -1,11 +1,11 @@
 import { EmojiText } from "@slock/blockkit";
 import type { Setup } from "@slock/core";
-import { service } from "@slock/core/solid";
+import { lazyChunk, service } from "@slock/core/solid";
+import { gatewayHandler } from "@slock/plugins/realtime/client/api";
+import type { PaneContent } from "@slock/plugins/shell/client/api/types";
 import { isChannelId, isFileId } from "@slock/slack";
 import { narrowPaneContent, type Pane } from "@slock/ui";
-import { createEffect, lazy, Show } from "solid-js";
-import { gatewayHandler } from "../../realtime/client/api";
-import type { PaneContent } from "../../shell/client/api/types";
+import { createEffect, Show } from "solid-js";
 import type { CanvasPaneContent } from "./api";
 import { refreshCommentsForChannel } from "./lib/canvasComments";
 import { openCanvasLinksOnClick } from "./lib/canvasLinks";
@@ -13,7 +13,7 @@ import { fetchCanvasTitle } from "./lib/canvasRequests";
 import { newlyUntitled, untitledCanvases } from "./lib/untitledCanvases";
 import { createCanvasStore } from "./store";
 
-const CanvasPane = lazy(() => import("./views/CanvasPane"));
+const CanvasPane = lazyChunk(() => import("./views/CanvasPane"));
 
 function CanvasView(props: { pane: Pane<PaneContent | null> }) {
   return (

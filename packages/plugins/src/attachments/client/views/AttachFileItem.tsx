@@ -1,5 +1,5 @@
+import type { ComposerAttachProps } from "@slock/plugins/composer/client/api";
 import { MenuItem } from "@slock/ui";
-import type { ComposerAttachProps } from "../../../composer/client/api";
 
 export default function AttachFileItem(props: ComposerAttachProps) {
   return (

@@ -1,5 +1,5 @@
+import { createLocalPref } from "@slock/plugins/slack/client/api/localPref";
 import type { Message } from "@slock/types";
-import { createLocalPref } from "../../slack/client/api/localPref";
 
 export type LogFilters = ReturnType<typeof createLogFilters>;
 

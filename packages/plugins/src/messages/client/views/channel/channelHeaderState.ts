@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import type { View } from "../../../../conversations/client/api/types";
+import type { View } from "@slock/plugins/conversations/client/api/types";
 
 const channelsStore = service("channels");
 const titles = service("titles");

@@ -1,5 +1,6 @@
 import { safeBase64, safeMediaUrl } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
+import { fileSummaryLabel, isCanvasFile } from "@slock/plugins/files/client/api/fileSummary";
 import type { SlackFile } from "@slock/types";
 import {
   ConstrainedImage,
@@ -9,7 +10,6 @@ import {
   type ZoomableImageItem,
 } from "@slock/ui";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
-import { fileSummaryLabel, isCanvasFile } from "../../../files/client/api/fileSummary";
 import AudioFile from "./AudioFile";
 import FileCardInfo from "./FileCardInfo";
 import FileViewerTrigger from "./FileViewer";

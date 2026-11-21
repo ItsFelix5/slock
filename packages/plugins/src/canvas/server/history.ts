@@ -2,11 +2,11 @@ import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
-} from "../../slack/server/api/jsonResponse";
-import type { Route, RouteCtx } from "../../slack/server/api/router";
-import { route } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
-import type { CanvasVersionsReply } from "../../slack/server/api/slackReplies";
+} from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route, RouteCtx } from "@slock/plugins/slack/server/api/router";
+import { route } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
+import type { CanvasVersionsReply } from "@slock/plugins/slack/server/api/slackReplies";
 import { lookupThread, notConfigured } from "./api";
 import type { CanvasWire } from "./wire";
 

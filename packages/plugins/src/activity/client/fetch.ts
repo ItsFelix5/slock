@@ -1,3 +1,4 @@
+import { fetchCounts } from "@slock/plugins/slack/client/api";
 import { apiGet, apiPost, broadcastRangeOf, replyError } from "@slock/slack";
 import type {
   ActivityFeedPage,
@@ -7,7 +8,6 @@ import type {
   RawActivityFeedEntry,
   Ts,
 } from "@slock/types";
-import { fetchCounts } from "../../slack/client/api";
 import { ACTIVITY_FEED_TYPES_PARAM } from "../protocol/feedTypes";
 import { mapFeedEntry } from "./feedEntry";
 import { NO_USER } from "./kinds";

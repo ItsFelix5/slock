@@ -45,12 +45,14 @@ export type Manifest = {
   name?: string;
   requires?: readonly string[];
   provides?: readonly string[];
-  defaultEnabled?: boolean;
-  core?: boolean;
+  boot?: boolean;
   hidden?: boolean;
 };
 
-export type PluginDef = Manifest & ({ setup: Setup } | { load: () => Promise<{ default: Setup }> });
+export type PluginDef = Manifest & { defaultEnabled?: boolean } & (
+    | { setup: Setup }
+    | { load: () => Promise<{ default: Setup }> }
+  );
 
 export type PluginState = "off" | "running" | "failed" | "blocked";
 

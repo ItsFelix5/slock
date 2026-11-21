@@ -1,6 +1,5 @@
 {
   "id": "composer",
-  "core": true,
   "name": "Composer",
   "requires": [
     "channels",
@@ -13,5 +12,6 @@
     "templates",
     "usergroups",
     "users"
-  ]
+  ],
+  "boot": true
 }

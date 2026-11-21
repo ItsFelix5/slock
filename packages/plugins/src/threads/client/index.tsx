@@ -1,11 +1,11 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import type { MessageBodyProps, ThreadPaneContent } from "@slock/plugins/messages/client/api";
+import { liveOnly } from "@slock/plugins/messages/client/api/deletedMessages";
+import type { PaneContent } from "@slock/plugins/shell/client/api/types";
 import { isChannelId, isTs } from "@slock/slack";
 import { narrowPaneContent, type Pane } from "@slock/ui";
 import { Show } from "solid-js";
-import type { MessageBodyProps, ThreadPaneContent } from "../../messages/client/api";
-import { liveOnly } from "../../messages/client/api/deletedMessages";
-import type { PaneContent } from "../../shell/client/api/types";
 import BroadcastBadge from "./views/BroadcastBadge";
 import BroadcastItem from "./views/BroadcastItem";
 import MessageRepliesButton from "./views/MessageRepliesButton";

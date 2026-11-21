@@ -3,19 +3,15 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "exports": {
-    "./slack/*": "./src/slack/server/api/*.ts",
-    "./http/*": "./src/http/server/api/*.ts"
-  },
   "dependencies": {
     "@slock/blockkit": "workspace:*",
     "@slock/core": "workspace:*",
+    "@slock/installer": "workspace:*",
     "@slock/resource": "workspace:*",
     "@slock/server": "workspace:*",
     "@slock/slack": "workspace:*",
     "@slock/types": "workspace:*",
     "@slock/ui": "workspace:*",
-    "@solidjs/compiler": "2.0.2",
     "@solidjs/web": "2.0.3",
     "quill": "^2",
     "solid-js": "2.0.3"

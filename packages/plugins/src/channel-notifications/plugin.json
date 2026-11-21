@@ -1,6 +1,1 @@
-{
-  "id": "channel-notifications",
-  "core": true,
-  "name": "Channel notifications",
-  "requires": ["prefs"]
-}
+{ "id": "channel-notifications", "name": "Channel notifications", "requires": ["prefs"] }

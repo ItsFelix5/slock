@@ -1,6 +1,6 @@
 import type { Setup } from "@slock/core";
+import { gatewayHandler } from "@slock/plugins/realtime/client/api";
 import { mapDraft } from "@slock/slack";
-import { gatewayHandler } from "../../realtime/client/api";
 import { createDraftStore } from "./draftStore";
 import { createDraftsService } from "./draftsService";
 

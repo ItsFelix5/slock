@@ -1,16 +1,16 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/services";
-import { isChannelId, isTs } from "@slock/slack";
-import type { ChannelId, Ts } from "@slock/types";
-import { teamIdFromRoute } from "../../slack/server/api/auth";
+import { teamIdFromRoute } from "@slock/plugins/slack/server/api/auth";
 import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
-} from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { mutate, route, routes } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
+} from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
+import { isChannelId, isTs } from "@slock/slack";
+import type { ChannelId, Ts } from "@slock/types";
 
 type SubmitReply = {
   errors?: Record<string, string>;

@@ -1,11 +1,11 @@
 import { service } from "@slock/core/solid";
-import type { ChannelId } from "@slock/types";
-import { Icon, IconButton, InlineFeedback, Menu, MenuItem, useEditShortcuts } from "@slock/ui";
-import { createMemo, createSignal, For, Show } from "solid-js";
 import {
   type ChannelPlacementOutcome,
   isChannelPlacementApplied,
-} from "../../../channels/client/api/sectionMutations";
+} from "@slock/plugins/channels/client/api/sectionMutations";
+import type { ChannelId } from "@slock/types";
+import { Icon, IconButton, InlineFeedback, Menu, MenuItem, useEditShortcuts } from "@slock/ui";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import "./ChannelMoveMenu.css";
 
 const feedback = service("feedback");

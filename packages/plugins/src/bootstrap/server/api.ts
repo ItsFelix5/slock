@@ -1,6 +1,6 @@
+import type { Credentials } from "@slock/plugins/slack/server/api/auth";
+import { callSlack, type SlackReply } from "@slock/plugins/slack/server/api/slackClient";
 import type { BootstrapPayload } from "@slock/types";
-import type { Credentials } from "../../slack/server/api/auth";
-import { callSlack, type SlackReply } from "../../slack/server/api/slackClient";
 
 declare module "@slock/core/types" {
   interface Points {

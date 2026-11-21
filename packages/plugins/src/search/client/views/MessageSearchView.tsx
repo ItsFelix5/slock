@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import { navigateToSlackPermalink } from "@slock/plugins/message-links/client/api/slackPermalink";
 import type { SearchResult } from "@slock/types";
 import { createSignal, onSettled } from "solid-js";
-import { navigateToSlackPermalink } from "../../../message-links/client/api/slackPermalink";
 import type { SortMode } from "../searchQuery";
 import { createMessageSearch } from "./lib/messageSearch";
 import MessageSearchResults from "./MessageSearchResults";

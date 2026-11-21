@@ -1,7 +1,7 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { gatewayHandler } from "../../realtime/client/api";
-import { applyPrefChange } from "../../slack/client/api";
+import { gatewayHandler } from "@slock/plugins/realtime/client/api";
+import { applyPrefChange } from "@slock/plugins/slack/client/api";
 import { createPrefsStore } from "./store";
 
 const setup: Setup = (ctx) => {

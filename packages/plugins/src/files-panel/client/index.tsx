@@ -1,9 +1,10 @@
 import type { Setup } from "@slock/core";
-import { lazy } from "solid-js";
+import { lazyChunk } from "@slock/core/solid";
+
 import { createFilesLinksPanel } from "./store";
 import FilesLinksButton from "./views/FilesLinksButton";
 
-const FilesLinksTakeover = lazy(() => import("./views/FilesLinksTakeover"));
+const FilesLinksTakeover = lazyChunk(() => import("./views/FilesLinksTakeover"));
 
 const setup: Setup = (ctx) => {
   const panel = createFilesLinksPanel();

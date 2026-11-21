@@ -1,7 +1,7 @@
+import MessageFiles from "@slock/plugins/message-media/client/api/MessageFiles";
 import { mapFile } from "@slock/slack";
 import type { FileId } from "@slock/types";
 import { Show } from "solid-js";
-import MessageFiles from "../../../../message-media/client/api/MessageFiles";
 import type {
   ColumnsEmbedValue,
   FileEmbedValue,

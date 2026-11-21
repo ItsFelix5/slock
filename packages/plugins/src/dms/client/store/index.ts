@@ -1,9 +1,9 @@
 import { createFlags, service } from "@slock/core/solid";
+import type { View } from "@slock/plugins/conversations/client/api/types";
+import { defineQuery } from "@slock/plugins/query/client/api";
+import { closeDm, fetchChannelMembers, openDm } from "@slock/plugins/slack/client/api";
 import type { ChannelId, DirectMessage, User, UserId } from "@slock/types";
 import { createMemo, createStore } from "solid-js";
-import type { View } from "../../../conversations/client/api/types";
-import { defineQuery } from "../../../query/client/api";
-import { closeDm, fetchChannelMembers, openDm } from "../../../slack/client/api";
 import { isDmId } from "../api";
 
 const feedback = service("feedback");

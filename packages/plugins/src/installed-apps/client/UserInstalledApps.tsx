@@ -1,6 +1,6 @@
+import type { ProfileMetaProps } from "@slock/plugins/profile/client/api";
 import { imageSrc } from "@slock/ui";
 import { Errored, For, Loading, Show } from "solid-js";
-import type { ProfileMetaProps } from "../../profile/client/api";
 import { installedApps } from "./fetch";
 import "./InstalledApps.css";
 

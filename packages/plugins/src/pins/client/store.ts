@@ -1,8 +1,8 @@
 import { createFlags, service } from "@slock/core/solid";
 import type { Services } from "@slock/core/types";
+import { defineQuery } from "@slock/plugins/query/client/api";
+import { fetchPinnedMessages, fetchPins, togglePin } from "@slock/plugins/slack/client/api";
 import type { ChannelId, PinnedMessage, Ts } from "@slock/types";
-import { defineQuery } from "../../query/client/api";
-import { fetchPinnedMessages, fetchPins, togglePin } from "../../slack/client/api";
 
 const feedback = service("feedback");
 

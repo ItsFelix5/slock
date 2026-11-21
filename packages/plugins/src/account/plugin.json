@@ -1,1 +1,1 @@
-{ "id": "account", "core": true, "name": "Accounts", "requires": ["shell"] }
+{ "id": "account", "name": "Accounts", "requires": ["shell"] }

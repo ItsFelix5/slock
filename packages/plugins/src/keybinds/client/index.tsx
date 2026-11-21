@@ -1,8 +1,8 @@
 import type { Setup } from "@slock/core";
+import { lazyChunk } from "@slock/core/solid";
 import { useShortcut } from "@slock/ui";
-import { lazy } from "solid-js";
 
-const view = lazy(() => import("./views/KeybindsTab"));
+const view = lazyChunk(() => import("./views/KeybindsTab"));
 
 const setup: Setup = (ctx) => {
   const settings = ctx.get("settings");

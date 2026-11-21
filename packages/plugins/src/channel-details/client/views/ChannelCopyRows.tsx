@@ -1,8 +1,8 @@
 import { service } from "@slock/core/solid";
+import { getChannelLink } from "@slock/plugins/slack/client/api";
 import type { ChannelDetails } from "@slock/types";
 import { createCopyFeedback, Icon } from "@slock/ui";
 import { Show } from "solid-js";
-import { getChannelLink } from "../../../slack/client/api";
 
 const feedback = service("feedback");
 

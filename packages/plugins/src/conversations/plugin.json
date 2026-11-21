@@ -1,1 +1,1 @@
-{ "id": "conversations", "core": true, "name": "Conversations", "requires": ["shell"] }
+{ "id": "conversations", "name": "Conversations", "requires": ["shell"], "boot": true }

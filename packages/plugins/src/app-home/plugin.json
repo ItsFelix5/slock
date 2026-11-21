@@ -1,6 +1,1 @@
-{
-  "id": "app-home",
-  "core": true,
-  "name": "App home",
-  "requires": ["dms", "users"]
-}
+{ "id": "app-home", "name": "App home", "requires": ["dms", "users"] }

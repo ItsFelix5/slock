@@ -1,7 +1,5 @@
 import { createOptimisticFlags, service } from "@slock/core/solid";
-import type { ChannelSection, UserPrefs } from "@slock/types";
-import { action, createMemo, createOptimistic } from "solid-js";
-import { defineQuery } from "../../../query/client/api";
+import { defineQuery } from "@slock/plugins/query/client/api";
 import {
   createSection as apiCreateSection,
   deleteSection as apiDeleteSection,
@@ -10,7 +8,9 @@ import {
   setChannelSectionsPreference as apiSetChannelSectionsPreference,
   fetchFreshSections,
   fetchSections,
-} from "../../../slack/client/api";
+} from "@slock/plugins/slack/client/api";
+import type { ChannelSection, UserPrefs } from "@slock/types";
+import { action, createMemo, createOptimistic } from "solid-js";
 import {
   reorderSections,
   setSectionCollapsedPreference,

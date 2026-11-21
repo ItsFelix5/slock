@@ -1,7 +1,7 @@
 import type { FileInputProps } from "@slock/blockkit";
+import { uploadFilesForEdit } from "@slock/plugins/slack/client/api";
 import { Icon, IconButton } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
-import { uploadFilesForEdit } from "../../../slack/client/api";
 import "./FileInput.css";
 
 const DEFAULT_MAX_FILES = 10;

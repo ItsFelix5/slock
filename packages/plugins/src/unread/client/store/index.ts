@@ -1,7 +1,7 @@
 import type { Services } from "@slock/core/types";
+import { isDmId } from "@slock/plugins/dms/client/api";
 import type { Channel, ChannelId, DirectMessage, Message, Ts } from "@slock/types";
 import { createEffect, createSignal, createStore } from "solid-js";
-import { isDmId } from "../../../dms/client/api";
 import { createReadSync, type ReadApi } from "./readSync";
 import { type ReadTrackingInput, wireReadTracking } from "./readTracking";
 import { createViewState } from "./viewState";

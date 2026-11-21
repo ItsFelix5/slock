@@ -1,10 +1,13 @@
+import { lazyChunk } from "@slock/core/solid";
+import DatePicker from "@slock/plugins/dates/client/api/DatePicker";
 import { FloatingPanel } from "@slock/ui";
-import { lazy, Show } from "solid-js";
-import DatePicker from "../../../dates/client/api/DatePicker";
+import { Show } from "solid-js";
 import { type CanvasPicker, insertDate } from "../lib/canvasCommandContext";
 import { removeAnnotation } from "../lib/canvasFormatting";
 
-const FloatingEmojiPicker = lazy(() => import("../../../emoji/client/api/FloatingEmojiPicker"));
+const FloatingEmojiPicker = lazyChunk(
+  () => import("@slock/plugins/emoji/client/api/FloatingEmojiPicker"),
+);
 
 export default function CanvasCommandPicker(props: {
   onClose: () => void;

@@ -1,4 +1,5 @@
 import { errorMessage } from "@slock/core";
+import { defineQuery } from "@slock/plugins/query/client/api";
 import { apiGet, apiPost, mapReaction, parseChannelId, parseTs, parseUserId } from "@slock/slack";
 import type {
   CanvasCommentThread,
@@ -10,7 +11,6 @@ import type {
   RawMessage,
   Ts,
 } from "@slock/types";
-import { defineQuery } from "../../../query/client/api";
 import { type CanvasMeta, readCanvas, readCanvasVersion } from "../../protocol/api";
 import type { CanvasDocModel } from "./canvasDelta";
 import { CanvasEditError } from "./canvasSync";

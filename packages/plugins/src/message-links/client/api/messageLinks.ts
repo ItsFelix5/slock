@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
+import { getChannelLink, getPermalink } from "@slock/plugins/slack/client/api";
 import type { ChannelId, FileId, Ts } from "@slock/types";
-import { getChannelLink, getPermalink } from "../../../slack/client/api";
 
 const feedback = service("feedback");
 

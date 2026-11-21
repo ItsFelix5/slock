@@ -1,1 +1,1 @@
-{ "id": "query", "core": true, "name": "Data cache", "requires": ["shell"] }
+{ "id": "query", "name": "Data cache", "requires": ["shell"], "boot": true }

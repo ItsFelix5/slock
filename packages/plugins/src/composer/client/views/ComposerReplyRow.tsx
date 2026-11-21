@@ -1,5 +1,5 @@
+import ReplyReferenceRow from "@slock/plugins/messages/client/api/cards/ReplyReferenceRow";
 import { IconButton } from "@slock/ui";
-import ReplyReferenceRow from "../../../messages/client/api/cards/ReplyReferenceRow";
 import type { ComposerReplyToProps } from "../composerTypes";
 import "./ComposerReplyRow.css";
 

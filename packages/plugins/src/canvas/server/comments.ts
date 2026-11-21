@@ -2,13 +2,13 @@ import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
-} from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { route } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
-import type { HistoryReply } from "../../slack/server/api/slackReplies";
-import { hostedChannelId } from "../../slack/server/api/trim/slackChannels";
-import { trimMessage } from "../../slack/server/api/trim/slackMessages";
+} from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { route } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
+import type { HistoryReply } from "@slock/plugins/slack/server/api/slackReplies";
+import { hostedChannelId } from "@slock/plugins/slack/server/api/trim/slackChannels";
+import { trimMessage } from "@slock/plugins/slack/server/api/trim/slackMessages";
 
 const THREAD_LIMIT = "200";
 

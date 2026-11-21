@@ -1,4 +1,11 @@
 import type { Services } from "@slock/core/types";
+import type {
+  fetchMessagesByIds,
+  fetchSaved,
+  saveWithReminder,
+  toggleSaved,
+  updateSaved,
+} from "@slock/plugins/slack/client/api";
 import type { ChannelId, Message, SavedItem, Ts } from "@slock/types";
 import {
   action,
@@ -8,13 +15,6 @@ import {
   isPending,
   refresh,
 } from "solid-js";
-import type {
-  fetchMessagesByIds,
-  fetchSaved,
-  saveWithReminder,
-  toggleSaved,
-  updateSaved,
-} from "../../slack/client/api";
 import { laterKey, matchesSaved } from "./savedItems";
 
 export type LaterApi = {

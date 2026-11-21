@@ -1,7 +1,7 @@
+import { createLocalPref } from "@slock/plugins/slack/client/api/localPref";
 import { isChannelId, isTs } from "@slock/slack";
 import type { Channel, ChannelId, DesktopNotificationEvent, Ts, UserPrefs } from "@slock/types";
 import { createSignal } from "solid-js";
-import { createLocalPref } from "../../slack/client/api/localPref";
 import { classifyNotification, type NotificationKind } from "./classify";
 
 type Deps = {

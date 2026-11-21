@@ -1,9 +1,9 @@
+import { ClickableAuthorName } from "@slock/plugins/profile/client/api/AppBadge";
+import { SplitNavigation } from "@slock/plugins/shell/client/api/SplitNavigation";
 import type { AvatarUser, useContextMenu } from "@slock/ui";
 import { Avatar, NavRow, Tooltip } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { Show } from "solid-js";
-import { ClickableAuthorName } from "../../../../profile/client/api/AppBadge";
-import { SplitNavigation } from "../../../../shell/client/api/SplitNavigation";
 import { isRealUserId } from "../messageAuthor";
 import "./ResultMessageCard.css";
 

@@ -1,8 +1,8 @@
 import { service } from "@slock/core/solid";
+import type { MemberFilter } from "@slock/plugins/channel-details/client/api";
 import type { ChannelId, ChannelMembersPage, User, UserId } from "@slock/types";
 import { createDebouncedSearch, isNearScrollEnd } from "@slock/ui";
 import { createEffect, createMemo, createSignal, onSettled, untrack } from "solid-js";
-import type { MemberFilter } from "../../channel-details/client/api";
 import { createKeyedPageLoader } from "./keyedPageLoader";
 
 const dialogs = service("shell.dialogs");

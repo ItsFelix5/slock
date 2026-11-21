@@ -2,21 +2,21 @@ import type { Setup } from "@slock/core";
 import {
   fetchChannelManagerAssignments,
   managerIdsFromAssignments,
-} from "../../slack/server/api/channelManagers";
+} from "@slock/plugins/slack/server/api/channelManagers";
 import {
   errorResponse,
   jsonResponse,
   okResponse,
   slackErrorResponse,
-} from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { mutate, route, routes } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
+} from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
 import type {
   ChannelInfoReply,
   MemberPermissionsReply,
   RetentionReply,
-} from "../../slack/server/api/slackReplies";
+} from "@slock/plugins/slack/server/api/slackReplies";
 
 const list: Route[] = [
   route("PUT", "channels/:id/purpose", async (ctx) => {

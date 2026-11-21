@@ -1,9 +1,9 @@
 import { createFlags, service } from "@slock/core/solid";
 import type { Services } from "@slock/core/types";
+import { createLocalPref } from "@slock/plugins/slack/client/api/localPref";
 import { SLACK_SYSTEM_USER, SLACK_USER_ID } from "@slock/slack";
 import type { User, UserId } from "@slock/types";
 import { createMemo, createSignal, createStore, snapshot } from "solid-js";
-import { createLocalPref } from "../../../slack/client/api/localPref";
 import { createDerivedUsers } from "./derivedUsers";
 import { createUserProfileFields } from "./profileFields";
 import { DEFAULT_USERS_API, type UsersApi } from "./usersApi";

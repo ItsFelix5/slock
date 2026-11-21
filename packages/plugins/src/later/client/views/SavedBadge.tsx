@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import type { MessageBadgeProps } from "@slock/plugins/messages/client/api";
 import { Icon } from "@slock/ui";
 import { Show } from "solid-js";
-import type { MessageBadgeProps } from "../../../messages/client/api";
 
 export default function SavedBadge(props: MessageBadgeProps) {
   const later = service("later");

@@ -1,11 +1,11 @@
-import type { ChannelId, Ts } from "@slock/types";
 import {
   fetchChannelDetails,
   fetchConversationView,
   fetchHistory,
   fetchHistoryAround,
   fetchHistoryNewer,
-} from "../../../../slack/client/api";
+} from "@slock/plugins/slack/client/api";
+import type { ChannelId, Ts } from "@slock/types";
 
 export type MessageHistoryApi = {
   fetchChannelDetails: (channelId: ChannelId) => ReturnType<typeof fetchChannelDetails>;

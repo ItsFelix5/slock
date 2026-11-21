@@ -1,3 +1,5 @@
+import type { InstanceService } from "./instance.ts";
+
 export interface WsData {
   [key: string]: unknown;
 }
@@ -8,8 +10,6 @@ export type WsHandlers = {
   close?(ws: Bun.ServerWebSocket<WsData>): void;
 };
 
-export type CliCommand = { flag: string; run(args: string[]): Promise<void> };
-
 declare module "@slock/core/http" {
   interface HttpContext {
     upgrade(data: WsData): boolean;
@@ -17,9 +17,12 @@ declare module "@slock/core/http" {
 }
 
 declare module "@slock/core/types" {
+  interface Services {
+    instance: InstanceService;
+  }
+
   interface Points {
     ws: WsHandlers;
-    cli: CliCommand;
   }
 }
 

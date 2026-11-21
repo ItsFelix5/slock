@@ -3,12 +3,12 @@ import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
-} from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { mutate, route, routes } from "../../slack/server/api/router";
-import { callSlack, callSlackMultipart } from "../../slack/server/api/slackClient";
-import type { SetPhotoReply, UserProfileReply } from "../../slack/server/api/slackReplies";
-import { trimProfile } from "../../slack/server/api/trim/slackEntities";
+} from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack, callSlackMultipart } from "@slock/plugins/slack/server/api/slackClient";
+import type { SetPhotoReply, UserProfileReply } from "@slock/plugins/slack/server/api/slackReplies";
+import { trimProfile } from "@slock/plugins/slack/server/api/trim/slackEntities";
 import { appProfileRoutes } from "./appProfile";
 import { fieldRoutes } from "./fields";
 

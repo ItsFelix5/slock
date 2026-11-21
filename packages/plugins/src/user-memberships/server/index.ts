@@ -1,6 +1,6 @@
 import type { Setup } from "@slock/core";
-import { errorResponse, jsonResponse } from "../../slack/server/api/jsonResponse";
-import { route, routes } from "../../slack/server/api/router";
+import { errorResponse, jsonResponse } from "@slock/plugins/slack/server/api/jsonResponse";
+import { route, routes } from "@slock/plugins/slack/server/api/router";
 import { listMemberships } from "./memberships";
 
 const setup: Setup = (ctx) => {

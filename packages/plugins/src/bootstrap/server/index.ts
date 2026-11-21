@@ -1,10 +1,13 @@
 import type { Setup } from "@slock/core";
+import { errorResponse, jsonResponse } from "@slock/plugins/slack/server/api/jsonResponse";
+import { route, routes } from "@slock/plugins/slack/server/api/router";
+import type { UserBootReply } from "@slock/plugins/slack/server/api/slackReplies";
+import {
+  isHostedChannel,
+  trimBootChannel,
+} from "@slock/plugins/slack/server/api/trim/slackChannels";
+import { trimUser } from "@slock/plugins/slack/server/api/trim/slackEntities";
 import type { BootstrapPayload } from "@slock/types";
-import { errorResponse, jsonResponse } from "../../slack/server/api/jsonResponse";
-import { route, routes } from "../../slack/server/api/router";
-import type { UserBootReply } from "../../slack/server/api/slackReplies";
-import { isHostedChannel, trimBootChannel } from "../../slack/server/api/trim/slackChannels";
-import { trimUser } from "../../slack/server/api/trim/slackEntities";
 import { slackPart } from "./api";
 
 const OPTIONAL_PART_WAIT_MS = 1200;

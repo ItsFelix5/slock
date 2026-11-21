@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import type { ChannelMenuProps } from "@slock/plugins/messages/client/api";
 import { MenuItem } from "@slock/ui";
 import { Show } from "solid-js";
-import type { ChannelMenuProps } from "../../../messages/client/api";
 
 const dialogs = service("shell.dialogs");
 

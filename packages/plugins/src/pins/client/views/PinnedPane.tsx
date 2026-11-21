@@ -1,11 +1,11 @@
 import { service } from "@slock/core/solid";
+import { createMessageFocus } from "@slock/plugins/messages/client/api/messageFocus";
+import MessageRows from "@slock/plugins/messages/client/api/pane/MessageRows";
+import { createFeedScroll } from "@slock/plugins/messages/client/api/pane/scroll/feedScroll";
 import { ifPresent, parseTs } from "@slock/slack";
 import type { Ts } from "@slock/types";
 import { Button, type Pane, PanelHeader } from "@slock/ui";
 import { createEffect, createMemo, Show } from "solid-js";
-import { createMessageFocus } from "../../../messages/client/api/messageFocus";
-import MessageRows from "../../../messages/client/api/pane/MessageRows";
-import { createFeedScroll } from "../../../messages/client/api/pane/scroll/feedScroll";
 import type { PinnedPaneContent } from "../api";
 import "./PinnedPane.css";
 

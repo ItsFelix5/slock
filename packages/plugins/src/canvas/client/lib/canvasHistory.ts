@@ -1,8 +1,8 @@
 import { service } from "@slock/core/solid";
+import { defineQuery } from "@slock/plugins/query/client/api";
 import type { CanvasVersion, FileId } from "@slock/types";
 import { createResetSignal } from "@slock/ui";
 import { createMemo, createSignal } from "solid-js";
-import { defineQuery } from "../../../query/client/api";
 import { type CanvasMeta, diffNodes } from "../../protocol/api";
 import type { CanvasDocModel } from "./canvasDelta";
 import {

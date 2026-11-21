@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import { copyMessageLink } from "@slock/plugins/message-links/client/api/messageLinks";
 import type { Message, Ts } from "@slock/types";
 import { useListShortcuts, useShortcut } from "@slock/ui";
-import { copyMessageLink } from "../../message-links/client/api/messageLinks";
 import { resolveProfileUserId } from "./api/messageAuthor";
 import { type ActiveMessageFocus, threadRootTs } from "./api/messageFocus";
 import { copyMessageText, deleteOrDismissMessage } from "./messageActions";

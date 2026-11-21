@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import { createLatestValueSync } from "@slock/plugins/query/client/api";
+import { toggleReaction } from "@slock/plugins/slack/client/api";
 import type { ChannelId, Message, Ts, User, UserId } from "@slock/types";
-import { createLatestValueSync } from "../../../query/client/api";
-import { toggleReaction } from "../../../slack/client/api";
 import type { LocatedMessages } from "../lib/messageLocations";
 import { addReactionUser, removeReactionUser } from "../lib/reactionList";
 import type { LiveChange } from "./history/liveChanges";

@@ -1,10 +1,10 @@
 import type { Setup } from "@slock/core";
-import { jsonResponse, slackErrorResponse } from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { mutate, route, routes } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
-import type { PinsListReply } from "../../slack/server/api/slackReplies";
-import { trimMessage } from "../../slack/server/api/trim/slackMessages";
+import { jsonResponse, slackErrorResponse } from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
+import type { PinsListReply } from "@slock/plugins/slack/server/api/slackReplies";
+import { trimMessage } from "@slock/plugins/slack/server/api/trim/slackMessages";
 
 const list: Route[] = [
   route("POST", "messages/:channel/:ts/pin", (ctx) =>

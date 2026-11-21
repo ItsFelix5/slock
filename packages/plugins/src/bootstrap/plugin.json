@@ -1,1 +1,1 @@
-{ "id": "bootstrap", "core": true, "name": "Startup data", "requires": ["query"] }
+{ "id": "bootstrap", "name": "Startup data", "requires": ["query"], "boot": true }

@@ -21,6 +21,7 @@
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "paths": { "@slock/plugins/*": ["./packages/plugins/src/*"] },
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "target": "es2023",

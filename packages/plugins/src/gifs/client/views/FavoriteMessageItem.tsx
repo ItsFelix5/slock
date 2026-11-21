@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import type { MessageMenuProps } from "@slock/plugins/messages/client/api";
 import { MenuItem } from "@slock/ui";
 import { For } from "solid-js";
-import type { MessageMenuProps } from "../../../messages/client/api";
 import { attachmentGif } from "../lib/attachmentGif";
 
 const gifs = service("gifs");

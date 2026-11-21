@@ -1,9 +1,9 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import type { PaneContent } from "@slock/plugins/shell/client/api/types";
 import { isUserId } from "@slock/slack";
 import { narrowPaneContent, type Pane } from "@slock/ui";
 import { Show } from "solid-js";
-import type { PaneContent } from "../../shell/client/api/types";
 import type { ProfilePaneContent } from "./api";
 import UserHoverCard from "./views/UserHoverCard";
 import UserMentionCard from "./views/UserMentionCard";

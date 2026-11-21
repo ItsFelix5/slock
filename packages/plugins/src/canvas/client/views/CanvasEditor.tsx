@@ -1,17 +1,20 @@
+import ComposerSuggestPopover from "@slock/plugins/composer/client/api/editor/ComposerSuggestPopover";
+import { insertSuggestionAt } from "@slock/plugins/composer/client/api/editor/mrkdwnInsert";
+import {
+  createSuggestionController,
+  syncSuggestionsAfterChange,
+} from "@slock/plugins/composer/client/api/editor/suggestionController";
+import {
+  type SuggestState,
+  suggestOpen,
+} from "@slock/plugins/composer/client/api/editor/suggestTypes";
+import { useSuggestShortcuts } from "@slock/plugins/composer/client/api/editor/useSuggestShortcuts";
+import { useSuggestUi } from "@slock/plugins/composer/client/api/editor/useSuggestUi";
 import type { CanvasCommentThread, FileId } from "@slock/types";
 import { FloatingPanel } from "@slock/ui";
 import type Quill from "@slock/ui/editor/quill";
 import { indexAlignedText } from "@slock/ui/editor/quillText";
 import { createSignal, Show } from "solid-js";
-import ComposerSuggestPopover from "../../../composer/client/api/editor/ComposerSuggestPopover";
-import { insertSuggestionAt } from "../../../composer/client/api/editor/mrkdwnInsert";
-import {
-  createSuggestionController,
-  syncSuggestionsAfterChange,
-} from "../../../composer/client/api/editor/suggestionController";
-import { type SuggestState, suggestOpen } from "../../../composer/client/api/editor/suggestTypes";
-import { useSuggestShortcuts } from "../../../composer/client/api/editor/useSuggestShortcuts";
-import { useSuggestUi } from "../../../composer/client/api/editor/useSuggestUi";
 import { type DiffEntry, newSectionId } from "../../protocol/api";
 import { createCanvasCommandContext, lineElement } from "../lib/canvasCommandContext";
 import { canvasCommandItems, runCanvasCommand } from "../lib/canvasCommands";

@@ -1,8 +1,8 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import type { MessageBodyProps } from "@slock/plugins/messages/client/api";
+import { liveOnly } from "@slock/plugins/messages/client/api/deletedMessages";
 import { Show } from "solid-js";
-import type { MessageBodyProps } from "../../messages/client/api";
-import { liveOnly } from "../../messages/client/api/deletedMessages";
 import ReactionRow from "./api/ReactionRow";
 import ReactButton from "./views/ReactButton";
 

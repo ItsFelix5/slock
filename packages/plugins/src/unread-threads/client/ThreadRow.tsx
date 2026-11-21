@@ -1,8 +1,8 @@
 import { service } from "@slock/core/solid";
+import TextOrFiles from "@slock/plugins/files/client/api/TextOrFiles";
+import { splitReplyLink } from "@slock/plugins/message-links/client/api/replyLink";
+import { SplitNavigation } from "@slock/plugins/shell/client/api/SplitNavigation";
 import type { ActivityItem } from "@slock/types";
-import TextOrFiles from "../../files/client/api/TextOrFiles";
-import { splitReplyLink } from "../../message-links/client/api/replyLink";
-import { SplitNavigation } from "../../shell/client/api/SplitNavigation";
 import "./ThreadRow.css";
 
 const messageLinks = service("message-links");

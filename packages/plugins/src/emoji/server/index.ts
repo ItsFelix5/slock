@@ -1,6 +1,6 @@
 import type { Setup } from "@slock/core";
-import { slackAssetResponse } from "../../slack/server/api/assets";
-import { route, routes } from "../../slack/server/api/router";
+import { slackAssetResponse } from "@slock/plugins/slack/server/api/assets";
+import { route, routes } from "@slock/plugins/slack/server/api/router";
 import { createEmojiCache } from "./cache";
 
 const setup: Setup = (ctx) => {

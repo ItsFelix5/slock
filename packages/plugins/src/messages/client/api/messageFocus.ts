@@ -2,7 +2,7 @@ import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { ifPresent, parseTs } from "@slock/slack";
 import type { ChannelId, Message, Ts } from "@slock/types";
-import { type Accessor, createSignal, onCleanup } from "solid-js";
+import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js";
 import { findUnreadDividerIndex } from "../lib/unreadDivider";
 import type { FeedScroll } from "./pane/scroll/feedScroll";
 
@@ -19,6 +19,7 @@ export function threadRootTs(msg: Message) {
 export type OpenThreadHandler = (ts: Ts, opts?: OpenThreadOptions) => void;
 
 export interface MessageFocusCallbacks {
+  active?: Accessor<boolean>;
   paneId?: string;
   onOpenThread?: OpenThreadHandler;
   onReplyLink?: (msg: Message) => void;
@@ -131,14 +132,10 @@ export function createMessageFocus(
   };
   const stopEdit = () => setEditingTs(null);
 
-  const { paneId } = callbacks;
-  if (paneId) {
-    const editLast = () => {
-      const last = messages().findLast(isEditable);
-      if (last) startEdit(last.ts);
-    };
-    onCleanup(focusRegistry.registerEditLast(paneId, editLast));
-  }
+  const editLast = () => {
+    const last = messages().findLast(isEditable);
+    if (last) startEdit(last.ts);
+  };
 
   const toggleReactionPicker = (ts: Ts) =>
     setReactionPickerTs((current) => (current === ts ? null : ts));
@@ -162,6 +159,22 @@ export function createMessageFocus(
   };
   const deactivate = () => focusRegistry.deactivate(self);
   onCleanup(deactivate);
+
+  createEffect(
+    () => callbacks.active?.() ?? true,
+    (isActive) => {
+      if (!isActive) return;
+      const { paneId } = callbacks;
+      const unregister = paneId ? focusRegistry.registerEditLast(paneId, editLast) : undefined;
+      return () => {
+        unregister?.();
+        deactivate();
+        setEditingTs(null);
+        setReactionPickerTs(null);
+        setMoreMenuTs(null);
+      };
+    },
+  );
 
   return {
     editingTs,

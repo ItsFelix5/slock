@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import type { MessageHeaderProps } from "@slock/plugins/messages/client/api";
 import { IconButton } from "@slock/ui";
 import { Show } from "solid-js";
-import type { MessageHeaderProps } from "../../../messages/client/api";
 import { useAppHome } from "./useAppHome";
 
 const appHome = service("app-home");

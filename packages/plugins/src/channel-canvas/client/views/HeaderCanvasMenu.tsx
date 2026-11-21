@@ -1,8 +1,8 @@
 import { Mrkdwn } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
+import type { MessageHeaderProps } from "@slock/plugins/messages/client/api";
 import { createResetSignal, IconButton, Menu, MenuItem } from "@slock/ui";
 import { For, Show } from "solid-js";
-import type { MessageHeaderProps } from "../../../messages/client/api";
 import "./HeaderCanvasMenu.css";
 
 const canvas = service("canvas");

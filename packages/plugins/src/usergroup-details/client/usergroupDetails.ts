@@ -1,13 +1,13 @@
 import { service } from "@slock/core/solid";
-import type { ChannelId, UserId } from "@slock/types";
-import { createConcurrencyQueue } from "@slock/ui";
-import { createSignal } from "solid-js";
 import {
   setUsergroupChannels,
   setUsergroupMembers,
   setUsergroupSectionEnabled,
   updateUsergroupProfile,
-} from "../../slack/client/api";
+} from "@slock/plugins/slack/client/api";
+import type { ChannelId, UserId } from "@slock/types";
+import { createConcurrencyQueue } from "@slock/ui";
+import { createSignal } from "solid-js";
 
 const feedback = service("feedback");
 

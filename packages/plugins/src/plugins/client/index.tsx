@@ -1,28 +1,19 @@
 import type { PluginDef, Setup } from "@slock/core";
 import { errorMessage } from "@slock/core";
-import { getHost, service } from "@slock/core/solid";
-import { createSignal, lazy } from "solid-js";
-import { definitionFromSource, setupOf } from "./data/loadPlugin";
+import { getHost, lazyChunk, service } from "@slock/core/solid";
+import { createSignal } from "solid-js";
+import { definitionFromSource } from "./data/loadPlugin";
 import { listStoredPlugins, removeStoredPlugin, saveStoredPlugin } from "./data/userPluginStore";
 
-const view = lazy(() => import("./views/PluginsTab"));
+const view = lazyChunk(() => import("./views/PluginsTab"));
 const env = service("env");
 
-type Listing = { id: string; name?: string; requires?: string[]; url: string };
 type ServerOnly = { id: string; name?: string };
-type OperatorListing = { instance: Listing[]; serverOnly: ServerOnly[] };
 
-async function fetchListing(): Promise<OperatorListing> {
+async function fetchServerOnly(): Promise<ServerOnly[]> {
   const response = await env.fetch("/api/plugins");
-  if (!response.ok) return { instance: [], serverOnly: [] };
-  return response.json();
-}
-
-function operatorDefinitions(instance: Listing[]): PluginDef[] {
-  return instance.map(({ url, ...manifest }) => ({
-    ...manifest,
-    load: async () => ({ default: setupOf(await import(url)) }),
-  }));
+  if (!response.ok) return [];
+  return (await response.json()).serverOnly;
 }
 
 function failedDefinition(id: string, name: string, error: unknown): PluginDef {
@@ -75,11 +66,9 @@ const setup: Setup = (ctx) => {
         ),
       ),
     );
-    const listing = await fetchListing().catch(() => ({ instance: [], serverOnly: [] }));
-    const operatorDefs = operatorDefinitions(listing.instance);
-    setServerOnly(listing.serverOnly);
-    for (const def of [...operatorDefs, ...userDefs]) registered.add(def.id);
-    await host.register(...operatorDefs, ...userDefs);
+    setServerOnly(await fetchServerOnly().catch(() => []));
+    for (const def of userDefs) registered.add(def.id);
+    await host.register(...userDefs);
   }
 
   ctx.provide("plugins", { install, installed, remove, serverOnly });

@@ -1,7 +1,7 @@
 import { isRecord } from "@slock/core";
+import { defineQuery } from "@slock/plugins/query/client/api";
+import { fetchBootstrap, fetchUserPrefs } from "@slock/plugins/slack/client/api";
 import type { Bootstrap, UserPrefs } from "@slock/types";
-import { defineQuery } from "../../query/client/api";
-import { fetchBootstrap, fetchUserPrefs } from "../../slack/client/api";
 
 const isNull = (value: unknown): value is null => value === null;
 

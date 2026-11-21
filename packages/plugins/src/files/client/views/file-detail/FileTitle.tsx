@@ -1,9 +1,9 @@
 import { EmojiText } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
+import { renameFile } from "@slock/plugins/slack/client/api";
 import type { SlackFile } from "@slock/types";
 import { IconButton } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
-import { renameFile } from "../../../../slack/client/api";
 
 const feedback = service("feedback");
 

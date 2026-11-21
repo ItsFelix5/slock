@@ -1,21 +1,21 @@
 import type { Setup } from "@slock/core";
-import { isUserId } from "@slock/slack";
-import { teamIdFromRoute } from "../../slack/server/api/auth";
-import { cachedEntityForId } from "../../slack/server/api/cachedEntity";
+import { teamIdFromRoute } from "@slock/plugins/slack/server/api/auth";
+import { cachedEntityForId } from "@slock/plugins/slack/server/api/cachedEntity";
 import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
-} from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { route, routes } from "../../slack/server/api/router";
-import { callSlack, callSlackEdge } from "../../slack/server/api/slackClient";
+} from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack, callSlackEdge } from "@slock/plugins/slack/server/api/slackClient";
 import type {
   BotReply,
   EdgeUsersInfoReply,
   EdgeUsersReply,
-} from "../../slack/server/api/slackReplies";
-import { trimBot, trimUser } from "../../slack/server/api/trim/slackEntities";
+} from "@slock/plugins/slack/server/api/slackReplies";
+import { trimBot, trimUser } from "@slock/plugins/slack/server/api/trim/slackEntities";
+import { isUserId } from "@slock/slack";
 import type { UserDecorator } from "./api";
 
 function userRoutes(decorators: () => UserDecorator[]): Route[] {

@@ -1,21 +1,21 @@
 import type { Setup } from "@slock/core";
 import { defined } from "@slock/core";
-import { teamIdFromRoute } from "../../slack/server/api/auth";
-import { jsonResponse, slackErrorResponse } from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { mutate, route, routes } from "../../slack/server/api/router";
-import type { SlackReply } from "../../slack/server/api/slackClient";
-import { callSlack, callSlackEdge } from "../../slack/server/api/slackClient";
+import { teamIdFromRoute } from "@slock/plugins/slack/server/api/auth";
+import { jsonResponse, slackErrorResponse } from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
+import type { SlackReply } from "@slock/plugins/slack/server/api/slackClient";
+import { callSlack, callSlackEdge } from "@slock/plugins/slack/server/api/slackClient";
 import type {
   EdgeChannelsReply,
   EdgeUsersReply,
   FilesSearchReply,
   MessagesSearchReply,
   SearchMessageMatch,
-} from "../../slack/server/api/slackReplies";
-import { isHostedChannel, trimChannel } from "../../slack/server/api/trim/slackChannels";
-import { trimUser } from "../../slack/server/api/trim/slackEntities";
-import { trimFile } from "../../slack/server/api/trim/slackMessages";
+} from "@slock/plugins/slack/server/api/slackReplies";
+import { isHostedChannel, trimChannel } from "@slock/plugins/slack/server/api/trim/slackChannels";
+import { trimUser } from "@slock/plugins/slack/server/api/trim/slackEntities";
+import { trimFile } from "@slock/plugins/slack/server/api/trim/slackMessages";
 
 function threadTsFromMatch(match: { permalink?: string; thread_ts?: string }): string | undefined {
   if (match.thread_ts) return match.thread_ts;

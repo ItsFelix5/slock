@@ -1,16 +1,15 @@
 import type { Setup } from "@slock/core";
-import { service } from "@slock/core/solid";
-import { isChannelId, isTs } from "@slock/slack";
-import { Icon, useShortcut } from "@slock/ui";
-import { lazy } from "solid-js";
-import { liveOnly } from "../../messages/client/api/deletedMessages";
+import { lazyChunk, service } from "@slock/core/solid";
+import { liveOnly } from "@slock/plugins/messages/client/api/deletedMessages";
 import {
   fetchMessagesByIds,
   fetchSaved,
   saveWithReminder,
   toggleSaved,
   updateSaved,
-} from "../../slack/client/api";
+} from "@slock/plugins/slack/client/api";
+import { isChannelId, isTs } from "@slock/slack";
+import { Icon, useShortcut } from "@slock/ui";
 import { createLaterSlice } from "./store";
 import SaveButton from "./views/SaveButton";
 import SavedBadge from "./views/SavedBadge";
@@ -18,7 +17,7 @@ import SavedBadge from "./views/SavedBadge";
 const feedback = service("feedback");
 const messageFocus = service("messages.focus");
 const active = () => messageFocus.active();
-const LaterView = lazy(() => import("./views/LaterView"));
+const LaterView = lazyChunk(() => import("./views/LaterView"));
 
 const setup: Setup = (ctx) => {
   ctx.add(

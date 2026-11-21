@@ -3,6 +3,7 @@ import { join, relative } from "node:path";
 import ts from "typescript";
 import { effectAppliesThatReturn } from "./rules/effectApply.ts";
 import { exportedSetters } from "./rules/exportedSetter.ts";
+import { rawLazyImports } from "./rules/rawLazy.ts";
 import { writesInCompute } from "./rules/writeInCompute.ts";
 
 const ROOT = join(import.meta.dir, "..");
@@ -32,7 +33,8 @@ const STORAGE_GLOBALS = new Set(["localStorage", "sessionStorage"]);
 const STATE_FACTORIES = new Set(["createRoot", "createSignal", "createStore"]);
 const SUPPRESSION = /biome-ignore|@ts-ignore|@ts-expect-error|@ts-nocheck/;
 const TEST_SUPPORT_IMPORT = /(^|\/)testing$|\/test\//;
-const ENV_EXEMPT = ["packages/core/src/env.ts", "packages/relay/"];
+const LAZY_OWNER = "packages/core/src/solid.tsx";
+const ENV_EXEMPT = ["packages/core/src/env.ts", "packages/relay/", "packages/installer/"];
 const MODULE_STATE_EXEMPT = [
   "packages/core/src/solidHost.ts",
   "packages/slack/src/session/account.ts",
@@ -108,6 +110,7 @@ function check(file: string): Violation[] {
   }
 
   for (const node of exportedSetters(source, rel)) add(node, "exported-setter");
+  if (rel !== LAZY_OWNER) for (const node of rawLazyImports(source)) add(node, "raw-lazy");
   for (const node of effectAppliesThatReturn(source)) add(node, "effect-apply-returns");
 
   const visit = (node: ts.Node): void => {

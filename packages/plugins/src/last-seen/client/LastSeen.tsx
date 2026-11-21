@@ -1,11 +1,11 @@
 import { formatLastSeen } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
+import type { ProfileMetaProps } from "@slock/plugins/profile/client/api";
+import { defineQuery } from "@slock/plugins/query/client/api";
 import { apiGet } from "@slock/slack";
 import type { UserId } from "@slock/types";
 import { createClock } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
-import type { ProfileMetaProps } from "../../profile/client/api";
-import { defineQuery } from "../../query/client/api";
 
 const messages = service("messages");
 

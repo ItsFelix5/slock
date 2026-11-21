@@ -1,15 +1,18 @@
 import type { Env, Setup } from "@slock/core";
-import type { Block } from "@slock/types";
 import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
-} from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { route, routes } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
-import type { DraftCreateReply, DraftsListReply } from "../../slack/server/api/slackReplies";
-import { trimDrafts } from "../../slack/server/api/trim/slackDrafts";
+} from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
+import type {
+  DraftCreateReply,
+  DraftsListReply,
+} from "@slock/plugins/slack/server/api/slackReplies";
+import { trimDrafts } from "@slock/plugins/slack/server/api/trim/slackDrafts";
+import type { Block } from "@slock/types";
 
 const draftRoutes = (env: Env): Route[] => [
   route("GET", "drafts", async (ctx) => {

@@ -3,12 +3,12 @@ import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
-} from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { mutate, route, routes } from "../../slack/server/api/router";
-import { callSlackEdge } from "../../slack/server/api/slackClient";
-import type { EdgeUsersReply } from "../../slack/server/api/slackReplies";
-import { trimUser } from "../../slack/server/api/trim/slackEntities";
+} from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlackEdge } from "@slock/plugins/slack/server/api/slackClient";
+import type { EdgeUsersReply } from "@slock/plugins/slack/server/api/slackReplies";
+import { trimUser } from "@slock/plugins/slack/server/api/trim/slackEntities";
 
 const list: Route[] = [
   route("GET", "channels/:id/members", async (ctx) => {

@@ -4,12 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "exports": {
-    "./http": "./src/http.ts",
-    "./pluginDirs": "./src/pluginDirs.ts",
-    "./plugins": "./src/plugins.ts"
+    ".": "./src/start.ts",
+    "./http": "./src/http.ts"
   },
   "dependencies": {
-    "@slock/core": "workspace:*"
+    "@slock/core": "workspace:*",
+    "@slock/installer": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.2",

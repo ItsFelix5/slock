@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import { usePaneView } from "@slock/plugins/conversations/client/api/paneView";
+import type { MessageHeaderProps } from "@slock/plugins/messages/client/api";
 import { focusPaneById, IconButton } from "@slock/ui";
-import { usePaneView } from "../../../conversations/client/api/paneView";
-import type { MessageHeaderProps } from "../../../messages/client/api";
 
 const filesPanel = service("files-panel");
 

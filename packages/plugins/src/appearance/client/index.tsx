@@ -1,8 +1,9 @@
 import type { Setup } from "@slock/core";
+import { lazyChunk } from "@slock/core/solid";
 import { createTheme } from "@slock/ui";
-import { createEffect, lazy, untrack } from "solid-js";
+import { createEffect, untrack } from "solid-js";
 
-const view = lazy(() => import("./views/AppearanceTab"));
+const view = lazyChunk(() => import("./views/AppearanceTab"));
 
 const setup: Setup = (ctx) => {
   const theme = createTheme(ctx.get("env").storage);

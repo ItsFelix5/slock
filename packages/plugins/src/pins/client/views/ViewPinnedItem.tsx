@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
+import type { ChannelMenuProps } from "@slock/plugins/messages/client/api";
 import { MenuItem } from "@slock/ui";
-import type { ChannelMenuProps } from "../../../messages/client/api";
 
 export default function ViewPinnedItem(props: ChannelMenuProps) {
   const pins = service("pins");

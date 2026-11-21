@@ -1,9 +1,9 @@
 import type { Setup } from "@slock/core";
-import { jsonResponse, slackErrorResponse } from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { mutate, route, routes } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
-import type { SavedListReply } from "../../slack/server/api/slackReplies";
+import { jsonResponse, slackErrorResponse } from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
+import type { SavedListReply } from "@slock/plugins/slack/server/api/slackReplies";
 
 const list: Route[] = [
   route("POST", "messages/:channel/:ts/save", (ctx) =>

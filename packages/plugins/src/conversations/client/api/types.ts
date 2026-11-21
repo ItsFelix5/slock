@@ -1,5 +1,5 @@
+import type { PaneContentOf } from "@slock/plugins/shell/client/api/types";
 import type { ChannelId, Ts } from "@slock/types";
-import type { PaneContentOf } from "../../../shell/client/api/types";
 
 declare module "../../../shell/client/api/types" {
   interface PaneContents {

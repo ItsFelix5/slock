@@ -1,5 +1,5 @@
 import type { Setup } from "@slock/core";
-import { gatewayHandler } from "../../realtime/client/api";
+import { gatewayHandler } from "@slock/plugins/realtime/client/api";
 import AppInstallers from "./AppInstallers";
 import { appInstallers, installedApps } from "./fetch";
 import UserInstalledApps from "./UserInstalledApps";

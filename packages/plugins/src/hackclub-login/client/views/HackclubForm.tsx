@@ -1,8 +1,8 @@
 import { errorMessage } from "@slock/core";
+import type { ConnectMethodProps } from "@slock/plugins/account/client/api";
 import { apiPost, connectWith } from "@slock/slack";
 import { Button, OtpInput } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
-import type { ConnectMethodProps } from "../../../account/client/api";
 
 async function requestHackclubEmailCode(email: string): Promise<unknown> {
   const data = await apiPost<{ challenge: unknown }>("/api/hackclub-auth/email", { email });

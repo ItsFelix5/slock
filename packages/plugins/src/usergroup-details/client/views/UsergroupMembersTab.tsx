@@ -1,8 +1,8 @@
 import { service } from "@slock/core/solid";
+import ComposeUserPicker from "@slock/plugins/composer/client/api/pickers/ComposeUserPicker";
 import type { User, UserId } from "@slock/types";
 import { AddRowButton, Avatar, Button, initRovingTabIndexDefault } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import ComposeUserPicker from "../../../composer/client/api/pickers/ComposeUserPicker";
 import RemoveRowButton from "./RemoveRowButton";
 import "./UsergroupDetails.css";
 

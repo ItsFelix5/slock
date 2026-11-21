@@ -1,10 +1,7 @@
 import { formatDayFromMs, formatTimeFromMs } from "@slock/core";
 import { service } from "@slock/core/solid";
-import type { Block, ChannelId, SlackFile, Ts } from "@slock/types";
-import { Avatar, DEFAULT_AVATAR_COLOR, NavRow, Tooltip } from "@slock/ui";
-import { createMemo, Show } from "solid-js";
-import { splitReplyLink } from "../../../message-links/client/api/replyLink";
-import MessageReferenceSnippet from "../../../messages/client/api/cards/MessageReferenceSnippet";
+import { splitReplyLink } from "@slock/plugins/message-links/client/api/replyLink";
+import MessageReferenceSnippet from "@slock/plugins/messages/client/api/cards/MessageReferenceSnippet";
 import {
   isRealUserId,
   type MessageAuthorFields,
@@ -12,8 +9,11 @@ import {
   resolveAuthorDisplayName,
   resolveProfileUserId,
   unresolvedAuthorFallback,
-} from "../../../messages/client/api/messageAuthor";
-import { ClickableAuthorName } from "../../../profile/client/api/AppBadge";
+} from "@slock/plugins/messages/client/api/messageAuthor";
+import { ClickableAuthorName } from "@slock/plugins/profile/client/api/AppBadge";
+import type { Block, ChannelId, SlackFile, Ts } from "@slock/types";
+import { Avatar, DEFAULT_AVATAR_COLOR, NavRow, Tooltip } from "@slock/ui";
+import { createMemo, Show } from "solid-js";
 
 const env = service("env");
 const usersStore = service("users");

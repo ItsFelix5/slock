@@ -1,6 +1,6 @@
+import { createLatestValueSync } from "@slock/plugins/query/client/api";
+import { setMutedChannels } from "@slock/plugins/slack/client/api";
 import type { ChannelId } from "@slock/types";
-import { createLatestValueSync } from "../../query/client/api";
-import { setMutedChannels } from "../../slack/client/api";
 
 type MuteWrite = { ids: ChannelId[]; seq: number };
 

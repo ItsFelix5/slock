@@ -33,6 +33,7 @@ export function createInPaneSearch(
   messages: Accessor<Message[]>,
   feed: FeedScroll,
   paneId: Accessor<string>,
+  active: Accessor<boolean> = () => true,
 ) {
   const [open, setOpen] = createSignal(false);
   const [query, setQuery] = createSignal("");
@@ -98,7 +99,7 @@ export function createInPaneSearch(
     allowInInputs: true,
     allowRepeat: false,
     combo: { key: "f", mod: true },
-    enabled: () => service("shell.panes").focusedPaneId() === paneId(),
+    enabled: () => active() && service("shell.panes").focusedPaneId() === paneId(),
     handler: () => setOpen(true),
     id: "messages.searchInPane",
     label: "Search in this view",
@@ -106,6 +107,9 @@ export function createInPaneSearch(
     group: "Lists",
   });
   useEscapeClose(close, open);
+  createEffect(active, (isActive) => {
+    if (!isActive) close();
+  });
 
   return {
     close,

@@ -1,8 +1,8 @@
 import type { Services } from "@slock/core/types";
+import { defineQuery, retryPolicy } from "@slock/plugins/query/client/api";
+import { fetchChannelCanvases } from "@slock/plugins/slack/client/api";
 import type { CanvasListItem, ChannelId, FileId } from "@slock/types";
 import { createSignal, createStore } from "solid-js";
-import { defineQuery, retryPolicy } from "../../query/client/api";
-import { fetchChannelCanvases } from "../../slack/client/api";
 import {
   CanvasReadError,
   fetchCanvas,

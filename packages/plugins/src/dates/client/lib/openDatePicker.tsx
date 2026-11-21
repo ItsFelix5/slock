@@ -1,5 +1,5 @@
 import { formatSlackDate } from "@slock/blockkit";
-import type { ComposerEditor, DateValue } from "../../../composer/client/api";
+import type { ComposerEditor, DateValue } from "@slock/plugins/composer/client/api";
 import DatePicker from "../api/DatePicker";
 import type { DateTarget } from "./dateAt";
 

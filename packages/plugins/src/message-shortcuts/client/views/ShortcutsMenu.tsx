@@ -1,9 +1,9 @@
+import type { MessageMenuProps } from "@slock/plugins/messages/client/api";
+import { defineQuery } from "@slock/plugins/query/client/api";
+import { fetchMessageShortcuts } from "@slock/plugins/slack/client/api";
 import type { MessageShortcut } from "@slock/types";
 import { fuzzySearch, Icon, imageSrc, Menu, MenuItem } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import type { MessageMenuProps } from "../../../messages/client/api";
-import { defineQuery } from "../../../query/client/api";
-import { fetchMessageShortcuts } from "../../../slack/client/api";
 import { runShortcut } from "../runShortcut";
 
 const messageShortcuts = defineQuery<null, MessageShortcut[]>({

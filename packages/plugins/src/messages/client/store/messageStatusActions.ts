@@ -1,8 +1,8 @@
 import { defined } from "@slock/core";
 import { createFlags, service } from "@slock/core/solid";
+import { toggleThreadSubscription } from "@slock/plugins/slack/client/api";
 import { parseTs } from "@slock/slack";
 import type { ChannelId, Message, Ts } from "@slock/types";
-import { toggleThreadSubscription } from "../../../slack/client/api";
 import { tsFromMs, tsJustBefore, tsToMs } from "../lib/tsTime";
 
 const feedback = service("feedback");

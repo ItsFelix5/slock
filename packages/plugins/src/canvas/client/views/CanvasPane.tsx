@@ -1,5 +1,6 @@
 import { EmojiText } from "@slock/blockkit";
 import { Slot, service } from "@slock/core/solid";
+import { copyCanvasLink } from "@slock/plugins/message-links/client/api/messageLinks";
 import {
   Button,
   createResetSignal,
@@ -10,7 +11,6 @@ import {
   useShortcut,
 } from "@slock/ui";
 import { createEffect, createSignal, Show } from "solid-js";
-import { copyCanvasLink } from "../../../message-links/client/api/messageLinks";
 import type { CanvasPaneContent } from "../api";
 import { createCanvasComments } from "../lib/canvasComments";
 import { createCanvasHistory } from "../lib/canvasHistory";

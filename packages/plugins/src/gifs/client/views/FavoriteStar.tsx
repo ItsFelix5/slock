@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import type { AttachmentImageOverlayProps } from "@slock/plugins/message-media/client/api/imageOverlay";
 import { IconButton } from "@slock/ui";
 import { Show } from "solid-js";
-import type { AttachmentImageOverlayProps } from "../../../message-media/client/api/imageOverlay";
 import { attachmentGif } from "../lib/attachmentGif";
 
 const gifs = service("gifs");

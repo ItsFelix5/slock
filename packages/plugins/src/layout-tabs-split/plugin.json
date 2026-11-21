@@ -1,1 +1,1 @@
-{ "id": "layout-tabs-split", "core": true, "name": "Tabs and splits", "requires": ["shell"] }
+{ "id": "layout-tabs-split", "name": "Tabs and splits", "requires": ["shell"] }

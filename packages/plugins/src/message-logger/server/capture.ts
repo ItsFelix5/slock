@@ -1,6 +1,6 @@
+import type { RealtimeEventHook } from "@slock/plugins/realtime/server/api";
+import { trimMessage } from "@slock/plugins/slack/server/api/trim/slackMessages";
 import { isChannelId, isRawMessage } from "@slock/slack";
-import type { RealtimeEventHook } from "../../realtime/server/api";
-import { trimMessage } from "../../slack/server/api/trim/slackMessages";
 import { keepAssets } from "./files";
 import type { LogStore } from "./store";
 import { workspaceOf } from "./workspace";

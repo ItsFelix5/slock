@@ -1,4 +1,4 @@
-import { type Credentials, teamIdFromRoute } from "../../slack/server/api/auth";
+import { type Credentials, teamIdFromRoute } from "@slock/plugins/slack/server/api/auth";
 
 export const workspaceOf = (creds: Credentials) => teamIdFromRoute(creds.route);
 

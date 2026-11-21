@@ -1,5 +1,5 @@
 import type { Setup } from "@slock/core";
-import { liveOnly } from "../../messages/client/api/deletedMessages";
+import { liveOnly } from "@slock/plugins/messages/client/api/deletedMessages";
 import ShortcutsMenu from "./views/ShortcutsMenu";
 
 const setup: Setup = (ctx) => {

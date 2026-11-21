@@ -1,4 +1,5 @@
 import { service } from "@slock/core/solid";
+import { SearchQueryInput } from "@slock/plugins/search/client/api";
 import {
   Button,
   initRovingTabIndexDefault,
@@ -7,7 +8,6 @@ import {
   useEscapeClose,
 } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
-import { SearchQueryInput } from "../../../search/client/api";
 import {
   groupByMonth,
   type MonthGroup,

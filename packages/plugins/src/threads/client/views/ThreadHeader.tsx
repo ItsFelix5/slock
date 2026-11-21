@@ -1,10 +1,10 @@
 import { firstTruthy } from "@slock/core";
 import { service, usePoint } from "@slock/core/solid";
+import { openConversationInSplit } from "@slock/plugins/conversations/client/api/nav";
+import { SplitNavigation } from "@slock/plugins/shell/client/api/SplitNavigation";
 import type { ChannelId, Ts } from "@slock/types";
 import { IconButton, PanelHeader } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
-import { openConversationInSplit } from "../../../conversations/client/api/nav";
-import { SplitNavigation } from "../../../shell/client/api/SplitNavigation";
 
 const viewStore = service("shell.view");
 const messageLinks = service("message-links");

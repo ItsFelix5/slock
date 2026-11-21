@@ -1,1 +1,1 @@
-{ "id": "dates", "core": true, "name": "Date picker", "requires": [] }
+{ "id": "dates", "name": "Date picker", "requires": [] }

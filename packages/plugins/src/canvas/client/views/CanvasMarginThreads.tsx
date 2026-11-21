@@ -1,7 +1,7 @@
+import ReactionRow from "@slock/plugins/reactions/client/api/ReactionRow";
 import type { CanvasCommentThread, FileId } from "@slock/types";
 import { IconButton } from "@slock/ui";
 import { createEffect, createSignal, For, onSettled } from "solid-js";
-import ReactionRow from "../../../reactions/client/api/ReactionRow";
 import { isThreadAnnotation } from "../api/canvasQuote";
 import "./CanvasMarginThreads.css";
 

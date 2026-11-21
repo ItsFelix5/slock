@@ -1,5 +1,5 @@
+import type { ChannelMessageTarget } from "@slock/plugins/conversations/client/api/types";
 import type { ChannelId } from "@slock/types";
-import type { ChannelMessageTarget } from "../../../conversations/client/api/types";
 
 export interface LandingState {
   lastViewId: ChannelId | undefined;

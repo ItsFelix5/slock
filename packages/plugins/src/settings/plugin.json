@@ -1,1 +1,1 @@
-{ "id": "settings", "core": true, "name": "Settings", "requires": [] }
+{ "id": "settings", "name": "Settings", "requires": [] }

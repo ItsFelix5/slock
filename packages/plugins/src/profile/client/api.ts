@@ -1,16 +1,13 @@
+import type { PaneContentOf } from "@slock/plugins/shell/client/api/types";
 import type { User, UserId } from "@slock/types";
 import type { Component } from "solid-js";
-import type { PaneContentOf } from "../../shell/client/api/types";
 
 export type ProfilePaneContent = PaneContentOf<"profile">;
 
 export type ProfileMetaProps = { user: User };
 
-export type ProfileHoverProps = { userId: UserId; close(): void };
-
 declare module "@slock/core/types" {
   interface Points {
-    "profile.hoverAction": Component<ProfileHoverProps>;
     "profile.meta": Component<ProfileMetaProps>;
   }
 }

@@ -1,5 +1,5 @@
+import type { MessageMenuProps } from "@slock/plugins/messages/client/api";
 import { MenuItem } from "@slock/ui";
-import type { MessageMenuProps } from "../../../messages/client/api";
 import { copyMessageLink } from "../api/messageLinks";
 
 export default function CopyLinkItem(props: MessageMenuProps) {

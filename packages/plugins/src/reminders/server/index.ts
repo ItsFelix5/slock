@@ -1,9 +1,9 @@
 import type { Setup } from "@slock/core";
+import { errorResponse } from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
 import { isChannelId, isTs } from "@slock/slack";
 import type { ChannelId, Ts } from "@slock/types";
-import { errorResponse } from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { mutate, route, routes } from "../../slack/server/api/router";
 
 const list: Route[] = [
   route("POST", "reminders", async (ctx) => {

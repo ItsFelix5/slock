@@ -1,6 +1,6 @@
 import type { Env } from "@slock/core";
 import { isRecord } from "@slock/core";
-import type { Credentials } from "../../slack/server/api/auth";
+import type { Credentials } from "@slock/plugins/slack/server/api/auth";
 
 function writeVarint(n: bigint): number[] {
   const out: number[] = [];

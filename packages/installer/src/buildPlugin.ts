@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { solidJsx } from "./solidPlugin";
+import { solidJsx } from "./solid";
 
 const AUTHOR_SOURCE = /\.[jt]sx?$/;
 const SHARED_LIBS = ["solid-js", "@solidjs/web", "@slock/*"];

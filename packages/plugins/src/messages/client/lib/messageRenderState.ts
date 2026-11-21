@@ -1,9 +1,9 @@
-import type { Attachment, Block, ChannelId, Message, Ts } from "@slock/types";
 import {
   type ReplyTarget,
   splitReplyLink,
   threadContainsMessage,
-} from "../../../message-links/client/api/replyLink";
+} from "@slock/plugins/message-links/client/api/replyLink";
+import type { Attachment, Block, ChannelId, Message, Ts } from "@slock/types";
 import { isBareLinkUnfurl } from "../api/messageAuthor";
 import { emojiOnlyBlockMessage, emojiShortcodeCount, MAX_ENLARGED_EMOJI } from "./emojiOnlyMessage";
 import { isUnreadDividerBoundary } from "./unreadDivider";

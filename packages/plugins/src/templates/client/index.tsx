@@ -1,8 +1,9 @@
 import type { Setup } from "@slock/core";
-import { lazy } from "solid-js";
+import { lazyChunk } from "@slock/core/solid";
+
 import { createTemplatesStore } from "./store";
 
-const view = lazy(() => import("./views/TemplatesTab"));
+const view = lazyChunk(() => import("./views/TemplatesTab"));
 
 const setup: Setup = (ctx) => {
   const templates = createTemplatesStore();

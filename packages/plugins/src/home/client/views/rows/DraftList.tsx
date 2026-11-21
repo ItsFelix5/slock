@@ -1,11 +1,11 @@
 import { EmojiText } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
+import { channelIconName } from "@slock/plugins/channels/client/api";
+import { deleteEntry, draftsForChannel } from "@slock/plugins/drafts/client/api";
 import { blockPreviewText } from "@slock/slack";
 import type { ChannelId, Ts } from "@slock/types";
 import { Icon, SuggestionList } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
-import { channelIconName } from "../../../../channels/client/api";
-import { deleteEntry, draftsForChannel } from "../../../../drafts/client/api";
 import "./DraftList.css";
 
 const viewStore = service("conversations");

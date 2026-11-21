@@ -1,9 +1,9 @@
 import { formatDuration } from "@slock/blockkit";
+import { createFileDetailQuery } from "@slock/plugins/files/client/api/fileDetailQuery";
 import { isWaiting } from "@slock/resource";
 import type { SlackFile } from "@slock/types";
 import { IconButton, Popover } from "@slock/ui";
 import { createEffect, createSignal, For, Match, Switch } from "solid-js";
-import { createFileDetailQuery } from "../../../files/client/api/fileDetailQuery";
 import "./TranscriptPopover.css";
 
 export default function TranscriptPopover(props: {

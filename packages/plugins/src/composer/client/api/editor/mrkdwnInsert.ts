@@ -1,11 +1,11 @@
 import { BLOCKS_CLIPBOARD_TYPE, stripTrackingParams } from "@slock/blockkit";
 import { escapeRegExp } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { resolvedEmojiName } from "@slock/plugins/emoji/client/api/resolvedEmojiName";
 import { decodeTextEntities, isChannelId, isUserId } from "@slock/slack";
 import type { Block } from "@slock/types";
 import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
 import type Quill from "@slock/ui/editor/quill";
-import { resolvedEmojiName } from "../../../../emoji/client/api/resolvedEmojiName";
 import { linkMentionValue, stripLeadingAt } from "../../lib/quillMentions";
 import { insertRichTextAt } from "../../lib/richTextLoad";
 import { suggestionText } from "./suggestionController";

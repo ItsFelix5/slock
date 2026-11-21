@@ -1,8 +1,8 @@
 import { sameItems, type TimerHandle } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { fetchLinkPreview } from "@slock/plugins/slack/client/api";
 import type { Attachment, Block, ChannelId } from "@slock/types";
 import { createEffect, createMemo, createSignal } from "solid-js";
-import { fetchLinkPreview } from "../../../slack/client/api";
 import { previewableLinks } from "./blockLinks";
 
 const env = service("env");

@@ -1,6 +1,5 @@
 {
   "id": "later",
-  "core": true,
   "name": "Saved items",
   "requires": ["channels", "dms", "message-links", "messages", "shell", "users"]
 }

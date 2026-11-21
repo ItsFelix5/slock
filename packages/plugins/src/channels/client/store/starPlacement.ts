@@ -1,10 +1,10 @@
 import { createOptimisticFlags, service } from "@slock/core/solid";
-import type { ChannelId, ChannelSection } from "@slock/types";
-import { action } from "solid-js";
 import {
   updateSectionChannels as apiUpdateSectionChannels,
   toggleStar,
-} from "../../../slack/client/api";
+} from "@slock/plugins/slack/client/api";
+import type { ChannelId, ChannelSection } from "@slock/types";
+import { action } from "solid-js";
 
 const feedback = service("feedback");
 

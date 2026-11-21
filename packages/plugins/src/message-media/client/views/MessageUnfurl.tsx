@@ -1,18 +1,18 @@
 import { type BlockActionContext, safeColor, safeMediaUrl, safeUrl } from "@slock/blockkit";
+import { channelIconName } from "@slock/plugins/channels/client/api";
+import {
+  openConversationInSplit,
+  viewForConversation,
+} from "@slock/plugins/conversations/client/api/nav";
+import { MessageAuthorButton } from "@slock/plugins/messages/client/api/cards/MessageAuthorButton";
+import { fetchMessagesByIds } from "@slock/plugins/slack/client/api";
 import { decodeTextEntities } from "@slock/slack";
 import type { Attachment, ChannelId, Message, Ts } from "@slock/types";
 import { HideBrokenImage, Icon } from "@slock/ui";
 import { Show } from "solid-js";
-import { channelIconName } from "../../../channels/client/api";
-import {
-  openConversationInSplit,
-  viewForConversation,
-} from "../../../conversations/client/api/nav";
-import { MessageAuthorButton } from "../../../messages/client/api/cards/MessageAuthorButton";
-import { fetchMessagesByIds } from "../../../slack/client/api";
 import "./AttachmentCard.css";
 import { service } from "@slock/core/solid";
-import { defineQuery } from "../../../query/client/api";
+import { defineQuery } from "@slock/plugins/query/client/api";
 import AttachmentContent from "./AttachmentContent";
 
 interface OriginalRef {
@@ -33,7 +33,7 @@ const channelsStore = service("channels");
 const usersStore = service("users");
 const titles = service("titles");
 
-import { resolveAttachmentAuthorName } from "../../../messages/client/api/messageAuthor";
+import { resolveAttachmentAuthorName } from "@slock/plugins/messages/client/api/messageAuthor";
 
 const hasInteractiveBlocks = (blocks: Attachment["blocks"]) =>
   !!blocks?.some(

@@ -1,4 +1,4 @@
-import { type Accessor, createRoot, createSignal, flush, untrack } from "solid-js";
+import { type Accessor, createRoot, createSignal, flush, runWithOwner, untrack } from "solid-js";
 import type { Host } from "./host/host";
 import type { Points, Reactive, Services } from "./types";
 
@@ -10,7 +10,7 @@ export const solidReactive: Reactive = {
       read,
       (value) => {
         write(() => value);
-        flush();
+        runWithOwner(null, flush);
       },
     ];
   },

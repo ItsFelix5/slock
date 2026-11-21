@@ -1,4 +1,5 @@
 {
+  "extends": "./tsconfig.base.json",
   "files": [],
   "references": [
     { "path": "./packages/types" },
@@ -7,6 +8,7 @@
     { "path": "./packages/resource" },
     { "path": "./packages/ui" },
     { "path": "./packages/blockkit" },
+    { "path": "./packages/installer" },
     { "path": "./packages/server" },
     { "path": "./packages/plugins/tsconfig.server.json" },
     { "path": "./packages/plugins/tsconfig.client.json" },

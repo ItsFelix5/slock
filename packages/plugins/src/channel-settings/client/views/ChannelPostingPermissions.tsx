@@ -1,10 +1,10 @@
 import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
+import ComposeUserPicker from "@slock/plugins/composer/client/api/pickers/ComposeUserPicker";
 import { isWaiting } from "@slock/resource";
 import type { ChannelId, UserId } from "@slock/types";
 import { AddRowButton, Avatar, IconButton, Switch } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
-import ComposeUserPicker from "../../../composer/client/api/pickers/ComposeUserPicker";
 import SettingsLoadError from "./SettingsLoadError";
 import "./ChannelPostingPermissions.css";
 

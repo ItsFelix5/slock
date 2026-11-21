@@ -1,8 +1,8 @@
+import type { View } from "@slock/plugins/conversations/client/api/types";
+import type { ThreadRef } from "@slock/plugins/messages/client/api";
+import { isPendingMessage } from "@slock/plugins/messages/client/api/messageMerge";
 import type { ChannelId, Message, Ts } from "@slock/types";
 import { createEffect, untrack } from "solid-js";
-import type { View } from "../../../conversations/client/api/types";
-import type { ThreadRef } from "../../../messages/client/api";
-import { isPendingMessage } from "../../../messages/client/api/messageMerge";
 import {
   type ChannelSnapshot,
   channelReadPlan,

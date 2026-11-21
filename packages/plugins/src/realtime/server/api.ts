@@ -1,4 +1,4 @@
-import type { Credentials } from "../../slack/server/api/auth";
+import type { Credentials } from "@slock/plugins/slack/server/api/auth";
 
 export type GatewayEvent = { type: string; [key: string]: unknown };
 

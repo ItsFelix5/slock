@@ -1,4 +1,5 @@
 import { service, usePoint } from "@slock/core/solid";
+import { channelIconName } from "@slock/plugins/channels/client/api";
 import { isWaiting } from "@slock/resource";
 import {
   ariaBoolean,
@@ -12,7 +13,6 @@ import {
 } from "@slock/ui";
 import { dynamic } from "@solidjs/web";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import { channelIconName } from "../../../channels/client/api";
 import type { ChannelDetailsTabItem } from "../api";
 import type { ChannelDetailsTab } from "../channelDetails";
 import ChannelAboutFields from "./ChannelAboutFields";

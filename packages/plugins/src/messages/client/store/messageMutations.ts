@@ -1,13 +1,13 @@
 import { service } from "@slock/core/solid";
-import { isMyRelayedMessage } from "@slock/slack";
-import type { Block, ChannelId, FileId, Message, Ts, User } from "@slock/types";
-import { createConcurrencyQueue } from "@slock/ui";
 import {
   broadcastReply,
   deleteAttachment,
   deleteMessage,
   editMessage,
-} from "../../../slack/client/api";
+} from "@slock/plugins/slack/client/api";
+import { isMyRelayedMessage } from "@slock/slack";
+import type { Block, ChannelId, FileId, Message, Ts, User } from "@slock/types";
+import { createConcurrencyQueue } from "@slock/ui";
 import type { LocatedMessages } from "../lib/messageLocations";
 
 const feedback = service("feedback");

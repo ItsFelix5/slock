@@ -1,5 +1,5 @@
+import { defineQuery } from "@slock/plugins/query/client/api";
 import { apiGet } from "@slock/slack";
-import { defineQuery } from "../../query/client/api";
 
 export interface SlashCommand {
   desc: string;

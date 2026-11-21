@@ -1,10 +1,14 @@
 import { EmojiText, safeMediaUrl, safeUrl } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
+import {
+  fileIconName,
+  fileKindLabel,
+  isCanvasFile,
+} from "@slock/plugins/files/client/api/fileSummary";
+import { SplitNavigation } from "@slock/plugins/shell/client/api/SplitNavigation";
 import type { ChannelId, SlackFile, SlackLink } from "@slock/types";
 import { formatSize, Icon, imageSrc, Tooltip } from "@slock/ui";
 import { For, Show } from "solid-js";
-import { fileIconName, fileKindLabel, isCanvasFile } from "../../../files/client/api/fileSummary";
-import { SplitNavigation } from "../../../shell/client/api/SplitNavigation";
 import type { FilesLinksEntry } from "../api";
 import { formatDate, linkDomain } from "../lib/panelView";
 

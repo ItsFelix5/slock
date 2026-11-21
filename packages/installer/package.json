@@ -1,0 +1,19 @@
+{
+  "name": "@slock/installer",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./compressible": "./src/compressible.ts",
+    "./dev": "./src/dev.ts"
+  },
+  "dependencies": {
+    "@slock/core": "workspace:*",
+    "@solidjs/compiler": "2.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.2",
+    "bun-types": "^1.3.14"
+  }
+}

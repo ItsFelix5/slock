@@ -1,8 +1,8 @@
 import { EmojiText } from "@slock/blockkit";
+import type { ComposerTrailingProps } from "@slock/plugins/composer/client/api";
+import { defineQuery } from "@slock/plugins/query/client/api";
 import { Tooltip } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
-import type { ComposerTrailingProps } from "../../composer/client/api";
-import { defineQuery } from "../../query/client/api";
 import { isHaiku } from "./haiku/isHaiku";
 import "./OrpheusIndicator.css";
 

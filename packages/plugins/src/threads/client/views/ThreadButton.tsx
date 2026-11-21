@@ -1,7 +1,7 @@
+import type { MessageBarProps } from "@slock/plugins/messages/client/api";
+import { threadRootTs } from "@slock/plugins/messages/client/api/messageFocus";
 import { IconButton } from "@slock/ui";
 import { Show } from "solid-js";
-import type { MessageBarProps } from "../../../messages/client/api";
-import { threadRootTs } from "../../../messages/client/api/messageFocus";
 
 export default function ThreadButton(props: MessageBarProps) {
   return (

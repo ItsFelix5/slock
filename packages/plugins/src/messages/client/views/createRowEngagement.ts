@@ -1,17 +1,9 @@
-import type { TimerHandle } from "@slock/core";
-import { service } from "@slock/core/solid";
 import type { JSX } from "@solidjs/web";
-import { createSignal, onCleanup } from "solid-js";
-
-const env = service("env");
-
-const HOVER_SETTLE_MS = 120;
+import { createSignal } from "solid-js";
 
 export function createRowEngagement() {
   const [engaged, setEngaged] = createSignal(false);
   const [keyboardFocus, setKeyboardFocus] = createSignal<"row" | "within">();
-  let settle: TimerHandle | undefined;
-  onCleanup(() => settle?.cancel());
 
   const events: JSX.HTMLAttributes<HTMLDivElement> = {
     onFocusIn: (e) => {
@@ -29,12 +21,8 @@ export function createRowEngagement() {
       const next = e.relatedTarget;
       if (!(next instanceof Node && e.currentTarget.contains(next))) setEngaged(false);
     },
-    onMouseEnter: () => {
-      settle?.cancel();
-      settle = env.setTimeout(() => setEngaged(true), HOVER_SETTLE_MS);
-    },
+    onMouseEnter: () => setEngaged(true),
     onMouseLeave: (e) => {
-      settle?.cancel();
       if (!e.currentTarget.querySelector(":focus-visible")) setEngaged(false);
     },
   };

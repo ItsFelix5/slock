@@ -1,9 +1,9 @@
 import { service } from "@slock/core/solid";
+import { channelIconName } from "@slock/plugins/channels/client/api";
+import MrkdwnComposer from "@slock/plugins/composer/client/api/MrkdwnComposer";
 import type { ChannelDetails } from "@slock/types";
 import { Icon } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
-import { channelIconName } from "../../../channels/client/api";
-import MrkdwnComposer from "../../../composer/client/api/MrkdwnComposer";
 
 const usersStore = service("users");
 

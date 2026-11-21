@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import { uploadFilesForEdit } from "@slock/plugins/slack/client/api";
 import { mapFile, parseFileId } from "@slock/slack";
 import type { CanvasFile, CanvasImage, FileId, RawFile } from "@slock/types";
-import { uploadFilesForEdit } from "../../../slack/client/api";
 import type { FileEmbedValue, ImageEmbedValue } from "./canvasEmbedValues";
 import { resolveCanvasFile } from "./canvasRequests";
 

@@ -1,19 +1,19 @@
 import type { Setup } from "@slock/core";
-import type { BootstrapPayload, BootstrapSection } from "@slock/types";
-import { slackPart } from "../../bootstrap/server/api";
+import { slackPart } from "@slock/plugins/bootstrap/server/api";
 import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
-} from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { mutate, prefWrite, route, routes } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
+} from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { mutate, prefWrite, route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
 import type {
   ChannelSectionsReply,
   CreatedSectionReply,
-} from "../../slack/server/api/slackReplies";
-import { trimChannelSection } from "../../slack/server/api/trim/slackChannels";
+} from "@slock/plugins/slack/server/api/slackReplies";
+import { trimChannelSection } from "@slock/plugins/slack/server/api/trim/slackChannels";
+import type { BootstrapPayload, BootstrapSection } from "@slock/types";
 
 const list: Route[] = [
   route("GET", "sections", async (ctx) => {

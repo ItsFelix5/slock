@@ -3,11 +3,11 @@ import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
-} from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { route, routes } from "../../slack/server/api/router";
-import { callSlack } from "../../slack/server/api/slackClient";
-import type { AppCommandsReply } from "../../slack/server/api/slackReplies";
+} from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { route, routes } from "@slock/plugins/slack/server/api/router";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
+import type { AppCommandsReply } from "@slock/plugins/slack/server/api/slackReplies";
 
 const commandErrors: Record<string, string> = {
   dispatch_failed: "The app didn't respond.",

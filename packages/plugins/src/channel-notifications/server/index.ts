@@ -1,7 +1,7 @@
 import type { Setup } from "@slock/core";
-import { errorResponse } from "../../slack/server/api/jsonResponse";
-import type { Route } from "../../slack/server/api/router";
-import { mutate, prefWrite, route, routes } from "../../slack/server/api/router";
+import { errorResponse } from "@slock/plugins/slack/server/api/jsonResponse";
+import type { Route } from "@slock/plugins/slack/server/api/router";
+import { mutate, prefWrite, route, routes } from "@slock/plugins/slack/server/api/router";
 
 const list: Route[] = [
   route("PUT", "channels/:id/notifications", async (ctx) => {

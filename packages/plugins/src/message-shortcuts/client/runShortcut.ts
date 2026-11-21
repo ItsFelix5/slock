@@ -1,7 +1,7 @@
 import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { runMessageShortcut } from "@slock/plugins/slack/client/api";
 import type { ChannelId, MessageShortcut, Ts } from "@slock/types";
-import { runMessageShortcut } from "../../slack/client/api";
 
 const feedback = service("feedback");
 

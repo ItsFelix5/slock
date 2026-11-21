@@ -1,9 +1,9 @@
 import { BlockKit, MessageAttachmentsContext, Mrkdwn, TimeAnchorContext } from "@slock/blockkit";
 import { firstTruthy } from "@slock/core";
 import { Slot, service, usePoint } from "@slock/core/solid";
+import { encodeReplyLink, withReplyLink } from "@slock/plugins/message-links/client/api/replyLink";
 import type { Attachment, ChannelId, Message } from "@slock/types";
 import { createMemo, Show } from "solid-js";
-import { encodeReplyLink, withReplyLink } from "../../../../message-links/client/api/replyLink";
 import type { MessageContent } from "../../lib/messageRenderState";
 import { deleteOrDismissMessage } from "../../messageActions";
 import EditedLabel from "./EditedLabel";

@@ -1,3 +1,12 @@
+import {
+  isHostedChannel,
+  trimActivityCounts,
+  trimChannel,
+  trimCountGroup,
+  trimCountGroups,
+} from "@slock/plugins/slack/server/api/trim/slackChannels";
+import { trimUser } from "@slock/plugins/slack/server/api/trim/slackEntities";
+import { trimMessage } from "@slock/plugins/slack/server/api/trim/slackMessages";
 import type {
   GatewayEvent,
   ModalView,
@@ -6,15 +15,6 @@ import type {
   RawMessage,
   RawUser,
 } from "@slock/types";
-import {
-  isHostedChannel,
-  trimActivityCounts,
-  trimChannel,
-  trimCountGroup,
-  trimCountGroups,
-} from "../../slack/server/api/trim/slackChannels";
-import { trimUser } from "../../slack/server/api/trim/slackEntities";
-import { trimMessage } from "../../slack/server/api/trim/slackMessages";
 import { trimSyncEvent } from "./trimSync";
 
 type RawGatewayEvent = Omit<RawMessage, "ts" | "type"> &

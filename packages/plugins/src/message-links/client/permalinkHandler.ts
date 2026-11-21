@@ -1,7 +1,7 @@
 import { getHost, service } from "@slock/core/solid";
+import { fetchPermalinkMessage } from "@slock/plugins/slack/client/api";
 import type { ChannelId, Ts } from "@slock/types";
 import { onSettled } from "solid-js";
-import { fetchPermalinkMessage } from "../../slack/client/api";
 import { consumeSharedProtocolLink } from "./api/incomingLinks";
 import {
   createSlackPermalinkOpener,

@@ -1,6 +1,1 @@
-{
-  "id": "channel-sections",
-  "core": true,
-  "name": "Channel sections",
-  "requires": ["channels", "dms", "shell"]
-}
+{ "id": "channel-sections", "name": "Channel sections", "requires": ["channels", "dms", "shell"] }

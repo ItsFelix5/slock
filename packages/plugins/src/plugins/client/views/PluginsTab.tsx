@@ -40,9 +40,7 @@ export default function PluginsTab() {
     return item && plugin ? { item, name: plugin.name } : undefined;
   });
   const uploaded = () => sorted().filter((plugin) => plugins.installed().includes(plugin.id));
-  const core = () => sorted().filter((plugin) => plugin.core);
-  const instance = () =>
-    sorted().filter((plugin) => !(plugin.core || plugins.installed().includes(plugin.id)));
+  const instance = () => sorted().filter((plugin) => !plugins.installed().includes(plugin.id));
 
   return (
     <Show
@@ -61,7 +59,6 @@ export default function PluginsTab() {
               </For>
             </div>
           </Show>
-          <Section onOpenSettings={setOpenId} plugins={core()} title="Core" />
         </>
       }
       when={open()}

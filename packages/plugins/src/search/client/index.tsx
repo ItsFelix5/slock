@@ -1,11 +1,11 @@
 import type { Setup } from "@slock/core";
-import { service } from "@slock/core/solid";
+import { lazyChunk, service } from "@slock/core/solid";
 import { IconButton, useShortcut } from "@slock/ui";
-import { createSignal, lazy, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import { createSearchStore } from "./store";
 
-const GlobalSearch = lazy(() => import("./views/GlobalSearch"));
-const MessageSearchView = lazy(() => import("./views/MessageSearchView"));
+const GlobalSearch = lazyChunk(() => import("./views/GlobalSearch"));
+const MessageSearchView = lazyChunk(() => import("./views/MessageSearchView"));
 
 const setup: Setup = (ctx) => {
   const sidebar = service("sidebar");

@@ -1,6 +1,6 @@
+import type { MessageHeaderProps } from "@slock/plugins/messages/client/api";
 import { Avatar, AvatarStack } from "@slock/ui";
 import { Show } from "solid-js";
-import type { MessageHeaderProps } from "../../../messages/client/api";
 import { useDmPeople } from "./useDmPeople";
 
 export default function DmTitleAvatar(props: MessageHeaderProps) {

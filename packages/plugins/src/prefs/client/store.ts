@@ -1,9 +1,7 @@
 import { splitHighlightWords } from "@slock/blockkit";
 import type { TimerHandle } from "@slock/core";
 import { service } from "@slock/core/solid";
-import type { ChannelId, UserPrefs } from "@slock/types";
-import { createEffect, createMemo, createSignal } from "solid-js";
-import { defineQuery } from "../../query/client/api";
+import { defineQuery } from "@slock/plugins/query/client/api";
 import {
   endDndSnooze,
   fetchDndStatus,
@@ -11,7 +9,9 @@ import {
   setChannelNotifyAll,
   setDndSnooze,
   setHighlightWords as setHighlightWordsApi,
-} from "../../slack/client/api";
+} from "@slock/plugins/slack/client/api";
+import type { ChannelId, UserPrefs } from "@slock/types";
+import { createEffect, createMemo, createSignal } from "solid-js";
 import { createChannelFlags } from "./channelFlags";
 import {
   emojiUseScore as calculateEmojiUseScore,

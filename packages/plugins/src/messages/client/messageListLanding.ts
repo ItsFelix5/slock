@@ -1,8 +1,8 @@
 import type { TimerHandle } from "@slock/core";
 import { service } from "@slock/core/solid";
+import type { ChannelMessageTarget, View } from "@slock/plugins/conversations/client/api/types";
 import type { ChannelId, Message } from "@slock/types";
 import { createEffect, onCleanup, untrack } from "solid-js";
-import type { ChannelMessageTarget, View } from "../../conversations/client/api/types";
 import type { FeedScroll } from "./api/pane/scroll/feedScroll";
 import { initialLandingState, type LandingStep, planLanding } from "./lib/landingPlan";
 import { tsFromMs, tsToMs } from "./lib/tsTime";

@@ -1,8 +1,8 @@
+import type { Credentials } from "@slock/plugins/slack/server/api/auth";
+import { jsonResponse, slackErrorResponse } from "@slock/plugins/slack/server/api/jsonResponse";
+import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
+import type { FileInfoReply } from "@slock/plugins/slack/server/api/slackReplies";
 import type { FileId } from "@slock/types";
-import type { Credentials } from "../../slack/server/api/auth";
-import { jsonResponse, slackErrorResponse } from "../../slack/server/api/jsonResponse";
-import { callSlack } from "../../slack/server/api/slackClient";
-import type { FileInfoReply } from "../../slack/server/api/slackReplies";
 
 export function canEditCanvas(file: { editable?: unknown }): boolean {
   return file.editable === true;

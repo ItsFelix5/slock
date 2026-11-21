@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
+import type { MessageHeaderProps } from "@slock/plugins/messages/client/api";
 import { onCleanup } from "solid-js";
-import type { MessageHeaderProps } from "../../../messages/client/api";
 import FilesLinksPanel from "./FilesLinksPanel";
 
 const filesPanel = service("files-panel");

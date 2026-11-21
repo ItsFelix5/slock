@@ -1,7 +1,7 @@
 import { type Context, defined } from "@slock/core";
+import { createLocalPref } from "@slock/plugins/slack/client/api/localPref";
 import { Switch } from "@slock/ui";
 import { For } from "solid-js";
-import { createLocalPref } from "../../slack/client/api/localPref";
 
 export type SwitchSetting = { default: boolean; label: string };
 

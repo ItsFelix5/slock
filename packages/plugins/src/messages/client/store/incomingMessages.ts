@@ -1,3 +1,4 @@
+import { isDmId } from "@slock/plugins/dms/client/api";
 import { ifPresent, isHiddenSubtype, mapMessage, parseChannelId, parseTs } from "@slock/slack";
 import type {
   Channel,
@@ -9,7 +10,6 @@ import type {
   User,
   UserId,
 } from "@slock/types";
-import { isDmId } from "../../../dms/client/api";
 import { isPendingMessage } from "../api/messageMerge";
 import type { LocatedMessages } from "../lib/messageLocations";
 import { createChannelActivityBatcher } from "./channelActivity";

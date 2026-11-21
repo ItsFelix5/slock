@@ -1,9 +1,11 @@
-import { service } from "@slock/core/solid";
+import { lazyChunk, service } from "@slock/core/solid";
+import type { MessageBarProps } from "@slock/plugins/messages/client/api";
 import { IconButton } from "@slock/ui";
-import { lazy, Show } from "solid-js";
-import type { MessageBarProps } from "../../../messages/client/api";
+import { Show } from "solid-js";
 
-const FloatingEmojiPicker = lazy(() => import("../../../emoji/client/api/FloatingEmojiPicker"));
+const FloatingEmojiPicker = lazyChunk(
+  () => import("@slock/plugins/emoji/client/api/FloatingEmojiPicker"),
+);
 
 export default function ReactButton(props: MessageBarProps) {
   const users = service("users");

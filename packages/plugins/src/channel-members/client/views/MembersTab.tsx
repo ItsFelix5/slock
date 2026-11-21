@@ -1,4 +1,5 @@
 import { service } from "@slock/core/solid";
+import type { MemberFilter } from "@slock/plugins/channel-details/client/api";
 import type { ChannelId, User } from "@slock/types";
 import {
   Avatar,
@@ -10,9 +11,8 @@ import {
 } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { createSignal, For, Show } from "solid-js";
-import type { MemberFilter } from "../../../channel-details/client/api";
 import { createChannelMembers } from "../channelMembers";
-import "../../../channel-details/client/api/ChannelDetails.css";
+import "@slock/plugins/channel-details/client/api/ChannelDetails.css";
 import "./MembersTab.css";
 
 const feedback = service("feedback");

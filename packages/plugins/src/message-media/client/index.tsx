@@ -1,6 +1,6 @@
 import type { Setup } from "@slock/core";
+import type { MessageBodyProps } from "@slock/plugins/messages/client/api";
 import { Show } from "solid-js";
-import type { MessageBodyProps } from "../../messages/client/api";
 import MessageFiles from "./api/MessageFiles";
 import MessageAttachmentList from "./views/MessageAttachmentList";
 import PendingFiles from "./views/PendingFiles";

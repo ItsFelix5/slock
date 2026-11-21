@@ -1,4 +1,6 @@
 import { Slot, service } from "@slock/core/solid";
+import { openConversationInSplit } from "@slock/plugins/conversations/client/api/nav";
+import { SplitNavigation } from "@slock/plugins/shell/client/api/SplitNavigation";
 import type { DirectMessage } from "@slock/types";
 import {
   Avatar,
@@ -9,8 +11,6 @@ import {
   useContextMenu,
 } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
-import { openConversationInSplit } from "../../../../conversations/client/api/nav";
-import { SplitNavigation } from "../../../../shell/client/api/SplitNavigation";
 import { useRowPrefetch } from "./rowPrefetch";
 import SidebarRowEnd from "./SidebarRowEnd";
 import "./SidebarRow.css";

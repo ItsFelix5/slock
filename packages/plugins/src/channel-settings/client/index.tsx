@@ -1,7 +1,8 @@
 import type { Setup } from "@slock/core";
-import { lazy, Show } from "solid-js";
+import { lazyChunk } from "@slock/core/solid";
+import { Show } from "solid-js";
 
-const SettingsTab = lazy(() => import("./views/SettingsTab"));
+const SettingsTab = lazyChunk(() => import("./views/SettingsTab"));
 
 const setup: Setup = (ctx) => {
   ctx.add(

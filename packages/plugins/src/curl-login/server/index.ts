@@ -1,7 +1,7 @@
 import type { Setup } from "@slock/core";
-import { parseCredentials } from "../../slack/server/api/auth";
-import { route, routes } from "../../slack/server/api/router";
-import { connectAccount } from "../../slack/server/api/session";
+import { parseCredentials } from "@slock/plugins/slack/server/api/auth";
+import { route, routes } from "@slock/plugins/slack/server/api/router";
+import { connectAccount } from "@slock/plugins/slack/server/api/session";
 import { parseSlackCurl } from "./parseSlackCurl";
 
 const list = [

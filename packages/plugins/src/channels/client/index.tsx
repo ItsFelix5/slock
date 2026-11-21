@@ -1,7 +1,7 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { gatewayHandler } from "@slock/plugins/realtime/client/api";
 import { ifPresent, parseChannelId } from "@slock/slack";
-import { gatewayHandler } from "../../realtime/client/api";
 import { channelDisplayName } from "./api";
 import { createMembershipHandler, MEMBERSHIP_EVENTS } from "./membershipEvents";
 import { createChannelsStore } from "./store";

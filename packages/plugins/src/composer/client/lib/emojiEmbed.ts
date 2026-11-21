@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
+import { standardEmojiUnicode } from "@slock/plugins/emoji/client/api/emojiSearch";
 import Quill, { getEmbedBlot } from "@slock/ui/editor/quill";
 import { asElement } from "@slock/ui/editor/quillText";
-import { standardEmojiUnicode } from "../../../emoji/client/api/emojiSearch";
 
 const emoji = service("emoji");
 

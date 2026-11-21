@@ -4,14 +4,12 @@ import {
   constants,
   gzip as gzipCallback,
 } from "node:zlib";
+import { isCompressible } from "@slock/installer/compressible";
 
 const gzip = promisify(gzipCallback);
 const brotliCompress = promisify(brotliCompressCallback);
 const MIN_COMPRESSIBLE_BYTES = 1024;
 const BROTLI_QUALITY = 4;
-
-const COMPRESSIBLE_CONTENT_TYPE_RE =
-  /^(?:text\/|application\/(?:javascript|json|xml|wasm)|image\/svg\+xml)/i;
 
 export function acceptsEncoding(acceptEncoding: string | null, wanted: "gzip" | "br"): boolean {
   return Boolean(
@@ -29,10 +27,6 @@ export function headersWithVary(headers: Headers | Record<string, string>): Head
     result.set("vary", vary ? `${vary}, Accept-Encoding` : "Accept-Encoding");
   }
   return result;
-}
-
-export function isCompressible(contentType: string | null): boolean {
-  return Boolean(!contentType || COMPRESSIBLE_CONTENT_TYPE_RE.test(contentType));
 }
 
 function encode(bytes: ArrayBuffer, encoding: "br" | "gzip"): Promise<Buffer> {

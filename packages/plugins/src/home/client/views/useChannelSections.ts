@@ -1,8 +1,8 @@
 import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { sectionMoveTarget } from "@slock/plugins/channels/client/api/sectionMutations";
+import { conversationTarget } from "@slock/plugins/conversations/client/api/nav";
 import { type Accessor, createMemo, createSignal } from "solid-js";
-import { sectionMoveTarget } from "../../../channels/client/api/sectionMutations";
-import { conversationTarget } from "../../../conversations/client/api/nav";
 import { buildCategories, type Category } from "./categories";
 import { useChannelRows } from "./channelRows";
 

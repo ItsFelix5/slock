@@ -1,6 +1,6 @@
 import type { Setup } from "@slock/core";
-import { route, routes } from "../../slack/server/api/router";
-import { connectAccount } from "../../slack/server/api/session";
+import { route, routes } from "@slock/plugins/slack/server/api/router";
+import { connectAccount } from "@slock/plugins/slack/server/api/session";
 import { type EmailChallenge, exchangeEmailCode, requestEmailCode } from "./hackclubAuth";
 
 const list = [

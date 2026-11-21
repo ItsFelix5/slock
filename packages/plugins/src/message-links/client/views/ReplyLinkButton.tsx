@@ -1,6 +1,6 @@
+import type { MessageBarProps } from "@slock/plugins/messages/client/api";
 import { IconButton } from "@slock/ui";
 import { Show } from "solid-js";
-import type { MessageBarProps } from "../../../messages/client/api";
 
 export default function ReplyLinkButton(props: MessageBarProps) {
   return (

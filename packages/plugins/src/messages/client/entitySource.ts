@@ -1,10 +1,10 @@
 import type { EntityKind, EntitySource } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
+import { channelIconName } from "@slock/plugins/channels/client/api";
+import { fetchBrowsableChannels, openDm } from "@slock/plugins/slack/client/api";
 import { isChannelId, isUserId } from "@slock/slack";
 import type { Channel, ConversationFilter, DirectMessage, User } from "@slock/types";
 import { type ComboboxOption, fuzzySearch } from "@slock/ui";
-import { channelIconName } from "../../channels/client/api";
-import { fetchBrowsableChannels, openDm } from "../../slack/client/api";
 
 const usersStore = service("users");
 const channelsStore = service("channels");

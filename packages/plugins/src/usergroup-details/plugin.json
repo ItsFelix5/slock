@@ -1,6 +1,5 @@
 {
   "id": "usergroup-details",
-  "core": true,
   "name": "Pinggroup details",
   "requires": ["channels", "conversations", "shell", "usergroups", "users"]
 }

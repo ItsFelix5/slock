@@ -1,1 +1,1 @@
-{ "id": "slack", "core": true, "name": "Slack API", "requires": ["query"] }
+{ "id": "slack", "name": "Slack API", "requires": ["query"] }

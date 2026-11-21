@@ -1,6 +1,6 @@
 {
   "id": "channel-details",
-  "core": true,
   "name": "Channel details",
-  "requires": ["channels", "query", "realtime", "shell", "users"]
+  "requires": ["channels", "query", "realtime", "shell", "users"],
+  "boot": true
 }

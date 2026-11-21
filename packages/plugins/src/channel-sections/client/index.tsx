@@ -1,6 +1,6 @@
 import type { Setup } from "@slock/core";
+import type { ChannelMenuProps, MessageHeaderProps } from "@slock/plugins/messages/client/api";
 import { Show } from "solid-js";
-import type { ChannelMenuProps, MessageHeaderProps } from "../../messages/client/api";
 import ChannelMoveMenu from "./views/ChannelMoveMenu";
 
 function MoveToItem(props: ChannelMenuProps) {

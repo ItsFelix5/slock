@@ -5,8 +5,8 @@ import { Button, Icon, Overlay, PanelHeader, useEscapeClose } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { createSignal, createUniqueId, Match, Show, Switch } from "solid-js";
 import "./FileViewer.css";
+import { defineQuery } from "@slock/plugins/query/client/api";
 import { isWaiting } from "@slock/resource";
-import { defineQuery } from "../../../query/client/api";
 import { parseEml } from "../views/mailParse";
 import { emailSrcdoc } from "./emailSrcdoc";
 

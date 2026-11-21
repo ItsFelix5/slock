@@ -1,9 +1,9 @@
 import { Slot, service } from "@slock/core/solid";
+import { channelHasDraft } from "@slock/plugins/drafts/client/api";
 import type { ChannelId } from "@slock/types";
 import { HoverCard, Icon, Tooltip } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { createMemo, For } from "solid-js";
-import { channelHasDraft } from "../../../../drafts/client/api";
 import { unreadSummary } from "../lib/unreadSummary";
 import DraftList from "./DraftList";
 import "./SidebarRow.css";

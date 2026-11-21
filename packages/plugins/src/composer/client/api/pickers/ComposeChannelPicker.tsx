@@ -1,9 +1,9 @@
 import { service } from "@slock/core/solid";
+import { channelDisplayName, channelIconName } from "@slock/plugins/channels/client/api";
+import { fetchBrowsableChannels } from "@slock/plugins/slack/client/api";
 import type { ChannelId } from "@slock/types";
 import { Icon } from "@slock/ui";
 import { createMemo } from "solid-js";
-import { channelDisplayName, channelIconName } from "../../../../channels/client/api";
-import { fetchBrowsableChannels } from "../../../../slack/client/api";
 import ComposePicker from "../../views/popovers/ComposePicker";
 import "./ComposeUserPicker.css";
 

@@ -1,1 +1,1 @@
-{ "id": "keybinds", "core": true, "name": "Keybinds", "requires": ["settings", "shell"] }
+{ "id": "keybinds", "name": "Keybinds", "requires": ["settings", "shell"] }

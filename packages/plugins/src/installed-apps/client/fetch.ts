@@ -1,6 +1,6 @@
+import { defineQuery } from "@slock/plugins/query/client/api";
 import { apiGet, isChannelId, isUserId } from "@slock/slack";
 import type { ChannelId, UserId } from "@slock/types";
-import { defineQuery } from "../../query/client/api";
 
 export type InstalledApp = { id: string; name: string; icon?: string; official: boolean };
 

@@ -1,7 +1,7 @@
 import type { Services } from "@slock/core/types";
+import { gatewayHandler } from "@slock/plugins/realtime/client/api";
 import { ifPresent, parseChannelId, parseTs, parseUserId } from "@slock/slack";
 import { createConcurrencyQueue } from "@slock/ui";
-import { gatewayHandler } from "../../../realtime/client/api";
 import { createIncomingMessageHandler } from "./incomingMessages";
 import type { createMessagesStore } from "./index";
 

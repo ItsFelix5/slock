@@ -1,12 +1,13 @@
 import type { Setup } from "@slock/core";
+import { lazyChunk } from "@slock/core/solid";
 import { isConfigured, REAUTH_EVENT } from "@slock/slack";
 import { Button } from "@slock/ui";
-import { createSignal, lazy } from "solid-js";
+import { createSignal } from "solid-js";
 import { confirmLogout, logoutAndRestart, restartApp } from "./session";
 import "./views/ConnectScreen.css";
 
-const ConnectAccountForm = lazy(() => import("./views/ConnectAccountForm"));
-const AccountTab = lazy(() => import("./views/AccountTab"));
+const ConnectAccountForm = lazyChunk(() => import("./views/ConnectAccountForm"));
+const AccountTab = lazyChunk(() => import("./views/AccountTab"));
 
 function ConnectScreen() {
   document.title = "Connect to Slack";

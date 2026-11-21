@@ -8,7 +8,7 @@ const PURGE_INTERVAL_MS = 60 * 60 * 1000;
 
 const setup: Setup = (ctx) => {
   const env = ctx.get("env");
-  const store = createLogStore(`${Bun.env.SLOCK_DATA ?? "data"}/message-logger.sqlite`, env);
+  const store = createLogStore(`${ctx.get("instance").dataDir(ctx.id)}/log.sqlite`, env);
   store.purge();
   const purgeTimer = env.setInterval(store.purge, PURGE_INTERVAL_MS);
   ctx.onCleanup(() => {

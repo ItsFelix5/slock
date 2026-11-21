@@ -1,10 +1,11 @@
 import type { Setup } from "@slock/core";
+import { lazyChunk } from "@slock/core/solid";
 import { useShortcut } from "@slock/ui";
-import { lazy } from "solid-js";
+
 import { startRecorder } from "./recorder";
 import { buildReport } from "./report";
 
-const view = lazy(() => import("./views/PerfTab"));
+const view = lazyChunk(() => import("./views/PerfTab"));
 
 const setup: Setup = (ctx) => {
   const settings = ctx.get("settings");

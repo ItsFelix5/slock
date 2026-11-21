@@ -1,6 +1,6 @@
+import AttachmentCard from "@slock/plugins/message-media/client/api/attachmentCard";
+import RemovableAttachment from "@slock/plugins/message-media/client/api/RemovableAttachment";
 import { For, Show } from "solid-js";
-import AttachmentCard from "../../../message-media/client/api/attachmentCard";
-import RemovableAttachment from "../../../message-media/client/api/RemovableAttachment";
 import type { LinkPreview } from "../lib/linkPreviews";
 
 export default function ComposerLinkPreviews(props: {

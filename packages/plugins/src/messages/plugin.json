@@ -1,6 +1,5 @@
 {
   "id": "messages",
-  "core": true,
   "name": "Messages",
   "requires": [
     "bootstrap",
@@ -13,5 +12,6 @@
     "shell",
     "unread",
     "users"
-  ]
+  ],
+  "boot": true
 }

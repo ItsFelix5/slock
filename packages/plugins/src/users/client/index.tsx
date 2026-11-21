@@ -1,7 +1,7 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { gatewayHandler } from "@slock/plugins/realtime/client/api";
 import { isUserId } from "@slock/slack";
-import { gatewayHandler } from "../../realtime/client/api";
 import { createUsersStore } from "./store";
 
 const setup: Setup = (ctx) => {

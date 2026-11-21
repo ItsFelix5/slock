@@ -13,8 +13,6 @@ export type ChannelDetailsTabProps = {
   refetch(): void;
 };
 
-export type ChannelDetailsHoverProps = { channelId: ChannelId; close(): void };
-
 export type ChannelDetailsTabItem = {
   id: string;
   label: string;
@@ -28,7 +26,6 @@ declare module "@slock/core/types" {
     "channel-details": ReturnType<typeof createChannelDetailsStore>;
   }
   interface Points {
-    "channel-details.hoverAction": Component<ChannelDetailsHoverProps>;
     "channel-details.tab": ChannelDetailsTabItem;
   }
 }

@@ -22,7 +22,7 @@
       },
     },
     "packages/app": {
-      "name": "slock-web",
+      "name": "@slock/app",
       "version": "0.0.0",
       "dependencies": {
         "@slock/core": "workspace:*",
@@ -51,18 +51,30 @@
         "solid-js": "2.0.3",
       },
     },
+    "packages/installer": {
+      "name": "@slock/installer",
+      "version": "0.0.0",
+      "dependencies": {
+        "@slock/core": "workspace:*",
+        "@solidjs/compiler": "2.0.2",
+      },
+      "devDependencies": {
+        "@types/node": "^24.13.2",
+        "bun-types": "^1.3.14",
+      },
+    },
     "packages/plugins": {
       "name": "@slock/plugins",
       "version": "0.0.0",
       "dependencies": {
         "@slock/blockkit": "workspace:*",
         "@slock/core": "workspace:*",
+        "@slock/installer": "workspace:*",
         "@slock/resource": "workspace:*",
         "@slock/server": "workspace:*",
         "@slock/slack": "workspace:*",
         "@slock/types": "workspace:*",
         "@slock/ui": "workspace:*",
-        "@solidjs/compiler": "2.0.2",
         "@solidjs/web": "2.0.3",
         "quill": "^2",
         "solid-js": "2.0.3",
@@ -92,6 +104,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@slock/core": "workspace:*",
+        "@slock/installer": "workspace:*",
       },
       "devDependencies": {
         "@types/node": "^24.13.2",
@@ -148,9 +161,13 @@
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.2.7", "", { "dependencies": { "@tybys/wasm-util": "^0.10.3" }, "peerDependencies": { "@emnapi/core": "^1.7.1 || 2.0.0-beta.2 || 2.0.0-beta.3", "@emnapi/runtime": "^1.7.1 || 2.0.0-beta.2 || 2.0.0-beta.3" } }, "sha512-zJccwplOAbgfZju95IUHazLnx9RAPtPN2YGJXI6UbrgeaR9QfPjGrQL6ERkSAtnVCA4Q+83ApGyaX5zdpCaKkQ=="],
 
+    "@slock/app": ["@slock/app@workspace:packages/app"],
+
     "@slock/blockkit": ["@slock/blockkit@workspace:packages/blockkit"],
 
     "@slock/core": ["@slock/core@workspace:packages/core"],
+
+    "@slock/installer": ["@slock/installer@workspace:packages/installer"],
 
     "@slock/plugins": ["@slock/plugins@workspace:packages/plugins"],
 
@@ -172,9 +189,9 @@
 
     "@solidjs/compiler-darwin-x64": ["@solidjs/compiler-darwin-x64@2.0.2", "", { "os": "darwin", "cpu": "x64" }, "sha512-iTcLdvzEFF3jfDwnmdpax4q1eVd6Jth0u59BzA++p345feNXFSJvzS/bGE5UrGMe9NsLFFV1IEHkZyEpbSOovw=="],
 
-    "@solidjs/compiler-linux-arm64-gnu": ["@solidjs/compiler-linux-arm64-gnu@2.0.2", "", { "os": "linux", "cpu": "arm64", "libc": "glibc" }, "sha512-DBdg24ud/Eu/+Ns9jgwy0AmyyExhoXn5R14VBkGX9w5lxiI3k/eG21im+hsUkqdwt/Ej0CazauifTdGaEceUzw=="],
+    "@solidjs/compiler-linux-arm64-gnu": ["@solidjs/compiler-linux-arm64-gnu@2.0.2", "", { "os": "linux", "cpu": "arm64" }, "sha512-DBdg24ud/Eu/+Ns9jgwy0AmyyExhoXn5R14VBkGX9w5lxiI3k/eG21im+hsUkqdwt/Ej0CazauifTdGaEceUzw=="],
 
-    "@solidjs/compiler-linux-x64-gnu": ["@solidjs/compiler-linux-x64-gnu@2.0.2", "", { "os": "linux", "cpu": "x64", "libc": "glibc" }, "sha512-tRbkqVgJH7rOghIFe9j3MRvosx8ueNsGIDAd+XIUQbexhbM7KMCOJnWLmL7J/9PMPmbk34zJYz0fwwFSBp8ULQ=="],
+    "@solidjs/compiler-linux-x64-gnu": ["@solidjs/compiler-linux-x64-gnu@2.0.2", "", { "os": "linux", "cpu": "x64" }, "sha512-tRbkqVgJH7rOghIFe9j3MRvosx8ueNsGIDAd+XIUQbexhbM7KMCOJnWLmL7J/9PMPmbk34zJYz0fwwFSBp8ULQ=="],
 
     "@solidjs/compiler-wasm32-wasi": ["@solidjs/compiler-wasm32-wasi@2.0.2", "", { "dependencies": { "@emnapi/core": "1.11.3", "@emnapi/runtime": "1.11.3", "@napi-rs/wasm-runtime": "^1.1.6" } }, "sha512-wh69K4+T5Krrts/sipnYQtks0II2ZZyuPSadT7v1O3prcA96E3IiKA4Kr5+K54nsRSYv1GsW3NWTyt/Zje0l0Q=="],
 
@@ -214,7 +231,6 @@
 
     "parchment": ["parchment@3.0.0", "", {}, "sha512-HUrJFQ/StvgmXRcQ1ftY6VEZUq3jA2t9ncFN4F84J/vN0/FPpQF+8FKXb3l6fLces6q0uOHj6NJn+2xvZnxO6A=="],
 
-
     "quill": ["quill@2.0.3", "", { "dependencies": { "eventemitter3": "^5.0.1", "lodash-es": "^4.17.21", "parchment": "^3.0.0", "quill-delta": "^5.1.0" } }, "sha512-xEYQBqfYx/sfb33VJiKnSJp8ehloavImQ2A6564GAbqG55PGw1dAWUn1MUbQB62t0azawUS2CZZhWCjO8gRvTw=="],
 
     "quill-delta": ["quill-delta@5.1.0", "", { "dependencies": { "fast-diff": "^1.3.0", "lodash.clonedeep": "^4.5.0", "lodash.isequal": "^4.5.0" } }, "sha512-X74oCeRI4/p0ucjb5Ma8adTXd9Scumz367kkMK5V/IatcX6A0vlgLgKbzXWy5nZmCGeNJm2oQX0d2Eqj+ZIlCA=="],
@@ -224,8 +240,6 @@
     "seroval-plugins": ["seroval-plugins@1.8.0", "", { "peerDependencies": { "seroval": "^1.8.0" } }, "sha512-96vBb12rDvPPwdKUgWw1op3fGq8AVBFOr0IllbnM72yR5J9WWXF18cQ4g1XfDO7HCyh2dt70P3XdtyRayP8FWg=="],
 
     "slock-plugin-example": ["slock-plugin-example@workspace:examplePlugin"],
-
-    "slock-web": ["slock-web@workspace:packages/app"],
 
     "solid-js": ["solid-js@2.0.3", "", { "dependencies": { "@solidjs/signals": "^2.0.3", "seroval": "^1.8.0", "seroval-plugins": "^1.8.0" } }, "sha512-XOHstv+GAJjfcSGZU9xfX5q6Mbqmv72IcdWh2JuMx3KvBbfpQPdy/Yl00A1ouk7A0etjqhNe799CPdr6i7koWg=="],
 
