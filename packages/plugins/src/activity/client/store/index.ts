@@ -1,6 +1,7 @@
 import type { Env } from "@slock/core";
+import { createFlags } from "@slock/core/solid";
 import type { ActivityItem, ChannelId, Message, Ts, User, UserId } from "@slock/types";
-import { createSignal, createStore } from "solid-js";
+import { createSignal } from "solid-js";
 import {
   fetchChannelLastRead,
   fetchHistoryAround,
@@ -51,7 +52,7 @@ export function createActivityStore(
     env: Env;
     ready: () => boolean;
     isBotUser?: (userId: UserId) => boolean;
-    lastReadByChannel: Record<string, number | undefined>;
+    lastReadByChannel: Record<ChannelId, number | undefined>;
     reactionMessageFor?: (channelId: ChannelId, ts: Ts) => Message | undefined;
     setLastReadByChannel: (channelId: ChannelId, ts: number) => void;
     setThreadRead: (channelId: ChannelId, threadTs: Ts, ts: Ts) => Promise<boolean>;
@@ -64,7 +65,7 @@ export function createActivityStore(
   const [currentRowKey, setCurrentRowKey] = createSignal<string>();
   const items = createActivityItems();
   const activityItems = items.list;
-  const [archivedIds, setArchivedIds] = createStore<Record<string, boolean>>({});
+  const archivedIds = createFlags<string>();
   const activityReadSync = createActivityReadSync(deps.syncChannelRead);
   const {
     activityItemReadState,
@@ -127,7 +128,7 @@ export function createActivityStore(
   });
 
   function isActivityItemArchived(item: ActivityItem): boolean {
-    if (archivedIds[item.id]) return true;
+    if (archivedIds.has(item.id)) return true;
     const me = deps.currentUser();
     if (!me) return false;
     const message = deps.reactionMessageFor?.(item.channelId, item.ts);
@@ -148,9 +149,7 @@ export function createActivityStore(
         item.ts,
         item.linkedItemId,
       );
-      setArchivedIds((ids) => {
-        ids[item.id] = true;
-      });
+      archivedIds.set(item.id, true);
       markActivityItemsRead([item]);
     } finally {
       archivePending.delete(item.id);
@@ -180,7 +179,7 @@ export function createActivityStore(
     requestActivityRefresh,
     retryActivityLoad,
     retryActivityReadSync: activityReadSync.retry,
-    setCurrentRowKey,
+    setCurrentRowKey: (key: string | undefined) => setCurrentRowKey(key),
     setGatewayActivityBadgeCounts,
     unreadActivityCount,
     unreadPingCount,

@@ -2,7 +2,7 @@ import type { BlockActionContext } from "@slock/blockkit";
 import { BlockKit, EmojiText, Mrkdwn, safeMediaUrl, safeUrl } from "@slock/blockkit";
 import { decodeTextEntities } from "@slock/slack";
 import type { Attachment } from "@slock/types";
-import { VideoPlayer } from "@slock/ui";
+import { constrainMediaDimensions, VideoPlayer } from "@slock/ui";
 import { For, Show } from "solid-js";
 import "./AttachmentCard.css";
 import MessageFiles from "../api/MessageFiles";
@@ -73,16 +73,19 @@ export default function AttachmentContent(props: {
         </div>
       </Show>
       <Show when={safeMediaUrl(a.videoUrl)}>
-        {(url) => (
-          <VideoPlayer
-            ariaLabel={a.title || "Embedded video"}
-            class="attachment-video"
-            height={a.videoHeight}
-            openHref={url()}
-            src={url()}
-            width={a.videoWidth}
-          />
-        )}
+        {(url) => {
+          const size = constrainMediaDimensions(a.videoWidth, a.videoHeight, 360, 320, 360, 202);
+          return (
+            <VideoPlayer
+              ariaLabel={a.title || "Embedded video"}
+              class="attachment-video"
+              height={size.height}
+              openHref={url()}
+              src={url()}
+              width={size.width}
+            />
+          );
+        }}
       </Show>
       <Show when={!a.videoUrl && a.imageUrl}>
         <AttachmentImage attachment={a} />

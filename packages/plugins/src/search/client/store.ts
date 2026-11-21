@@ -40,6 +40,6 @@ export function createSearchStore(deps: { showScreen: () => void }) {
     removeSearchHistoryEntry,
     screenQuery,
     searchHistory,
-    setScreenQuery,
+    setScreenQuery: (query: string) => setScreenQuery(query),
   };
 }

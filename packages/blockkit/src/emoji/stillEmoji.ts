@@ -2,9 +2,7 @@ export const STILL_EMOJI_SIZE = 40;
 
 export type StillEmoji = { bitmap: ImageBitmap; x: number; y: number };
 
-const stills = new Map<string, Promise<StillEmoji>>();
-
-function decode(url: string): Promise<StillEmoji> {
+export function decodeStillEmoji(url: string): Promise<StillEmoji> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -29,11 +27,14 @@ function decode(url: string): Promise<StillEmoji> {
   });
 }
 
-export function loadStillEmoji(url: string): Promise<StillEmoji> {
-  const cached = stills.get(url);
-  if (cached) return cached;
-  const pending = decode(url);
-  stills.set(url, pending);
-  pending.catch(() => stills.delete(url));
-  return pending;
+export function createStillEmojiCache(): (url: string) => Promise<StillEmoji> {
+  const stills = new Map<string, Promise<StillEmoji>>();
+  return (url) => {
+    const cached = stills.get(url);
+    if (cached) return cached;
+    const pending = decodeStillEmoji(url);
+    stills.set(url, pending);
+    pending.catch(() => stills.delete(url));
+    return pending;
+  };
 }

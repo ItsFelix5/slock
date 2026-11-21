@@ -1,8 +1,12 @@
+import type { TimerHandle } from "@slock/core";
+import { service } from "@slock/core/solid";
 import { createEffect, onCleanup } from "solid-js";
 import { canvasTitle, canvasToOps } from "./canvasDelta";
 import type { CanvasNames } from "./canvasEmbeds";
 import type { LoadedCanvas } from "./canvasRequests";
 import type { createCanvasSync } from "./canvasSync";
+
+const env = service("env");
 
 const REMOTE_CHECK_DELAY_MS = 1500;
 const REMOTE_POLL_MS = 10_000;
@@ -43,19 +47,19 @@ export function watchRemoteChanges(options: {
   };
   const onWindowFocus = () => void check();
 
-  let checkTimer: ReturnType<typeof setTimeout> | undefined;
+  let checkTimer: TimerHandle | undefined;
   const scheduleCheck = (delay: number) => {
-    clearTimeout(checkTimer);
-    checkTimer = setTimeout(() => void check(), delay);
+    env.clearTimeout(checkTimer);
+    checkTimer = env.setTimeout(() => void check(), delay);
   };
-  createEffect(options.remoteChangeTick, () => scheduleCheck(REMOTE_CHECK_DELAY_MS), {
+  createEffect(options.remoteChangeTick, () => void scheduleCheck(REMOTE_CHECK_DELAY_MS), {
     defer: true,
   });
   const onFocusOut = () => {
     if (skipped) scheduleCheck(REMOTE_CHECK_DELAY_MS);
   };
 
-  const pollTimer = setInterval(() => {
+  const pollTimer = env.setInterval(() => {
     if (document.visibilityState === "visible") void check();
   }, REMOTE_POLL_MS);
 
@@ -64,8 +68,8 @@ export function watchRemoteChanges(options: {
   document.addEventListener("focusout", onFocusOut);
   document.addEventListener("visibilitychange", onVisibility);
   onCleanup(() => {
-    clearTimeout(checkTimer);
-    clearInterval(pollTimer);
+    env.clearTimeout(checkTimer);
+    env.clearInterval(pollTimer);
     window.removeEventListener("beforeunload", beforeUnload);
     window.removeEventListener("focus", onWindowFocus);
     document.removeEventListener("focusout", onFocusOut);

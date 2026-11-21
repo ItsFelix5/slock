@@ -17,12 +17,11 @@ export default function MessageSearchView() {
 
   const [serializedQuery, setSerializedQuery] = createSignal("");
   const [sortMode, setSortMode] = createSignal<SortMode>("relevant");
-  const search = createMessageSearch(searchStore.recordSearch);
+  const search = createMessageSearch(sortMode, searchStore.recordSearch);
 
-  const runSearch = (query = serializedQuery(), mode = sortMode(), immediate = true) => {
+  const runSearch = (query = serializedQuery()) => {
     searchStore.setScreenQuery(query);
-    if (!query.trim()) search.clear();
-    search.run(query, mode, { immediate });
+    search.search(query);
   };
   const runHistorySearch = (query: string) => {
     input?.setQuery(query);
@@ -30,7 +29,7 @@ export default function MessageSearchView() {
   };
   const changeSort = (mode: SortMode) => {
     setSortMode(mode);
-    if (canSearch()) runSearch(serializedQuery(), mode);
+    if (canSearch()) runSearch();
   };
   const goToMessage = (r: SearchResult) => {
     navigateToSlackPermalink(
@@ -61,10 +60,8 @@ export default function MessageSearchView() {
         loading={search.loading()}
         onHistorySearch={runHistorySearch}
         onResult={goToMessage}
-        onRetry={() => runSearch()}
         onSortModeChange={changeSort}
         results={search.results()}
-        searchError={search.error()}
         sortMode={sortMode()}
       />
     </div>

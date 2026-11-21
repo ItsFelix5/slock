@@ -15,16 +15,6 @@ export function unmountAll() {
   document.body.replaceChildren();
 }
 
-export function pressKey(element: Element, key: string) {
-  const event = new KeyboardEvent("keydown", {
-    bubbles: true,
-    cancelable: true,
-    key,
-  });
-  element.dispatchEvent(event);
-  return event;
-}
-
 export function attrs(host: Element, selector: string, attribute: string): (string | null)[] {
   return [...host.querySelectorAll(selector)].map((element) => element.getAttribute(attribute));
 }

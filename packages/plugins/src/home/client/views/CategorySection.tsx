@@ -1,8 +1,8 @@
+import { sameItems } from "@slock/core";
 import { service } from "@slock/core/solid";
 import type { ChannelId } from "@slock/types";
 import { ariaBoolean, InlineFeedback, useEditShortcuts } from "@slock/ui";
 import { createMemo, For, Show } from "solid-js";
-import { idsEqual } from "./categories";
 import { useChannelRows } from "./channelRows";
 import ChannelRow from "./rows/ChannelRow";
 import { DmRow } from "./rows/DmRow";
@@ -52,7 +52,7 @@ export default function CategorySection(props: { id: string; sections: ChannelSe
       .find((c) => c.id === props.id),
   );
   const channelIds = createMemo(() => cat()?.channels.map((ch) => ch.id) ?? [], {
-    equals: idsEqual,
+    equals: sameItems,
   });
   const dms = () => {
     const category = cat();

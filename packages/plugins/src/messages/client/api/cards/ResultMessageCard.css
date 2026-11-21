@@ -11,7 +11,7 @@
 }
 
 .result-message-card:hover,
-.result-message-card:focus-within {
+.result-message-card:has(:focus-visible) {
   background: var(--hover-bg);
   border-color: var(--border-strong);
 }

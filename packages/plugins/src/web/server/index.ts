@@ -1,11 +1,10 @@
-import { readFile } from "node:fs/promises";
 import type { HttpHandler, Setup } from "@slock/core";
 import { jsonResponse } from "../../slack/server/api/jsonResponse";
 import { route, routes } from "../../slack/server/api/router";
 import { APP_DIR, type build, writeDist } from "./build";
 import { buildPlugin } from "./buildPlugin";
 import { createDevBuild } from "./devBuild";
-import { channelPreloadLinks } from "./indexHtml";
+import { preloadLinkHeader } from "./indexHtml";
 import { listPlugins, operatorPluginFile } from "./operatorPlugins";
 import { serveFile } from "./staticFiles";
 
@@ -19,14 +18,14 @@ function scriptHash(content: string): string {
 }
 
 async function builtImportMapHash(): Promise<string | undefined> {
-  try {
-    const html = await readFile(`${APP_DIR}/dist/index.html`, "utf8");
-    const content = IMPORT_MAP_TAG.exec(html)?.[1];
-    return content ? scriptHash(content) : undefined;
-  } catch {}
+  const file = Bun.file(`${APP_DIR}/dist/index.html`);
+  if (!(await file.exists())) return;
+  const content = IMPORT_MAP_TAG.exec(await file.text())?.[1];
+  return content ? scriptHash(content) : undefined;
 }
 
 const setup: Setup = async (ctx) => {
+  const preloads = ctx.use("web.preload");
   let built: Built | undefined;
   let importMapHash = DEV ? undefined : await builtImportMapHash();
   const devBuild = DEV ? await createDevBuild() : undefined;
@@ -50,7 +49,9 @@ const setup: Setup = async (ctx) => {
       const file = built?.files.get(pathname);
       return file && new Response(file.contents, { headers: { "content-type": file.contentType } });
     }
-    const link = c.creds ? channelPreloadLinks(pathname) : undefined;
+    const link = c.creds
+      ? preloadLinkHeader(preloads().flatMap((hrefs) => hrefs(pathname)))
+      : undefined;
     if (DEV) {
       built = await devBuild?.get();
       if (!built) return;

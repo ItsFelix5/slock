@@ -1,3 +1,4 @@
+import { firstTruthy } from "@slock/core";
 import { service, usePoint } from "@slock/core/solid";
 import type { ChannelId, Ts } from "@slock/types";
 import { IconButton, PanelHeader } from "@slock/ui";
@@ -19,12 +20,7 @@ export default function ThreadHeader(props: {
   threadTs: Ts;
 }) {
   const headers = usePoint("threads.header");
-  const header = createMemo(() => {
-    for (const item of headers()) {
-      const found = item(props.channelId);
-      if (found) return found;
-    }
-  });
+  const header = createMemo(() => firstTruthy(headers(), (item) => item(props.channelId)));
   const channelName = createMemo(() => titles.label(props.channelId));
   const isMember = () =>
     !!dmsStore.dmById(props.channelId) || channelsStore.isChannelMember(props.channelId);

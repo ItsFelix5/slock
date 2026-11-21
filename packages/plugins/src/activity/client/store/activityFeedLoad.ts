@@ -1,6 +1,6 @@
 import type { Env } from "@slock/core";
 import type { ActivityItem, ChannelId, FeedEntry, Message, Ts, User, UserId } from "@slock/types";
-import { createEffect, createMemo, createSignal, onCleanup, refresh } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, refresh, untrack } from "solid-js";
 import { NO_CHANNEL } from "../kinds";
 import { createActivityFeedRefreshScheduler } from "./activityFeedRefresh";
 import type { ActivityItems } from "./activityItems";
@@ -54,8 +54,14 @@ export function createActivityFeedLoad(deps: ActivityFeedLoadDeps) {
     }
   }
 
+  function backfill(pushed: readonly ActivityItem[]) {
+    untrack(() => {
+      void deps.backfillMissingReadCursors([...deps.items.list, ...pushed]);
+    });
+  }
+
   async function mergePage(me: User, entries: FeedEntry[]) {
-    const { seen, seenChannelPosts, seenReactions } = seenSetsFor(deps.items.list);
+    const { seen, seenChannelPosts, seenReactions } = untrack(() => seenSetsFor(deps.items.list));
     const pending = entries.filter((entry) => !seen.has(entry.id));
     const { push, pushed } = createEntryPusher(me, seen, seenChannelPosts, seenReactions);
     await resolvePendingEntries(pending, seen, seenChannelPosts, push);
@@ -63,7 +69,7 @@ export function createActivityFeedLoad(deps: ActivityFeedLoadDeps) {
   }
 
   async function reloadStale(me: User, entries: FeedEntry[]) {
-    const stale = staleEntries(entries, deps.items.list);
+    const stale = untrack(() => staleEntries(entries, deps.items.list));
     if (!stale.length) return;
     const batch = await deps.fetchMessagesByIds(
       stale.filter((entry) => entry.channelId !== NO_CHANNEL),
@@ -79,7 +85,7 @@ export function createActivityFeedLoad(deps: ActivityFeedLoadDeps) {
     scopes.record(MAIN_SCOPE, page, true);
     const pushed = await mergePage(me, page.entries);
     await reloadStale(me, page.entries);
-    void deps.backfillMissingReadCursors([...deps.items.list, ...pushed]);
+    backfill(pushed);
   }
 
   async function loadOlder(me: User, { types, unreadOnly }: MoreRequest) {
@@ -92,7 +98,7 @@ export function createActivityFeedLoad(deps: ActivityFeedLoadDeps) {
     );
     scopes.record(key, page);
     const pushed = await mergePage(me, page.entries);
-    void deps.backfillMissingReadCursors([...deps.items.list, ...pushed]);
+    backfill(pushed);
   }
 
   const feed = createMemo(async () => {

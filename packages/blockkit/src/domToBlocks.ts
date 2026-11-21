@@ -78,7 +78,7 @@ function tokenElement(el: HTMLElement, style: RichTextStyle): RichTextInlineElem
       type: "date",
     };
   }
-  if (dataset.emojiName) return { name: dataset.emojiName, type: "emoji" };
+  return dataset.emojiName ? { name: dataset.emojiName, type: "emoji" } : undefined;
 }
 
 function collectInline(

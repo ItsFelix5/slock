@@ -1,11 +1,23 @@
 import { describe, expect, test } from "bun:test";
-import { parseManifest } from "../src/host/manifest";
+import { parseManifest, readManifest } from "../src/host/manifest";
 import { forAll, int, pick, text } from "../src/testing";
+
+function manifestOf(value: unknown) {
+  const result = parseManifest(value);
+  if (!result.ok) throw new Error(result.errors.join(", "));
+  return result.manifest;
+}
+
+function errorsOf(value: unknown) {
+  const result = parseManifest(value);
+  if (result.ok) throw new Error("expected the manifest to be rejected");
+  return result.errors;
+}
 
 describe("parseManifest", () => {
   test("reads a full manifest", () => {
     expect(
-      parseManifest({
+      manifestOf({
         core: true,
         defaultEnabled: false,
         hidden: true,
@@ -26,7 +38,7 @@ describe("parseManifest", () => {
   });
 
   test("a bare id gets empty lists and no flags", () => {
-    expect(parseManifest({ id: "a" })).toEqual({
+    expect(manifestOf({ id: "a" })).toEqual({
       core: undefined,
       defaultEnabled: undefined,
       hidden: undefined,
@@ -38,40 +50,55 @@ describe("parseManifest", () => {
   });
 
   test("rejects anything without a string id", () => {
-    const rejected = [null, undefined, 0, "id", [], [{ id: "a" }], {}, { id: 1 }, { id: null }];
-    for (const value of rejected)
-      expect(() => parseManifest(value)).toThrow("plugin manifest needs an id");
+    const rejected = [{}, { id: 1 }, { id: null }];
+    for (const value of rejected) expect(errorsOf(value)).toEqual(["id must be a string"]);
   });
 
-  test("flags only count with their one meaningful value", () => {
-    const parsed = parseManifest({ core: "true", defaultEnabled: true, hidden: 1, id: "a" });
+  test("rejects values that are not objects", () => {
+    for (const value of [null, undefined, 0, "id", [], [{ id: "a" }]])
+      expect(errorsOf(value)).toEqual(["manifest must be an object"]);
+  });
+
+  test("rejects ids that are not lowercase slugs", () => {
+    for (const id of ["", "Slack", "a b", "-a", "a/b", "a.b", "a_b"])
+      expect(errorsOf({ id })).toEqual(["id must be lowercase letters, digits and -"]);
+  });
+
+  test("flags must be booleans and only count with their one meaningful value", () => {
+    expect(errorsOf({ core: "true", hidden: 1, id: "a" })).toEqual([
+      "core must be true or false",
+      "hidden must be true or false",
+    ]);
+    const parsed = manifestOf({ core: false, defaultEnabled: true, hidden: false, id: "a" });
     expect(parsed.core).toBeUndefined();
     expect(parsed.defaultEnabled).toBeUndefined();
     expect(parsed.hidden).toBeUndefined();
-    expect(parseManifest({ core: false, hidden: false, id: "a" }).core).toBeUndefined();
   });
 
-  test("lists drop non-strings and keep order and duplicates", () => {
-    expect(parseManifest({ id: "a", requires: ["x", 1, null, "y", ["z"], "x"] }).requires).toEqual([
-      "x",
-      "y",
-      "x",
+  test("lists must hold only strings, and order and duplicates are kept", () => {
+    expect(errorsOf({ id: "a", requires: ["x", 1] })).toEqual([
+      "requires must be a list of strings",
+    ]);
+    expect(manifestOf({ id: "a", requires: ["x", "y", "x"] }).requires).toEqual(["x", "y", "x"]);
+  });
+
+  test("a list that is not an array is rejected", () => {
+    expect(errorsOf({ id: "a", provides: "slack", requires: { 0: "x" } })).toEqual([
+      "provides must be a list of strings",
+      "requires must be a list of strings",
     ]);
   });
 
-  test("a list that is not an array becomes empty", () => {
-    expect(parseManifest({ id: "a", provides: "slack", requires: { 0: "x" } })).toMatchObject({
-      provides: [],
-      requires: [],
-    });
+  test("a name that is not a string is rejected", () => {
+    expect(errorsOf({ id: "a", name: 5 })).toEqual(["name must be a string"]);
   });
 
-  test("a name that is not a string is dropped", () => {
-    expect(parseManifest({ id: "a", name: 5 }).name).toBeUndefined();
+  test("every problem is reported at once", () => {
+    expect(errorsOf({ core: 1, id: 7, name: 5, provides: 1, requires: 2 })).toHaveLength(5);
   });
 
   test("ignores unknown keys", () => {
-    expect(Object.keys(parseManifest({ extra: 1, id: "a" })).sort()).toEqual([
+    expect(Object.keys(manifestOf({ extra: 1, id: "a" })).sort()).toEqual([
       "core",
       "defaultEnabled",
       "hidden",
@@ -82,7 +109,7 @@ describe("parseManifest", () => {
     ]);
   });
 
-  test("only ever fails for a missing id, whatever else is in there", () => {
+  test("never throws, and accepts exactly the manifests with clean fields", () => {
     const junk = [null, 0, 1.5, "", "x", true, [], {}, [1, "a", null], { id: 1 }];
     forAll(
       (random) => ({
@@ -92,14 +119,28 @@ describe("parseManifest", () => {
         requires: Array.from({ length: int(random, 0, 4) }, () => pick(random, junk)),
       }),
       (value) => {
-        if (typeof value.id === "string") {
-          const parsed = parseManifest(value);
-          expect(parsed.id).toBe(value.id);
-          expect((parsed.requires ?? []).every((item) => typeof item === "string")).toBe(true);
-          return;
-        }
-        expect(() => parseManifest(value)).toThrow();
+        const result = parseManifest(value);
+        const clean =
+          typeof value.id === "string" &&
+          /^[a-z0-9][a-z0-9-]*$/.test(value.id) &&
+          typeof value.name === "string" &&
+          Array.isArray(value.provides) &&
+          value.provides.every((item) => typeof item === "string") &&
+          value.requires.every((item) => typeof item === "string");
+        expect(result.ok).toBe(clean);
       },
+    );
+  });
+});
+
+describe("readManifest", () => {
+  test("returns the manifest", () => {
+    expect(readManifest({ id: "a" }, "a/plugin.json").id).toBe("a");
+  });
+
+  test("names the source and every problem when it fails", () => {
+    expect(() => readManifest({ id: "A", name: 1 }, "a/plugin.json")).toThrow(
+      "a/plugin.json: name must be a string, id must be lowercase letters, digits and -",
     );
   });
 });

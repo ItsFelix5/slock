@@ -1,4 +1,5 @@
 import type { Setup } from "@slock/core";
+import { service } from "@slock/core/services";
 import type { MessageShortcut } from "@slock/types";
 import {
   errorResponse,
@@ -9,6 +10,8 @@ import type { Route } from "../../slack/server/api/router";
 import { mutate, route, routes } from "../../slack/server/api/router";
 import { callSlack } from "../../slack/server/api/slackClient";
 import type { AppCommandsReply } from "../../slack/server/api/slackReplies";
+
+const env = service("env");
 
 const list: Route[] = [
   route("GET", "message-shortcuts", async (ctx) => {
@@ -48,7 +51,7 @@ const list: Route[] = [
       {
         action_id: ctx.params.actionId,
         app_id: appId,
-        client_token: `web-${Date.now()}`,
+        client_token: `web-${env.now()}`,
         context: JSON.stringify({
           channel_id: channelId,
           message_ts: messageTs,

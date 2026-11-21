@@ -19,7 +19,9 @@ const setup: Setup = async (ctx) => {
     },
   );
   const env = ctx.get("env");
-  ctx.onCleanup(installRevalidateTriggers({ now: env.now, onRevalidate: hub.revalidate }));
+  const triggers = installRevalidateTriggers({ now: env.now, onRevalidate: hub.revalidate });
+  ctx.onCleanup(triggers.dispose);
+  ctx.add("realtime.reconnect", triggers.trigger);
   ctx.onCleanup(() => {
     hub.clear();
     hub.dispose();

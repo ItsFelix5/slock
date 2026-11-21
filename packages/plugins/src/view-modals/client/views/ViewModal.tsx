@@ -37,7 +37,7 @@ export default function ViewModal() {
 
   createEffect(
     () => modals.viewStack().map((open) => open.id),
-    (openIds) => session.forget(openIds),
+    (openIds) => void session.forget(openIds),
   );
 
   const notifyClosed = (closing: ModalView) =>

@@ -1,4 +1,5 @@
-import type { ResourceEnv, TimerHandle } from "./env";
+import type { TimerHandle } from "@slock/core/types";
+import type { ResourceEnv } from "./delay";
 
 export interface StoredEntry {
   at: number;

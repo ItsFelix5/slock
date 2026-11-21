@@ -1,3 +1,5 @@
+import { toLocalInputValue } from "@slock/core";
+
 const MONDAY = 1;
 const DAYS_PER_WEEK = 7;
 const REMINDER_HOUR = 9;
@@ -25,12 +27,6 @@ export const REMINDER_OPTIONS: { label: string; dateDue: (now: Date) => number }
   { dateDue: (now) => atReminderHour(now, 1), label: "tomorrow" },
   { dateDue: nextMonday, label: "next week" },
 ];
-
-export function toLocalInputValue(date: Date): string {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-  return `${day}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
 
 export function nextHourInputValue(now: Date): string {
   const date = new Date(now);

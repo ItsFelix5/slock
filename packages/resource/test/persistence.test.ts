@@ -89,7 +89,7 @@ describe("persistence", () => {
     await adapter.save("account-1", { entries: [{ at: 0, data: 1, key: "a" }], version: 1 });
     const { cache, clock } = setup(1, adapter);
     await cache.restore();
-    expect(clock.pending()).toBe(1);
+    expect(clock.pendingTimers()).toBe(1);
   });
 
   test("a failing adapter reports to onError instead of rejecting unhandled", async () => {

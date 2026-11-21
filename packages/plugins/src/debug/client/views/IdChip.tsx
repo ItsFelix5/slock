@@ -18,7 +18,7 @@ export default function IdChip(props: { entity: string; id: string }) {
   );
   return (
     <Show fallback={trigger()} when={entity()?.wrap}>
-      {(wrap) => resolver[wrap()]?.(props.id, trigger()) ?? trigger()}
+      {(wrap) => wrap()(resolver, props.id, trigger()) ?? trigger()}
     </Show>
   );
 }

@@ -1,3 +1,4 @@
+import type { UserId } from "@slock/types";
 import type { Credentials } from "../../slack/server/api/auth";
 import { callSlack, type SlackReply } from "../../slack/server/api/slackClient";
 
@@ -23,7 +24,7 @@ function toInstalledApp(app: RawApp): InstalledApp {
 }
 
 export async function listInstalledApps(
-  userId: string,
+  userId: UserId,
   creds: Credentials | null,
 ): Promise<SlackReply<{ apps: InstalledApp[] }>> {
   const apps = new Map<string, InstalledApp>();

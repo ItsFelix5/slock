@@ -66,7 +66,7 @@ export {
   uploadFiles,
   uploadFilesForEdit,
 } from "./content";
-export { fetchCounts } from "./counts";
+export { fetchCounts, fetchLatestCounts } from "./counts";
 export { deleteDraft, fetchDrafts, saveDraft } from "./drafts";
 export { fetchMessagesByIds } from "./messageLookup";
 export {

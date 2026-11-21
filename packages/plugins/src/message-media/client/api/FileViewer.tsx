@@ -1,4 +1,5 @@
 import { safeMediaUrl } from "@slock/blockkit";
+import { service } from "@slock/core/solid";
 import type { SlackFile } from "@slock/types";
 import { Button, Icon, Overlay, PanelHeader, useEscapeClose } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
@@ -9,9 +10,11 @@ import { defineQuery } from "../../../query/client/api";
 import { parseEml } from "../views/mailParse";
 import { emailSrcdoc } from "./emailSrcdoc";
 
+const env = service("env");
+
 const mailPreview = defineQuery<string, string>({
   load: async (url, { signal }) => {
-    const response = await fetch(url, { signal });
+    const response = await env.fetch(url, { signal });
     if (!response.ok) throw new Error(`Email preview failed (${response.status})`);
     return response.text();
   },

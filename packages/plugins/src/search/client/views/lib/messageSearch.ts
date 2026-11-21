@@ -1,36 +1,34 @@
 import type { SearchResult } from "@slock/types";
-import { createDebouncedRequest } from "@slock/ui";
-import { createSignal } from "solid-js";
+import { affects, createMemo, createSignal, isPending, onCleanup, refresh } from "solid-js";
 import { searchMessages } from "../../../../slack/client/api";
 import { type SortMode, sortParams } from "../../searchQuery";
 
-const SEARCH_DELAY_MS = 300;
+const NONE: SearchResult[] = [];
 
-export function createMessageSearch(onSearched: (query: string) => void) {
-  const [state, setState] = createSignal<{
-    error: boolean;
-    loading: boolean;
-    results: SearchResult[];
-  }>({ error: false, loading: false, results: [] });
-  let sortMode: SortMode = "relevant";
-  const request = createDebouncedRequest((query) => searchMessages(query, sortParams(sortMode)), {
-    delay: SEARCH_DELAY_MS,
-    onError: () => setState((current) => ({ ...current, error: true })),
-    onPendingChange: (loading) => setState((current) => ({ ...current, loading })),
-    onReset: () => setState((current) => ({ ...current, error: false })),
-    onResult: (results, query) => {
-      setState((current) => ({ ...current, results }));
-      onSearched(query);
-    },
+export function createMessageSearch(sortMode: () => SortMode, onSearched: (query: string) => void) {
+  const [query, setQuery] = createSignal("");
+  const results = createMemo(() => {
+    const text = query();
+    if (!text) return NONE;
+    const params = sortParams(sortMode());
+    let superseded = false;
+    onCleanup(() => {
+      superseded = true;
+    });
+    return searchMessages(text, params).then((found) => {
+      if (!superseded) onSearched(text);
+      return found;
+    });
   });
   return {
-    clear: () => setState((current) => ({ ...current, results: [] })),
-    error: () => state().error,
-    loading: () => state().loading,
-    results: () => state().results,
-    run(query: string, mode: SortMode, options?: { immediate?: boolean }) {
-      sortMode = mode;
-      request.run(query, options);
+    loading: () => isPending(results),
+    results,
+    search(raw: string) {
+      const text = raw.trim();
+      if (text === query()) {
+        affects(results);
+        refresh(results);
+      } else setQuery(text);
     },
   };
 }

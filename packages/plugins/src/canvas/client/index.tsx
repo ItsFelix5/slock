@@ -10,6 +10,7 @@ import type { CanvasPaneContent } from "./api";
 import { refreshCommentsForChannel } from "./lib/canvasComments";
 import { openCanvasLinksOnClick } from "./lib/canvasLinks";
 import { fetchCanvasTitle } from "./lib/canvasRequests";
+import { newlyUntitled, untitledCanvases } from "./lib/untitledCanvases";
 import { createCanvasStore } from "./store";
 
 const CanvasPane = lazy(() => import("./views/CanvasPane"));
@@ -26,15 +27,10 @@ const setup: Setup = (ctx) => {
   const panes = service("shell.panes");
   const store = createCanvasStore({ panes });
   ctx.provide("canvas", store);
-  const requestedTitles = new Set<string>();
   createEffect(
-    () => panes.panes(),
-    (open) => {
-      for (const { content, id } of open) {
-        if (content?.kind !== "canvas" || content.title) continue;
-        const { fileId } = content;
-        if (requestedTitles.has(`${id}:${fileId}`)) continue;
-        requestedTitles.add(`${id}:${fileId}`);
+    () => untitledCanvases(panes.panes()),
+    (untitled, previous) => {
+      for (const { fileId, id } of newlyUntitled(previous, untitled)) {
         void fetchCanvasTitle(fileId).then((title) => {
           if (title) panes.setPaneContent(id, { fileId, kind: "canvas", title });
         });

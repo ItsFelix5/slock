@@ -18,6 +18,8 @@ const LIB_FILTER = /^virtual:lib\//;
 const ANY_FILTER = /.*/;
 const HASH_SUFFIX = /-[^-.]+\.js$/;
 
+export const libSpecifiers = Object.keys(LIB_SLUGS);
+
 export const libEntrypoints = Object.values(LIB_SLUGS).map((slug) => `${VIRTUAL_PREFIX}${slug}`);
 
 const specifierBySlug = new Map(

@@ -5,10 +5,10 @@ import { asElement } from "./quillText";
 const DIVIDER_PREFIX = /^--$/;
 
 export default class DividerBlot extends BlockEmbed {
-  static blotName = "divider";
-  static tagName = "hr";
+  static override blotName = "divider";
+  static override tagName = "hr";
 
-  static create(value: unknown) {
+  static override create(value: unknown) {
     const node = asElement(super.create(value), "divider");
     node.contentEditable = "false";
     return node;

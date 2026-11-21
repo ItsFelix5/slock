@@ -2,7 +2,7 @@ import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { ifPresent, parseTs } from "@slock/slack";
 import type { ChannelId, Message, Ts } from "@slock/types";
-import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js";
+import { type Accessor, createSignal, onCleanup } from "solid-js";
 import { findUnreadDividerIndex } from "../lib/unreadDivider";
 import type { FeedScroll } from "./pane/scroll/feedScroll";
 
@@ -45,7 +45,7 @@ export function createMessageFocusRegistry() {
   const editLastByPane = new Map<string, () => void>();
   return {
     active,
-    activate: setActive,
+    activate: (focus: ActiveMessageFocus) => setActive(focus),
     deactivate: (focus: ActiveMessageFocus) =>
       setActive((current) => (current === focus ? undefined : current)),
     editLastInPane: (paneId: string) => editLastByPane.get(paneId)?.(),
@@ -66,32 +66,21 @@ export function createMessageFocus(
   channelId: Accessor<ChannelId | undefined>,
   callbacks: MessageFocusCallbacks = {},
 ) {
-  const [focusedTs, setFocusedTs] = createSignal<Ts | null>(null);
+  const [focusedTs, setFocusedTs] = createSignal<Ts | null>((current) => {
+    const list = messages();
+    if (!list.length) return null;
+    if (current && list.some((m) => m.ts === current)) return current;
+    const id = channelId();
+    const unreadIndex = findUnreadDividerIndex(
+      list,
+      id && unreadStore.unreadDividerTsForChannel(id),
+    );
+    return defined(list[unreadIndex >= 0 ? unreadIndex : list.length - 1]).ts;
+  });
   const [editingTs, setEditingTs] = createSignal<Ts | null>(null);
   const [listFocused, setListFocused] = createSignal(false);
   const [reactionPickerTs, setReactionPickerTs] = createSignal<Ts | null>(null);
   const [moreMenuTs, setMoreMenuTs] = createSignal<Ts | null>(null);
-
-  createEffect(
-    () => {
-      const id = channelId();
-      return {
-        anchor: id && unreadStore.unreadDividerTsForChannel(id),
-        current: focusedTs(),
-        list: messages(),
-      };
-    },
-    ({ anchor, current, list }) => {
-      if (!list.length) {
-        if (current !== null) setFocusedTs(null);
-        return;
-      }
-      if (current === null || !list.some((m) => m.ts === current)) {
-        const unreadIndex = findUnreadDividerIndex(list, anchor);
-        setFocusedTs(defined(list[unreadIndex >= 0 ? unreadIndex : list.length - 1]).ts);
-      }
-    },
-  );
 
   function focusRow(ts: Ts, opts?: { preventScroll?: boolean }) {
     setFocusedTs(ts);

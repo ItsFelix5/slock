@@ -96,6 +96,6 @@ describe("gc", () => {
     expect(b.read("y")).toBeUndefined();
     a.set("x", "1");
     hub.dispose();
-    expect(clock.pending()).toBe(0);
+    expect(clock.pendingTimers()).toBe(0);
   });
 });

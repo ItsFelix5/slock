@@ -4,7 +4,6 @@ import { service } from "@slock/core/solid";
 import { isTs } from "@slock/slack";
 import { Icon } from "@slock/ui";
 import { createEffect, lazy, Show } from "solid-js";
-import { createReactionCache } from "./reactionCache";
 import { createActivityStore } from "./store";
 
 const ActivityView = lazy(() => import("./views/ActivityView"));
@@ -39,7 +38,7 @@ const setup: Setup = (ctx) => {
   const bootstrap = service("bootstrap");
   const prefs = service("prefs");
   const store = createActivityStore({
-    cacheResolvedMessages: createReactionCache(messages),
+    cacheResolvedMessages: messages.cacheReactionMessages,
     clearChannelUnread: unread.clearChannelUnread,
     currentUser: users.currentUser,
     env: ctx.get("env"),

@@ -1,10 +1,11 @@
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, Show, untrack } from "solid-js";
 import IconButton from "../../button/IconButton";
 import { useShortcut } from "../../hooks/useShortcut";
 import FloatingPanel from "../../overlay/floating/FloatingPanel";
 import { toggleInlineFormat } from "../editorShortcuts";
 import type Quill from "../quill";
 import type { Range } from "../quill";
+import { bubbleFits } from "./bubbleVisibility";
 import FormatBubbleLink from "./FormatBubbleLink";
 import {
   BUBBLE_BUTTONS,
@@ -78,17 +79,12 @@ export default function FormatBubble(props: FormatBubbleProps) {
       quill.container.append(element);
 
       const refresh = () => {
-        if (linkRange()) return;
+        if (untrack(linkRange)) return;
         const range = quill.getSelection();
         const bounds =
           range && range.length > 0 ? quill.getBounds(range.index, range.length) : null;
         const format = range ? quill.getFormat(range) : {};
-        if (
-          !bounds ||
-          format["code-block"] ||
-          bounds.top < 0 ||
-          bounds.bottom > quill.container.clientHeight
-        ) {
+        if (!(bounds && bubbleFits(bounds, format, quill.container.clientHeight))) {
           setOpen(false);
           return;
         }

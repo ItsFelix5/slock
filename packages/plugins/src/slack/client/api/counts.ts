@@ -17,3 +17,7 @@ const counts = defineQuery<null, CountsReply>({
 export function fetchCounts(): Promise<CountsReply> {
   return counts.ensure(null);
 }
+
+export function fetchLatestCounts(): Promise<CountsReply> {
+  return counts.refresh(null);
+}

@@ -35,7 +35,7 @@ export function createRowEngagement() {
     },
     onMouseLeave: (e) => {
       settle?.cancel();
-      if (!e.currentTarget.matches(":focus-within")) setEngaged(false);
+      if (!e.currentTarget.querySelector(":focus-visible")) setEngaged(false);
     },
   };
 

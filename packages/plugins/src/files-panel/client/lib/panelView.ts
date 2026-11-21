@@ -1,3 +1,4 @@
+import { sameItems } from "@slock/core";
 import type { FilesLinksEntry } from "../api";
 
 export type TypeFilter = "all" | "images" | "files" | "links";
@@ -13,7 +14,7 @@ export function formatDate(seconds: number | undefined): string {
   });
 }
 
-export function monthLabel(seconds: number): string {
+function monthLabel(seconds: number): string {
   if (!seconds) return "Undated";
   return new Date(seconds * 1000).toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
@@ -27,7 +28,7 @@ export function linkDomain(url: string): string {
   }
 }
 
-export function entryTitle(entry: FilesLinksEntry): string {
+function entryTitle(entry: FilesLinksEntry): string {
   return entry.kind === "file"
     ? entry.file.title || entry.file.name || ""
     : entry.link.title || entry.link.url;
@@ -42,10 +43,6 @@ export function matchesTypeFilter(entry: FilesLinksEntry, filter: TypeFilter): b
 
 export type MonthGroup = { entries: FilesLinksEntry[]; label: string };
 
-function sameEntries(a: FilesLinksEntry[], b: FilesLinksEntry[]): boolean {
-  return a.length === b.length && a.every((entry, i) => entry === b[i]);
-}
-
 export function groupByMonth(
   entries: FilesLinksEntry[],
   cache: Map<string, MonthGroup>,
@@ -59,7 +56,7 @@ export function groupByMonth(
   }
   const groups = raw.map((group) => {
     const cached = cache.get(group.label);
-    return cached && sameEntries(cached.entries, group.entries) ? cached : group;
+    return cached && sameItems(cached.entries, group.entries) ? cached : group;
   });
   cache.clear();
   for (const group of groups) cache.set(group.label, group);

@@ -88,6 +88,7 @@ export function defineQuery<Arg, T>(definition: QueryDefinition<Arg, T>): Query<
       gcMs: definition.gcMs ?? GC_MS,
       load: definition.load,
       maxAgeMs: definition.maxAgeMs,
+      name: definition.name,
       persist: definition.persist && persistOptions(definition.name, definition.persist),
       retry: definition.retry ?? retryPolicy,
     });

@@ -1,3 +1,4 @@
+import { service } from "@slock/core/solid";
 import type { CanvasVersion } from "@slock/types";
 import { Avatar, ariaBoolean, inside, useCancelShortcut, useEscapeClose } from "@slock/ui";
 import { For, onSettled, Show } from "solid-js";
@@ -8,6 +9,8 @@ import {
   versionClock,
 } from "../lib/canvasVersions";
 import "./CanvasHistory.css";
+
+const env = service("env");
 
 export default function CanvasHistory(props: {
   anchor: () => HTMLElement | undefined;
@@ -46,7 +49,7 @@ export default function CanvasHistory(props: {
       <header class="canvas-history-header">
         <strong>History</strong>
       </header>
-      <For each={groupVersionsByDay(props.versions)}>
+      <For each={groupVersionsByDay(props.versions, env.now())}>
         {(day) => (
           <section>
             <h3 class="canvas-history-day text-dim">{day.label}</h3>

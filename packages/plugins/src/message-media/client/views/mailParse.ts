@@ -79,7 +79,9 @@ function decodeBody(body: string, headers: Record<string, string>): string {
       return decodeBytes(bytesFromBase64(body), charset?.[1] ?? charset?.[2]);
     if (encoding === "quoted-printable")
       return decodeBytes(bytesFromQuotedPrintable(body), charset?.[1] ?? charset?.[2]);
-  } catch {}
+  } catch {
+    return body.trim();
+  }
   return body.trim();
 }
 

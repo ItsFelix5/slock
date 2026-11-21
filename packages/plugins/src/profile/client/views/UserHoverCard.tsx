@@ -1,5 +1,6 @@
 import { EmojiText, Mrkdwn } from "@slock/blockkit";
 import { Slot, service } from "@slock/core/solid";
+import type { UserId } from "@slock/types";
 import { AvatarImage, HoverCard, Icon, type useHoverIntent } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { createMemo, createSignal, Show } from "solid-js";
@@ -9,9 +10,10 @@ import { createLocalTime, createTzDiff, createTzSuffix } from "./userProfileTime
 
 const dmsStore = service("dms");
 const usersStore = service("users");
+const env = service("env");
 
 export default function UserHoverCard(props: {
-  userId: string;
+  userId: UserId;
   children?: JSX.Element;
   anchor?: () => HTMLElement | undefined;
   hoverIntent?: ReturnType<typeof useHoverIntent>;
@@ -27,8 +29,8 @@ export default function UserHoverCard(props: {
   );
 
   const openUser = () => (cardOpen() ? user() : undefined);
-  const localTime = createLocalTime(openUser, Date.now);
-  const tzDiff = createTzDiff(openUser, Date.now);
+  const localTime = createLocalTime(openUser, () => env.now());
+  const tzDiff = createTzDiff(openUser, () => env.now());
   const tzSuffix = createTzSuffix(openUser, tzDiff);
 
   return (

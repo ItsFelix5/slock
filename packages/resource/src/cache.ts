@@ -164,6 +164,13 @@ export function createResourceCache<K, T>(options: CacheOptions<K, T>): Resource
       if (!entry.inflight) startFetch(entry);
       return settle(entry);
     },
+    entries: () =>
+      [...entries.values()].map(({ dataAt, key, listeners, state }) => ({
+        dataAt,
+        key,
+        state,
+        subscribers: listeners.size,
+      })),
     evictInactive: () => {
       for (const entry of [...entries.values()]) if (isInactive(entry)) discard(entry);
     },

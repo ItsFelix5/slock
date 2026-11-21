@@ -1,4 +1,6 @@
 import type { Setup } from "@slock/core";
+import { isUserId } from "@slock/slack";
+import type { UserId } from "@slock/types";
 import type { Credentials } from "../../slack/server/api/auth";
 import { jsonResponse } from "../../slack/server/api/jsonResponse";
 import { route, routes } from "../../slack/server/api/router";
@@ -8,14 +10,15 @@ function key(creds: Credentials, userId: string): string {
 }
 
 const setup: Setup = (ctx) => {
+  const env = ctx.get("env");
   const lastSeen = new Map<string, number>();
-  const record = (userId: string, creds: Credentials) =>
-    lastSeen.set(key(creds, userId), Date.now());
+  const record = (userId: UserId, creds: Credentials) =>
+    lastSeen.set(key(creds, userId), env.now());
 
   ctx.add(
     "http",
     routes([
-      route("GET", "last-seen/:id", (request) =>
+      route("GET", "users/:id/last-seen", (request) =>
         jsonResponse({
           lastSeen: request.creds
             ? (lastSeen.get(key(request.creds, request.params.id)) ?? null)
@@ -30,7 +33,7 @@ const setup: Setup = (ctx) => {
     handle: (event, creds) => {
       if (event.presence !== "active") return;
       const ids = Array.isArray(event.users) ? event.users : [event.user];
-      for (const id of ids) if (typeof id === "string") record(id, creds);
+      for (const id of ids) if (typeof id === "string" && isUserId(id)) record(id, creds);
     },
     types: ["presence_change"],
   });

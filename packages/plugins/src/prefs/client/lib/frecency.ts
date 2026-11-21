@@ -3,13 +3,13 @@ import type { ChannelId, UserPrefs } from "@slock/types";
 
 const FRECENCY_HALF_LIFE_MS = 3 * 24 * 60 * 60 * 1000;
 
-function decayScore(count: number, lastTs: number): number {
-  return count * 0.5 ** ((Date.now() - lastTs) / FRECENCY_HALF_LIFE_MS);
+function decayScore(count: number, lastTs: number, now: number): number {
+  return count * 0.5 ** ((now - lastTs) / FRECENCY_HALF_LIFE_MS);
 }
 
-export function frecencyScore(prefs: UserPrefs | undefined, id: string): number {
+export function frecencyScore(prefs: UserPrefs | undefined, id: string, now: number): number {
   const entry = prefs && isChannelId(id) ? prefs.channelFrecency[id] : undefined;
-  return entry ? decayScore(entry.count, entry.lastVisit) : 0;
+  return entry ? decayScore(entry.count, entry.lastVisit, now) : 0;
 }
 
 export function recentIds(prefs: UserPrefs | undefined): ChannelId[] {

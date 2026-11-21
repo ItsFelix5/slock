@@ -45,16 +45,12 @@ export {
   resolveStandardEmoji,
   standardEmojiEntries,
 } from "./emoji/emoji";
+export type { EmojiList, EmojiSource } from "./emoji/emojiSource";
 export {
-  customEmojiNames,
-  emojiAliasTarget,
-  emojiUrl,
-  hasEmojiLoadError,
-  invalidateCustomEmoji,
-  isEmojiLoaded,
-  isEmojiLoading,
-  loadCustomEmoji,
-} from "./emoji/emojiCache";
+  createEmojiSource,
+  EmojiSourceContext,
+  useEmojiSource,
+} from "./emoji/emojiSource";
 export type { EntityKind, EntitySource } from "./entitySource";
 export { type HighlightSegment, splitHighlightWords } from "./highlightWords";
 export { default as LegacyAttachmentActions } from "./LegacyAttachmentActions";

@@ -8,10 +8,8 @@
     "./testing": "./src/testing.ts",
     "./solid": "./src/solid/index.ts"
   },
-  "devDependencies": {
-    "@slock/core": "workspace:*"
-  },
   "dependencies": {
+    "@slock/core": "workspace:*",
     "solid-js": "2.0.3"
   }
 }

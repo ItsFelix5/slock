@@ -1,18 +1,16 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { ch, stamp } from "@slock/slack/testing";
 import type { Message } from "@slock/types";
-import { createSignal, createStore } from "solid-js";
+import { createSignal, createStore, flush as flushSolid } from "solid-js";
 import type { ThreadRef } from "../../../../src/messages/client/api";
 import {
   C1,
-  ch,
   channel,
   fakeWindow,
   flush,
-  flushSolid,
   harness,
   message,
   mount,
-  stamp,
   unmountAll,
 } from "./unreadTestKit";
 
@@ -40,6 +38,11 @@ function wired(initialMessages: Message[], lastRead = 0) {
     });
     const [threadMessages, setThreadMessagesStore] = createStore<Record<string, Message[]>>({});
     const [visibleThreads, setVisibleThreadsSignal] = createSignal<ThreadRef[]>([]);
+    const [visible, setVisible] = createSignal(true);
+    const setChannelVisible = (next: boolean) => {
+      setVisible(next);
+      flushSolid();
+    };
     const setMessages = (id: string, update: (list: Message[]) => Message[]) => {
       setMessagesStore((state) => {
         state[id] = update(state[id] ?? []);
@@ -63,9 +66,9 @@ function wired(initialMessages: Message[], lastRead = 0) {
       messagesByChannel,
       threadMessages,
       visibleThreads,
-      visibleViews: () => [{ id: C1, kind: "channel" }],
+      visibleViews: () => (visible() ? [{ id: C1, kind: "channel" }] : []),
     });
-    return { ...env, setMessages, setThreadMessages, setVisibleThreads };
+    return { ...env, setChannelVisible, setMessages, setThreadMessages, setVisibleThreads };
   });
 }
 
@@ -120,6 +123,28 @@ describe("channels", () => {
       ["C1", "3.000"],
       ["C1", "4.000"],
     ]);
+  });
+
+  test("a view that is no longer visible loses its divider and anchors afresh when shown again", () => {
+    const { setChannelVisible, store } = wired([message("1.000"), message("3.000")], 2000);
+    expect(store.unreadDividerTsForChannel(ch("C1"))).toBe(2000);
+    setChannelVisible(false);
+    expect(store.unreadDividerTsForChannel(ch("C1"))).toBeUndefined();
+    store.setLastReadByChannel(ch("C1"), 3000);
+    flushSolid();
+    setChannelVisible(true);
+    expect(store.unreadDividerTsForChannel(ch("C1"))).toBe(Infinity);
+  });
+
+  test("a stale read cursor echo after our own mark does not mark again", async () => {
+    const { channelReads, store } = wired([message("3.000")], 2000);
+    store.setBottomSeen(ch("C1"), true);
+    await flush();
+    store.setLastReadByChannel(ch("C1"), 2000);
+    flushSolid();
+    await flush();
+    expect(channelReads).toEqual([["C1", "3.000"]]);
+    expect(store.lastReadFor(ch("C1"))).toBe(2000);
   });
 
   test("a failed write flashes once and the next message is still synced", async () => {

@@ -9,7 +9,7 @@ import {
   SegmentedControl,
 } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
-import { For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import type { MemberFilter } from "../../../channel-details/client/api";
 import { createChannelMembers } from "../channelMembers";
 import "../../../channel-details/client/api/ChannelDetails.css";
@@ -55,20 +55,18 @@ export default function MembersTab(props: {
   memberCount?: number;
   onMembersChanged?: () => void;
 }) {
-  let listRef: HTMLDivElement | undefined;
+  const [list, setList] = createSignal<HTMLDivElement>();
   const members = createChannelMembers({
     channelId: () => props.channelId,
     channelName: () => props.channelName,
+    list,
     memberCount: () => props.memberCount,
     onMembersChanged: () => props.onMembersChanged?.(),
   });
   const [copiedKey, copy] = createCopyFeedback(1200, () =>
     feedback.flash(props.channelId, "Couldn't copy the member list.", "error"),
   );
-  initRovingTabIndexDefault(
-    () => listRef,
-    () => [...members.filteredMembers(), ...members.nonMembers()],
-  );
+  initRovingTabIndexDefault(list, () => [...members.filteredMembers(), ...members.nonMembers()]);
 
   return (
     <>
@@ -124,7 +122,7 @@ export default function MembersTab(props: {
       <div
         class="channel-details-member-list flex-col"
         onScroll={(e) => members.loadMoreAtBottom(e.currentTarget)}
-        ref={listRef}
+        ref={setList}
       >
         <For each={members.filteredMembers()}>
           {(u) => (

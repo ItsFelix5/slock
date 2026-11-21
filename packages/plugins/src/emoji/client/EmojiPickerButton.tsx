@@ -1,7 +1,9 @@
-import { emojiUrl } from "@slock/blockkit";
+import { service } from "@slock/core/solid";
 import { Tooltip } from "@slock/ui";
 import { Show } from "solid-js";
 import type { EmojiEntry } from "./api/emojiSearch";
+
+const emoji = service("emoji");
 
 export default function EmojiPickerButton(props: {
   active: boolean;
@@ -10,7 +12,7 @@ export default function EmojiPickerButton(props: {
   onSelect: (name: string) => void;
   reactionByName: () => Map<string, boolean>;
 }) {
-  const url = () => emojiUrl(props.entry.name);
+  const url = () => emoji.source.url(props.entry.name);
   const mine = () => props.reactionByName().get(props.entry.name) === true;
   const reacted = () => props.reactionByName().has(props.entry.name);
   const tooltip = () => {

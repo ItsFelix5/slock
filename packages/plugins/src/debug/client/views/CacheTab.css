@@ -1,0 +1,38 @@
+.debug-cache-scroll {
+  overflow: auto;
+}
+
+.debug-cache-table {
+  width: 100%;
+  font-size: var(--font-size-meta);
+  border-collapse: collapse;
+}
+
+.debug-cache-table th,
+.debug-cache-table td {
+  padding: var(--space-xs) var(--space-sm);
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.debug-cache-table th {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.debug-cache-key {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debug-cache-error {
+  max-width: 220px;
+  color: var(--text-danger);
+}
+
+.debug-cache-actions {
+  gap: var(--space-xs);
+}

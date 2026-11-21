@@ -23,15 +23,15 @@ export default function CanvasMarginThreads(props: {
   const [active, setActive] = createSignal<string>();
   let frame = 0;
 
-  function threadOf(mark: HTMLElement) {
-    return props.threads.find((t) => isThreadAnnotation(mark.dataset.annotation ?? "", t.threadId));
+  function threadOf(mark: HTMLElement, threads: CanvasCommentThread[]) {
+    return threads.find((t) => isThreadAnnotation(mark.dataset.annotation ?? "", t.threadId));
   }
 
   function measure() {
     const base = props.container.getBoundingClientRect().top;
     const next: Record<string, number> = {};
     for (const mark of props.container.querySelectorAll<HTMLElement>("[data-annotation]")) {
-      const thread = threadOf(mark);
+      const thread = threadOf(mark, props.threads);
       if (thread && !(thread.threadId in next))
         next[thread.threadId] = mark.getBoundingClientRect().top - base;
     }
@@ -46,10 +46,10 @@ export default function CanvasMarginThreads(props: {
   createEffect(() => props.threads, schedule);
 
   createEffect(
-    () => ({ id: active(), threads: props.threads }),
-    ({ id }) => {
-      const ranges = [...props.container.querySelectorAll<HTMLElement>("[data-annotation]")]
-        .filter((mark) => id && threadOf(mark)?.threadId === id)
+    () => ({ container: props.container, id: active(), threads: props.threads }),
+    ({ container, id, threads }) => {
+      const ranges = [...container.querySelectorAll<HTMLElement>("[data-annotation]")]
+        .filter((mark) => id && threadOf(mark, threads)?.threadId === id)
         .map((mark) => {
           const range = new Range();
           range.selectNodeContents(mark);
@@ -64,7 +64,7 @@ export default function CanvasMarginThreads(props: {
       event.target instanceof Element
         ? event.target.closest<HTMLElement>("[data-annotation]")
         : null;
-    setActive(mark ? threadOf(mark)?.threadId : undefined);
+    setActive(mark ? threadOf(mark, props.threads)?.threadId : undefined);
   }
 
   function clearActive() {

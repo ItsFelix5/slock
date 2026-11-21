@@ -1,23 +1,25 @@
 import type { Setup } from "@slock/core";
 import { errorMessage, isRecord } from "@slock/core";
+import { service } from "@slock/core/services";
+import type { UserId } from "@slock/types";
 import { errorResponse, jsonResponse } from "../../slack/server/api/jsonResponse";
 import type { Route } from "../../slack/server/api/router";
 import { route, routes } from "../../slack/server/api/router";
 
+const env = service("env");
+
 type HackClubStatus = "eligible" | "over_18" | "banned" | "unverified";
 
-const USER_ID_RE = /^[UW][A-Z0-9]+$/;
-
 async function fetchJson(lookup: Lookup, url: string): Promise<Record<string, unknown>> {
-  const res = await fetch(url, {
+  const res = await env.fetch(url, {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`${lookup} responded ${res.status} ${res.statusText}`);
   return recordOrEmpty(await res.json());
 }
 
-async function fetchTrustFactor(id: string): Promise<Record<string, unknown> | null> {
-  const res = await fetch(`https://hackatime.hackclub.com/api/v1/users/${id}/trust_factor`, {
+async function fetchTrustFactor(id: UserId): Promise<Record<string, unknown> | null> {
+  const res = await env.fetch(`https://hackatime.hackclub.com/api/v1/users/${id}/trust_factor`, {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (res.status === 404) return null;
@@ -41,10 +43,9 @@ function recordOrEmpty(value: unknown): Record<string, unknown> {
 }
 
 const list: Route[] = [
-  route("GET", "hackclub-status/:id", async (ctx) => {
+  route("GET", "users/:id/hackclub-status", async (ctx) => {
     if (!ctx.creds) return errorResponse("not configured", 401);
     const { id } = ctx.params;
-    if (!USER_ID_RE.test(id)) return errorResponse("invalid_user", 400);
 
     const [identityResult, hackatimeResult] = await Promise.allSettled([
       fetchJson("identity", `https://identity.hackclub.com/api/external/check?slack_id=${id}`),

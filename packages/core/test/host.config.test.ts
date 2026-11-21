@@ -41,7 +41,13 @@ describe("enabled store", () => {
   test("starts from the stored overrides and writes the full map on change", async () => {
     const writes: Record<string, boolean>[] = [];
     const host = createHost({
-      enabled: { read: () => ({ one: false }), write: (overrides) => writes.push(overrides) },
+      enabled: {
+        read: () => ({ one: false }),
+        write: (overrides) => {
+          writes.push(overrides);
+          return true;
+        },
+      },
     });
     await host.register({ id: "one", setup: () => {} }, { id: "two", setup: () => {} });
     expect(states(host)).toEqual({ one: "off", two: "running" });
@@ -55,7 +61,7 @@ describe("enabled store", () => {
   });
 
   test("an override for a plugin that is not registered yet still applies", async () => {
-    const host = createHost({ enabled: { read: () => ({}), write: () => {} } });
+    const host = createHost({ enabled: { read: () => ({}), write: () => true } });
     await host.setEnabled("later", false);
     await host.register({ id: "later", setup: () => {} });
     expect(states(host)).toEqual({ later: "off" });

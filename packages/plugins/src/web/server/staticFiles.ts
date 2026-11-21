@@ -13,14 +13,14 @@ const ENCODINGS = [
 const IMMUTABLE = "public, max-age=31536000, immutable";
 const ONE_WEEK = "public, max-age=604800";
 
-export function cacheControlFor(pathname: string): string {
+function cacheControlFor(pathname: string): string {
   if (pathname.startsWith("/assets/")) return IMMUTABLE;
   if (pathname.startsWith("/public/fonts/")) return IMMUTABLE;
   if (pathname.startsWith("/public/")) return ONE_WEEK;
   return "no-cache";
 }
 
-export function brotli(contents: string | Uint8Array): Uint8Array {
+function brotli(contents: string | Uint8Array): Uint8Array {
   return brotliCompressSync(contents, {
     params: { [constants.BROTLI_PARAM_QUALITY]: constants.BROTLI_MAX_QUALITY },
   });

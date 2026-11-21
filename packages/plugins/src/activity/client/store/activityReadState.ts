@@ -1,3 +1,4 @@
+import { compareTs } from "@slock/slack";
 import type { ActivityItem, ChannelId, Ts } from "@slock/types";
 import { createMemo, createSignal, createStore } from "solid-js";
 import { gatewayActivityCountsSnapshot, gatewayActivityPingCount, hasChannel } from "../kinds";
@@ -25,7 +26,7 @@ export function createActivityReadState(deps: {
   pingKinds: Set<ActivityItem["kind"]>;
   fetchActivityBadgeCounts: () => Promise<Record<string, number>>;
   fetchChannelLastRead: (channelId: ChannelId) => Promise<number>;
-  lastReadByChannel: Record<string, number | undefined>;
+  lastReadByChannel: Record<ChannelId, number | undefined>;
   markActivityRead: (type: string, feedTs: Ts, key: string) => Promise<void>;
   setLastReadByChannel: (channelId: ChannelId, ts: number) => void;
   setThreadRead: (channelId: ChannelId, threadTs: Ts, ts: Ts) => Promise<boolean>;
@@ -56,7 +57,7 @@ export function createActivityReadState(deps: {
     if (!hasChannel(item) || isMarkedViaActivityApi(item)) return false;
     if (item.threadTs) {
       const threadCursor = deps.threadReadTsFor(item.threadTs);
-      return threadCursor !== undefined && parseFloat(item.ts) <= parseFloat(threadCursor);
+      return threadCursor !== undefined && compareTs(item.ts, threadCursor) <= 0;
     }
     const cursor = deps.lastReadByChannel[item.channelId];
     return cursor !== undefined && parseFloat(item.ts) * 1000 <= cursor;
@@ -85,7 +86,7 @@ export function createActivityReadState(deps: {
     setActivityRead(item.id, false);
   }
 
-  const attemptedReadCursorBackfill = new Set<string>();
+  const attemptedReadCursorBackfill = new Set<ChannelId>();
 
   function needsReadCursorBackfill(item: ActivityItem): boolean {
     if (!hasChannel(item)) return false;
@@ -147,7 +148,7 @@ export function createActivityReadState(deps: {
       if (item.threadTs) {
         const key = `${item.channelId}:${item.threadTs}`;
         const prev = latestByThread.get(key);
-        if (!prev || parseFloat(item.ts) > parseFloat(prev.ts))
+        if (!prev || compareTs(item.ts, prev.ts) > 0)
           latestByThread.set(key, {
             channelId: item.channelId,
             threadTs: item.threadTs,
@@ -156,8 +157,7 @@ export function createActivityReadState(deps: {
         continue;
       }
       const prev = latestTsByChannel.get(item.channelId);
-      if (!prev || parseFloat(item.ts) > parseFloat(prev))
-        latestTsByChannel.set(item.channelId, item.ts);
+      if (!prev || compareTs(item.ts, prev) > 0) latestTsByChannel.set(item.channelId, item.ts);
     }
     for (const [channelId, ts] of latestTsByChannel) {
       if (parseFloat(ts) * 1000 <= (deps.lastReadByChannel[channelId] ?? 0)) continue;

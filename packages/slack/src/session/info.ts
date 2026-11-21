@@ -1,4 +1,4 @@
-import { isRecord } from "@slock/core";
+import { firstTruthy, isRecord } from "@slock/core";
 import type { AccountSummary, SessionInfo } from "@slock/types";
 import { isTeamId } from "../ids";
 
@@ -48,11 +48,17 @@ export function sessionInfoCookie(info: SessionInfo): string {
 
 const SLACK_SESSION_INVALID_CHARS = /[;\s]/;
 
+function dCookieValue(part: string): string | undefined {
+  const eq = part.indexOf("=");
+  const value = part.slice(eq + 1).trim();
+  return eq !== -1 &&
+    part.slice(0, eq).trim() === "d" &&
+    value.startsWith("xoxd-") &&
+    !SLACK_SESSION_INVALID_CHARS.test(value)
+    ? value
+    : undefined;
+}
+
 export function extractSlackSession(cookieHeader: string): string | undefined {
-  for (const part of cookieHeader.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1 || part.slice(0, eq).trim() !== "d") continue;
-    const value = part.slice(eq + 1).trim();
-    if (value.startsWith("xoxd-") && !SLACK_SESSION_INVALID_CHARS.test(value)) return value;
-  }
+  return firstTruthy(cookieHeader.split(";"), dCookieValue);
 }

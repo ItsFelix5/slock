@@ -1,10 +1,11 @@
 import { service } from "@slock/core/solid";
+import type { UserId } from "@slock/types";
 import { Avatar } from "@slock/ui";
 import { Show } from "solid-js";
 
 const usersStore = service("users");
 
-export default function UserChip(props: { userId: string }) {
+export default function UserChip(props: { userId: UserId }) {
   const user = () => usersStore.userById(props.userId);
   return (
     <span class="file-detail-user flex-align-center">

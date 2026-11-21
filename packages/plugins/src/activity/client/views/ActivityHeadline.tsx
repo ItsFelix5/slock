@@ -1,5 +1,6 @@
 import { EmojiText } from "@slock/blockkit";
 import { formatDayFromMs, formatTimeFromMs } from "@slock/core";
+import { service } from "@slock/core/solid";
 import type { ActivityItem } from "@slock/types";
 import { ClickableInline, Icon, Tooltip } from "@slock/ui";
 import { Show } from "solid-js";
@@ -10,6 +11,8 @@ import { SplitNavigation } from "../../../shell/client/api/SplitNavigation";
 import { activityVerb } from "./activityMetadata";
 import type { ActivityRowDisplay } from "./activityRowDisplay";
 import { ACTIVITY_KIND_ICONS } from "./activityViewFilters";
+
+const env = service("env");
 
 export default function ActivityHeadline(props: {
   count: number;
@@ -86,7 +89,7 @@ export default function ActivityHeadline(props: {
         <span class="activity-reply-count">{props.count}</span>
       </Show>
       <Tooltip
-        content={`${formatDayFromMs(props.latest.time)} at ${formatTimeFromMs(props.latest.time)}`}
+        content={`${formatDayFromMs(props.latest.time, env.now())} at ${formatTimeFromMs(props.latest.time)}`}
       >
         <span class="activity-time">{formatTimeFromMs(props.latest.time)}</span>
       </Tooltip>

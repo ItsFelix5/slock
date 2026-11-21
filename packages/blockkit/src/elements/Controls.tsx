@@ -61,7 +61,7 @@ export default function Controls(props: {
   const record = (payload: Record<string, unknown>) => recordAction(action(payload));
   const dispatch = (payload: Record<string, unknown>) => {
     record(payload);
-    if (!props.stateOnly) return dispatchAction(action(payload), data.confirm);
+    return props.stateOnly ? undefined : dispatchAction(action(payload), data.confirm);
   };
   const dispatchOn = () => {
     if (props.stateOnly) return [];

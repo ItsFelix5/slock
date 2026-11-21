@@ -1,6 +1,6 @@
 import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
-import type { User, UserCustomField } from "@slock/types";
+import type { User, UserCustomField, UserId } from "@slock/types";
 import { createConcurrencyQueue } from "@slock/ui";
 import { createStore } from "solid-js";
 
@@ -10,7 +10,7 @@ export function createUserProfileFields(
   deps: { currentUserBase: () => User | undefined },
   api: {
     fetchUserProfile: (
-      id: string,
+      id: UserId,
     ) => Promise<{ customFields?: UserCustomField[]; startDate?: string }>;
     setProfileFields: (fields: {
       displayName?: string;
@@ -24,24 +24,23 @@ export function createUserProfileFields(
   setSelfStatusOverride: (updater: (prev: Partial<User> | null) => Partial<User> | null) => void,
 ) {
   const [customFieldsById, setCustomFieldsById] = createStore<
-    Record<string, UserCustomField[] | undefined>
+    Record<UserId, UserCustomField[] | undefined>
   >({});
   const [profileStartDatesById, setProfileStartDatesById] = createStore<
-    Record<string, string | undefined>
+    Record<UserId, string | undefined>
   >({});
-  const loadedCustomFields = new Set<string>();
-  const pendingCustomFields = new Set<string>();
-  const customFieldsVersion = new Map<string, number>();
+  const loadedCustomFields = new Set<UserId>();
+  const pendingCustomFields = new Set<UserId>();
+  const customFieldsVersion = new Map<UserId, number>();
 
-  function customFieldsFor(id: string): UserCustomField[] | undefined {
+  function customFieldsFor(id: UserId): UserCustomField[] | undefined {
     const known = customFieldsById[id];
     if (loadedCustomFields.has(id) || pendingCustomFields.has(id)) return known;
     pendingCustomFields.add(id);
 
-    const routeId = id === deps.currentUserBase()?.id ? "me" : id;
     const startVersion = customFieldsVersion.get(id) ?? 0;
     api
-      .fetchUserProfile(routeId)
+      .fetchUserProfile(id)
       .then((profile) => {
         setCustomFieldsById((draft) => {
           if ((customFieldsVersion.get(id) ?? 0) === startVersion)
@@ -59,7 +58,7 @@ export function createUserProfileFields(
     return known;
   }
 
-  function profileStartDateFor(id: string): string | undefined {
+  function profileStartDateFor(id: UserId): string | undefined {
     customFieldsFor(id);
     return profileStartDatesById[id];
   }

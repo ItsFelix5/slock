@@ -1,10 +1,9 @@
 import { getHost, service } from "@slock/core/solid";
-import { logout, refreshAccountInfo } from "@slock/slack";
+import { logout } from "@slock/slack";
 
 const dialogs = service("shell.dialogs");
 
 export function restartApp(): Promise<void> {
-  refreshAccountInfo();
   history.replaceState(null, "", "/");
   return getHost().restart();
 }

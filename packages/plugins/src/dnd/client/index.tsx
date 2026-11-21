@@ -1,4 +1,5 @@
 import type { Setup } from "@slock/core";
+import { isUserId } from "@slock/slack";
 import { gatewayHandler } from "../../realtime/client/api";
 import { userDnd } from "./queries";
 import UserDnd from "./UserDnd";
@@ -10,7 +11,7 @@ const setup: Setup = (ctx) => {
   ctx.add(
     "realtime.handler",
     gatewayHandler(["dnd_updated_user", "dnd_invalidated"], (event) => {
-      if (event.user) userDnd.invalidate(event.user);
+      if (event.user && isUserId(event.user)) userDnd.invalidate(event.user);
     }),
   );
 };

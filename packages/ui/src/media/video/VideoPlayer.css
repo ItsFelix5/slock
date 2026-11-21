@@ -2,9 +2,10 @@
   align-items: center;
   justify-content: center;
   width: 360px;
-  min-height: 120px;
+  min-height: 0;
   max-width: 100%;
   padding: var(--space-lg);
+  overflow: hidden;
   color: var(--text-secondary);
   text-align: center;
   background: var(--composer-bg);
@@ -87,7 +88,7 @@
 }
 
 .video-player-wrap:hover .video-player-idle,
-.video-player-wrap:focus-within .video-player-idle {
+.video-player-wrap:has(:focus-visible) .video-player-idle {
   opacity: 0;
   pointer-events: none;
 }
@@ -100,9 +101,9 @@
 }
 
 .video-player-wrap:hover .video-player-corner,
-.video-player-wrap:focus-within .video-player-corner,
+.video-player-wrap:has(:focus-visible) .video-player-corner,
 .video-player-wrap:hover .video-player-controls,
-.video-player-wrap:focus-within .video-player-controls {
+.video-player-wrap:has(:focus-visible) .video-player-controls {
   opacity: 1;
   pointer-events: auto;
 }

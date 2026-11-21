@@ -1,12 +1,15 @@
+import type { TimerHandle } from "@slock/core";
+import { service } from "@slock/core/solid";
 import type { ModalView } from "@slock/types";
 import { createSignal } from "solid-js";
 
 const TOAST_MS = 4000;
+const env = service("env");
 
 export function createModalsSlice() {
   const [viewStack, setViewStack] = createSignal<ModalView[]>([]);
   const [toast, setToast] = createSignal<string | null>(null);
-  let toastTimer: ReturnType<typeof setTimeout> | undefined;
+  let toastTimer: TimerHandle | undefined;
 
   const topView = () => viewStack().at(-1) ?? null;
 
@@ -30,13 +33,13 @@ export function createModalsSlice() {
   }
 
   function showToast(text: string) {
-    clearTimeout(toastTimer);
+    env.clearTimeout(toastTimer);
     setToast(text);
-    toastTimer = setTimeout(() => setToast(null), TOAST_MS);
+    toastTimer = env.setTimeout(() => setToast(null), TOAST_MS);
   }
 
   function dispose() {
-    clearTimeout(toastTimer);
+    env.clearTimeout(toastTimer);
   }
 
   return {

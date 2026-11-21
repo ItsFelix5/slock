@@ -94,7 +94,7 @@
 }
 
 .channel-details-member:hover .channel-details-member-remove,
-.channel-details-member:focus-within .channel-details-member-remove {
+.channel-details-member:has(:focus-visible) .channel-details-member-remove {
   display: flex;
 }
 

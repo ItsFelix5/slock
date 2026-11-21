@@ -1,9 +1,13 @@
+import { service } from "@slock/core/solid";
+import type { TimerHandle } from "@slock/core/types";
 import type { JSX } from "@solidjs/web";
 import { createEffect, onCleanup, Show } from "solid-js";
 import FloatingPanel, { type FloatingAlign, type Placement } from "../floating/FloatingPanel";
 import "./Menu.css";
 import MenuOpenBehavior from "./MenuOpenBehavior";
 import { createMenuRovingFocus } from "./rovingMenuFocus";
+
+const env = service("env");
 
 export interface MenuProps {
   align?: FloatingAlign;
@@ -22,10 +26,10 @@ export default function Menu(props: MenuProps) {
   let rootRef: HTMLDivElement | undefined;
   let panelRef: HTMLDivElement | undefined;
   let restoreAfterKeyboardAction = false;
-  let hoverCloseTimer: ReturnType<typeof setTimeout> | undefined;
+  let hoverCloseTimer: TimerHandle | undefined;
 
   const cancelHoverClose = () => {
-    if (hoverCloseTimer) clearTimeout(hoverCloseTimer);
+    env.clearTimeout(hoverCloseTimer);
     hoverCloseTimer = undefined;
   };
   const openFromHover = () => {
@@ -36,7 +40,7 @@ export default function Menu(props: MenuProps) {
   const closeFromHover = () => {
     if (!props.openOnHover) return;
     cancelHoverClose();
-    hoverCloseTimer = setTimeout(props.onClose, 120);
+    hoverCloseTimer = env.setTimeout(props.onClose, 120);
   };
   onCleanup(cancelHoverClose);
 

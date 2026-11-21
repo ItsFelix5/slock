@@ -1,4 +1,4 @@
-import { customEmojiNames, emojiUrl, standardEmojiEntries } from "@slock/blockkit";
+import { type EmojiSource, standardEmojiEntries } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import { fuzzySearch } from "@slock/ui";
 import { createMemo } from "solid-js";
@@ -30,15 +30,16 @@ export function standardEmojiUnicode(name: string): string | undefined {
   return STANDARD_EMOJI_BY_NAME.get(name);
 }
 
-function customEmojiEntries(): EmojiEntry[] {
-  return customEmojiNames()
-    .filter((n) => emojiUrl(n))
+function customEmojiEntries(source: EmojiSource): EmojiEntry[] {
+  return source
+    .names()
+    .filter((n) => source.url(n))
     .map((name): EmojiEntry => ({ name, searchText: spaced(name) }));
 }
 
-export function createEmojiIndex() {
+export function createEmojiIndex(source: EmojiSource) {
   const allEmojiEntries = createMemo(() =>
-    mergeEmojiEntries(customEmojiEntries(), STANDARD_EMOJI_ENTRIES),
+    mergeEmojiEntries(customEmojiEntries(source), STANDARD_EMOJI_ENTRIES),
   );
   const byName = createMemo(() => new Map(allEmojiEntries().map((entry) => [entry.name, entry])));
   const emojiEntryByName = (name: string): EmojiEntry | undefined => byName().get(name);
@@ -65,7 +66,7 @@ export function createEmojiIndex() {
       .map((x) => x.entry);
   }
 
-  return { allEmojiEntries, emojiEntryByName, frequentEmoji, searchEmoji };
+  return { allEmojiEntries, emojiEntryByName, frequentEmoji, searchEmoji, source };
 }
 
 declare module "@slock/core/types" {

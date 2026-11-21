@@ -1,6 +1,7 @@
-import { service } from "@slock/core/solid";
-import type { ProfileFieldDef, User } from "@slock/types";
-import { createEffect, createSignal, createStore } from "solid-js";
+import { createFlags, service } from "@slock/core/solid";
+import type { ProfileFieldDef, User, UserId } from "@slock/types";
+import { createEffect, createMemo, createSignal, createStore, untrack } from "solid-js";
+import { selfInputSeed } from "./selfInputSeed";
 import { mergeMissingProfileFieldValues } from "./userProfileFieldValues";
 
 const usersStore = service("users");
@@ -55,7 +56,7 @@ function createGuardedFlag() {
 }
 
 export function createProfileForm(deps: {
-  userId: () => string;
+  userId: () => UserId;
   user: () => User | undefined;
   fieldDefs: () => ProfileFieldDef[] | undefined;
 }) {
@@ -69,11 +70,10 @@ export function createProfileForm(deps: {
     title: "",
   });
   const [customValues, setCustomValues] = createStore<Record<string, string>>({});
-  const [savingFields, setSavingFields] = createStore<Record<string, boolean>>({});
+  const savingFields = createFlags<string>();
   const status = createGuardedFlag();
   const presence = createGuardedFlag();
   const photo = createGuardedFlag();
-  const inflightFields = new Set<string>();
 
   const setInput = (key: ProfileInputKey, value: string) =>
     setInputs((draft) => {
@@ -84,24 +84,21 @@ export function createProfileForm(deps: {
       draft[id] = value;
     });
 
+  const meId = createMemo(() => usersStore.currentUser()?.id);
   createEffect(
-    () => [deps.userId(), usersStore.currentUser()?.id],
-    ([id]) => {
-      if (!id) return;
-      const me = usersStore.currentUser();
-      const nickname = usersStore.nicknameFor(id) ?? "";
-      setInputs((draft) => {
-        if (id === me?.id) {
-          draft.statusText = me.statusText ?? "";
-          draft.statusEmoji = me.statusEmoji ?? "";
-          draft.name = me.name;
-          draft.fullName = me.realName ?? me.name;
-          draft.title = me.title ?? "";
-          draft.pronouns = me.pronouns ?? "";
-        }
-        draft.nickname = nickname;
-      });
+    () => {
+      meId();
+      return selfInputSeed(deps.userId(), untrack(usersStore.currentUser));
     },
+    (seed) =>
+      void setInputs((draft) => {
+        Object.assign(draft, seed);
+      }),
+  );
+
+  createEffect(
+    () => usersStore.nicknameFor(deps.userId()) ?? "",
+    (nickname) => void setInput("nickname", nickname),
   );
 
   createEffect(
@@ -114,30 +111,22 @@ export function createProfileForm(deps: {
     },
     (loaded) => {
       if (!loaded) return;
-      const merged = mergeMissingProfileFieldValues(
-        { ...customValues },
-        loaded.defs,
-        loaded.fields,
-      );
       setCustomValues((draft) => {
-        Object.assign(draft, merged);
+        Object.assign(
+          draft,
+          mergeMissingProfileFieldValues({ ...draft }, loaded.defs, loaded.fields),
+        );
       });
     },
   );
 
   async function saveField(key: string, save: () => Promise<boolean>) {
-    if (inflightFields.has(key)) return;
-    inflightFields.add(key);
-    setSavingFields((draft) => {
-      draft[key] = true;
-    });
+    if (savingFields.has(key)) return;
+    savingFields.set(key, true);
     try {
       await save();
     } finally {
-      inflightFields.delete(key);
-      setSavingFields((draft) => {
-        draft[key] = false;
-      });
+      savingFields.set(key, false);
     }
   }
 
@@ -196,7 +185,7 @@ export function createProfileForm(deps: {
     commitSelfField,
     customValues,
     inputs,
-    isSavingField: (key: string) => !!savingFields[key],
+    isSavingField: savingFields.has,
     isSavingPhoto: photo.pending,
     isSavingPresence: presence.pending,
     isSavingStatus: status.pending,

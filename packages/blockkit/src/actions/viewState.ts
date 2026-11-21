@@ -72,7 +72,9 @@ function initialPayload(el: ElementData): Payload | undefined {
   if (el.initial_channels) return { selected_channels: el.initial_channels, type: el.type };
   if (el.initial_date) return { selected_date: el.initial_date, type: el.type };
   if (el.initial_time) return { selected_time: el.initial_time, type: el.type };
-  if (el.initial_datetime) return { selected_date_time: el.initial_datetime, type: el.type };
+  return el.initial_datetime
+    ? { selected_date_time: el.initial_datetime, type: el.type }
+    : undefined;
 }
 
 export function statefulElements(blocks: Block[]) {

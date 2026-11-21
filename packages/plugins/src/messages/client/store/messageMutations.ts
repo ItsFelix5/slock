@@ -1,6 +1,7 @@
 import { service } from "@slock/core/solid";
 import { isMyRelayedMessage } from "@slock/slack";
 import type { Block, ChannelId, FileId, Message, Ts, User } from "@slock/types";
+import { createConcurrencyQueue } from "@slock/ui";
 import {
   broadcastReply,
   deleteAttachment,
@@ -24,7 +25,7 @@ export function createMessageMutations(deps: {
   const isRelayed = (message: Message | undefined) =>
     !!message && isMyRelayedMessage(message, deps.currentUser());
 
-  async function editMessageText(
+  async function performEdit(
     channelId: ChannelId,
     ts: Ts,
     text: string,
@@ -61,6 +62,10 @@ export function createMessageMutations(deps: {
       return false;
     }
   }
+
+  const edits = createConcurrencyQueue(1);
+  const editMessageText = (...args: Parameters<typeof performEdit>) =>
+    edits.run(() => performEdit(...args));
 
   async function broadcastThreadReply(channelId: ChannelId, ts: Ts) {
     const relayed = isRelayed(findMessage(channelId, ts));

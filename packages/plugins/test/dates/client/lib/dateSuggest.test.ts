@@ -1,10 +1,19 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 
 process.env.TZ = "Europe/Brussels";
 
-import { forAll, pick, text } from "@slock/core/testing";
+import { createHost } from "@slock/core";
+import { setHost } from "@slock/core/solid";
+import { createFakeEnv, type FakeEnv, forAll, pick, text } from "@slock/core/testing";
 import { dateSuggest } from "../../../../src/dates/client/lib/dateSuggest";
 import { parseDateQuery } from "../../../../src/dates/client/lib/parseDateQuery";
+
+let env: FakeEnv;
+
+beforeEach(() => {
+  env = createFakeEnv();
+  setHost(createHost({ env }));
+});
 
 const SLACK_DATE_TAG = /^<!date\^\d+\^[^^|>]+\|[^|>]+>$/;
 
@@ -33,7 +42,7 @@ describe("dateSuggest", () => {
   });
 
   test("a day with a time appends the time and offers time-only formats", () => {
-    const parsed = parseDateQuery("tomorrow_9am");
+    const parsed = parseDateQuery("tomorrow_9am", new Date(env.now()));
     const inserts = search("tomorrow_9am").map((suggestion) => suggestion.insert);
     expect(inserts).toHaveLength(6);
     expect(inserts[0]).toStartWith(`<!date^${parsed?.ts}^{date_pretty} at {time}|`);

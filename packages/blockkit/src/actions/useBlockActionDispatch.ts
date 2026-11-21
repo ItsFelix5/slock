@@ -1,25 +1,29 @@
+import { service } from "@slock/core/solid";
+import type { TimerHandle } from "@slock/core/types";
 import type { ConfirmationDialog } from "@slock/types";
 import { createSignal, onCleanup } from "solid-js";
 import type { BlockActionContext } from "../BlockKit";
 import { useBlockKitConfirm } from "../context";
 import { containerOf, runBlockAction } from "./blockActions";
 
+const env = service("env");
+
 export function useBlockActionDispatch(context: () => BlockActionContext | undefined) {
   const confirmDialog = useBlockKitConfirm();
   const [pending, setPending] = createSignal(false);
   const [unsupported, setUnsupported] = createSignal(false);
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  let timer: TimerHandle | undefined;
   let active = true;
 
   onCleanup(() => {
     active = false;
-    clearTimeout(timer);
+    env.clearTimeout(timer);
   });
 
   const flashUnsupported = () => {
-    clearTimeout(timer);
+    env.clearTimeout(timer);
     setUnsupported(true);
-    timer = setTimeout(() => setUnsupported(false), 2000);
+    timer = env.setTimeout(() => setUnsupported(false), 2000);
   };
 
   const canDispatch = (actionId?: string) => !!(context()?.botId && actionId);

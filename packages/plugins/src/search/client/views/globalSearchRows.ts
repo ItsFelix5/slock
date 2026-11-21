@@ -17,7 +17,7 @@ const titles = service("titles");
 const usersStore = service("users");
 const prefsStore = service("prefs");
 
-export const MAX_ROWS = 30;
+const MAX_ROWS = 30;
 type Candidate = { row: GlobalSearchRow; name: string; id: string };
 
 export function createGlobalSearchRows(deps: {

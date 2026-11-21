@@ -5,6 +5,7 @@ import { createFakeEnv, int, pick, seededRandom } from "@slock/core/testing";
 import { compareTs } from "@slock/slack";
 import { ch, stamp } from "@slock/slack/testing";
 import type { ChannelId, HistoryPage, Message, Ts } from "@slock/types";
+import { provideUi } from "@slock/ui";
 import { createRoot, snapshot } from "solid-js";
 import { createMessageHistory } from "../../../../src/messages/client/store/messageHistory";
 import { message, slackTs } from "../messageFixture";
@@ -13,7 +14,7 @@ let host: ReturnType<typeof createHost>;
 beforeAll(async () => {
   host = createHost({ env: createFakeEnv(), reactive: solidReactive });
   setHost(host);
-  await host.register();
+  await host.register({ id: "ui", setup: provideUi });
 });
 afterAll(() => host.stop());
 

@@ -1,5 +1,8 @@
+import { service } from "@slock/core/services";
 import type { Credentials } from "../../slack/server/api/auth";
 import { callSlack } from "../../slack/server/api/slackClient";
+
+const env = service("env");
 
 const EMOJI_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -52,12 +55,12 @@ export function createEmojiCache() {
     if (!creds) return Promise.resolve({ aliasesToBuiltinNames: {}, names: [], urls: {} });
     const key = keyFor(creds);
     const cached = entries.get(key);
-    if (cached?.data && cached.expiresAt > Date.now()) return Promise.resolve(cached.data);
+    if (cached?.data && cached.expiresAt > env.now()) return Promise.resolve(cached.data);
     if (cached?.promise) return cached.promise;
     const promise = callSlack<{ emoji?: Record<string, string> }>("emoji.list", {}, creds)
       .then((reply) => normalize(reply.ok ? (reply.emoji ?? {}) : {}))
       .then((data) => {
-        entries.set(key, { data, expiresAt: Date.now() + EMOJI_CACHE_TTL_MS });
+        entries.set(key, { data, expiresAt: env.now() + EMOJI_CACHE_TTL_MS });
         return data;
       })
       .catch((error) => {

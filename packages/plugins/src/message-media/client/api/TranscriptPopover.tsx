@@ -19,6 +19,7 @@ export default function TranscriptPopover(props: {
     () => ({ media: props.media(), listening: open() }),
     ({ media, listening }) => {
       if (!(media && listening)) return;
+      setCurrentTime(media.currentTime);
       const onTimeUpdate = () => setCurrentTime(media.currentTime);
       media.addEventListener("timeupdate", onTimeUpdate);
       return () => media.removeEventListener("timeupdate", onTimeUpdate);

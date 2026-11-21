@@ -13,6 +13,7 @@
     "packages/*/test/**/*.tsx",
     "packages/plugins/src/**/*.ts",
     "packages/plugins/src/**/*.tsx",
+    "examplePlugin/client/**/*.tsx",
     "test/*.ts",
     "e2e/**/*.ts",
     "types/*.d.ts"

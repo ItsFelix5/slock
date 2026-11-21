@@ -1,16 +1,12 @@
-import { afterEach, describe, expect, setSystemTime, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { forAll, int } from "../../src/testing";
 import { formatDay, formatDayFromMs, formatTime, formatTimeFromMs } from "../../src/util/time";
-
-afterEach(() => setSystemTime());
 
 function localMs(year: number, month: number, day: number, hour = 12, minute = 0) {
   return new Date(year, month, day, hour, minute).getTime();
 }
 
-function freezeAt(year: number, month: number, day: number) {
-  setSystemTime(new Date(year, month, day, 12));
-}
+const noon = (year: number, month: number, day: number) => localMs(year, month, day, 12);
 
 describe("formatTimeFromMs", () => {
   test("uses a 24 hour clock with two digits", () => {
@@ -49,39 +45,39 @@ describe("formatTime", () => {
 
 describe("formatDayFromMs", () => {
   test("names today from its first to its last minute", () => {
-    freezeAt(2024, 2, 15);
-    expect(formatDayFromMs(localMs(2024, 2, 15, 0, 0))).toBe("Today");
-    expect(formatDayFromMs(localMs(2024, 2, 15, 23, 59))).toBe("Today");
+    const now = noon(2024, 2, 15);
+    expect(formatDayFromMs(localMs(2024, 2, 15, 0, 0), now)).toBe("Today");
+    expect(formatDayFromMs(localMs(2024, 2, 15, 23, 59), now)).toBe("Today");
   });
 
   test("names yesterday", () => {
-    freezeAt(2024, 2, 15);
-    expect(formatDayFromMs(localMs(2024, 2, 14, 0, 0))).toBe("Yesterday");
-    expect(formatDayFromMs(localMs(2024, 2, 14, 23, 59))).toBe("Yesterday");
+    const now = noon(2024, 2, 15);
+    expect(formatDayFromMs(localMs(2024, 2, 14, 0, 0), now)).toBe("Yesterday");
+    expect(formatDayFromMs(localMs(2024, 2, 14, 23, 59), now)).toBe("Yesterday");
   });
 
   test("yesterday crosses month and year boundaries", () => {
-    freezeAt(2024, 2, 1);
-    expect(formatDayFromMs(localMs(2024, 1, 29))).toBe("Yesterday");
-    freezeAt(2025, 0, 1);
-    expect(formatDayFromMs(localMs(2024, 11, 31))).toBe("Yesterday");
+    let now = noon(2024, 2, 1);
+    expect(formatDayFromMs(localMs(2024, 1, 29), now)).toBe("Yesterday");
+    now = noon(2025, 0, 1);
+    expect(formatDayFromMs(localMs(2024, 11, 31), now)).toBe("Yesterday");
   });
 
   test("older days spell out the weekday and skip the current year", () => {
-    freezeAt(2024, 2, 15);
-    const label = formatDayFromMs(localMs(2024, 2, 13));
+    const now = noon(2024, 2, 15);
+    const label = formatDayFromMs(localMs(2024, 2, 13), now);
     expect(label).toContain("Wednesday");
     expect(label).not.toContain("2024");
   });
 
   test("days from another year include it", () => {
-    freezeAt(2025, 0, 1);
-    expect(formatDayFromMs(localMs(2024, 11, 30))).toContain("2024");
+    const now = noon(2025, 0, 1);
+    expect(formatDayFromMs(localMs(2024, 11, 30), now)).toContain("2024");
   });
 
   test("future days are not today or yesterday", () => {
-    freezeAt(2024, 2, 15);
-    expect(formatDayFromMs(localMs(2024, 2, 16))).not.toMatch(/^(Today|Yesterday)$/);
+    const now = noon(2024, 2, 15);
+    expect(formatDayFromMs(localMs(2024, 2, 16), now)).not.toMatch(/^(Today|Yesterday)$/);
   });
 
   test("daylight saving shifts do not move the day names", () => {
@@ -103,12 +99,12 @@ describe("formatDayFromMs", () => {
           [12, 0],
           [23, 30],
         ]) {
-          setSystemTime(new Date(2024, month, day, hour, minute));
-          expect(formatDayFromMs(localMs(2024, month, day, 0, 30))).toBe("Today");
-          expect(formatDayFromMs(localMs(2024, month, day, 23, 30))).toBe("Today");
-          expect(formatDayFromMs(localMs(2024, month, day - 1, 0, 30))).toBe("Yesterday");
-          expect(formatDayFromMs(localMs(2024, month, day - 1, 23, 30))).toBe("Yesterday");
-          expect(formatDayFromMs(localMs(2024, month, day - 2, 23, 30))).not.toMatch(
+          const now = localMs(2024, month, day, hour, minute);
+          expect(formatDayFromMs(localMs(2024, month, day, 0, 30), now)).toBe("Today");
+          expect(formatDayFromMs(localMs(2024, month, day, 23, 30), now)).toBe("Today");
+          expect(formatDayFromMs(localMs(2024, month, day - 1, 0, 30), now)).toBe("Yesterday");
+          expect(formatDayFromMs(localMs(2024, month, day - 1, 23, 30), now)).toBe("Yesterday");
+          expect(formatDayFromMs(localMs(2024, month, day - 2, 23, 30), now)).not.toMatch(
             /^(Today|Yesterday)$/,
           );
         }
@@ -122,8 +118,8 @@ describe("formatDayFromMs", () => {
 
 describe("formatDay", () => {
   test("reads a Slack timestamp as seconds", () => {
-    freezeAt(2024, 2, 15);
-    expect(formatDay(`${localMs(2024, 2, 15) / 1000}.000200`)).toBe("Today");
-    expect(formatDay(`${localMs(2024, 2, 14) / 1000}.000200`)).toBe("Yesterday");
+    const now = noon(2024, 2, 15);
+    expect(formatDay(`${localMs(2024, 2, 15) / 1000}.000200`, now)).toBe("Today");
+    expect(formatDay(`${localMs(2024, 2, 14) / 1000}.000200`, now)).toBe("Yesterday");
   });
 });

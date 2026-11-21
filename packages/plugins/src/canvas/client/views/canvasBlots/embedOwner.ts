@@ -1,6 +1,6 @@
 import Quill from "@slock/ui/editor/quill";
 
-export function owningEditor(node: Element): Quill | undefined {
+function owningEditor(node: Element): Quill | undefined {
   const container = node.parentElement?.closest(".ql-container");
   const found = container ? Quill.find(container) : null;
   return found instanceof Quill ? found : undefined;

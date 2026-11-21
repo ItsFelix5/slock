@@ -1,3 +1,4 @@
+import { firstTruthy } from "@slock/core";
 import { isTs } from "@slock/slack";
 import type { ChannelId, Message, Ts, UserId } from "@slock/types";
 import { tsToMs } from "./tsTime";
@@ -27,15 +28,17 @@ export function createMessageLocator(
     const hinted = threadKeyByTs.get(ts);
     const hintedList = hinted === undefined ? undefined : containing(threadMessages[hinted], ts);
     if (hinted !== undefined && hintedList) return { key: hinted, list: hintedList };
-    for (const key of Object.keys(threadMessages).filter(isTs)) {
+    const hit = firstTruthy(Object.keys(threadMessages).filter(isTs), (key) => {
       const list = containing(threadMessages[key], ts);
-      if (list) {
-        if (threadKeyByTs.size > MAX_REMEMBERED_THREADS) threadKeyByTs.clear();
-        threadKeyByTs.set(ts, key);
-        return { key, list };
-      }
+      return list ? { key, list } : undefined;
+    });
+    if (hit) {
+      if (threadKeyByTs.size > MAX_REMEMBERED_THREADS) threadKeyByTs.clear();
+      threadKeyByTs.set(ts, hit.key);
+    } else {
+      threadKeyByTs.delete(ts);
     }
-    threadKeyByTs.delete(ts);
+    return hit;
   }
   return function findMessageLocations(channelId: ChannelId, ts: Ts): LocatedMessages[] {
     const results: LocatedMessages[] = [];

@@ -1,15 +1,12 @@
+import { service } from "@slock/core/solid";
 import type { JSX } from "@solidjs/web";
 import { Portal } from "@solidjs/web";
 import { onSettled } from "solid-js";
-import {
-  focusableWithin,
-  isTopFocusLayer,
-  popFocusLayer,
-  pushFocusLayer,
-  tabWrapTarget,
-} from "./dialog/focusTrap";
+import { focusableWithin, tabWrapTarget } from "./dialog/focusTrap";
 import { FloatingMountContext } from "./floating/FloatingPanel";
 import "./Overlay.css";
+
+const ui = service("ui");
 
 type OverlayLabel =
   | { ariaLabel: string; ariaLabelledBy?: never }
@@ -28,15 +25,18 @@ export default function Overlay(props: OverlayProps) {
     document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
   onSettled(() => {
-    const layer = pushFocusLayer();
+    const layer = ui.focusLayers.push({});
     queueMicrotask(() => {
-      if (!(isTopFocusLayer(layer) && overlayRef) || overlayRef.contains(document.activeElement))
+      if (
+        !(ui.focusLayers.isTop(layer) && overlayRef) ||
+        overlayRef.contains(document.activeElement)
+      )
         return;
       (focusableWithin(overlayRef)[0] ?? overlayRef).focus();
     });
 
     const keepFocusInside = (event: KeyboardEvent) => {
-      if (event.key !== "Tab" || !isTopFocusLayer(layer) || !overlayRef) return;
+      if (event.key !== "Tab" || !ui.focusLayers.isTop(layer) || !overlayRef) return;
       const focusable = focusableWithin(overlayRef);
       if (focusable.length === 0) {
         event.preventDefault();
@@ -58,10 +58,11 @@ export default function Overlay(props: OverlayProps) {
     document.addEventListener("keydown", keepFocusInside);
     return () => {
       document.removeEventListener("keydown", keepFocusInside);
-      const { wasTop, revealed } = popFocusLayer(layer);
+      const { wasTop, revealed } = ui.focusLayers.pop(layer);
       if (!(wasTop && previouslyFocused?.isConnected)) return;
       queueMicrotask(() => {
-        if (isTopFocusLayer(revealed) && previouslyFocused.isConnected) previouslyFocused.focus();
+        if (ui.focusLayers.isTop(revealed) && previouslyFocused.isConnected)
+          previouslyFocused.focus();
       });
     };
   });

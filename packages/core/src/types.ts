@@ -64,5 +64,5 @@ export type Reactive = {
 
 export type EnabledStore = {
   read(): Record<string, boolean>;
-  write(overrides: Record<string, boolean>): void;
+  write(overrides: Record<string, boolean>): boolean;
 };

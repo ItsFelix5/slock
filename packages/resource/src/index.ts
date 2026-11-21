@@ -8,6 +8,7 @@ export { createResourceCache } from "./cache";
 export {
   type CacheOptions,
   type EnsureOptions,
+  type EntryInfo,
   type ResourceCache,
   ResourceCleared,
   type SubscribeOptions,
@@ -15,9 +16,9 @@ export {
   type Unsubscribe,
 } from "./cacheTypes";
 export { type Cooldown, createCooldown } from "./cooldown";
-export { delay, type ResourceEnv, type TimerHandle } from "./env";
+export { delay, type ResourceEnv } from "./delay";
 export type { FetchContext } from "./fetchRun";
-export { createResourceHub, type ResourceHub } from "./hub";
+export { createResourceHub, type HubEntry, type ResourceHub } from "./hub";
 export { stableKey } from "./key";
 export { createLatest, type Latest, type LatestOutcome } from "./latest";
 export { createLatestValueSync, type LatestSyncOptions } from "./latestSync";

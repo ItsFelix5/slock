@@ -1,3 +1,5 @@
+import { service } from "@slock/core/solid";
+import type { TimerHandle } from "@slock/core/types";
 import type { AttachmentAction } from "@slock/types";
 import { createSignal, For, onCleanup, Show } from "solid-js";
 import { runAttachmentAction } from "./actions/blockActions";
@@ -5,6 +7,8 @@ import type { BlockActionContext } from "./BlockKit";
 import LinkButton from "./elements/LinkButton";
 import { safeUrl } from "./safeUrl";
 import "./elements/Controls.css";
+
+const env = service("env");
 
 export default function LegacyAttachmentActions(props: {
   actions: AttachmentAction[];
@@ -15,7 +19,7 @@ export default function LegacyAttachmentActions(props: {
 }) {
   const [pendingName, setPendingName] = createSignal<string>();
   const [unsupported, setUnsupported] = createSignal<string>();
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  let timer: TimerHandle | undefined;
   let active = true;
   const actionContext = () => {
     const ctx = props.context;
@@ -40,9 +44,9 @@ export default function LegacyAttachmentActions(props: {
   };
   const canDispatch = () => !!actionContext();
   const flashUnsupported = (name: string) => {
-    clearTimeout(timer);
+    env.clearTimeout(timer);
     setUnsupported(name);
-    timer = setTimeout(() => setUnsupported(), 2000);
+    timer = env.setTimeout(() => setUnsupported(), 2000);
   };
   const click = (action: AttachmentAction) => {
     if (safeUrl(action.url) || pendingName()) return;
@@ -72,7 +76,7 @@ export default function LegacyAttachmentActions(props: {
 
   onCleanup(() => {
     active = false;
-    clearTimeout(timer);
+    env.clearTimeout(timer);
   });
 
   return (

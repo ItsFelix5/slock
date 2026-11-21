@@ -71,7 +71,7 @@ export function dateValue(value: unknown): DateValue | undefined {
     : undefined;
 }
 
-export function emojiValue(value: unknown): string | undefined {
+function emojiValue(value: unknown): string | undefined {
   if (!(value && typeof value === "object" && "name" in value)) return;
   return typeof value.name === "string" ? value.name : undefined;
 }
@@ -87,7 +87,7 @@ export function describeEmbed(insert: Record<string, unknown>): EmbedInsert | un
   if (emoji) return { emoji };
   const date = dateValue(insert.date);
   if (date) return { date };
-  if (insert.divider) return { divider: true };
+  return insert.divider ? { divider: true } : undefined;
 }
 
 export function embedText(embed: EmbedInsert): string {

@@ -13,7 +13,7 @@ export function MessageRemindItem(props: MessageMenuProps) {
 
 export function ActivityRemindItem(props: ActivityMenuProps) {
   const latest = () => {
-    const item = props.row.items[0];
+    const [item] = props.row.items;
     return item && hasChannel(item) ? item : undefined;
   };
   const markReminderRead = () => {

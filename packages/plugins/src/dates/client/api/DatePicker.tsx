@@ -1,4 +1,6 @@
 import { formatSlackDateTokens } from "@slock/blockkit";
+import { startOfDay, toLocalInputValue } from "@slock/core";
+import { service } from "@slock/core/solid";
 import { ariaBoolean, IconButton, useClickOutside, useEscapeClose } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, onSettled, Show } from "solid-js";
 import {
@@ -7,11 +9,11 @@ import {
   joinFormat,
   nextHour,
   parseFormat,
-  startOfToday,
   TIME_OPTIONS,
-  toLocalInputValue,
 } from "./dateFormats";
 import "./DatePicker.css";
+
+const env = service("env");
 
 function FormatOption(props: {
   active: boolean;
@@ -42,7 +44,7 @@ export default function DatePicker(props: {
   const initial = createMemo(() => props.initial && parseFormat(props.initial.format));
   const [date, setDate] = createSignal(() => {
     if (props.initial) return new Date(props.initial.ts * 1000);
-    return props.dateOnly ? startOfToday() : nextHour();
+    return props.dateOnly ? new Date(startOfDay(env.now())) : nextHour(env.now());
   });
   const [dateFormat, setDateFormat] = createSignal(
     () => initial()?.date ?? (props.dateOnly ? "{date_short_pretty}" : "{date_pretty}"),
@@ -52,12 +54,12 @@ export default function DatePicker(props: {
   );
   const [useAgo, setUseAgo] = createSignal(() => initial()?.ago ?? false);
   const format = () => joinFormat(useAgo(), dateFormat(), timeFormat());
-  const preview = (tokens: string) => formatSlackDateTokens(tokens, dateToTs(date()));
+  const preview = (tokens: string) => formatSlackDateTokens(tokens, dateToTs(date()), env.now());
 
   createEffect(
-    () => [date(), format()] as const,
-    ([d, f]) => {
-      if (props.initial && f) props.onSelect(dateToTs(d), f);
+    () => (props.initial && format() ? { format: format(), ts: dateToTs(date()) } : undefined),
+    (edit) => {
+      if (edit) props.onSelect(edit.ts, edit.format);
     },
     { defer: true },
   );
@@ -72,8 +74,8 @@ export default function DatePicker(props: {
 
   let dateInput: HTMLInputElement | undefined;
   onSettled(() => {
-    const timer = setTimeout(() => dateInput?.focus());
-    return () => clearTimeout(timer);
+    const timer = env.setTimeout(() => dateInput?.focus(), 0);
+    return () => env.clearTimeout(timer);
   });
 
   const confirm = () => {
@@ -102,7 +104,7 @@ export default function DatePicker(props: {
         ref={dateInput}
         step="1"
         type={props.dateOnly ? "date" : "datetime-local"}
-        value={props.dateOnly ? toLocalInputValue(date()).slice(0, 10) : toLocalInputValue(date())}
+        value={toLocalInputValue(date(), props.dateOnly ? "date" : "second")}
       />
       <Show when={!props.dateOnly}>
         <div class="compose-date-section">

@@ -1,13 +1,15 @@
 import { isChannelId } from "@slock/slack";
 import type { ChannelId } from "@slock/types";
-import { createStore } from "solid-js";
+import { createStore, untrack } from "solid-js";
 
 export function createChannelFlags() {
-  const [flags, setFlags] = createStore<Record<string, boolean>>({});
-  const [pending, setPending] = createStore<Record<string, boolean>>({});
+  const [flags, setFlags] = createStore<Record<ChannelId, boolean>>({});
+  const [pending, setPending] = createStore<Record<ChannelId, boolean>>({});
+
+  const idsIn = (record: Record<ChannelId, boolean>) => Object.keys(record).filter(isChannelId);
 
   function enabledIds(): ChannelId[] {
-    return Object.keys(flags).flatMap((id) => (flags[id] && isChannelId(id) ? [id] : []));
+    return idsIn(flags).filter((id) => flags[id]);
   }
 
   function enabledIdsWith(channelId: ChannelId, enabled: boolean): ChannelId[] {
@@ -18,9 +20,9 @@ export function createChannelFlags() {
   return {
     enabledIds,
     enabledIdsWith,
-    isEnabled: (channelId: string) => !!flags[channelId],
-    isPending: (channelId: string) => !!pending[channelId],
-    begin(channelId: string, enabled: boolean) {
+    isEnabled: (channelId: ChannelId) => !!flags[channelId],
+    isPending: (channelId: ChannelId) => !!pending[channelId],
+    begin(channelId: ChannelId, enabled: boolean) {
       setFlags((draft) => {
         draft[channelId] = enabled;
       });
@@ -28,26 +30,29 @@ export function createChannelFlags() {
         draft[channelId] = true;
       });
     },
-    set(channelId: string, enabled: boolean) {
+    set(channelId: ChannelId, enabled: boolean) {
       setFlags((draft) => {
         draft[channelId] = enabled;
       });
     },
-    settle(channelId: string) {
+    settle(channelId: ChannelId) {
       setPending((draft) => {
         draft[channelId] = false;
       });
     },
     settleAll() {
       setPending((draft) => {
-        for (const id of Object.keys(draft)) draft[id] = false;
+        for (const id of idsIn(draft)) draft[id] = false;
       });
     },
     sync(ids: ChannelId[], options: { respectPending: boolean }) {
-      const wanted = new Set<string>(ids);
+      const wanted = new Set(ids);
+      const held = new Set(
+        options.respectPending ? untrack(() => idsIn(pending).filter((id) => pending[id])) : [],
+      );
       setFlags((draft) => {
-        for (const id of new Set([...Object.keys(draft), ...wanted])) {
-          if (options.respectPending && pending[id]) continue;
+        for (const id of new Set([...idsIn(draft), ...wanted])) {
+          if (held.has(id)) continue;
           draft[id] = wanted.has(id);
         }
       });

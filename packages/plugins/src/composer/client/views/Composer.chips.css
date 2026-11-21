@@ -64,7 +64,7 @@
     background 120ms ease;
 }
 .composer-file-chip-image:hover .composer-file-chip-remove,
-.composer-file-chip-image:focus-within .composer-file-chip-remove {
+.composer-file-chip-image:has(:focus-visible) .composer-file-chip-remove {
   opacity: 1;
 }
 .composer-file-chip-image .composer-file-chip-remove:hover {

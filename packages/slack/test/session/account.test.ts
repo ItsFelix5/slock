@@ -11,7 +11,6 @@ import {
   isConfigured,
   listAccounts,
   REAUTH_EVENT,
-  refreshAccountInfo,
   switchAccount,
   userProfileUrl,
 } from "../../src/session/account";
@@ -56,7 +55,6 @@ beforeEach(() => {
     },
   );
   setHost(createHost({ env, reactive: solidReactive }));
-  refreshAccountInfo();
 });
 
 afterEach(() => {
@@ -69,7 +67,6 @@ afterEach(() => {
 
 function signIn(id: string | null) {
   jar = sessionInfoCookie({ accounts, id });
-  refreshAccountInfo();
 }
 
 describe("account info", () => {
@@ -96,16 +93,16 @@ describe("account info", () => {
     expect(listAccounts()).toEqual(accounts);
   });
 
-  test("the cookie is cached until refreshed", () => {
+  test("a changed cookie is picked up without any refresh", () => {
     signIn("a");
     expect(getActiveAccountId()).toBe("a");
     jar = sessionInfoCookie({ accounts, id: "b" });
-    expect(getActiveAccountId()).toBe("a");
-    refreshAccountInfo();
     expect(getActiveAccountId()).toBe("b");
+    jar = "";
+    expect(getActiveAccountId()).toBeNull();
   });
 
-  test("switchAccount rewrites the cookie and drops the cache", () => {
+  test("switchAccount rewrites the cookie", () => {
     signIn("a");
     switchAccount("b");
     expect(getActiveAccountId()).toBe("b");

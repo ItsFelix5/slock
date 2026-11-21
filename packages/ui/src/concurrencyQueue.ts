@@ -30,5 +30,3 @@ export function createConcurrencyQueue(limit: number): ConcurrencyQueue {
 
   return { run };
 }
-
-export const backgroundFetchQueue = createConcurrencyQueue(4);

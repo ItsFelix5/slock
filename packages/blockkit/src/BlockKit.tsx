@@ -5,6 +5,7 @@ import type {
   Block,
   CardBlock,
   CarouselBlock,
+  ChannelId,
   ContainerBlock,
   ContextActionsBlock,
   ContextBlock,
@@ -19,6 +20,7 @@ import type {
   SectionBlock,
   TableBlock,
   TaskCardBlock,
+  Ts,
   VideoBlock,
 } from "@slock/types";
 import type { JSX } from "@solidjs/web";
@@ -46,9 +48,9 @@ export interface BlockActionContext {
   appId?: string;
   botId?: string;
   botUserId?: string;
-  channelId?: string;
-  messageTs?: string;
-  threadTs?: string;
+  channelId?: ChannelId;
+  messageTs?: Ts;
+  threadTs?: Ts;
   view?: {
     blocks: () => Block[];
     errors: () => Record<string, string>;

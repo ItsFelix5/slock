@@ -71,7 +71,7 @@ button.pane-tab-close {
 }
 
 .pane-tab-wrap:hover .pane-tab-close,
-.pane-tab-wrap:focus-within .pane-tab-close,
+.pane-tab-wrap:has(:focus-visible) .pane-tab-close,
 .pane-tab-wrap.active .pane-tab-close {
   display: flex;
 }

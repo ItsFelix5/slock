@@ -34,6 +34,7 @@ export function createReadSync(api: ReadApi, flash: Services["feedback"]["flash"
       if (isChannelGoneError(error)) return true;
       console.error("Failed to sync channel read cursor", error);
       flash(cursor.channelId, "Couldn't sync read state.", "error");
+      return false;
     },
     version: (cursor) => parseFloat(cursor.ts),
     write: async (cursor) => {
@@ -47,6 +48,7 @@ export function createReadSync(api: ReadApi, flash: Services["feedback"]["flash"
       if (isThreadGoneError(error)) return true;
       console.error("Failed to sync thread read cursor", cursor, error);
       flash(cursor.threadTs, "Couldn't sync thread read state.", "error");
+      return false;
     },
     version: (cursor) => parseFloat(cursor.ts),
     write: async (cursor) => {

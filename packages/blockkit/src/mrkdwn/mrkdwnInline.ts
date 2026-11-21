@@ -1,6 +1,6 @@
 import { defined } from "@slock/core";
-import { isChannelId, isUserId } from "@slock/slack";
-import type { ChannelId, UserId } from "@slock/types";
+import { isChannelId, isFileId, isUserId } from "@slock/slack";
+import type { ChannelId, FileId, UserId } from "@slock/types";
 
 const TRAILING_URL_PUNCTUATION_RE = /[),.!?;:'"]+$/;
 
@@ -33,11 +33,11 @@ export type InlineNode =
   | { t: "code"; nodes: InlineNode[] }
   | { t: "emoji"; name: string }
   | { t: "link"; url: string; label?: string }
-  | { t: "user"; id: string }
-  | { t: "channel"; id: string; label?: string }
+  | { t: "user"; id: UserId }
+  | { t: "channel"; id: ChannelId; label?: string }
   | { t: "usergroup"; id: string; label?: string }
   | { t: "broadcast"; range: string }
-  | { t: "canvas"; fileId: string; label?: string }
+  | { t: "canvas"; fileId: FileId; label?: string }
   | {
       t: "date";
       timestamp: number;
@@ -58,11 +58,11 @@ function parseToken(token: string): InlineNode {
   const literal: InlineNode = { t: "text", text: `<${token}>` };
   if (token.startsWith("@")) {
     const [id] = splitOnce(token.slice(1), "|");
-    return id ? { id, t: "user" } : literal;
+    return id && isUserId(id) ? { id, t: "user" } : literal;
   }
   if (token.startsWith("#")) {
     const [id, label] = splitOnce(token.slice(1), "|");
-    return id ? { id, label, t: "channel" } : literal;
+    return id && isChannelId(id) ? { id, label, t: "channel" } : literal;
   }
   if (token.startsWith("!subteam^")) {
     const [id, label] = splitOnce(token.slice("!subteam^".length), "|");
@@ -78,7 +78,7 @@ function parseToken(token: string): InlineNode {
   }
   if (token.startsWith("!canvas^")) {
     const [fileId, label] = splitOnce(token.slice("!canvas^".length), "|");
-    return fileId ? { fileId, label, t: "canvas" } : literal;
+    return fileId && isFileId(fileId) ? { fileId, label, t: "canvas" } : literal;
   }
   if (token.startsWith("!")) {
     const [range] = splitOnce(token.slice(1), "|");

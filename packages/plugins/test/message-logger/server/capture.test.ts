@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { createFakeEnv } from "@slock/core/testing";
+import { ch } from "@slock/slack/testing";
 import type { RawMessage } from "@slock/types";
 import { captureDeleted } from "../../../src/message-logger/server/capture";
 import { createLogStore, type LogStore } from "../../../src/message-logger/server/store";
@@ -8,7 +10,7 @@ import type { Credentials } from "../../../src/slack/server/api/auth";
 let store: LogStore;
 
 beforeEach(() => {
-  store = createLogStore(":memory:");
+  store = createLogStore(":memory:", createFakeEnv());
 });
 
 function credsFor(route: string): Credentials {
@@ -33,15 +35,15 @@ describe("captureDeleted", () => {
 
   test("keeps a deleted message under the workspace of the connection that saw it", () => {
     captureDeleted(store).handle(deletion(), credsFor("E1:T1"));
-    expect(store.channelMessages("T1", "C1", {}).map((m) => m.text)).toEqual(["oops"]);
-    expect(store.channelMessages("T2", "C1", {})).toEqual([]);
+    expect(store.channelMessages("T1", ch("C1"), {}).map((m) => m.text)).toEqual(["oops"]);
+    expect(store.channelMessages("T2", ch("C1"), {})).toEqual([]);
   });
 
   test("two connections seeing the same deletion store one copy", () => {
     const hook = captureDeleted(store);
     hook.handle(deletion(), credsFor("T1"));
     hook.handle(deletion(), credsFor("T1"));
-    expect(store.channelMessages("T1", "C1", {})).toHaveLength(1);
+    expect(store.channelMessages("T1", ch("C1"), {})).toHaveLength(1);
   });
 
   test.each([
@@ -55,6 +57,6 @@ describe("captureDeleted", () => {
     ["string previous message", { previous_message: "oops" }],
   ])("ignores %s", (_name, extra) => {
     captureDeleted(store).handle(deletion(extra), credsFor("T1"));
-    expect(store.channelMessages("T1", "C1", {})).toEqual([]);
+    expect(store.channelMessages("T1", ch("C1"), {})).toEqual([]);
   });
 });

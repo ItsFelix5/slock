@@ -1,5 +1,5 @@
 import type { ChannelId, Ts } from "@slock/types";
-import { createSignal, createStore, onCleanup } from "solid-js";
+import { type Accessor, createEffect, createSignal, createStore, onCleanup } from "solid-js";
 
 export type ViewKey = ChannelId | Ts;
 
@@ -18,12 +18,24 @@ export function createViewState() {
     document.removeEventListener("visibilitychange", syncWindowActive);
   });
 
+  const setBottomSeen = (id: ViewKey, seen: boolean) =>
+    setBottomSeenStore((state) => {
+      state[id] = seen;
+    });
+
   return {
     isViewed: (id: ViewKey) => windowActive() && !!bottomSeen[id],
-    setBottomSeen(id: ViewKey, seen: boolean) {
-      setBottomSeenStore((state) => {
-        state[id] = seen;
-      });
+    setBottomSeen,
+    trackBottomSeen(id: Accessor<ViewKey | undefined>, seen: Accessor<boolean>) {
+      createEffect(
+        () => ({ id: id(), seen: seen() }),
+        (view) => {
+          if (!view.id) return;
+          const { id } = view;
+          setBottomSeen(id, view.seen);
+          return () => setBottomSeen(id, false);
+        },
+      );
     },
   };
 }

@@ -21,6 +21,7 @@ import { trimChannel } from "../../slack/server/api/trim/slackChannels";
 import { trimUser } from "../../slack/server/api/trim/slackEntities";
 import { trimAttachment, trimMessage } from "../../slack/server/api/trim/slackMessages";
 import { historyParams, trimHistory } from "./api";
+import { channelPreloads } from "./preload";
 
 function trimMessagesListEntry(entry: unknown): unknown {
   if (Array.isArray(entry)) return entry.map(trimMessagesListEntry);
@@ -178,6 +179,7 @@ const list: Route[] = [
 ];
 
 const setup: Setup = (ctx) => {
+  ctx.add("web.preload", channelPreloads);
   ctx.add("http", routes(list));
 };
 

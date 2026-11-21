@@ -1,4 +1,4 @@
-import type { User } from "@slock/types";
+import type { User, UserId } from "@slock/types";
 import { snapshot } from "solid-js";
 
 type Presence = "active" | "away";
@@ -6,12 +6,12 @@ type Presence = "active" | "away";
 type Entry = { source: User; presence?: Presence; nickname?: string; result: User };
 
 export function createDerivedUsers(deps: {
-  presenceOf: (id: string) => Presence | undefined;
-  nicknameOf: (id: string) => string | undefined;
+  presenceOf: (id: UserId) => Presence | undefined;
+  nicknameOf: (id: UserId) => string | undefined;
   withNickname: (user: User) => User;
 }) {
-  const entries = new Map<string, Entry>();
-  return (id: string, known: User): User => {
+  const entries = new Map<UserId, Entry>();
+  return (id: UserId, known: User): User => {
     const presence = deps.presenceOf(id);
     const nickname = deps.nicknameOf(id);
     const source = snapshot(known);

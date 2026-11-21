@@ -1,3 +1,4 @@
+import type { TimerHandle } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { FloatingPanel, IconButton, InlineFeedback, MenuItem } from "@slock/ui";
 import { createSignal, For, onCleanup } from "solid-js";
@@ -6,6 +7,7 @@ import "./DndButton.css";
 const feedback = service("feedback");
 
 const prefsStore = service("prefs");
+const env = service("env");
 
 const OPEN_DELAY = 350;
 const CLOSE_DELAY = 200;
@@ -22,28 +24,28 @@ export default function DndButton() {
   const [open, setOpen] = createSignal(false);
 
   let wrapRef: HTMLFieldSetElement | undefined;
-  let openTimer: ReturnType<typeof setTimeout> | undefined;
-  let closeTimer: ReturnType<typeof setTimeout> | undefined;
+  let openTimer: TimerHandle | undefined;
+  let closeTimer: TimerHandle | undefined;
 
   const scheduleOpen = () => {
-    clearTimeout(closeTimer);
+    env.clearTimeout(closeTimer);
     if (!(prefsStore.isDndActive() || prefsStore.hasDndStatusError()))
-      openTimer = setTimeout(() => setOpen(true), OPEN_DELAY);
+      openTimer = env.setTimeout(() => setOpen(true), OPEN_DELAY);
   };
   const scheduleClose = () => {
-    clearTimeout(openTimer);
-    closeTimer = setTimeout(() => setOpen(false), CLOSE_DELAY);
+    env.clearTimeout(openTimer);
+    closeTimer = env.setTimeout(() => setOpen(false), CLOSE_DELAY);
   };
-  const cancelClose = () => clearTimeout(closeTimer);
+  const cancelClose = () => env.clearTimeout(closeTimer);
 
   onCleanup(() => {
-    clearTimeout(openTimer);
-    clearTimeout(closeTimer);
+    env.clearTimeout(openTimer);
+    env.clearTimeout(closeTimer);
   });
 
   const pick = (minutes: number) => {
     if (prefsStore.isDndPending()) return;
-    clearTimeout(openTimer);
+    env.clearTimeout(openTimer);
     setOpen(false);
     prefsStore.snoozeDnd(minutes);
   };
@@ -71,7 +73,7 @@ export default function DndButton() {
               : undefined
         }
         onClick={() => {
-          clearTimeout(openTimer);
+          env.clearTimeout(openTimer);
           setOpen(false);
           if (prefsStore.hasDndStatusError()) prefsStore.retryDndStatus();
           else if (prefsStore.isDndActive()) prefsStore.endDnd();

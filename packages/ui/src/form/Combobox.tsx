@@ -1,4 +1,4 @@
-import { createEffect, createSignal, createUniqueId, For, Show } from "solid-js";
+import { createSignal, createUniqueId, For, Show } from "solid-js";
 import { ariaBoolean } from "../ariaBoolean";
 import type { AvatarUser } from "../avatar/Avatar";
 import { useEscapeClose } from "../hooks/useEscapeClose";
@@ -6,6 +6,7 @@ import Icon, { type IconName } from "../media/Icon";
 import FloatingPanel from "../overlay/floating/FloatingPanel";
 import "./Combobox.css";
 import ComboboxLeading from "./ComboboxLeading";
+import { createOptionSearch } from "./createOptionSearch";
 import { createListboxActiveIndex, listNavigationIndex } from "./listNavigation";
 import SuggestionList from "./SuggestionList";
 
@@ -33,13 +34,16 @@ export default function Combobox<Id extends string = string>(props: ComboboxProp
   const listboxId = createUniqueId();
   const [open, setOpen] = createSignal(false);
   const [query, setQuery] = createSignal("");
-  const [results, setResults] = createSignal<ComboboxOption<Id>[]>([]);
   const [width, setWidth] = createSignal(0);
   let root: HTMLDivElement | undefined;
   let panel: HTMLDivElement | undefined;
   let input: HTMLInputElement | undefined;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  let requestId = 0;
+  const results = createOptionSearch({
+    active: open,
+    delay: 150,
+    query,
+    search: (text) => props.search(text),
+  });
 
   const chosen = () => new Set(props.value.map((option) => option.id));
   const visible = () =>
@@ -52,21 +56,6 @@ export default function Combobox<Id extends string = string>(props: ComboboxProp
   );
 
   useEscapeClose(() => setOpen(false), open);
-
-  createEffect(
-    () => (open() ? query() : undefined),
-    (text) => {
-      if (text === undefined) return;
-      const id = ++requestId;
-      const run = () =>
-        Promise.resolve(props.search(text))
-          .then((found) => id === requestId && setResults(found))
-          .catch(() => id === requestId && setResults([]));
-      if (text) timer = setTimeout(run, 150);
-      else void run();
-      return () => clearTimeout(timer);
-    },
-  );
 
   const show = () => {
     if (props.disabled) return;

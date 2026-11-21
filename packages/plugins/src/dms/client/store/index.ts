@@ -1,4 +1,4 @@
-import { service } from "@slock/core/solid";
+import { createFlags, service } from "@slock/core/solid";
 import type { ChannelId, DirectMessage, User, UserId } from "@slock/types";
 import { createMemo, createStore } from "solid-js";
 import type { View } from "../../../conversations/client/api/types";
@@ -24,8 +24,8 @@ export function createDmsStore(deps: {
     });
 
   const [dmPatches, setDmPatches] = createStore<Record<ChannelId, Partial<DirectMessage>>>({});
-  const [openDmPendingByUser, setOpenDmPending] = createStore<Record<UserId, boolean>>({});
-  const [closeDmPendingById, setCloseDmPending] = createStore<Record<ChannelId, boolean>>({});
+  const openPending = createFlags<UserId>();
+  const closePending = createFlags<ChannelId>();
 
   const baseDmsById = createMemo(() => {
     const base = deps.bootstrap()?.directMessages ?? [];
@@ -93,19 +93,13 @@ export function createDmsStore(deps: {
     await mpdmMembers.ensure(channelId);
   }
 
-  function isOpenDmPending(userId: UserId): boolean {
-    return !!openDmPendingByUser[userId];
-  }
+  const isOpenDmPending = openPending.has;
 
-  function isCloseDmPending(dmId: ChannelId): boolean {
-    return !!closeDmPendingById[dmId];
-  }
+  const isCloseDmPending = closePending.has;
 
   async function openDmWithUser(userId: UserId, options?: { split?: boolean }): Promise<boolean> {
     if (isOpenDmPending(userId)) return false;
-    setOpenDmPending((draft) => {
-      draft[userId] = true;
-    });
+    openPending.set(userId, true);
     const openView = (view: View) =>
       options?.split ? deps.openInPane(view) : deps.setActiveView(view);
     try {
@@ -134,17 +128,13 @@ export function createDmsStore(deps: {
       feedback.flash(userId, "Could not open a direct message with this user.", "error");
       return false;
     } finally {
-      setOpenDmPending((draft) => {
-        draft[userId] = false;
-      });
+      openPending.set(userId, false);
     }
   }
 
   async function closeDmConversation(dmId: ChannelId): Promise<boolean> {
     if (isCloseDmPending(dmId)) return false;
-    setCloseDmPending((draft) => {
-      draft[dmId] = true;
-    });
+    closePending.set(dmId, true);
     try {
       await closeDm(dmId);
       setClosedDmIds(dmId, true);
@@ -159,9 +149,7 @@ export function createDmsStore(deps: {
       feedback.flash(dmId, "Failed to close conversation.", "error");
       return false;
     } finally {
-      setCloseDmPending((draft) => {
-        draft[dmId] = false;
-      });
+      closePending.set(dmId, false);
     }
   }
 

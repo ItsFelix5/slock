@@ -1,10 +1,10 @@
-import type { Attachment, Message } from "@slock/types";
+import type { Attachment, ChannelId, Message } from "@slock/types";
 import { For, Show } from "solid-js";
 import AttachmentCard from "./AttachmentCard";
 
 export default function MessageAttachmentList(props: {
   attachments?: Attachment[];
-  channelId: string;
+  channelId: ChannelId;
   msg: Message;
 }) {
   return (

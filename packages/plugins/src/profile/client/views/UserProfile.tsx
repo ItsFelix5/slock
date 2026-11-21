@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
-import { Button, InlineFeedback, type Pane, PanelHeader } from "@slock/ui";
-import { createMemo, createSignal, onCleanup, Show } from "solid-js";
+import { Button, createClock, InlineFeedback, type Pane, PanelHeader } from "@slock/ui";
+import { createMemo, createSignal, Show } from "solid-js";
 import { fetchProfileFieldDefs } from "../../../slack/client/api";
 import type { ProfilePaneContent } from "../api";
 import ProfilePhotoEditor from "./ProfilePhotoEditor";
@@ -40,9 +40,7 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
     user,
     userId: profileUserId,
   });
-  const [now, setNow] = createSignal(Date.now());
-  const clockTimer = setInterval(() => setNow(Date.now()), 60_000);
-  onCleanup(() => clearInterval(clockTimer));
+  const now = createClock(60_000);
   const localTime = createLocalTime(user, now);
   const tzDiff = createTzDiff(user, now);
   const tzSuffix = createTzSuffix(user, tzDiff);

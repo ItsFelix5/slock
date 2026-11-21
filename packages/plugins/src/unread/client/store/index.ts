@@ -28,7 +28,7 @@ export function createUnreadStore(deps: {
     Record<string, number | undefined>
   >({});
   const [lastReadSeeded, setLastReadSeeded] = createSignal(false);
-  const { isViewed, setBottomSeen } = createViewState();
+  const { isViewed, setBottomSeen, trackBottomSeen } = createViewState();
 
   const setUnreadChannelIds = (id: ChannelId, unread: boolean) =>
     setUnreadChannelIdsStore((state) => {
@@ -138,6 +138,7 @@ export function createUnreadStore(deps: {
     setUnreadDividerTs,
     syncChannelRead,
     syncThreadRead,
+    trackBottomSeen,
     threadReadTsFor: (threadTs: Ts): Ts | undefined => threadReadTs[threadTs],
     unreadChannelIds,
     unreadDividerTs,

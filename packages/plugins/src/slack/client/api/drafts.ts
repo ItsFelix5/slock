@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPut } from "@slock/slack";
+import { apiDelete, apiGet, apiPut, ifPresent, parseTs } from "@slock/slack";
 import type { Block, ChannelId, DraftEntry, Ts } from "@slock/types";
 
 export async function fetchDrafts(): Promise<DraftEntry[]> {
@@ -13,8 +13,8 @@ export async function saveDraft(
   blocks: Block[],
   draftId?: string,
   clientMsgId?: string,
-  lastUpdatedTs?: string,
-): Promise<{ id: string; clientMsgId: string; lastUpdatedTs?: string }> {
+  lastUpdatedTs?: Ts,
+): Promise<{ id: string; clientMsgId: string; lastUpdatedTs?: Ts }> {
   const data = await apiPut<{ id?: string; lastUpdatedTs?: string }>("/api/drafts", {
     blocks,
     channelId,
@@ -28,11 +28,11 @@ export async function saveDraft(
   return {
     clientMsgId: clientMsgId ?? "",
     id: data.id,
-    lastUpdatedTs: data.lastUpdatedTs,
+    lastUpdatedTs: ifPresent(parseTs, data.lastUpdatedTs),
   };
 }
 
-export async function deleteDraft(draftId: string, lastUpdatedTs?: string): Promise<void> {
+export async function deleteDraft(draftId: string, lastUpdatedTs?: Ts): Promise<void> {
   const data = await apiDelete(`/api/drafts/${draftId}`, { lastUpdatedTs });
   if (!data.ok) throw new Error(data.error ?? "drafts.delete failed");
 }

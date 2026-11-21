@@ -1,3 +1,4 @@
+import { firstTruthy } from "@slock/core";
 import type { Block, BroadcastRange, RichTextBlock, RichTextBroadcastElement } from "@slock/types";
 
 function isRichTextBroadcast(value: unknown): value is RichTextBroadcastElement {
@@ -8,28 +9,25 @@ function isRichTextBroadcast(value: unknown): value is RichTextBroadcastElement 
   );
 }
 
+function nestedRange(element: unknown): BroadcastRange | undefined {
+  return element &&
+    typeof element === "object" &&
+    "elements" in element &&
+    Array.isArray(element.elements)
+    ? broadcastRangeFromElements(element.elements)
+    : undefined;
+}
+
 function broadcastRangeFromElements(elements: readonly unknown[]): BroadcastRange | undefined {
-  for (const element of elements) {
-    if (isRichTextBroadcast(element)) return element.range;
-    if (
-      element &&
-      typeof element === "object" &&
-      "elements" in element &&
-      Array.isArray(element.elements)
-    ) {
-      const range = broadcastRangeFromElements(element.elements);
-      if (range) return range;
-    }
-  }
+  return firstTruthy(elements, (element) =>
+    isRichTextBroadcast(element) ? element.range : nestedRange(element),
+  );
 }
 
 function broadcastRangeFromRichTextBlocks(
   blocks: readonly RichTextBlock[],
 ): BroadcastRange | undefined {
-  for (const block of blocks) {
-    const range = broadcastRangeFromElements(block.elements);
-    if (range) return range;
-  }
+  return firstTruthy(blocks, (block) => broadcastRangeFromElements(block.elements));
 }
 
 const TEXT_BROADCAST_RE = /<!(here|channel|everyone)(?:\|[^>]*)?>/;

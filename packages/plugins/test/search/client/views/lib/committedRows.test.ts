@@ -1,7 +1,9 @@
-import { describe, expect, test } from "bun:test";
-import { int, pick, seededRandom } from "@slock/core/testing";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { createHost } from "@slock/core";
+import { setHost, solidReactive } from "@slock/core/solid";
+import { createFakeEnv, int, pick, seededRandom } from "@slock/core/testing";
+import { createDebouncedSearch } from "@slock/ui";
 import { createMemo, createRoot, createSignal, flush } from "solid-js";
-import { createDebouncedRequest } from "../../../../../../ui/src/debouncedRequest";
 import {
   createCommittedRows,
   firstResultIndex,
@@ -10,10 +12,17 @@ import {
 
 type Pending = { query: string; resolve: (rows: string[]) => void; reject: () => void };
 
+let host: ReturnType<typeof createHost>;
+
+beforeEach(async () => {
+  host = createHost({ env: createFakeEnv(), reactive: solidReactive });
+  setHost(host);
+  await host.register();
+});
+afterEach(() => host.stop());
+
 async function settle() {
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let i = 0; i < 6; i++) await Promise.resolve();
   flush();
 }
 
@@ -25,9 +34,17 @@ function harness() {
   const view = createRoot((stop) => {
     dispose.push(stop);
     const [query, setQuery] = createSignal("");
-    const [searching, setSearching] = createSignal(false);
-    const [remote, setRemote] = createSignal<string[]>([]);
+    const [late, setRemote] = createSignal<string[]>();
     const [local, setLocal] = createSignal<string[]>([]);
+    const search = createDebouncedSearch<string[]>({
+      delay: 100,
+      empty: [],
+      search: (text) =>
+        new Promise<string[]>((resolve, reject) =>
+          pending.push({ query: text, reject: () => reject(new Error("failed")), resolve }),
+        ),
+    });
+    const remote = () => late() ?? search.value();
     const ranked = createMemo(() => [...local(), ...remote()].sort());
     const hasQuery = () => !!query().trim();
     const committed = createCommittedRows({
@@ -35,22 +52,26 @@ function harness() {
       onCommit: (index) => selected.push(index),
       onSubmit: (index) => submitted.push(index),
       ranked,
-      searching,
+      searching: search.searching,
     });
-    const request = createDebouncedRequest(
-      (text: string) =>
-        new Promise<string[]>((resolve, reject) =>
-          pending.push({ query: text, reject: () => reject(new Error("failed")), resolve }),
-        ),
-      { onPendingChange: setSearching, onReset: () => setRemote([]), onResult: setRemote },
-    );
     const type = (value: string) => {
       setQuery(value);
+      setRemote(undefined);
       committed.restart();
-      request.run(value, { immediate: true });
+      search.set(value, true);
       flush();
     };
-    return { committed, local, query, ranked, remote, searching, setLocal, setRemote, type };
+    return {
+      committed,
+      local,
+      query,
+      ranked,
+      remote,
+      searching: search.searching,
+      setLocal,
+      setRemote,
+      type,
+    };
   });
   return { dispose: dispose[0] as () => void, pending, selected, submitted, view };
 }

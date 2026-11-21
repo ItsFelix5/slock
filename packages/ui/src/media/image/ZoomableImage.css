@@ -11,7 +11,7 @@
 }
 
 .zoomable-image-frame:hover .zoomable-image-overlay,
-.zoomable-image-overlay:focus-within {
+.zoomable-image-overlay:has(:focus-visible) {
   opacity: 1;
 }
 

@@ -1,4 +1,3 @@
-import { hasEmojiLoadError, isEmojiLoading, loadCustomEmoji } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import {
   Button,
@@ -41,7 +40,7 @@ export default function EmojiPicker(props: {
   useEscapeClose(props.onClose);
 
   onSettled(() => {
-    void loadCustomEmoji();
+    void emojiIndex.source.load();
     let inner = 0;
     const outer = requestAnimationFrame(() => {
       inner = requestAnimationFrame(() => searchInputRef?.focus());
@@ -172,13 +171,13 @@ export default function EmojiPicker(props: {
           value={query()}
         />
       </div>
-      <Show when={isEmojiLoading()}>
+      <Show when={emojiIndex.source.loading()}>
         <div class="emoji-picker-notice flex-between gap-sm">Loading workspace emoji…</div>
       </Show>
-      <Show when={hasEmojiLoadError()}>
+      <Show when={emojiIndex.source.failed()}>
         <div class="emoji-picker-notice flex-between gap-sm emoji-picker-error">
           <span>Couldn't load workspace emoji.</span>
-          <Button onClick={() => void loadCustomEmoji()} size="sm">
+          <Button onClick={() => void emojiIndex.source.load()} size="sm">
             Try again
           </Button>
         </div>

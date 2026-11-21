@@ -1,4 +1,4 @@
-import { createSignal, onCleanup } from "solid-js";
+import { createSignal, onCleanup, untrack } from "solid-js";
 
 export function useElementVisible(rootMargin = "200px") {
   const [visible, setVisible] = createSignal(false);
@@ -6,7 +6,7 @@ export function useElementVisible(rootMargin = "200px") {
 
   const ref = (el: HTMLElement | undefined) => {
     observer?.disconnect();
-    if (!el || visible()) return;
+    if (!el || untrack(visible)) return;
     observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry?.isIntersecting) return;

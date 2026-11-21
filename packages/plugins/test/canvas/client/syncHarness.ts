@@ -1,3 +1,6 @@
+import { createHost } from "@slock/core";
+import { setHost } from "@slock/core/solid";
+import { createFakeEnv } from "@slock/core/testing";
 import { parseTeamId } from "@slock/slack";
 import type { CanvasEdit, CanvasNode } from "@slock/types";
 import type { Op } from "@slock/ui/editor/quill";
@@ -32,10 +35,12 @@ function paragraph(n: number, html: string): CanvasNode {
 }
 
 export async function settle() {
-  for (let i = 0; i < 3; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+  for (let i = 0; i < 20; i++) await Promise.resolve();
 }
 
 export function createSyncHarness(initial: string[], title = "Canvas") {
+  const env = createFakeEnv();
+  setHost(createHost({ env }));
   const server = new Server();
   server.apply(
     editOf({
@@ -99,6 +104,7 @@ export function createSyncHarness(initial: string[], title = "Canvas") {
   });
 
   return {
+    env,
     failNext: (...codes: string[]) => {
       failures = codes;
     },

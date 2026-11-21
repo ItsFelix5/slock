@@ -1,7 +1,7 @@
 import { service, usePoint } from "@slock/core/solid";
 import { ariaBoolean, ResizeHandle, useTabStripShortcuts } from "@slock/ui";
 import { dynamic } from "@solidjs/web";
-import { createComponent, createEffect, createMemo, createSignal, For } from "solid-js";
+import { createComponent, createEffect, createMemo, createSignal, For, untrack } from "solid-js";
 import type { SidebarNavItem } from "../api";
 import "./Sidebar.css";
 import SidebarToolbar from "./SidebarToolbar";
@@ -24,7 +24,7 @@ export default function Sidebar(props: { onWidth: (width: number) => void }) {
   const [feedWidth, setFeedWidth] = createSignal(FEED_DEFAULT_WIDTH);
   createEffect(
     () => (feedMode() ? feedWidth() : width()),
-    (current) => props.onWidth(current),
+    (current) => void props.onWidth(current),
   );
 
   const select = (item: SidebarNavItem) => {
@@ -70,7 +70,7 @@ export default function Sidebar(props: { onWidth: (width: number) => void }) {
               ]}
               onClick={() => select(item)}
               ref={(el) => {
-                navTabRefs[index()] = el;
+                navTabRefs[untrack(index)] = el;
               }}
               role="tab"
               tabindex={sidebar.nav() === item.id || (!active() && index() === 0) ? 0 : -1}

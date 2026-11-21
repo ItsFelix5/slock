@@ -1,6 +1,6 @@
 import { useHoverIntent } from "@slock/ui";
 import type Quill from "@slock/ui/editor/quill";
-import { createEffect, createSignal } from "solid-js";
+import { createSignal } from "solid-js";
 import { type MentionTarget, mentionTarget } from "./mentionTarget";
 
 export type MentionHoverState = { anchorEl: HTMLElement; target: MentionTarget };
@@ -13,12 +13,10 @@ function closestMention(target: EventTarget | null): HTMLElement | undefined {
 
 export function createMentionHoverController() {
   const hoverIntent = useHoverIntent();
-  const [state, setState] = createSignal<MentionHoverState | undefined>(undefined);
+  const [state, setState] = createSignal<MentionHoverState | undefined>((previous) =>
+    hoverIntent.open() ? previous : undefined,
+  );
   let hoverEl: HTMLElement | undefined;
-
-  createEffect(hoverIntent.open, (open) => {
-    if (!open) setState(undefined);
-  });
 
   const handleMouseOver = (event: MouseEvent) => {
     const node = closestMention(event.target);

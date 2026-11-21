@@ -1,6 +1,5 @@
 import type { GlobalSearchResults } from "@slock/types";
-import { createDebouncedRequest } from "@slock/ui";
-import { createSignal } from "solid-js";
+import { createDebouncedSearch } from "@slock/ui";
 import { searchGlobal } from "../../../../slack/client/api";
 
 const EMPTY: GlobalSearchResults = { channels: [], files: [], users: [] };
@@ -8,18 +7,15 @@ const EMPTY: GlobalSearchResults = { channels: [], files: [], users: [] };
 const SEARCH_DELAY_MS = 100;
 
 export function createDirectorySearch() {
-  const [state, setState] = createSignal({ error: false, results: EMPTY, searching: false });
-  const request = createDebouncedRequest(searchGlobal, {
+  const search = createDebouncedSearch({
     delay: SEARCH_DELAY_MS,
-    onError: () => setState((current) => ({ ...current, error: true })),
-    onPendingChange: (searching) => setState((current) => ({ ...current, searching })),
-    onReset: () => setState((current) => ({ ...current, error: false, results: EMPTY })),
-    onResult: (results) => setState((current) => ({ ...current, results })),
+    empty: EMPTY,
+    search: searchGlobal,
   });
   return {
-    error: () => state().error,
-    results: () => state().results,
-    run: request.run,
-    searching: () => state().searching,
+    error: search.failed,
+    results: search.value,
+    searching: search.searching,
+    set: search.set,
   };
 }

@@ -1,4 +1,5 @@
 import { createEffect, createSignal, untrack } from "solid-js";
+import { submitIntent } from "./submitIntent";
 
 export const MESSAGE_SEARCH_INDEX = 0;
 
@@ -38,8 +39,14 @@ export function createCommittedRows<Row>(deps: {
     },
     rows,
     submit(activeIndex: number | null) {
-      if (deps.hasQuery() && deps.searching() && rows().length === 0) submitQueued = true;
-      else if (activeIndex !== null) deps.onSubmit(activeIndex);
+      const intent = submitIntent({
+        activeIndex,
+        hasQuery: deps.hasQuery(),
+        rowCount: rows().length,
+        searching: deps.searching(),
+      });
+      if (intent.kind === "queue") submitQueued = true;
+      else if (intent.kind === "open") deps.onSubmit(intent.index);
     },
   };
 }

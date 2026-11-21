@@ -29,7 +29,7 @@ export default function HoverCard(props: HoverCardProps) {
   const open = () => intent().open();
   const close = () => intent().close();
 
-  createEffect(open, (isOpen) => props.onOpenChange?.(isOpen));
+  createEffect(open, (isOpen) => void props.onOpenChange?.(isOpen));
 
   const handleFocusOut = (event: FocusEvent) => {
     const next = event.relatedTarget;

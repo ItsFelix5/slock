@@ -1,3 +1,5 @@
+import type { TimerHandle } from "@slock/core";
+import { service } from "@slock/core/solid";
 import type { CanvasControl, CanvasEdit, CanvasNode } from "@slock/types";
 import type { Op } from "@slock/ui/editor/quill";
 import type { CanvasEmbed } from "../../protocol/api";
@@ -22,6 +24,8 @@ export interface CanvasSyncOptions {
   send(edit: CanvasEdit): Promise<void>;
   shardChars: string;
 }
+
+const env = service("env");
 
 const SAVE_DELAY_MS = 700;
 const RETRY_BASE_MS = 1500;
@@ -59,7 +63,7 @@ function controlKey(control: CanvasControl): string {
   return `date:${displayTs(control.ms)}`;
 }
 
-export function poolLines(nodes: CanvasNode[]): { html: string; id: string }[] {
+function poolLines(nodes: CanvasNode[]): { html: string; id: string }[] {
   return nodes.flatMap((node) => {
     if (node.kind === "table")
       return node.rows.flatMap((row) =>
@@ -109,15 +113,15 @@ export function createCanvasSync(options: CanvasSyncOptions) {
     retired,
   });
   let baseline: CanvasSnapshot = { entries: initial.entries, title: options.initialTitle };
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  let timer: TimerHandle | undefined;
   let inflight: Promise<void> | null = null;
   let changedWhileSaving = false;
   let attempts = 0;
   let disposed = false;
 
   function schedule(delay: number) {
-    clearTimeout(timer);
-    timer = setTimeout(() => void run(), delay);
+    env.clearTimeout(timer);
+    timer = env.setTimeout(() => void run(), delay);
   }
 
   function snapshot() {
@@ -158,7 +162,7 @@ export function createCanvasSync(options: CanvasSyncOptions) {
       changedWhileSaving = true;
       return inflight;
     }
-    clearTimeout(timer);
+    env.clearTimeout(timer);
     status = "saving";
     inflight = save()
       .then(() => {
@@ -205,7 +209,7 @@ export function createCanvasSync(options: CanvasSyncOptions) {
     differsFromRemote,
     dispose() {
       disposed = true;
-      clearTimeout(timer);
+      env.clearTimeout(timer);
     },
     flush: async () => {
       if (status === "saved" || status === "conflict") return;

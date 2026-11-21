@@ -1,11 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { forAll, int } from "@slock/core/testing";
-import {
-  isTopFocusLayer,
-  popFocusLayer,
-  pushFocusLayer,
-  tabWrapTarget,
-} from "../../src/overlay/dialog/focusTrap";
+import { tabWrapTarget } from "../../src/overlay/dialog/focusTrap";
 
 describe("tabWrapTarget", () => {
   test.each([
@@ -40,44 +35,5 @@ describe("tabWrapTarget", () => {
         expect(wrapped !== undefined).toBe(atEdge);
       },
     );
-  });
-});
-
-describe("focus layers", () => {
-  test("the newest layer is on top", () => {
-    const first = pushFocusLayer();
-    const second = pushFocusLayer();
-    expect(isTopFocusLayer(second)).toBe(true);
-    expect(isTopFocusLayer(first)).toBe(false);
-    popFocusLayer(second);
-    popFocusLayer(first);
-  });
-
-  test("popping the top layer reveals the one below", () => {
-    const first = pushFocusLayer();
-    const second = pushFocusLayer();
-    const result = popFocusLayer(second);
-    expect(result.wasTop).toBe(true);
-    expect(result.revealed).toBe(first);
-    expect(isTopFocusLayer(first)).toBe(true);
-    popFocusLayer(first);
-  });
-
-  test("popping a covered layer leaves the top alone", () => {
-    const first = pushFocusLayer();
-    const second = pushFocusLayer();
-    const result = popFocusLayer(first);
-    expect(result.wasTop).toBe(false);
-    expect(result.revealed).toBe(second);
-    popFocusLayer(second);
-  });
-
-  test("popping twice is harmless and an empty stack has no top", () => {
-    const layer = pushFocusLayer();
-    popFocusLayer(layer);
-    const again = popFocusLayer(layer);
-    expect(again.wasTop).toBe(false);
-    expect(again.revealed).toBeUndefined();
-    expect(isTopFocusLayer(undefined)).toBe(true);
   });
 });

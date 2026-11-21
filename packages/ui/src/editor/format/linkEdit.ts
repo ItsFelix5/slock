@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createSignal, untrack } from "solid-js";
 import Quill from "../quill";
 
 export interface LinkEditState {
@@ -53,7 +53,7 @@ export function createLinkEditController(getQuill: () => Quill | undefined) {
 
   const revalidate = () => {
     const quill = getQuill();
-    const current = state();
+    const current = untrack(state);
     if (!(quill && current)) return;
     const link = readLink(quill, current.anchorEl);
     if (!link) {

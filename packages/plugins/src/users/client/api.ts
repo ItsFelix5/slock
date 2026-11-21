@@ -1,4 +1,4 @@
-import type { User } from "@slock/types";
+import type { User, UserId } from "@slock/types";
 import type { createUsersStore } from "./store";
 
 declare module "@slock/core/types" {
@@ -8,9 +8,9 @@ declare module "@slock/core/types" {
 }
 
 export function formatInteractorNames(
-  ids: string[],
-  currentUserId: string | undefined,
-  userById: (id: string) => User | undefined,
+  ids: UserId[],
+  currentUserId: UserId | undefined,
+  userById: (id: UserId) => User | undefined,
   max = ids.length,
 ): string {
   const names = ids.map((id) => (id === currentUserId ? "you" : (userById(id)?.name ?? "someone")));

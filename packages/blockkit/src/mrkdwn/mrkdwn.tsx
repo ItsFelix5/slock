@@ -1,3 +1,4 @@
+import { assertNever } from "@slock/core";
 import type { JSX } from "@solidjs/web";
 import { createMemo, For } from "solid-js";
 import { InertTokensContext } from "../context";
@@ -65,6 +66,8 @@ function InlineNodeView(props: { node: InlineNode }) {
       return (
         <DateToken fallback={n.fallback} format={n.format} timestamp={n.timestamp} url={n.url} />
       );
+    default:
+      return assertNever(n);
   }
 }
 
@@ -86,6 +89,8 @@ function renderBlock(b: BlockNode, inline: boolean | undefined) {
     case "codeblock":
       if (inline) return <code class="bk-inline-code">{b.text}</code>;
       return <pre class="bk-codeblock">{b.text}</pre>;
+    default:
+      return assertNever(b);
   }
 }
 

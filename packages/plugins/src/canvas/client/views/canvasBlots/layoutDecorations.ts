@@ -14,7 +14,7 @@ function edges(paths: string[][], index: number, depth: number): string {
   return tokens.filter(Boolean).join(" ");
 }
 
-export function decorateLayouts(quill: Quill) {
+function decorateLayouts(quill: Quill) {
   const lines = quill.getLines();
   const paths = lines.map((line) => pathOf(line.domNode));
   lines.forEach((line, index) => {

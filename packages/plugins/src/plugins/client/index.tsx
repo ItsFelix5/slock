@@ -1,18 +1,19 @@
 import type { PluginDef, Setup } from "@slock/core";
 import { errorMessage } from "@slock/core";
-import { getHost } from "@slock/core/solid";
+import { getHost, service } from "@slock/core/solid";
 import { createSignal, lazy } from "solid-js";
 import { definitionFromSource, setupOf } from "./data/loadPlugin";
 import { listStoredPlugins, removeStoredPlugin, saveStoredPlugin } from "./data/userPluginStore";
 
 const view = lazy(() => import("./views/PluginsTab"));
+const env = service("env");
 
 type Listing = { id: string; name?: string; requires?: string[]; url: string };
 type ServerOnly = { id: string; name?: string };
 type OperatorListing = { instance: Listing[]; serverOnly: ServerOnly[] };
 
 async function fetchListing(): Promise<OperatorListing> {
-  const response = await fetch("/api/plugins");
+  const response = await env.fetch("/api/plugins");
   if (!response.ok) return { instance: [], serverOnly: [] };
   return response.json();
 }

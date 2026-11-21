@@ -1,6 +1,6 @@
 import { BlockKit, createViewState } from "@slock/blockkit";
 import { isWaiting } from "@slock/resource";
-import { createEffect, Show } from "solid-js";
+import { createEffect, createMemo, Show } from "solid-js";
 import type { MessageHeaderProps } from "../../../messages/client/api";
 import { dispatchHomeOpen } from "../fetch";
 import "./AppHome.css";
@@ -8,10 +8,11 @@ import { useAppHome } from "./useAppHome";
 
 export default function AppHomeTakeover(props: MessageHeaderProps) {
   const home = useAppHome(() => props.id);
+  const appId = createMemo(() => home().data?.appHome?.app_id);
   createEffect(
-    () => home().data?.appHome?.app_id,
-    (appId) => {
-      if (appId) void dispatchHomeOpen(props.id, appId);
+    () => ({ appId: appId(), channelId: props.id }),
+    ({ appId, channelId }) => {
+      if (appId) void dispatchHomeOpen(channelId, appId);
     },
   );
   return (

@@ -6,7 +6,7 @@ const FileDetailModal = lazy(() => import("./views/file-detail/FileDetailModal")
 
 const setup: Setup = (ctx) => {
   const [file, setFile] = createSignal<SlackFile>();
-  ctx.provide("files", { open: setFile });
+  ctx.provide("files", { open: (opened: SlackFile) => setFile(opened) });
   ctx.add("shell.overlay", () => (
     <Show when={file()}>
       {(current) => <FileDetailModal file={current()} onClose={() => setFile(undefined)} />}

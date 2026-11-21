@@ -73,7 +73,7 @@
 }
 
 .canvas-outline-nav:hover .canvas-outline-popout,
-.canvas-outline-nav:focus-within .canvas-outline-popout {
+.canvas-outline-nav:has(:focus-visible) .canvas-outline-popout {
   opacity: 1;
   transform: scale(1);
   pointer-events: auto;

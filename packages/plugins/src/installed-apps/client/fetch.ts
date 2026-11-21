@@ -8,7 +8,7 @@ export type AppInstallers = { userIds: UserId[]; channelIds: ChannelId[]; hidden
 
 type RawInstallers = { userIds: string[]; channelIds: string[]; hiddenChannels: number };
 
-export async function fetchInstalledApps(userId: string): Promise<InstalledApp[]> {
+async function fetchInstalledApps(userId: UserId): Promise<InstalledApp[]> {
   const data = await apiGet<{ apps: InstalledApp[] }>(`/api/users/${userId}/installed-apps`);
   if (!data.ok) throw new Error(data.error ?? "installed apps lookup failed");
   return data.apps;
@@ -24,7 +24,7 @@ export async function fetchAppInstallers(appId: string): Promise<AppInstallers> 
   };
 }
 
-export const installedApps = defineQuery<string, InstalledApp[]>({
+export const installedApps = defineQuery<UserId, InstalledApp[]>({
   load: fetchInstalledApps,
   name: "installedApps",
 });

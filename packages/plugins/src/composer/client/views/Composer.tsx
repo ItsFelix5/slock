@@ -1,10 +1,10 @@
 import { Slot, service } from "@slock/core/solid";
 import type { Block, SlackFile } from "@slock/types";
-import { InlineFeedback, scrollActiveListOption, useEscapeClose } from "@slock/ui";
+import { InlineFeedback, useEscapeClose } from "@slock/ui";
 import QuillEditor from "@slock/ui/editor/QuillEditor";
 import type Quill from "@slock/ui/editor/quill";
 import { indexAlignedText } from "@slock/ui/editor/quillText";
-import { createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
+import { createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
 import "./Composer.css";
 import { draftCacheKey } from "../../../drafts/client/api";
 import { composerFeedbackKey } from "../../../slash-commands/client/api";
@@ -68,7 +68,6 @@ export default function Composer(props: ComposerProps) {
     () => !!props.editing,
   );
   useSuggestUi(() => suggestPopoverRef, suggest, setSuggest);
-  createEffect(suggest, () => scrollActiveListOption(() => suggestPopoverRef));
 
   useComposerShortcuts({
     dismissPreviews: () => linkPreviews.dismissAll(),

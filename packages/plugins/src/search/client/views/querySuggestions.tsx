@@ -1,4 +1,4 @@
-import { defined } from "@slock/core";
+import { defined, startOfDay, toLocalInputValue } from "@slock/core";
 import { service } from "@slock/core/solid";
 import type { User } from "@slock/types";
 import { Avatar, fuzzySearch, Icon } from "@slock/ui";
@@ -8,6 +8,7 @@ const dmsStore = service("dms");
 const channelsStore = service("channels");
 const usersStore = service("users");
 const prefsStore = service("prefs");
+const env = service("env");
 
 export type QuerySuggestion = {
   id: string;
@@ -50,15 +51,14 @@ function tokenAt(value: string, cursor: number) {
 }
 
 function dateOffset(days: number) {
-  const date = new Date();
-  date.setDate(date.getDate() - days);
-  return date.toISOString().slice(0, 10);
+  return toLocalInputValue(startOfDay(env.now(), -days), "date");
 }
 
 function monthName(monthsAgo: number) {
-  const date = new Date();
-  date.setMonth(date.getMonth() - monthsAgo);
-  return date.toLocaleString("en-US", { month: "long" }).toLowerCase();
+  const now = new Date(env.now());
+  return new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1)
+    .toLocaleString("en-US", { month: "long" })
+    .toLowerCase();
 }
 
 export function queryToken(value: string, cursor: number) {
@@ -108,7 +108,7 @@ function dateSuggestions(modifier: string, term: string, prefix: string): QueryS
 }
 
 function duringSuggestions(term: string, prefix: string): QuerySuggestion[] {
-  return [monthName(0), monthName(1), String(new Date().getFullYear())]
+  return [monthName(0), monthName(1), String(new Date(env.now()).getFullYear())]
     .filter((value) => !term || value.startsWith(term))
     .map((value) =>
       withPrefix(prefix, {

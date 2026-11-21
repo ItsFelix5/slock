@@ -7,10 +7,10 @@ export interface FilterPillValue {
 }
 
 export class FilterPillBlot extends getEmbedBlot() {
-  static blotName = "filter";
-  static tagName = "span";
+  static override blotName = "filter";
+  static override tagName = "span";
 
-  static create(value: FilterPillValue) {
+  static override create(value: FilterPillValue) {
     const node = document.createElement("span");
     node.className = "bk-mention search-filter-pill";
     node.classList.toggle("negated", value.negated);
@@ -23,7 +23,7 @@ export class FilterPillBlot extends getEmbedBlot() {
     return node;
   }
 
-  static value(node: HTMLElement): FilterPillValue | undefined {
+  static override value(node: HTMLElement): FilterPillValue | undefined {
     const { token, label, negated } = node.dataset;
     return token && label ? { label, negated: negated === "true", token } : undefined;
   }
@@ -37,7 +37,7 @@ function isPillShaped(
   return !!value && typeof value === "object";
 }
 
-export function filterPillValue(value: unknown): FilterPillValue | undefined {
+function filterPillValue(value: unknown): FilterPillValue | undefined {
   if (!isPillShaped(value)) return;
   const { token, label, negated } = value;
   return typeof token === "string" && typeof label === "string"
@@ -49,7 +49,7 @@ function isFilterOp(value: unknown): value is { filter?: unknown } {
   return !!value && typeof value === "object";
 }
 
-export function filterPillFromOpInsert(insert: unknown): FilterPillValue | undefined {
+function filterPillFromOpInsert(insert: unknown): FilterPillValue | undefined {
   return isFilterOp(insert) ? filterPillValue(insert.filter) : undefined;
 }
 

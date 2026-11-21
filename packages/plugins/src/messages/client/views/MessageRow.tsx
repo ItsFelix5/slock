@@ -1,7 +1,7 @@
 import { maybeService, Slot, service } from "@slock/core/solid";
 import type { ChannelId, Message, Ts } from "@slock/types";
-import { ContextMenu, useContextMenu, useDeferredMount } from "@slock/ui";
-import { createEffect, createMemo, Show } from "solid-js";
+import { ContextMenu, useContextMenu } from "@slock/ui";
+import { createMemo, Show } from "solid-js";
 import { retainsDeleted } from "../api/deletedMessages";
 import type { OpenThreadHandler } from "../api/messageFocus";
 import { isMessageBackgroundContextMenu } from "../messageContextMenuTarget";
@@ -120,13 +120,6 @@ export default function MessageRow(props: MessageRowProps) {
   const isEditing = () => props.editingTs?.() === msg().ts;
   const focused = () => props.focusedTs?.() === msg().ts;
   const ctxMenu = useContextMenu();
-  const deferred = useDeferredMount();
-  createEffect(
-    () => isEditing() || focused(),
-    (needsContent) => {
-      if (needsContent) deferred.now();
-    },
-  );
 
   const saved = () => !!later()?.isSavedForLater(props.channelId, msg().ts);
   const { engaged, events: rowEvents, keyboardFocus } = createRowEngagement();
@@ -225,7 +218,7 @@ export default function MessageRow(props: MessageRowProps) {
                 user={user()}
               />
             </Show>
-            <div class="message-body" ref={deferred.ref}>
+            <div class="message-body">
               <Show when={!sameAuthorAsPrev()}>
                 <MessageMeta
                   channelId={props.channelId}
@@ -247,29 +240,27 @@ export default function MessageRow(props: MessageRowProps) {
                   userId={profileUserId()}
                 />
               </Show>
-              <Show fallback={<div class="message-content-pending" />} when={deferred.ready()}>
-                <MessageTextContent
-                  attachments={visibleAttachments()}
-                  channelId={props.channelId}
-                  hasEnlargedEmojiOnlyText={hasEnlargedEmojiOnlyText()}
-                  isEditing={isEditing()}
-                  messageText={messageText()}
-                  msg={msg()}
-                  onStopEdit={props.onStopEdit}
-                  renderBlocks={renderBlocks()}
-                  replyRef={replyRef()}
-                  tz={user()?.tz}
-                />
-                <Slot
-                  attachments={visibleAttachments()}
-                  channelId={props.channelId}
-                  isEditing={isEditing()}
-                  msg={msg()}
-                  onOpenThread={props.onOpenThread}
-                  point="messages.body"
-                  threadTs={props.threadTs}
-                />
-              </Show>
+              <MessageTextContent
+                attachments={visibleAttachments()}
+                channelId={props.channelId}
+                hasEnlargedEmojiOnlyText={hasEnlargedEmojiOnlyText()}
+                isEditing={isEditing()}
+                messageText={messageText()}
+                msg={msg()}
+                onStopEdit={props.onStopEdit}
+                renderBlocks={renderBlocks()}
+                replyRef={replyRef()}
+                tz={user()?.tz}
+              />
+              <Slot
+                attachments={visibleAttachments()}
+                channelId={props.channelId}
+                isEditing={isEditing()}
+                msg={msg()}
+                onOpenThread={props.onOpenThread}
+                point="messages.body"
+                threadTs={props.threadTs}
+              />
             </div>
           </Show>
         </div>

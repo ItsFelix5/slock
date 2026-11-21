@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { runHttp } from "@slock/core";
+import { createFakeEnv } from "@slock/core/testing";
+import { ch, stamp } from "@slock/slack/testing";
 import type { RawMessage } from "@slock/types";
 import { restoreDeleted } from "../../../src/message-logger/server/restore";
 import { createLogStore, type LogStore } from "../../../src/message-logger/server/store";
@@ -8,7 +10,7 @@ import type { Credentials } from "../../../src/slack/server/api/auth";
 let store: LogStore;
 
 beforeEach(() => {
-  store = createLogStore(":memory:");
+  store = createLogStore(":memory:", createFakeEnv());
 });
 
 function credsFor(team: string, token = `xoxc-${team}`): Credentials {
@@ -48,7 +50,7 @@ async function tsList(res: Response | undefined) {
 
 describe("channel history", () => {
   test("merges deleted messages into the page newest first", async () => {
-    store.saveMessage("T1", "C1", message("1700000002.000100"));
+    store.saveMessage("T1", ch("C1"), message("1700000002.000100"));
     const res = await request("/api/channels/C1/messages", credsFor("T1"), () =>
       slackPage([message("1700000003.000100"), message("1700000001.000100")]),
     );
@@ -60,7 +62,7 @@ describe("channel history", () => {
   });
 
   test("never duplicates a message Slack still returns", async () => {
-    store.saveMessage("T1", "C1", message("1700000002.000100"));
+    store.saveMessage("T1", ch("C1"), message("1700000002.000100"));
     const res = await request("/api/channels/C1/messages", credsFor("T1"), () =>
       slackPage([message("1700000002.000100")]),
     );
@@ -68,14 +70,14 @@ describe("channel history", () => {
   });
 
   test("restored messages carry the deleted flag", async () => {
-    store.saveMessage("T1", "C1", message("1700000002.000100"));
+    store.saveMessage("T1", ch("C1"), message("1700000002.000100"));
     const res = await request("/api/channels/C1/messages", credsFor("T1"), () => slackPage([]));
     const body = (await res?.json()) as { messages: RawMessage[] };
     expect(body.messages[0]?.deleted).toBe(true);
   });
 
   test("a deleted message from before the page is not restored when more history exists", async () => {
-    store.saveMessage("T1", "C1", message("1700000001.000100"));
+    store.saveMessage("T1", ch("C1"), message("1700000001.000100"));
     const res = await request("/api/channels/C1/messages", credsFor("T1"), () =>
       slackPage([message("1700000005.000100"), message("1700000004.000100")], { has_more: true }),
     );
@@ -83,8 +85,8 @@ describe("channel history", () => {
   });
 
   test("honours the latest bound", async () => {
-    store.saveMessage("T1", "C1", message("1700000009.000100"));
-    store.saveMessage("T1", "C1", message("1700000002.000100"));
+    store.saveMessage("T1", ch("C1"), message("1700000009.000100"));
+    store.saveMessage("T1", ch("C1"), message("1700000002.000100"));
     const res = await request(
       "/api/channels/C1/messages?latest=1700000005.000000",
       credsFor("T1"),
@@ -96,8 +98,8 @@ describe("channel history", () => {
 
 describe("threads", () => {
   test("replies come back oldest first", async () => {
-    const root = "1700000001.000100";
-    store.saveMessage("T1", "C1", message("1700000003.000100", { thread_ts: root }));
+    const root = stamp("1700000001.000100");
+    store.saveMessage("T1", ch("C1"), message("1700000003.000100", { thread_ts: root }));
     const res = await request(`/api/channels/C1/threads/${root}/messages`, credsFor("T1"), () =>
       slackPage([
         message(root, { thread_ts: root }),
@@ -110,8 +112,12 @@ describe("threads", () => {
 
 describe("tenant isolation", () => {
   beforeEach(() => {
-    store.saveMessage("T1", "C1", message("1700000002.000100", { text: "T1 secret" }));
-    store.saveMessage("T1", "C1", message("1700000003.000100", { thread_ts: "1700000001.000100" }));
+    store.saveMessage("T1", ch("C1"), message("1700000002.000100", { text: "T1 secret" }));
+    store.saveMessage(
+      "T1",
+      ch("C1"),
+      message("1700000003.000100", { thread_ts: "1700000001.000100" }),
+    );
   });
 
   test("another workspace asking for the same channel id gets nothing extra", async () => {
@@ -152,7 +158,7 @@ describe("tenant isolation", () => {
 
 describe("pass through", () => {
   test("non GET and unrelated paths are not rewritten", async () => {
-    store.saveMessage("T1", "C1", message("1700000002.000100"));
+    store.saveMessage("T1", ch("C1"), message("1700000002.000100"));
     const post = await request(
       "/api/channels/C1/messages",
       credsFor("T1"),

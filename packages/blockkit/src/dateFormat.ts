@@ -1,4 +1,10 @@
-import { CLOCK_24H, defined, formatMonthDayFromMs, formatTimeFromMs } from "@slock/core";
+import {
+  CLOCK_24H,
+  defined,
+  formatMonthDayFromMs,
+  formatTimeFromMs,
+  startOfDay,
+} from "@slock/core";
 
 const MONTH_NAMES = [
   "January",
@@ -43,17 +49,15 @@ function ordinal(n: number): string {
   }
 }
 
-function relativeDayLabel(date: Date): string | undefined {
-  const now = new Date();
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const diffDays = Math.round((startOfDay(date) - startOfDay(now)) / 86_400_000);
+function relativeDayLabel(date: Date, nowMs: number): string | undefined {
+  const diffDays = Math.round((startOfDay(date.getTime()) - startOfDay(nowMs)) / 86_400_000);
   if (diffDays === 0) return "today";
   if (diffDays === 1) return "tomorrow";
-  if (diffDays === -1) return "yesterday";
+  return diffDays === -1 ? "yesterday" : undefined;
 }
 
-function includesYear(date: Date): boolean {
-  const now = new Date();
+function includesYear(date: Date, nowMs: number): boolean {
+  const now = new Date(nowMs);
   const start = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
   const end = new Date(now.getFullYear(), now.getMonth() + 6, now.getDate());
   const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -63,16 +67,16 @@ function includesYear(date: Date): boolean {
 function dateNum(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
-function dateFull(date: Date): string {
+function dateFull(date: Date, now: number): string {
   const value = `${MONTH_NAMES[date.getMonth()]} ${ordinal(date.getDate())}`;
-  return includesYear(date) ? `${value}, ${date.getFullYear()}` : value;
+  return includesYear(date, now) ? `${value}, ${date.getFullYear()}` : value;
 }
-function dateShort(date: Date): string {
+function dateShort(date: Date, now: number): string {
   const value = `${defined(MONTH_NAMES[date.getMonth()]).slice(0, 3)} ${date.getDate()}`;
-  return includesYear(date) ? `${value}, ${date.getFullYear()}` : value;
+  return includesYear(date, now) ? `${value}, ${date.getFullYear()}` : value;
 }
-function dateLong(date: Date): string {
-  return `${WEEKDAY_NAMES[date.getDay()]}, ${dateFull(date)}`;
+function dateLong(date: Date, now: number): string {
+  return `${WEEKDAY_NAMES[date.getDay()]}, ${dateFull(date, now)}`;
 }
 function dateSlash(date: Date): string {
   return `${pad(date.getMonth() + 1)}/${pad(date.getDate())}/${date.getFullYear()}`;
@@ -83,8 +87,8 @@ function time(date: Date): string {
 function timeSecs(date: Date): string {
   return `${time(date)}:${pad(date.getSeconds())}`;
 }
-function ago(date: Date): string {
-  const seconds = Math.round((Date.now() - date.getTime()) / 1000);
+function ago(date: Date, now: number): string {
+  const seconds = Math.round((now - date.getTime()) / 1000);
   const absoluteSeconds = Math.abs(seconds);
   const day = 86_400;
   const month = day * 30;
@@ -105,17 +109,17 @@ function ago(date: Date): string {
   return seconds >= 0 ? `${period} ago` : `in ${period}`;
 }
 
-const TOKEN_FORMATTERS: Record<string, (date: Date) => string> = {
+const TOKEN_FORMATTERS: Record<string, (date: Date, now: number) => string> = {
   ago,
   date: dateFull,
   date_long: dateLong,
-  date_long_pretty: (d) => relativeDayLabel(d) ?? dateLong(d),
+  date_long_pretty: (d, now) => relativeDayLabel(d, now) ?? dateLong(d, now),
   date_num: dateNum,
-  date_pretty: (d) => relativeDayLabel(d) ?? dateFull(d),
+  date_pretty: (d, now) => relativeDayLabel(d, now) ?? dateFull(d, now),
   date_short: dateShort,
-  date_short_pretty: (d) => relativeDayLabel(d) ?? dateShort(d),
+  date_short_pretty: (d, now) => relativeDayLabel(d, now) ?? dateShort(d, now),
   date_slash: dateSlash,
-  date_slash_pretty: (d) => relativeDayLabel(d) ?? dateSlash(d),
+  date_slash_pretty: (d, now) => relativeDayLabel(d, now) ?? dateSlash(d),
   time,
   time_secs: timeSecs,
 };
@@ -131,7 +135,7 @@ export function formatSlackDate(timestamp: number, fallback?: string): string {
   }
 }
 
-export function formatFullDateTime(timestamp: number): string {
+function formatFullDateTime(timestamp: number): string {
   const date = new Date(timestamp * 1000);
   return date.toLocaleString([], {
     ...CLOCK_24H,
@@ -143,7 +147,7 @@ export function formatFullDateTime(timestamp: number): string {
   });
 }
 
-export function formatFullDate(timestamp: number): string {
+function formatFullDate(timestamp: number): string {
   const date = new Date(timestamp * 1000);
   return date.toLocaleDateString([], {
     day: "numeric",
@@ -153,20 +157,24 @@ export function formatFullDate(timestamp: number): string {
   });
 }
 
-export function formatHoverDateTime(timestamp: number, dateOnly?: boolean): string {
+export function formatHoverDateTime(timestamp: number, now: number, dateOnly?: boolean): string {
   const absolute = dateOnly ? formatFullDate(timestamp) : formatFullDateTime(timestamp);
-  return `${absolute} · ${formatSlackDateTokens("{ago}", timestamp)}`;
+  return `${absolute} · ${formatSlackDateTokens("{ago}", timestamp, now)}`;
 }
 
 export function formatSlackDateTokens(
   format: string,
   timestamp: number,
+  now: number,
   fallback?: string,
 ): string {
   try {
     const date = new Date(timestamp * 1000);
     if (Number.isNaN(date.getTime())) return fallback ?? "a date";
-    return format.replace(TOKEN_RE, (whole, token) => TOKEN_FORMATTERS[token]?.(date) ?? whole);
+    return format.replace(
+      TOKEN_RE,
+      (whole, token) => TOKEN_FORMATTERS[token]?.(date, now) ?? whole,
+    );
   } catch {
     return fallback ?? "a date";
   }
@@ -192,7 +200,7 @@ function zoneFormat(timeZone: string) {
   return format;
 }
 
-export function partsInZone(ms: number, timeZone: string) {
+function partsInZone(ms: number, timeZone: string) {
   const map: Record<string, string> = {};
   for (const part of zoneFormat(timeZone).formatToParts(new Date(ms))) map[part.type] = part.value;
   return {
@@ -215,7 +223,7 @@ function timeZoneOffsetAt(ms: number, timeZone: string): number {
   );
 }
 
-export function zonedDateTimeToMs(
+function zonedDateTimeToMs(
   year: number,
   month: number,
   day: number,

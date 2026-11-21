@@ -19,6 +19,7 @@ export function createDraftStore() {
   const [ready, setReady] = createSignal(false);
   const touchedKeys = new Set<string>();
   const lastKnownTs = new Map<string, Ts>();
+  const removedIds = new Set<string>();
   let hydrated = false;
   let hydration: Promise<boolean> | null = null;
   let disposed = false;
@@ -43,6 +44,7 @@ export function createDraftStore() {
   const upsert = (entry: DraftEntry) => void write(entry, false);
 
   function remove(key: string, id: string) {
+    removedIds.add(id);
     setDrafts((all) => {
       const next = all[key]?.filter((e) => e.id !== id);
       if (next?.length) all[key] = next;
@@ -51,10 +53,11 @@ export function createDraftStore() {
   }
 
   function applyRemote(draft: DraftEntry) {
-    if (hydrated) write(draft, true);
+    if (hydrated && !removedIds.has(draft.id)) write(draft, true);
   }
 
   function removeRemote(id: string) {
+    removedIds.add(id);
     setDrafts((all) => {
       for (const [key, list] of Object.entries(all)) {
         const next = list.filter((e) => e.id !== id);

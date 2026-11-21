@@ -1,5 +1,7 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { defined } from "@slock/core";
+import { beforeEach, describe, expect, test } from "bun:test";
+import { createHost, defined } from "@slock/core";
+import { setHost } from "@slock/core/services";
+import { createFakeEnv, type FakeEnv } from "@slock/core/testing";
 import { safeTypeHeaders, slackAssetResponse } from "../../../src/slack/server/api/assets";
 import type { Credentials } from "../../../src/slack/server/api/auth";
 
@@ -10,40 +12,47 @@ const CREDS: Credentials = {
   token: "token",
 };
 const FILE_URL = "https://files.slack.com/files-pri/T1-F1/pic.png";
-const originalFetch = globalThis.fetch;
+let env: FakeEnv;
 let requests: string[] = [];
 
-function stubFetch(...replies: (Response | Error)[]) {
+beforeEach(() => {
+  env = createFakeEnv();
+  setHost(createHost({ env }));
   requests = [];
-  const handler = (input: string | URL | Request): Promise<Response> => {
-    requests.push(String(input));
-    const reply = defined(replies[Math.min(requests.length - 1, replies.length - 1)]);
-    return reply instanceof Error ? Promise.reject(reply) : Promise.resolve(reply);
-  };
-  globalThis.fetch = Object.assign(handler, { preconnect: () => {} });
+});
+
+function stubFetch(...replies: (Response | Error)[]) {
+  env.fetch.respond(
+    () => true,
+    (call) => {
+      requests.push(call.url);
+      const reply = defined(replies[Math.min(requests.length - 1, replies.length - 1)]);
+      if (reply instanceof Error) throw reply;
+      return reply;
+    },
+  );
 }
 
 const png = () => new Response("bytes", { headers: { "content-type": "image/png" } });
 
-afterEach(() => {
-  globalThis.fetch = originalFetch;
-});
+// The retry waits on the fake clock: let the first attempt settle, then fire the wait.
+async function withRetryWait(response: Promise<Response>): Promise<Response> {
+  for (let i = 0; i < 50; i++) await Promise.resolve();
+  env.runAll();
+  return response;
+}
 
 describe("slackAssetResponse", () => {
-  beforeEach(() => {
-    requests = [];
-  });
-
   test("a dropped connection is retried once", async () => {
     stubFetch(new Error("socket hang up"), png());
-    const res = await slackAssetResponse(FILE_URL, CREDS, null, null);
+    const res = await withRetryWait(slackAssetResponse(FILE_URL, CREDS, null, null));
     expect(res.status).toBe(200);
     expect(requests.length).toBe(2);
   });
 
   test("a Slack 5xx is retried once, then reported as a 502", async () => {
     stubFetch(new Response("busy", { status: 503 }), new Response("busy", { status: 503 }));
-    const res = await slackAssetResponse(FILE_URL, CREDS, null, null);
+    const res = await withRetryWait(slackAssetResponse(FILE_URL, CREDS, null, null));
     expect(res.status).toBe(502);
     expect(requests.length).toBe(2);
   });

@@ -1,36 +1,40 @@
+import { service } from "@slock/core/solid";
+import type { TimerHandle } from "@slock/core/types";
 import { createSignal, onCleanup } from "solid-js";
+
+const env = service("env");
 
 export function useHoverIntent(openDelay = 350, closeDelay = 160) {
   const [open, setOpen] = createSignal(false);
-  let openTimer: ReturnType<typeof setTimeout> | undefined;
-  let closeTimer: ReturnType<typeof setTimeout> | undefined;
+  let openTimer: TimerHandle | undefined;
+  let closeTimer: TimerHandle | undefined;
 
   const close = () => {
-    clearTimeout(openTimer);
-    clearTimeout(closeTimer);
+    env.clearTimeout(openTimer);
+    env.clearTimeout(closeTimer);
     setOpen(false);
   };
 
   const scheduleOpen = () => {
-    clearTimeout(openTimer);
-    clearTimeout(closeTimer);
-    openTimer = setTimeout(() => setOpen(true), openDelay);
+    env.clearTimeout(openTimer);
+    env.clearTimeout(closeTimer);
+    openTimer = env.setTimeout(() => setOpen(true), openDelay);
   };
   const scheduleClose = () => {
-    clearTimeout(openTimer);
-    clearTimeout(closeTimer);
-    closeTimer = setTimeout(close, closeDelay);
+    env.clearTimeout(openTimer);
+    env.clearTimeout(closeTimer);
+    closeTimer = env.setTimeout(close, closeDelay);
   };
-  const cancelClose = () => clearTimeout(closeTimer);
+  const cancelClose = () => env.clearTimeout(closeTimer);
   const openNow = () => {
-    clearTimeout(openTimer);
-    clearTimeout(closeTimer);
+    env.clearTimeout(openTimer);
+    env.clearTimeout(closeTimer);
     setOpen(true);
   };
 
   onCleanup(() => {
-    clearTimeout(openTimer);
-    clearTimeout(closeTimer);
+    env.clearTimeout(openTimer);
+    env.clearTimeout(closeTimer);
   });
 
   return { cancelClose, close, open, openNow, scheduleClose, scheduleOpen };

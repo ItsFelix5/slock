@@ -70,7 +70,6 @@ export {
   isConfigured,
   listAccounts,
   REAUTH_EVENT,
-  refreshAccountInfo,
   switchAccount,
   userProfileUrl,
 } from "./session/account";

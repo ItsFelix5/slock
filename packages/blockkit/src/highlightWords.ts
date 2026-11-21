@@ -1,23 +1,17 @@
-const REGEXP_SPECIAL_RE = /[.*+?^${}()|[\]\\]/g;
+import { escapeRegExp } from "@slock/core";
 
-function escapeRegExp(word: string): string {
-  return word.replace(REGEXP_SPECIAL_RE, "\\$&");
-}
-
-let cached: { words: string[]; pattern: RegExp | undefined } | undefined;
+const patterns = new WeakMap<string[], RegExp | undefined>();
 
 function buildHighlightWordsPattern(words: string[]): RegExp | undefined {
-  if (cached?.words === words) return cached.pattern;
+  if (patterns.has(words)) return patterns.get(words);
   const source = words
     .map((w) => w.trim())
     .filter(Boolean)
     .map(escapeRegExp)
     .join("|");
-  cached = {
-    pattern: source ? new RegExp(`\\b(?:${source})\\b`, "gi") : undefined,
-    words,
-  };
-  return cached.pattern;
+  const pattern = source ? new RegExp(`\\b(?:${source})\\b`, "gi") : undefined;
+  patterns.set(words, pattern);
+  return pattern;
 }
 
 export type HighlightSegment = { highlighted: boolean; text: string };

@@ -20,3 +20,7 @@ export function defined<T>(value: T | null | undefined): T {
   if (value === null || value === undefined) throw new Error("expected a defined value");
   return value;
 }
+
+export function sameItems<T>(a: readonly T[], b: readonly T[]): boolean {
+  return a.length === b.length && a.every((item, index) => item === b[index]);
+}

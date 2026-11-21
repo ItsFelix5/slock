@@ -1,18 +1,18 @@
-import { apiGet, mapVisibleMessages } from "@slock/slack";
+import { apiGet, compareTs, mapVisibleMessages, parseTs } from "@slock/slack";
 import type { ChannelId, Message, RawMessage, Ts } from "@slock/types";
 
 type RepliesReply = { has_more?: boolean; messages?: RawMessage[] };
 
-export type ReplyPage = { edge?: string; hasMore: boolean; messages: Message[] };
+export type ReplyPage = { edge?: Ts; hasMore: boolean; messages: Message[] };
 
 export type EarlierReplyPage = {
-  before: string;
+  before: Ts;
   hasEarlier: boolean;
   messages: Message[];
   span: number;
 };
 
-type Range = { inclusive?: boolean; latest?: string; limit: number; oldest?: string };
+type Range = { inclusive?: boolean; latest?: Ts; limit: number; oldest?: Ts };
 
 const FORWARD_PAGE = 100;
 const WINDOW_PAGE = 50;
@@ -31,41 +31,33 @@ async function fetchRange(channelId: ChannelId, threadTs: Ts, range: Range): Pro
   );
   if (!data.ok) throw new Error(data.error ?? "conversations.replies failed");
   const raws = (data.messages ?? []).filter(
-    (raw) => raw.ts !== undefined && inRange(raw.ts, range),
+    (raw) => raw.ts !== undefined && inRange(parseTs(raw.ts), range),
   );
+  const last = raws.at(-1)?.ts;
   return {
-    edge: raws.at(-1)?.ts,
+    edge: last === undefined ? undefined : parseTs(last),
     hasMore: !!data.has_more,
     messages: mapVisibleMessages(raws),
   };
 }
 
-function inRange(ts: string, range: Range): boolean {
-  const value = Number(ts);
+function inRange(ts: Ts, range: Range): boolean {
   if (range.oldest) {
-    const oldest = Number(range.oldest);
-    if (range.inclusive ? value < oldest : value <= oldest) return false;
+    const order = compareTs(ts, range.oldest);
+    if (range.inclusive ? order < 0 : order <= 0) return false;
   }
   if (range.latest) {
-    const latest = Number(range.latest);
-    if (range.inclusive ? value > latest : value >= latest) return false;
+    const order = compareTs(ts, range.latest);
+    if (range.inclusive ? order > 0 : order >= 0) return false;
   }
   return true;
 }
 
-export function fetchReplies(
-  channelId: ChannelId,
-  threadTs: Ts,
-  after?: string,
-): Promise<ReplyPage> {
+export function fetchReplies(channelId: ChannelId, threadTs: Ts, after?: Ts): Promise<ReplyPage> {
   return fetchRange(channelId, threadTs, { limit: FORWARD_PAGE, oldest: after });
 }
 
-export function fetchRepliesFrom(
-  channelId: ChannelId,
-  threadTs: Ts,
-  from: string,
-): Promise<ReplyPage> {
+export function fetchRepliesFrom(channelId: ChannelId, threadTs: Ts, from: Ts): Promise<ReplyPage> {
   return fetchRange(channelId, threadTs, { inclusive: true, limit: WINDOW_PAGE, oldest: from });
 }
 
@@ -81,7 +73,7 @@ export async function fetchThreadRoot(channelId: ChannelId, threadTs: Ts) {
 export async function fetchRepliesBefore(
   channelId: ChannelId,
   threadTs: Ts,
-  before: string,
+  before: Ts,
   spanHint = FIRST_SPAN_SECONDS,
 ): Promise<EarlierReplyPage> {
   const floor = Number(threadTs);
@@ -96,7 +88,7 @@ export async function fetchRepliesBefore(
     const page = await fetchRange(channelId, threadTs, {
       latest: before,
       limit: EARLIER_PAGE,
-      oldest: candidate.toFixed(6),
+      oldest: parseTs(candidate.toFixed(6)),
     });
     if (page.hasMore) {
       wide = candidate;
@@ -109,7 +101,7 @@ export async function fetchRepliesBefore(
     const exhausted = wide !== undefined && narrow - wide <= MIN_SPAN_SECONDS;
     if (reachedRoot || exhausted || full) {
       return {
-        before: narrow.toFixed(6),
+        before: parseTs(narrow.toFixed(6)),
         hasEarlier: !reachedRoot,
         messages: best,
         span: Math.max(ceiling - narrow, MIN_SPAN_SECONDS),

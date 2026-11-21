@@ -1,6 +1,6 @@
 import type { Setup } from "@slock/core";
 import { createTheme } from "@slock/ui";
-import { createEffect, lazy } from "solid-js";
+import { createEffect, lazy, untrack } from "solid-js";
 
 const view = lazy(() => import("./views/AppearanceTab"));
 
@@ -12,7 +12,7 @@ const setup: Setup = (ctx) => {
   createEffect(
     () => colors(),
     (groups) => {
-      const removers = groups.map(theme.registerThemeColors);
+      const removers = untrack(() => groups.map(theme.registerThemeColors));
       return () => {
         for (const remove of removers) remove();
       };

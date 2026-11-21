@@ -1,3 +1,6 @@
+import { startOfDay } from "@slock/core";
+import { dateToTs } from "../api/dateFormats";
+
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const MONTHS = [
   "january",
@@ -40,13 +43,6 @@ export interface ParsedDate {
   hasTime: boolean;
 }
 
-function startOfDay(offsetDays: number, now: Date): Date {
-  const d = new Date(now);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + offsetDays);
-  return d;
-}
-
 function calendarDate(year: number, month: number, day: number): Date | undefined {
   const d = new Date(year, month, day);
   d.setFullYear(year);
@@ -59,25 +55,27 @@ function nameIndex(names: string[], part: string): number {
 
 function monthDay(monthName: string, dayText: string, now: Date): Date | undefined {
   const month = nameIndex(MONTHS, monthName);
-  if (month === -1) return;
-  const today = startOfDay(0, now);
-  for (let year = now.getFullYear(); year <= now.getFullYear() + MAX_LEAP_GAP_YEARS; year++) {
-    const d = calendarDate(year, month, Number(dayText));
-    if (d && d >= today) return d;
-  }
+  const today = startOfDay(now);
+  const years = Array.from(
+    { length: MAX_LEAP_GAP_YEARS + 1 },
+    (_, offset) => now.getFullYear() + offset,
+  );
+  return month === -1
+    ? undefined
+    : years.map((year) => calendarDate(year, month, Number(dayText))).find((d) => d && d >= today);
 }
 
 function parseDay(part: string, now: Date): Date | undefined {
   const alias = DAY_ALIASES.get(part);
-  if (alias !== undefined) return startOfDay(alias, now);
+  if (alias !== undefined) return startOfDay(now, alias);
   const weekday = nameIndex(WEEKDAYS, part);
-  if (weekday !== -1) return startOfDay(((weekday - now.getDay() + 6) % 7) + 1, now);
+  if (weekday !== -1) return startOfDay(now, ((weekday - now.getDay() + 6) % 7) + 1);
   const iso = part.match(ISO_RE);
   if (iso) return calendarDate(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
   const named = part.match(MONTH_DAY_RE);
   if (named) return monthDay(named[1] ?? "", named[2] ?? "", now);
   const reversed = part.match(DAY_MONTH_RE);
-  if (reversed) return monthDay(reversed[2] ?? "", reversed[1] ?? "", now);
+  return reversed ? monthDay(reversed[2] ?? "", reversed[1] ?? "", now) : undefined;
 }
 
 function parseTime(part: string): number | undefined {
@@ -117,34 +115,30 @@ function parseOffset(sign: string, parts: string, now: Date): ParsedDate | undef
     else d.setTime(d.getTime() + n * (unit === "h" ? HOUR_MS : MINUTE_MS));
     hasTime ||= unit === "h" || unit === "m";
   }
-  return Number.isFinite(d.getTime()) ? { hasTime, ts: toTs(d) } : undefined;
-}
-
-function toTs(d: Date): number {
-  return Math.floor(d.getTime() / 1000);
+  return Number.isFinite(d.getTime()) ? { hasTime, ts: dateToTs(d) } : undefined;
 }
 
 function parseTimeOnly(part: string, now: Date): ParsedDate | undefined {
   const minutes = parseTime(part);
   if (minutes === undefined) return;
-  const target = startOfDay(0, now);
+  const target = startOfDay(now);
   target.setMinutes(minutes);
   if (target <= now) target.setDate(target.getDate() + 1);
-  return { hasTime: true, ts: toTs(target) };
+  return { hasTime: true, ts: dateToTs(target) };
 }
 
-export function parseDateQuery(rawQuery: string, now = new Date()): ParsedDate | undefined {
+export function parseDateQuery(rawQuery: string, now: Date): ParsedDate | undefined {
   const query = rawQuery.toLowerCase();
-  if (query === "now") return { hasTime: true, ts: toTs(now) };
+  if (query === "now") return { hasTime: true, ts: dateToTs(now) };
   const offset = query.match(OFFSET_RE);
   if (offset) return parseOffset(offset[1] ?? "+", offset[2] ?? "", now);
   const [first = "", second, ...extra] = query.split("_");
   if (extra.length > 0) return;
   const firstDay = parseDay(first, now);
   if (!firstDay) return second === undefined ? parseTimeOnly(first, now) : undefined;
-  if (second === undefined) return { hasTime: false, ts: toTs(firstDay) };
+  if (second === undefined) return { hasTime: false, ts: dateToTs(firstDay) };
   const minutes = parseTime(second);
   if (minutes === undefined) return;
   firstDay.setMinutes(minutes);
-  return { hasTime: true, ts: toTs(firstDay) };
+  return { hasTime: true, ts: dateToTs(firstDay) };
 }

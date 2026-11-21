@@ -2,7 +2,8 @@ export { systemEnv } from "./env";
 export { localEnabledStore } from "./host/enabledStore";
 export type { Host, HostOptions, PluginInfo } from "./host/host";
 export { createHost, Unavailable } from "./host/host";
-export { parseManifest } from "./host/manifest";
+export type { ManifestResult } from "./host/manifest";
+export { parseManifest, readManifest } from "./host/manifest";
 export type { HttpContext, HttpHandler } from "./http";
 export { runHttp } from "./http";
 export type { Pref, PrefCodec, PrefSpec } from "./pref";
@@ -34,7 +35,8 @@ export { backoff } from "./util/backoff";
 export { clamp } from "./util/clamp";
 export { errorMessage } from "./util/errorMessage";
 export { escapeRegExp } from "./util/escapeRegExp";
-export { defined, isRecord, narrowByType } from "./util/guards";
+export { firstTruthy } from "./util/firstTruthy";
+export { defined, isRecord, narrowByType, sameItems } from "./util/guards";
 export { startOfDay } from "./util/startOfDay";
 export {
   CLOCK_24H,

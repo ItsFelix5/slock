@@ -1,4 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
+import { createFakeEnv } from "@slock/core/testing";
 import { installRevalidateTriggers } from "../../../src/query/client/revalidateTriggers";
 import { installFakeBrowser } from "../../realtime/support/fakeBrowser";
 
@@ -8,30 +9,23 @@ afterEach(() => {
 });
 
 function setup() {
+  const env = createFakeEnv();
   const browser = installFakeBrowser({ online: true });
-  let time = 0;
   let calls = 0;
-  const teardown = installRevalidateTriggers({
-    now: () => time,
+  const triggers = installRevalidateTriggers({
+    now: env.now,
     onRevalidate: () => {
       calls += 1;
     },
   });
   cleanups.push(browser.restore);
-  return {
-    advance(ms: number) {
-      time += ms;
-    },
-    browser,
-    calls: () => calls,
-    teardown,
-  };
+  return { browser, calls: () => calls, env, triggers };
 }
 
 test("revalidates when the page returns after being hidden a while", () => {
   const t = setup();
   t.browser.setVisible(false);
-  t.advance(60_000);
+  t.env.advance(60_000);
   t.browser.setVisible(true);
   expect(t.calls()).toBe(1);
 });
@@ -39,16 +33,30 @@ test("revalidates when the page returns after being hidden a while", () => {
 test("does not revalidate for a brief tab switch", () => {
   const t = setup();
   t.browser.setVisible(false);
-  t.advance(5_000);
+  t.env.advance(5_000);
   t.browser.setVisible(true);
   expect(t.calls()).toBe(0);
 });
 
-test("revalidates on reconnect and stops after teardown", () => {
+test("revalidates on reconnect and stops after dispose", () => {
   const t = setup();
   t.browser.goOnline();
   expect(t.calls()).toBe(1);
-  t.teardown();
+  t.triggers.dispose();
+  t.env.advance(60_000);
   t.browser.goOnline();
   expect(t.calls()).toBe(1);
+  expect(t.browser.listenerCount()).toBe(0);
+});
+
+test("all sources share one throttle", () => {
+  const t = setup();
+  t.browser.goOnline();
+  t.env.advance(1_000);
+  t.triggers.trigger();
+  t.browser.goOnline();
+  expect(t.calls()).toBe(1);
+  t.env.advance(5_000);
+  t.triggers.trigger();
+  expect(t.calls()).toBe(2);
 });

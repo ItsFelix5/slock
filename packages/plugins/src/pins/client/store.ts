@@ -1,7 +1,6 @@
-import { service } from "@slock/core/solid";
+import { createFlags, service } from "@slock/core/solid";
 import type { Services } from "@slock/core/types";
 import type { ChannelId, PinnedMessage, Ts } from "@slock/types";
-import { createStore } from "solid-js";
 import { defineQuery } from "../../query/client/api";
 import { fetchPinnedMessages, fetchPins, togglePin } from "../../slack/client/api";
 
@@ -24,13 +23,12 @@ const pinnedMessages = defineQuery<ChannelId, PinnedMessage[]>({
 export function createPinnedSlice(deps: {
   panes: Pick<Services["shell.panes"], "closePane" | "openInNewPane" | "panes">;
 }) {
-  const [pinPending, setPinPending] = createStore<Record<string, boolean>>({});
+  const pinPending = createFlags<string>();
 
   const pinPendingKey = (channelId: ChannelId, ts: Ts) => `${channelId}:${ts}`;
 
-  function isPinPending(channelId: ChannelId, ts: Ts): boolean {
-    return !!pinPending[pinPendingKey(channelId, ts)];
-  }
+  const isPinPending = (channelId: ChannelId, ts: Ts) =>
+    pinPending.has(pinPendingKey(channelId, ts));
 
   function ensurePinsLoaded(channelId: ChannelId): void {
     void pins.ensure(channelId).catch(() => {});
@@ -42,10 +40,8 @@ export function createPinnedSlice(deps: {
 
   async function togglePinMessage(channelId: ChannelId, ts: Ts): Promise<boolean> {
     const pendingKey = pinPendingKey(channelId, ts);
-    if (pinPending[pendingKey]) return false;
-    setPinPending((s) => {
-      s[pendingKey] = true;
-    });
+    if (pinPending.has(pendingKey)) return false;
+    pinPending.set(pendingKey, true);
     const currentlyPinned = isMessagePinned(channelId, ts);
     pins.set(channelId, { ...pins.peek(channelId), [ts]: !currentlyPinned });
     if (currentlyPinned && pinnedMessages.peek(channelId)) {
@@ -65,12 +61,10 @@ export function createPinnedSlice(deps: {
       console.error("Failed to toggle pin", err);
       feedback.error(ts, "Failed to update pin.");
       pins.set(channelId, { ...pins.peek(channelId), [ts]: currentlyPinned });
-      if (pinnedMessages.peek(channelId)) pinnedMessages.invalidate(channelId);
+      if (pinnedMessages.peek(channelId)) void refreshPinnedMessages(channelId);
       return false;
     } finally {
-      setPinPending((pending) => {
-        delete pending[pendingKey];
-      });
+      pinPending.set(pendingKey, false);
     }
   }
 
@@ -80,7 +74,7 @@ export function createPinnedSlice(deps: {
 
   function applyPinEvent(channelId: ChannelId, ts: Ts, pinned: boolean): void {
     if (pins.peek(channelId)) pins.set(channelId, { ...pins.peek(channelId), [ts]: pinned });
-    if (pinnedMessages.peek(channelId)) pinnedMessages.invalidate(channelId);
+    if (pinnedMessages.peek(channelId)) void refreshPinnedMessages(channelId);
   }
 
   function pinnedMessagesFor(channelId: ChannelId) {

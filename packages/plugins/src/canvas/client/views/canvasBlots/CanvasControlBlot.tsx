@@ -27,11 +27,11 @@ function CanvasControlLabel(props: CanvasControlValue) {
 const Embed = getEmbedBlot();
 
 export class CanvasControlBlot extends Embed {
-  static blotName = "canvasControl";
-  static className = "canvas-control";
-  static tagName = "span";
+  static override blotName = "canvasControl";
+  static override className = "canvas-control";
+  static override tagName = "span";
 
-  static create(value: CanvasControlValue) {
+  static override create(value: CanvasControlValue) {
     const node = asElement(super.create(value), "canvasControl");
     node.className = "canvas-control bk-canvas";
     node.dataset.id = value.id;
@@ -40,7 +40,7 @@ export class CanvasControlBlot extends Embed {
     return node;
   }
 
-  static value(node: HTMLElement): CanvasControlValue | undefined {
+  static override value(node: HTMLElement): CanvasControlValue | undefined {
     const { fileId, id, label } = node.dataset;
     return id
       ? { fileId: fileId && isFileId(fileId) ? fileId : undefined, id, label: label ?? "" }
@@ -65,7 +65,7 @@ export class CanvasControlBlot extends Embed {
     );
   }
 
-  detach() {
+  override detach() {
     this.disposeLabel();
     super.detach();
   }

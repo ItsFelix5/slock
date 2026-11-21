@@ -1,6 +1,6 @@
-import { service } from "@slock/core/solid";
+import { createOptimisticFlags, service } from "@slock/core/solid";
 import type { ChannelSection, UserPrefs } from "@slock/types";
-import { createMemo, createSignal } from "solid-js";
+import { action, createMemo, createOptimistic } from "solid-js";
 import { defineQuery } from "../../../query/client/api";
 import {
   createSection as apiCreateSection,
@@ -16,7 +16,6 @@ import {
   setSectionCollapsedPreference,
   setSectionSidebarPreference,
 } from "../api/sectionMutations";
-import { createFlags } from "./flags";
 
 const feedback = service("feedback");
 
@@ -35,22 +34,22 @@ export function createChannelSections(deps: {
     name: "channelSections",
   });
   const rawSections = sectionsQuery.state(() => null);
-  const mutateSections = (next: ChannelSection[]) => sectionsQuery.set(null, next);
-  const [sectionStructurePending, setSectionStructurePending] = createSignal(false);
-  const sidebarPending = createFlags<string>();
-  const setSectionSidebarPendingById = sidebarPending.set;
-  function refreshSections() {
-    return sectionsQuery.refresh(null).catch(() => undefined);
-  }
+  const [list, holdList] = createOptimistic(() => rawSections().data);
+  const [prefs, holdPrefs] = createOptimistic(() => deps.userPrefs());
+  const [sectionStructurePending, setSectionStructurePending] = createOptimistic(false);
+  const holdSectionStructure = () => setSectionStructurePending(true);
+  const sidebarPending = createOptimisticFlags<string>();
+  const isSectionSidebarPending = sidebarPending.has;
+  const refreshSections = () => sectionsQuery.refresh(null).catch(() => undefined);
 
   const sections = createMemo(() => {
-    const { data: list, error } = rawSections();
-    if (error) return;
-    if (!list) return list;
-    const prefs = deps.userPrefs();
-    const sectionSort = prefs?.sectionSort ?? {};
-    const sectionSidebar = prefs?.sectionSidebar ?? {};
-    return list.map((s) => {
+    if (rawSections().error) return;
+    const data = list();
+    if (!data) return data;
+    const current = prefs();
+    const sectionSort = current?.sectionSort ?? {};
+    const sectionSidebar = current?.sectionSidebar ?? {};
+    return data.map((s) => {
       const sort = sectionSort[s.id];
       const sidebar = sectionSidebar[s.id] ?? s.sidebar;
       if (!sort && sidebar === s.sidebar) return s;
@@ -58,75 +57,64 @@ export function createChannelSections(deps: {
     });
   });
 
-  async function createChannelSection(
-    name: string,
-    feedbackKey = name,
-  ): Promise<{ id: string; name: string } | null> {
+  const structuralChange = action(function* <T>(
+    key: string,
+    failure: string,
+    request: () => Promise<T | false | null | undefined>,
+    optimistic?: () => void,
+  ) {
     if (sectionStructurePending()) return null;
-    setSectionStructurePending(true);
+    holdSectionStructure();
+    optimistic?.();
+    let result: T | false | null | undefined;
     try {
-      const created = await apiCreateSection(name);
-      if (!created) {
-        feedback.flash(feedbackKey, "Failed to create section.", "error");
-        return null;
-      }
-      await refreshSections();
-      return created;
+      result = yield request();
     } catch (err) {
-      console.error("Failed to create section", err);
-      feedback.flash(feedbackKey, "Failed to create section.", "error");
+      console.error(failure, err);
+    }
+    if (!result) {
+      feedback.flash(key, failure, "error");
       return null;
-    } finally {
-      setSectionStructurePending(false);
     }
-  }
+    yield refreshSections();
+    return result;
+  });
 
-  async function renameChannelSection(sectionId: string, name: string): Promise<boolean> {
-    if (sectionStructurePending()) return false;
-    setSectionStructurePending(true);
-    try {
-      if (await apiRenameSection(sectionId, name)) {
-        await refreshSections();
-        return true;
-      }
-      feedback.flash(sectionId, "Failed to rename section.", "error");
-      return false;
-    } catch (err) {
-      console.error("Failed to rename section", err);
-      feedback.flash(sectionId, "Failed to rename section.", "error");
-      return false;
-    } finally {
-      setSectionStructurePending(false);
-    }
-  }
+  const createChannelSection = (name: string, feedbackKey = name) =>
+    structuralChange(feedbackKey, "Failed to create section.", () => apiCreateSection(name));
 
-  async function deleteChannelSection(sectionId: string): Promise<boolean> {
-    if (sectionStructurePending()) return false;
-    setSectionStructurePending(true);
-    try {
-      if (await apiDeleteSection(sectionId)) {
-        await refreshSections();
-        return true;
-      }
-      feedback.flash(sectionId, "Failed to delete section.", "error");
-      return false;
-    } catch (err) {
-      console.error("Failed to delete section", err);
-      feedback.flash(sectionId, "Failed to delete section.", "error");
-      return false;
-    } finally {
-      setSectionStructurePending(false);
-    }
-  }
+  const renameChannelSection = async (sectionId: string, name: string) =>
+    (await structuralChange(sectionId, "Failed to rename section.", () =>
+      apiRenameSection(sectionId, name),
+    )) !== null;
 
-  function isSectionSidebarPending(sectionId: string): boolean {
-    return sidebarPending.has(sectionId);
-  }
+  const deleteChannelSection = async (sectionId: string) =>
+    (await structuralChange(sectionId, "Failed to delete section.", () =>
+      apiDeleteSection(sectionId),
+    )) !== null;
 
-  async function setChannelSectionSidebar(
+  const reorderChannelSection = async (sectionId: string, nextSectionId: string | null) => {
+    const reordered = reorderSections(list() ?? [], sectionId, nextSectionId);
+    if (!reordered) return false;
+    const done = await structuralChange(
+      sectionId,
+      "Failed to reorder section.",
+      () => apiReorderSection(sectionId, nextSectionId),
+      () => holdList(reordered),
+    );
+    return done !== null;
+  };
+
+  const savePrefs = (next: UserPrefs): Promise<boolean> =>
+    apiSetChannelSectionsPreference(next.channelSections).catch((err) => {
+      console.error("Failed to save section preferences", err);
+      return false;
+    });
+
+  const setChannelSectionSidebar = action(function* (
     sectionId: string,
     sidebar: ChannelSection["sidebar"],
-  ): Promise<boolean> {
+  ) {
     const section = (sections() ?? []).find((candidate) => candidate.id === sectionId);
     if (
       !section ||
@@ -136,35 +124,25 @@ export function createChannelSections(deps: {
     )
       return false;
 
-    const prev = deps.userPrefs();
+    const prev = prefs();
     if (!prev) {
       feedback.flash(sectionId, "Preferences are unavailable. Try loading them again.", "error");
       return false;
     }
-    const previousSidebar = prev.sectionSidebar[sectionId];
-    setSectionSidebarPendingById(sectionId, true);
+    sidebarPending.hold(sectionId, true);
     feedback.clear(sectionId);
     const next = setSectionSidebarPreference(prev, sectionId, sidebar);
-    deps.mutateUserPrefs(() => next);
-    const rollback = () =>
-      deps.mutateUserPrefs((current) =>
-        current ? setSectionSidebarPreference(current, sectionId, previousSidebar) : current,
-      );
-    try {
-      const ok = await apiSetChannelSectionsPreference(next.channelSections);
-      if (ok) return true;
+    holdPrefs(next);
+    const saved: boolean = yield savePrefs(next);
+    if (!saved) {
       feedback.flash(sectionId, "Failed to update section filter.", "error");
-      rollback();
       return false;
-    } catch (err) {
-      console.error("Failed to update section filter", err);
-      feedback.flash(sectionId, "Failed to update section filter.", "error");
-      rollback();
-      return false;
-    } finally {
-      setSectionSidebarPendingById(sectionId, false);
     }
-  }
+    deps.mutateUserPrefs((current) =>
+      current ? setSectionSidebarPreference(current, sectionId, sidebar) : current,
+    );
+    return true;
+  });
 
   function toggleSectionFilter(sectionId: string) {
     const section = (sections() ?? []).find((candidate) => candidate.id === sectionId);
@@ -173,65 +151,29 @@ export function createChannelSections(deps: {
   }
 
   const collapsedIds = createMemo(() => {
-    const sectionCollapsed = deps.userPrefs()?.sectionCollapsed ?? {};
+    const sectionCollapsed = prefs()?.sectionCollapsed ?? {};
     return new Set(Object.keys(sectionCollapsed).filter((id) => sectionCollapsed[id]));
   });
 
-  async function toggleCategoryCollapsed(sectionId: string): Promise<boolean> {
-    const prev = deps.userPrefs();
+  const toggleCategoryCollapsed = action(function* (sectionId: string) {
+    const prev = prefs();
     if (!prev) return false;
-    const wasCollapsed = !!prev.sectionCollapsed[sectionId];
-    const next = setSectionCollapsedPreference(prev, sectionId, !wasCollapsed);
-    deps.mutateUserPrefs(() => next);
-    const rollback = () =>
-      deps.mutateUserPrefs((current) =>
-        current ? setSectionCollapsedPreference(current, sectionId, wasCollapsed) : current,
-      );
-    try {
-      const ok = await apiSetChannelSectionsPreference(next.channelSections);
-      if (ok) return true;
-      rollback();
-      return false;
-    } catch (err) {
-      console.error("Failed to update section collapse state", err);
-      rollback();
-      return false;
-    }
-  }
-
-  async function reorderChannelSection(
-    sectionId: string,
-    nextSectionId: string | null,
-  ): Promise<boolean> {
-    if (sectionStructurePending()) return false;
-    const current = sections() ?? [];
-    const optimistic = reorderSections(current, sectionId, nextSectionId);
-    if (!optimistic) return false;
-
-    setSectionStructurePending(true);
-    mutateSections(optimistic);
-    try {
-      if (await apiReorderSection(sectionId, nextSectionId)) {
-        await refreshSections();
-        return true;
-      }
-      feedback.flash(sectionId, "Failed to reorder section.", "error");
-      mutateSections(current);
-      return false;
-    } catch (err) {
-      console.error("Failed to reorder section", err);
-      feedback.flash(sectionId, "Failed to reorder section.", "error");
-      mutateSections(current);
-      return false;
-    } finally {
-      setSectionStructurePending(false);
-    }
-  }
+    const collapsed = !prev.sectionCollapsed[sectionId];
+    const next = setSectionCollapsedPreference(prev, sectionId, collapsed);
+    holdPrefs(next);
+    const saved: boolean = yield savePrefs(next);
+    if (!saved) return false;
+    deps.mutateUserPrefs((current) =>
+      current ? setSectionCollapsedPreference(current, sectionId, collapsed) : current,
+    );
+    return true;
+  });
 
   return {
     collapsedIds,
     createChannelSection,
     deleteChannelSection,
+    holdSectionStructure,
     isSectionSidebarPending,
     isSectionStructurePending: sectionStructurePending,
     renameChannelSection,
@@ -239,7 +181,6 @@ export function createChannelSections(deps: {
     retrySections: refreshSections,
     sectionStructurePending,
     setChannelSectionSidebar,
-    setSectionStructurePending,
     sections,
     sectionsError: () => rawSections().error,
     sectionsLoading: () => rawSections().data === undefined && rawSections().error === undefined,

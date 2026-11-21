@@ -9,7 +9,7 @@ import {
   MenuItem,
   useContextMenu,
 } from "@slock/ui";
-import { createEffect, Show } from "solid-js";
+import { onSettled, Show } from "solid-js";
 import { channelIconName } from "../../../channels/client/api";
 import { openConversation, openConversationInSplit } from "../../../conversations/client/api/nav";
 import { copyMessageLink } from "../../../message-links/client/api/messageLinks";
@@ -23,6 +23,7 @@ import {
 import { SplitNavigation } from "../../../shell/client/api/SplitNavigation";
 
 const dmsStore = service("dms");
+const env = service("env");
 const messageLinks = service("message-links");
 const titles = service("titles");
 const channelsStore = service("channels");
@@ -44,12 +45,9 @@ export default function SearchResultRow(props: {
   const displayName = () => resolveAuthorDisplayName(props.result, user()?.name, "Someone");
   const avatarUrl = () => resolveAuthorAvatarUrl(props.result, user()?.avatarUrl);
 
-  createEffect(
-    () => ({ channelId: props.result.channelId, group: isGroupDm(props.result) }),
-    ({ channelId, group }) => {
-      if (group) dmsStore.ensureMpdm(channelId);
-    },
-  );
+  onSettled(() => {
+    if (isGroupDm(props.result)) dmsStore.ensureMpdm(props.result.channelId);
+  });
 
   const channelLabel = () => {
     const { channelId, channelName } = props.result;
@@ -108,7 +106,7 @@ export default function SearchResultRow(props: {
           </span>
         }
         time={formatTime(props.result.ts)}
-        timeTitle={`${formatDay(props.result.ts)} at ${formatTime(props.result.ts)}`}
+        timeTitle={`${formatDay(props.result.ts, env.now())} at ${formatTime(props.result.ts)}`}
         userId={profileUserId()}
       />
       <ContextMenu onClose={ctxMenu.close} open={ctxMenu.isOpen()} x={ctxMenu.x()} y={ctxMenu.y()}>

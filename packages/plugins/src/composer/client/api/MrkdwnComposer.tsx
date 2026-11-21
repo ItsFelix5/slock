@@ -1,5 +1,4 @@
 import type { ChannelId } from "@slock/types";
-import { scrollActiveListOption } from "@slock/ui";
 import QuillEditor from "@slock/ui/editor/QuillEditor";
 import type Quill from "@slock/ui/editor/quill";
 import { indexAlignedText } from "@slock/ui/editor/quillText";
@@ -21,6 +20,7 @@ import {
 } from "./editor/suggestionController";
 import type { SuggestState } from "./editor/suggestTypes";
 import { suggestOpen } from "./editor/suggestTypes";
+import { useQuillEnabled } from "./editor/useQuillEnabled";
 import { useSuggestShortcuts } from "./editor/useSuggestShortcuts";
 import { useSuggestUi } from "./editor/useSuggestUi";
 import "./MrkdwnComposer.css";
@@ -75,8 +75,6 @@ export default function MrkdwnComposer(props: {
 
   useSuggestUi(() => suggestPopoverRef, suggest, setSuggest);
 
-  createEffect(suggest, () => scrollActiveListOption(() => suggestPopoverRef));
-
   createEffect(
     () => ({ quill: editor(), value: props.value }),
     ({ quill, value }) => {
@@ -86,12 +84,7 @@ export default function MrkdwnComposer(props: {
     },
   );
 
-  createEffect(
-    () => ({ disabled: props.disabled, quill: editor() }),
-    ({ disabled, quill }) => {
-      quill?.enable(!disabled);
-    },
-  );
+  useQuillEnabled(editor, () => props.disabled);
 
   const onFocusOut = () => {
     queueMicrotask(() => {

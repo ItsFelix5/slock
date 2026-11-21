@@ -16,7 +16,6 @@ import { createMessageReactionToggle } from "./messageReactionToggle";
 import { createMessageSending } from "./messageSending";
 import { createMessageStatusActions } from "./messageStatusActions";
 import { createReactionEvents } from "./reactionEvents";
-import { ensureMessageList } from "./storeWrites";
 
 export function createMessagesStore(deps: {
   currentUser: () => User | undefined;
@@ -46,14 +45,16 @@ export function createMessagesStore(deps: {
   });
   const {
     messagesByChannel,
-    setMessagesByChannel,
+    cacheReactionMessages,
+    dropThreadMessages,
+    editChannelList,
+    editReactionList,
+    editThreadList,
     updateChannelMessages,
     updateThreadMessages,
     reactionMessages,
-    setReactionMessages,
     loadedChannels,
     threadMessages,
-    setThreadMessages,
     acceptsLiveReplies,
     loadOlderMessages,
     loadNewerMessages,
@@ -108,11 +109,9 @@ export function createMessagesStore(deps: {
     reactionMessages,
   );
   function editList(location: MessageLocation, edit: (list: Message[]) => void) {
-    if (location.store === "channel")
-      setMessagesByChannel((s) => edit(ensureMessageList(s, location.key)));
-    else if (location.store === "thread")
-      setThreadMessages((s) => edit(ensureMessageList(s, location.key)));
-    else setReactionMessages((s) => edit(ensureMessageList(s, location.key)));
+    if (location.store === "channel") editChannelList(location.key, edit);
+    else if (location.store === "thread") editThreadList(location.key, edit);
+    else editReactionList(location.key, edit);
   }
   const latestMessageTsMsByUser = (userId: UserId) =>
     findLatestMessageTsMsByUser(messagesByChannel, threadMessages, userId);
@@ -121,6 +120,7 @@ export function createMessagesStore(deps: {
   const reactionMessageFor = (channelId: ChannelId, ts: Ts) =>
     reactionMessages[reactionMessageKey(channelId, ts)]?.[0];
   function patchMessage(channelId: ChannelId, ts: Ts, patch: Partial<Message>) {
+    if (patch.editedTs) history.recordLiveChange({ channelId, edit: patch, ts });
     for (const { location, list } of findAllMessageLocations(channelId, ts)) {
       const current = list.find((m) => m.ts === ts);
       if (!current) continue;
@@ -146,9 +146,7 @@ export function createMessagesStore(deps: {
     else {
       history.forgetRemoved(channelId, ts);
       for (const { location } of locations) removeMessage(location, ts);
-      setThreadMessages((threads) => {
-        delete threads[ts];
-      });
+      dropThreadMessages(ts);
     }
   }
   const dismissMessage = (channelId: ChannelId, ts: Ts) => {
@@ -157,11 +155,13 @@ export function createMessagesStore(deps: {
   const { applyReactionEvent } = createReactionEvents({
     findAllMessageLocations,
     patchMessage,
+    recordLiveChange: history.recordLiveChange,
   });
   const { reactToMessage } = createMessageReactionToggle({
     currentUser: deps.currentUser,
     findAllMessageLocations,
     patchMessage,
+    recordLiveChange: history.recordLiveChange,
   });
   const { sendFiles, sendMessage } = createMessageSending({
     currentUser: deps.currentUser,
@@ -214,6 +214,7 @@ export function createMessagesStore(deps: {
     loadOlderMessages,
     loadNewerMessages,
     loadRecentHistory,
+    cacheReactionMessages,
     messagesByChannel,
     messagesInChannel,
     messagesInThread,
@@ -222,8 +223,6 @@ export function createMessagesStore(deps: {
     reactionMessageFor,
     refreshThreadReplies,
     removeMessage,
-    setReactionMessages,
-    setThreadMessages,
     threadMessages,
     updateChannelMessages,
     updateThreadMessages,

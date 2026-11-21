@@ -73,7 +73,7 @@ export async function postMessage(
   if (fileIds?.length) body.fileIds = fileIds;
   const data = await apiPost<{ ts: string }>(`/api/channels/${channelId}/messages`, body);
   if (!data.ok) throw new Error(data.error ?? "chat.postMessage failed");
-  return data;
+  return { ts: parseTs(data.ts) };
 }
 
 const BROADCAST_ERROR_MESSAGES: Record<string, string> = {
@@ -99,7 +99,7 @@ export async function postBroadcastMessage(
         "chat.postMessage failed",
     );
   }
-  return data;
+  return { ts: parseTs(data.ts) };
 }
 
 export async function editMessage(

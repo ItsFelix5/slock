@@ -28,6 +28,7 @@ export interface Message {
   day: string;
   deleted?: boolean;
   edited?: boolean;
+  editedTs?: Ts;
   editHistory?: string[];
   files?: SlackFile[];
   id: string;

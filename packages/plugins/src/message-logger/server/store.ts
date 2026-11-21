@@ -1,20 +1,22 @@
 import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import type { RawMessage } from "@slock/types";
+import type { Env } from "@slock/core";
+import { parseTs } from "@slock/slack";
+import type { ChannelId, RawMessage, Ts } from "@slock/types";
 
 const RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
-const FIRST_TS = "0";
-const LAST_TS = "9999999999.999999";
+const FIRST_TS = parseTs("0");
+const LAST_TS = parseTs("9999999999.999999");
 
-export type TsRange = { min?: string; max?: string };
+export type TsRange = { min?: Ts; max?: Ts };
 
 type MessageRow = { message: string };
 type BlobRow = { type: string; bytes: Uint8Array<ArrayBuffer> };
 
 export type LogStore = ReturnType<typeof createLogStore>;
 
-export function createLogStore(file: string) {
+export function createLogStore(file: string, env: Env) {
   mkdirSync(dirname(file), { recursive: true });
   const db = new Database(file, { strict: true });
   db.run("pragma journal_mode = wal");
@@ -69,24 +71,24 @@ export function createLogStore(file: string) {
   return {
     blob: (owner: string, url: string) => selectBlob.get({ owner, url }),
     hasBlob: (owner: string, url: string) => hasBlob.get({ owner, url }) !== null,
-    channelMessages: (workspace: string, channel: string, range: TsRange) =>
+    channelMessages: (workspace: string, channel: ChannelId, range: TsRange) =>
       parse(selectChannel.all({ channel, workspace, ...bounds(range) })),
     close: () => db.close(),
     purge() {
-      const cutoff = Date.now() - RETENTION_MS;
+      const cutoff = env.now() - RETENTION_MS;
       deleteOldMessages.run({ cutoff });
       deleteOldBlobs.run({ cutoff });
     },
     saveBlob: (owner: string, url: string, type: string, bytes: Uint8Array) =>
-      insertBlob.run({ bytes, now: Date.now(), owner, type, url }),
-    saveMessage(workspace: string, channel: string, message: RawMessage) {
+      insertBlob.run({ bytes, now: env.now(), owner, type, url }),
+    saveMessage(workspace: string, channel: ChannelId, message: RawMessage) {
       const threadTs = message.thread_ts;
       const topLevel =
         !threadTs || threadTs === message.ts || message.subtype === "thread_broadcast";
       const { changes } = insertMessage.run({
         channel,
         message: JSON.stringify({ ...message, deleted: true }),
-        now: Date.now(),
+        now: env.now(),
         threadTs: threadTs ?? null,
         topLevel: topLevel ? 1 : 0,
         ts: message.ts,
@@ -94,7 +96,7 @@ export function createLogStore(file: string) {
       });
       return changes > 0;
     },
-    threadMessages: (workspace: string, channel: string, threadTs: string, range: TsRange) =>
+    threadMessages: (workspace: string, channel: ChannelId, threadTs: Ts, range: TsRange) =>
       parse(
         selectThread.all({
           channel,

@@ -1,5 +1,6 @@
 import { service } from "@slock/core/solid";
 import { isChannelId } from "@slock/slack";
+import type { UserId } from "@slock/types";
 import { Button, SegmentedControl } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import type { ProfileMetaProps } from "../../profile/client/api";
@@ -20,7 +21,7 @@ const FILTERS: { label: string; kinds: MembershipKind[] }[] = [
   { kinds: ["mpim", "im"], label: "DMs" },
 ];
 
-const membershipsQuery = defineQuery<string, Membership[]>({
+const membershipsQuery = defineQuery<UserId, Membership[]>({
   load: fetchMemberships,
   maxAgeMs: MEMBERSHIPS_STALE_MS,
   name: "memberships",
@@ -30,7 +31,8 @@ const conversations = service("conversations");
 const users = service("users");
 
 function labelOf(membership: Membership): string {
-  if (membership.kind === "im") return users.userById(membership.userId ?? "")?.name ?? "DM";
+  if (membership.kind === "im" && membership.userId)
+    return users.userById(membership.userId)?.name ?? "DM";
   if (membership.kind === "mpim")
     return membership.name.replace(/^mpdm-|-\d+$/g, "").replaceAll("--", ", ");
   return `#${membership.name}`;

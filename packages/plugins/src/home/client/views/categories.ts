@@ -13,10 +13,6 @@ export interface Category {
   sidebar: "hid" | "active" | "all";
 }
 
-export function idsEqual(a: string[], b: string[]): boolean {
-  return a.length === b.length && a.every((id, i) => id === b[i]);
-}
-
 function sectionShowsAllChannels(sidebar: Category["sidebar"], unreadsOnly: boolean): boolean {
   if (unreadsOnly) return false;
   return sidebar === "all";

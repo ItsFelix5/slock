@@ -15,16 +15,5 @@ services:
       interval: 30s
     restart: unless-stopped
 
-  relay:
-    build: .
-    profiles: [relay]
-    command: ["bun", "run", "relay"]
-    ports:
-      - "127.0.0.1:5176:5176"
-    environment:
-      SLACK_BOT_TOKENS: ${SLACK_BOT_TOKENS:?}
-      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:?}
-    restart: unless-stopped
-
 volumes:
   data:

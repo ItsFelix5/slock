@@ -169,13 +169,24 @@ describe("properties", () => {
   });
 
   test("a very long document stays linear", () => {
-    const ops: DeltaOp[] = Array.from({ length: 20000 }, (_, i) => ({
-      attributes: i % 2 ? { bold: true } : undefined,
-      insert: `word${i} `,
-    }));
-    ops.push({ insert: "\n" });
-    const started = performance.now();
-    expect(mrkdwnText(ops).length).toBeGreaterThan(100000);
-    expect(performance.now() - started).toBeLessThan(500);
+    const document = (words: number): DeltaOp[] => [
+      ...Array.from({ length: words }, (_, i) => ({
+        attributes: i % 2 ? { bold: true } : undefined,
+        insert: `word${i} `,
+      })),
+      { insert: "\n" },
+    ];
+    const fastest = (ops: DeltaOp[]) =>
+      Math.min(
+        ...Array.from({ length: 3 }, () => {
+          const started = performance.now();
+          mrkdwnText(ops);
+          return performance.now() - started;
+        }),
+      );
+    expect(mrkdwnText(document(20000)).length).toBeGreaterThan(100000);
+    const small = fastest(document(10000));
+    const large = fastest(document(40000));
+    expect(large).toBeLessThan(Math.max(small, 1) * 10);
   });
 });

@@ -1,4 +1,4 @@
-import { service } from "@slock/core/solid";
+import { createFlags, service } from "@slock/core/solid";
 import type { BrowsableChannel, Channel, ChannelId, UserId, UserPrefs } from "@slock/types";
 import { createEffect, createMemo, createSignal, createStore } from "solid-js";
 import type { View } from "../../../conversations/client/api/types";
@@ -11,7 +11,6 @@ import {
   leaveChannel,
 } from "../../../slack/client/api";
 import type { ChannelDecorator } from "../api";
-import { createFlags } from "./flags";
 import { channelManagers, channelRosters } from "./queries";
 import { createChannelSections } from "./sections";
 import { createChannelStarPlacement } from "./starPlacement";
@@ -40,7 +39,6 @@ export function createChannelsStore(deps: {
   const leftChannels = createFlags<ChannelId>();
   const joinPending = createFlags<ChannelId>();
   const leavePending = createFlags<ChannelId>();
-  let starredSeeded = false;
   const [browsableChannels, setBrowsableChannels] = createSignal<BrowsableChannel[]>([]);
 
   const channelSections = createChannelSections({
@@ -57,17 +55,15 @@ export function createChannelsStore(deps: {
     refreshSections: channelSections.retrySections,
     sections: channelSections.sections,
     sectionStructurePending: channelSections.sectionStructurePending,
-    setSectionStructurePending: channelSections.setSectionStructurePending,
+    holdSectionStructure: channelSections.holdSectionStructure,
   });
 
-  createEffect(
-    () => deps.bootstrap()?.starredChannelIds,
-    (starredIds) => {
-      if (!starredIds || starredSeeded) return;
-      starredSeeded = true;
-      for (const id of starredIds) setStarredChannelIds(id, true);
-    },
+  const seedStarredIds = createMemo<ChannelId[] | undefined>(
+    (seed) => seed ?? deps.bootstrap()?.starredChannelIds,
   );
+  createEffect(seedStarredIds, (starredIds) => {
+    for (const id of starredIds ?? []) setStarredChannelIds(id, true);
+  });
 
   const baseChannelsById = createMemo(() => {
     const base = deps.bootstrap()?.channels ?? [];
@@ -113,8 +109,11 @@ export function createChannelsStore(deps: {
     const base = baseChannelsById().get(id) ?? discoveredChannels[id];
     const patch = channelPatches[id];
     const known = base && patch ? { ...base, ...patch } : base;
-    if (known) return decorated(known);
+    if (!known) requestDiscovery(id);
+    return known ? decorated(known) : undefined;
+  }
 
+  function requestDiscovery(id: ChannelId): void {
     if (!deps.bootstrap()) return;
     const missedAt = channelDiscoveryMisses.get(id);
     if (missedAt && env.now() - missedAt < channelDiscoveryRetryMs) return;

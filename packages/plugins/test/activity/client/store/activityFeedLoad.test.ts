@@ -1,13 +1,11 @@
-import { afterEach, describe, expect, spyOn, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { stamp, uid } from "@slock/slack/testing";
 import { flush } from "solid-js";
-import { disposeHarnesses, entry, harness, wait } from "./feedLoadHarness";
-
-afterEach(disposeHarnesses);
+import { entry, harness, wait } from "./feedLoadHarness";
 
 describe("first page", () => {
   test("loads newest first and drops own thread replies", async () => {
-    const h = harness({
+    using h = harness({
       ":": {
         entries: [
           entry("a", 100),
@@ -22,7 +20,7 @@ describe("first page", () => {
   });
 
   test("waits until the host is ready before fetching", async () => {
-    const h = harness({ ":": { entries: [entry("a", 100)] } }, { ready: false });
+    using h = harness({ ":": { entries: [entry("a", 100)] } }, { ready: false });
     await wait(10);
     expect(h.fetches).toHaveLength(0);
     expect(h.load.activityLoaded()).toBe(false);
@@ -35,7 +33,7 @@ describe("first page", () => {
   test("a failed load is reported, stays unloaded and can be retried", async () => {
     const consoleError = spyOn(console, "error").mockImplementation(() => {});
     try {
-      const h = harness({ ":": { entries: [entry("a", 100)] } }, { ready: false });
+      using h = harness({ ":": { entries: [entry("a", 100)] } }, { ready: false });
       h.failOnce(undefined, "");
       h.setReady(true);
       flush();
@@ -59,7 +57,7 @@ describe("first page", () => {
         ts: stamp("5.5"),
         userId: uid("U3"),
       });
-    const h = harness({
+    using h = harness({
       ":": {
         entries: [entry("a", 100), entry("a", 100), reaction("r1", 200), reaction("r2", 300)],
       },
@@ -69,7 +67,7 @@ describe("first page", () => {
   });
 
   test("equal times keep arrival order", async () => {
-    const h = harness({ ":": { entries: [entry("x", 100), entry("y", 100), entry("z", 100)] } });
+    using h = harness({ ":": { entries: [entry("x", 100), entry("y", 100), entry("z", 100)] } });
     await h.loaded();
     expect(h.ids()).toEqual(["x", "y", "z"]);
   });
@@ -82,7 +80,7 @@ describe("pagination", () => {
   });
 
   test("appends older pages in order and stops without a cursor", async () => {
-    const h = harness(twoPages());
+    using h = harness(twoPages());
     await h.loaded();
     expect(h.load.activityHasMore()).toBe(true);
     await h.more();
@@ -96,7 +94,7 @@ describe("pagination", () => {
   });
 
   test("an empty older page ends pagination even when it carries a cursor", async () => {
-    const h = harness({
+    using h = harness({
       ":": { entries: [entry("a", 200)], nextCursor: "p2" },
       ":p2": { entries: [], nextCursor: "p3" },
     });
@@ -106,13 +104,13 @@ describe("pagination", () => {
   });
 
   test("an empty newest page keeps the cursor it was given", async () => {
-    const h = harness({ ":": { entries: [], nextCursor: "p2" } });
+    using h = harness({ ":": { entries: [], nextCursor: "p2" } });
     await h.loaded();
     expect(h.load.activityHasMore()).toBe(true);
   });
 
   test("loading more before the first page arrives is ignored", async () => {
-    const h = harness(twoPages(), { ready: false });
+    using h = harness(twoPages(), { ready: false });
     h.load.loadMoreActivity();
     flush();
     await wait(5);
@@ -122,7 +120,7 @@ describe("pagination", () => {
   test("a failed page keeps the items, rejects, and retries the same cursor", async () => {
     const consoleError = spyOn(console, "error").mockImplementation(() => {});
     try {
-      const h = harness(twoPages());
+      using h = harness(twoPages());
       await h.loaded();
       h.failOnce(undefined, "p2");
       h.load.loadMoreActivity();
@@ -140,7 +138,7 @@ describe("pagination", () => {
   });
 
   test("scoped feeds keep their own cursors and exhaustion", async () => {
-    const h = harness({
+    using h = harness({
       ":": { entries: [entry("a", 100)], nextCursor: "main" },
       "keyword:": { entries: [entry("s1", 90)], nextCursor: "k2" },
       "keyword:k2": { entries: [entry("s2", 80)] },
@@ -157,7 +155,7 @@ describe("pagination", () => {
   });
 
   test("unread-only is its own scope", async () => {
-    const h = harness({
+    using h = harness({
       ":": { entries: [entry("a", 100)], nextCursor: "main" },
       ":|unread": { entries: [entry("u", 50)] },
     });

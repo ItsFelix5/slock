@@ -1,4 +1,3 @@
-import { loadCustomEmoji } from "@slock/blockkit";
 import { getHost, service } from "@slock/core/solid";
 import { listNavigationIndex } from "@slock/ui";
 import type Quill from "@slock/ui/editor/quill";
@@ -14,6 +13,7 @@ import { detectMentionTrigger } from "../../lib/textDetection";
 import type { CustomSuggestItem, SuggestState } from "./suggestTypes";
 
 const slashCommands = service("slash-commands");
+const emojiIndex = service("emoji");
 
 export function suggestionText(item: SuggestState["items"][number]): string {
   if (item.kind === "custom") return `${item.insert} `;
@@ -93,7 +93,7 @@ export function createSuggestionController(opts: SuggestionOptions) {
         void slashCommands.load().then(() => {
           if (reqId === suggestRequestId) opts.setSuggest(staticSuggestion());
         });
-      if (kind === "emoji") void loadCustomEmoji();
+      if (kind === "emoji") void emojiIndex.source.load();
       opts.setSuggest(staticSuggestion());
       return;
     }

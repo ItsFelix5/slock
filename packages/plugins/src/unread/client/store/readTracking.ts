@@ -3,6 +3,15 @@ import { createEffect, untrack } from "solid-js";
 import type { View } from "../../../conversations/client/api/types";
 import type { ThreadRef } from "../../../messages/client/api";
 import { isPendingMessage } from "../../../messages/client/api/messageMerge";
+import {
+  type ChannelSnapshot,
+  channelReadPlan,
+  type DividerStep,
+  dividerStep,
+  type LatestMessage,
+  type ThreadSnapshot,
+  threadReadPlan,
+} from "./readDecisions";
 
 export type ReadTrackingInput = {
   visibleViews: () => View[];
@@ -10,27 +19,6 @@ export type ReadTrackingInput = {
   visibleThreads: () => ThreadRef[];
   threadMessages: Record<string, Message[]>;
   hasNewerHistory: (channelId: ChannelId) => boolean;
-};
-
-type LatestMessage = { pending: boolean; ts: Ts };
-
-type ChannelSnapshot = {
-  hasDivider: boolean;
-  hasList: boolean;
-  hasNewer: boolean;
-  id: ChannelId;
-  lastRead: number | undefined;
-  latest: LatestMessage | undefined;
-  unread: boolean;
-  viewed: boolean;
-};
-
-type ThreadSnapshot = {
-  channelId: ChannelId;
-  latest: LatestMessage | undefined;
-  root: Message | undefined;
-  ts: Ts;
-  viewed: boolean;
 };
 
 export type ReadTrackingDeps = {
@@ -50,48 +38,34 @@ export type ReadTrackingDeps = {
   unreadDividerTs: Record<string, number | undefined>;
 };
 
-const toMs = (ts: Ts) => parseFloat(ts) * 1000;
-
 function latestOf(list: Message[] | undefined, skipDeleted: boolean): LatestMessage | undefined {
   const message = skipDeleted ? list?.findLast((m) => !m.deleted) : list?.at(-1);
   return message && { pending: isPendingMessage(message), ts: message.ts };
 }
 
 export function wireReadTracking(deps: ReadTrackingDeps, input: ReadTrackingInput) {
-  const dividerAnchored = new Set<ChannelId>();
   const lastMarkedRead = new Map<ChannelId, Ts>();
   const lastMarkedThreadRead = new Map<Ts, Ts>();
-  let previousVisibleIds = new Set<ChannelId>();
 
   createEffect(
-    () => {
-      if (!deps.lastReadSeeded()) return [];
-      return input.visibleViews().map(({ id }) => ({
-        hasNewer: input.hasNewerHistory(id),
-        id,
-        lastRead: deps.lastReadByChannel[id] ?? 0,
-        latest: latestOf(input.messagesByChannel[id], false),
-      }));
+    (prev?: DividerStep) => {
+      const views = input.visibleViews();
+      return dividerStep(
+        prev?.tracker,
+        new Set(views.map((v) => v.id)),
+        deps.lastReadSeeded()
+          ? views.map(({ id }) => ({
+              hasNewer: input.hasNewerHistory(id),
+              id,
+              lastRead: deps.lastReadByChannel[id] ?? 0,
+              latest: latestOf(input.messagesByChannel[id], false),
+            }))
+          : [],
+      );
     },
-    (views) => {
-      for (const { hasNewer, id, lastRead, latest } of views) {
-        if (dividerAnchored.has(id) || hasNewer || !latest) continue;
-        dividerAnchored.add(id);
-        const hasUnreadGap = lastRead > 0 && toMs(latest.ts) > lastRead;
-        deps.setUnreadDividerTs(id, hasUnreadGap ? lastRead : Infinity);
-      }
-    },
-  );
-
-  createEffect(
-    () => new Set(input.visibleViews().map((v) => v.id)),
-    (currentIds) => {
-      for (const id of previousVisibleIds) {
-        if (currentIds.has(id)) continue;
-        dividerAnchored.delete(id);
-        deps.setUnreadDividerTs(id, undefined);
-      }
-      previousVisibleIds = currentIds;
+    ({ anchors, dropped }) => {
+      for (const [id, anchor] of anchors) deps.setUnreadDividerTs(id, anchor);
+      for (const id of dropped) deps.setUnreadDividerTs(id, undefined);
     },
   );
 
@@ -108,35 +82,22 @@ export function wireReadTracking(deps: ReadTrackingDeps, input: ReadTrackingInpu
         viewed: deps.isViewed(id),
       })),
     (snapshots) =>
-      untrack(() => {
+      void untrack(() => {
         for (const view of snapshots) markChannelRead(view);
       }),
   );
 
-  function markChannelRead({
-    hasDivider,
-    hasNewer,
-    id,
-    lastRead,
-    latest,
-    unread,
-    viewed,
-  }: ChannelSnapshot) {
-    if (!(hasDivider && viewed) || hasNewer) return;
-    if (!latest || latest.pending) return;
-    const markedTs = lastMarkedRead.get(id);
-    if (markedTs && (lastRead ?? 0) < toMs(markedTs)) return;
-    if (markedTs === latest.ts) {
-      if (unread) deps.clearChannelUnread(id);
-      return;
-    }
-    lastMarkedRead.set(id, latest.ts);
-    deps.clearChannelUnread(id);
-    const latestMs = toMs(latest.ts);
-    if (latestMs <= (lastRead ?? 0)) return;
-    deps.setLastReadByChannel(id, latestMs);
-    void deps.syncChannelRead(id, latest.ts).then((synced) => {
-      if (!synced && lastMarkedRead.get(id) === latest.ts) lastMarkedRead.delete(id);
+  function markChannelRead(view: ChannelSnapshot) {
+    const { id } = view;
+    const plan = channelReadPlan(view, lastMarkedRead.get(id));
+    if (!plan) return;
+    const { mark } = plan;
+    if (mark) lastMarkedRead.set(id, mark.ts);
+    if (plan.clear) deps.clearChannelUnread(id);
+    if (!mark?.syncMs) return;
+    deps.setLastReadByChannel(id, mark.syncMs);
+    void deps.syncChannelRead(id, mark.ts).then((synced) => {
+      if (!synced && lastMarkedRead.get(id) === mark.ts) lastMarkedRead.delete(id);
     });
   }
 
@@ -153,20 +114,20 @@ export function wireReadTracking(deps: ReadTrackingDeps, input: ReadTrackingInpu
         };
       }),
     (snapshots) =>
-      untrack(() => {
+      void untrack(() => {
         for (const thread of snapshots) markThreadRead(thread);
       }),
   );
 
-  function markThreadRead({ channelId, latest, root, ts, viewed }: ThreadSnapshot) {
-    if (!(viewed && root?.isSubscribed)) return;
-    if (!latest || latest.ts === ts || latest.pending) return;
-    if (lastMarkedThreadRead.get(ts) === latest.ts) return;
-    lastMarkedThreadRead.set(ts, latest.ts);
-    if (deps.isThreadUnread(root)) deps.countsMayChange.add(deps.threadKey(channelId, ts));
-    deps.setThreadReadTs(ts, latest.ts);
-    void deps.syncThreadRead(channelId, ts, latest.ts).then((synced) => {
-      if (!synced && lastMarkedThreadRead.get(ts) === latest.ts) lastMarkedThreadRead.delete(ts);
+  function markThreadRead(thread: ThreadSnapshot) {
+    const { channelId, ts } = thread;
+    const plan = threadReadPlan(thread, lastMarkedThreadRead.get(ts));
+    if (!plan) return;
+    lastMarkedThreadRead.set(ts, plan.markTs);
+    if (deps.isThreadUnread(plan.root)) deps.countsMayChange.add(deps.threadKey(channelId, ts));
+    deps.setThreadReadTs(ts, plan.markTs);
+    void deps.syncThreadRead(channelId, ts, plan.markTs).then((synced) => {
+      if (!synced && lastMarkedThreadRead.get(ts) === plan.markTs) lastMarkedThreadRead.delete(ts);
     });
   }
 }

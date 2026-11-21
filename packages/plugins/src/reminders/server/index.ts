@@ -1,4 +1,6 @@
 import type { Setup } from "@slock/core";
+import { isChannelId, isTs } from "@slock/slack";
+import type { ChannelId, Ts } from "@slock/types";
 import { errorResponse } from "../../slack/server/api/jsonResponse";
 import type { Route } from "../../slack/server/api/router";
 import { mutate, route, routes } from "../../slack/server/api/router";
@@ -8,12 +10,14 @@ const list: Route[] = [
     const requestBody = await ctx.body.json<{
       text?: string;
       time?: string;
-      channelId?: string;
-      ts?: string;
+      channelId?: ChannelId;
+      ts?: Ts;
       dateDue?: number;
     }>();
 
     if (requestBody.channelId && requestBody.ts && requestBody.dateDue !== undefined) {
+      if (!(isChannelId(requestBody.channelId) && isTs(requestBody.ts)))
+        return errorResponse("invalid_reminder", 400);
       return mutate(
         "reminders.add",
         {

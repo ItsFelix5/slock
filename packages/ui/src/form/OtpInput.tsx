@@ -1,11 +1,12 @@
-import { clamp } from "@slock/core";
+import { clamp, defined } from "@slock/core";
+import { service } from "@slock/core/solid";
 import { createEffect, createSignal, For } from "solid-js";
 import "./OtpInput.css";
-import { defined } from "@slock/core";
 import { useNavigationShortcuts } from "../hooks/useNavShortcuts";
 import { inside, useShortcut } from "../hooks/useShortcut";
+import { backspaceSlots, fillSlots, toSlots, typedDigits } from "./otpSlots";
 
-const DIGIT = /[0-9]/;
+const env = service("env");
 
 export interface OtpInputProps {
   length?: number;
@@ -15,10 +16,6 @@ export interface OtpInputProps {
   disabled?: boolean;
   error?: boolean;
   autofocus?: boolean;
-}
-
-function toSlots(value: string, length: number) {
-  return Array.from({ length }, (_, i) => value[i] ?? "");
 }
 
 function selectAll(event: FocusEvent & { currentTarget: HTMLInputElement }) {
@@ -38,8 +35,8 @@ export default function OtpInput(props: OtpInputProps) {
       if (!error) return;
       setShake(true);
       focusAt(0);
-      const timer = setTimeout(() => setShake(false), 320);
-      return () => clearTimeout(timer);
+      const timer = env.setTimeout(() => setShake(false), 320);
+      return () => env.clearTimeout(timer);
     },
   );
 
@@ -57,24 +54,16 @@ export default function OtpInput(props: OtpInputProps) {
   }
 
   function fill(index: number, chars: string[]) {
-    const room = Math.min(chars.length, length() - index);
-    const next = [...slots()];
-    chars.slice(0, room).forEach((char, i) => {
-      next[index + i] = char;
-    });
+    const { next, room } = fillSlots(slots(), index, chars);
     commit(next);
     focusAt(index + room);
   }
 
   function handleInput(index: number, event: InputEvent & { currentTarget: HTMLInputElement }) {
     const target = event.currentTarget;
-    const chars = target.value.split("").filter((char) => DIGIT.test(char));
-    if (!chars.length) {
-      target.value = defined(slots()[index]);
-      return;
-    }
-    const typed = chars.length > 1 && chars[0] === slots()[index] ? chars.slice(1) : chars;
-    fill(index, typed);
+    const typed = typedDigits(target.value, defined(slots()[index]));
+    if (typed.length) fill(index, typed);
+    else target.value = defined(slots()[index]);
   }
 
   const slotIndex = (event: KeyboardEvent) =>
@@ -90,13 +79,10 @@ export default function OtpInput(props: OtpInputProps) {
     target: inside(() => rootRef),
     combo: { key: "Backspace" },
     handler: (event) => {
-      const index = slotIndex(event);
-      if (slots()[index]) {
-        commit(slots().map((slot, i) => (i === index ? "" : slot)));
-      } else if (index > 0) {
-        commit(slots().map((slot, i) => (i === index - 1 ? "" : slot)));
-        focusAt(index - 1);
-      }
+      const result = backspaceSlots(slots(), slotIndex(event));
+      if (!result) return;
+      commit(result.next);
+      if (result.focus !== undefined) focusAt(result.focus);
     },
     id: "otp.backspace",
     label: "Delete the previous digit",

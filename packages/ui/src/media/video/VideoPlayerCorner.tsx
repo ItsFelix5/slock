@@ -14,10 +14,8 @@ export default function VideoPlayerCorner(props: {
   video: () => HTMLVideoElement | undefined;
 }) {
   const togglePip = async () => {
-    try {
-      if (document.pictureInPictureElement) await document.exitPictureInPicture();
-      else await props.video()?.requestPictureInPicture();
-    } catch {}
+    if (document.pictureInPictureElement) await document.exitPictureInPicture();
+    else await props.video()?.requestPictureInPicture();
   };
 
   return (

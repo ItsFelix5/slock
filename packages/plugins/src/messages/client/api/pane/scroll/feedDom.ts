@@ -1,5 +1,8 @@
+import { service } from "@slock/core/solid";
 import { isTs } from "@slock/slack";
 import type { Ts } from "@slock/types";
+
+const env = service("env");
 
 const GROUP = "message-row-group";
 const DIVIDER = "message-divider";
@@ -29,5 +32,5 @@ export function flashGroup(group: HTMLElement) {
   const row = group.querySelector<HTMLElement>("[data-message-ts]");
   if (!row) return;
   row.classList.add(FLASH_CLASS);
-  setTimeout(() => row.classList.remove(FLASH_CLASS), FLASH_MS);
+  env.setTimeout(() => row.classList.remove(FLASH_CLASS), FLASH_MS);
 }

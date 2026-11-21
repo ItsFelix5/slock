@@ -37,7 +37,7 @@
 }
 
 .canvas-columns-block:hover .canvas-column,
-.canvas-columns-block:focus-within .canvas-column {
+.canvas-columns-block:has(:focus-visible) .canvas-column {
   outline-color: var(--border);
 }
 
@@ -79,9 +79,9 @@
 }
 
 .canvas-column:hover > .canvas-column-remove,
-.canvas-column:focus-within > .canvas-column-remove,
+.canvas-column:has(:focus-visible) > .canvas-column-remove,
 .canvas-table-block:hover .canvas-table-remove,
-.canvas-table-block:focus-within .canvas-table-remove {
+.canvas-table-block:has(:focus-visible) .canvas-table-remove {
   display: grid;
 }
 
@@ -133,8 +133,8 @@
 
 .canvas-columns-block:hover > .canvas-block-actions,
 .canvas-table-block:hover > .canvas-block-actions,
-.canvas-columns-block:focus-within > .canvas-block-actions,
-.canvas-table-block:focus-within > .canvas-block-actions {
+.canvas-columns-block:has(:focus-visible) > .canvas-block-actions,
+.canvas-table-block:has(:focus-visible) > .canvas-block-actions {
   opacity: 1;
 }
 

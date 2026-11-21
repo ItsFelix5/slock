@@ -10,7 +10,7 @@ export type KeyInput = Pick<
   "altKey" | "code" | "ctrlKey" | "key" | "metaKey" | "shiftKey"
 >;
 
-export const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
 
 const NAMED_KEYS: Record<string, string> = {
   ArrowUp: "↑",

@@ -75,6 +75,7 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
       deps.patchMessage(channel, updatedTs, {
         blocks: updated.blocks,
         edited: !!updated.edited,
+        editedTs: mapped.editedTs,
         isBroadcast,
         text: mapped.text,
         attachments: mapped.attachments,

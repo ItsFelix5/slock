@@ -1,5 +1,5 @@
+import { service } from "@slock/core/solid";
 import { createMemo, createSignal, onSettled } from "solid-js";
-import { dispatchManualShortcut } from "../hooks/useShortcut";
 import { bindLinePrefix, type LinePrefixFormat } from "./blockShortcuts";
 import ContextBlot from "./ContextBlot";
 import DividerBlot from "./DividerBlot";
@@ -16,6 +16,8 @@ import { BASE_FORMATS, EXTENDED_FORMATS, quillKeyboardBindings } from "./quillKe
 import { pasteCaptureHandler, stripPastedHeader } from "./quillPaste";
 import "./editor.css";
 import "./editorLists.css";
+
+const ui = service("ui");
 
 export interface QuillEditorProps {
   checklists?: boolean;
@@ -100,7 +102,7 @@ export default function QuillEditor(props: QuillEditorProps) {
     props.onReady(editor);
 
     const handleKeyDownCapture = (event: KeyboardEvent) => {
-      if (dispatchManualShortcut(event)) {
+      if (ui.shortcuts.dispatchManual(event)) {
         event.preventDefault();
         event.stopPropagation();
       }

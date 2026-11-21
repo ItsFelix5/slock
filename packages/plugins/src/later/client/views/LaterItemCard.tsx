@@ -27,6 +27,7 @@ const messageLinks = service("message-links");
 const titles = service("titles");
 const usersStore = service("users");
 const later = service("later");
+const env = service("env");
 
 export default function LaterItemCard(props: {
   failed?: boolean;
@@ -144,6 +145,7 @@ export default function LaterItemCard(props: {
                   ? formatSlackDateTokens(
                       "Saved {date_short_pretty} at {time}",
                       props.item.dateCreated,
+                      env.now(),
                     )
                   : undefined
               }

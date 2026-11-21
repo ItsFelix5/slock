@@ -1,8 +1,7 @@
 import { defined } from "@slock/core";
-import { service } from "@slock/core/solid";
+import { createFlags, service } from "@slock/core/solid";
 import { parseTs } from "@slock/slack";
 import type { ChannelId, Message, Ts } from "@slock/types";
-import { createStore } from "solid-js";
 import { toggleThreadSubscription } from "../../../slack/client/api";
 import { tsFromMs, tsJustBefore, tsToMs } from "../lib/tsTime";
 
@@ -27,66 +26,41 @@ export function createMessageStatusActions(deps: {
   patchMessage: (channelId: ChannelId, ts: Ts, patch: Partial<Message>) => void;
 }) {
   const { messagesByChannel, threadMessages, patchMessage } = deps;
-  const [threadSubscriptionPending, setThreadSubscriptionPending] = createStore<
-    Record<string, boolean>
-  >({});
-  const [threadUnsubscribed, setThreadUnsubscribed] = createStore<Record<string, boolean>>({});
+  const threadSubscriptionPending = createFlags<string>();
+  const threadUnsubscribed = createFlags<string>();
   const subscriptionPendingKey = (channelId: ChannelId, ts: Ts) => `${channelId}:${ts}`;
-  function isThreadSubscriptionPending(channelId: ChannelId, ts: Ts): boolean {
-    return !!threadSubscriptionPending[subscriptionPendingKey(channelId, ts)];
-  }
-  function isThreadUnsubscribed(channelId: ChannelId, ts: Ts): boolean {
-    return !!threadUnsubscribed[subscriptionPendingKey(channelId, ts)];
-  }
+  const isThreadSubscriptionPending = (channelId: ChannelId, ts: Ts) =>
+    threadSubscriptionPending.has(subscriptionPendingKey(channelId, ts));
+  const isThreadUnsubscribed = (channelId: ChannelId, ts: Ts) =>
+    threadUnsubscribed.has(subscriptionPendingKey(channelId, ts));
   function isThreadSubscribed(ts: Ts): boolean {
     return !!threadMessages[ts]?.[0]?.isSubscribed;
   }
-  async function toggleThreadSubscribed(channelId: ChannelId, ts: Ts) {
-    const pendingKey = subscriptionPendingKey(channelId, ts);
-    if (threadSubscriptionPending[pendingKey]) return;
-    setThreadSubscriptionPending((s) => {
-      s[pendingKey] = true;
-    });
-    const currentlySubscribed = isThreadSubscribed(ts);
-    patchMessage(channelId, ts, { isSubscribed: !currentlySubscribed });
+  async function changeThreadSubscription(channelId: ChannelId, ts: Ts, wasSubscribed: boolean) {
+    const key = subscriptionPendingKey(channelId, ts);
+    if (threadSubscriptionPending.has(key)) return;
+    const apply = (subscribed: boolean) => {
+      patchMessage(channelId, ts, { isSubscribed: subscribed });
+      threadUnsubscribed.set(key, !subscribed);
+    };
+    threadSubscriptionPending.set(key, true);
+    apply(!wasSubscribed);
     try {
-      await toggleThreadSubscription(channelId, ts, currentlySubscribed);
+      await toggleThreadSubscription(channelId, ts, wasSubscribed);
     } catch (err) {
-      console.error("Failed to toggle thread subscription", err);
+      console.error("Failed to update thread subscription", err);
       feedback.flash(ts, "Failed to update thread subscription.", "error");
-      patchMessage(channelId, ts, { isSubscribed: currentlySubscribed });
+      apply(wasSubscribed);
     } finally {
-      setThreadSubscriptionPending((pending) => {
-        delete pending[pendingKey];
-      });
+      threadSubscriptionPending.set(key, false);
     }
   }
 
-  async function unsubscribeFromThread(channelId: ChannelId, ts: Ts) {
-    const pendingKey = subscriptionPendingKey(channelId, ts);
-    if (threadSubscriptionPending[pendingKey]) return;
-    setThreadSubscriptionPending((s) => {
-      s[pendingKey] = true;
-    });
-    patchMessage(channelId, ts, { isSubscribed: false });
-    setThreadUnsubscribed((s) => {
-      s[pendingKey] = true;
-    });
-    try {
-      await toggleThreadSubscription(channelId, ts, true);
-    } catch (err) {
-      console.error("Failed to unsubscribe from thread", err);
-      feedback.flash(ts, "Failed to unsubscribe from thread.", "error");
-      patchMessage(channelId, ts, { isSubscribed: true });
-      setThreadUnsubscribed((s) => {
-        s[pendingKey] = false;
-      });
-    } finally {
-      setThreadSubscriptionPending((pending) => {
-        delete pending[pendingKey];
-      });
-    }
-  }
+  const toggleThreadSubscribed = (channelId: ChannelId, ts: Ts) =>
+    changeThreadSubscription(channelId, ts, isThreadSubscribed(ts));
+
+  const unsubscribeFromThread = (channelId: ChannelId, ts: Ts) =>
+    changeThreadSubscription(channelId, ts, true);
   async function markCurrentChannelRead(channelId: ChannelId): Promise<boolean> {
     const loadedLatest = deps.hasNewerHistory(channelId)
       ? undefined
@@ -111,17 +85,31 @@ export function createMessageStatusActions(deps: {
     const anchor = deps.unreadDividerTsFor(channelId) ?? deps.lastReadFor(channelId) ?? 0;
     return tsToMs(ts) > anchor;
   }
-  async function markMessageRead(channelId: ChannelId, ts: Ts): Promise<boolean> {
+  async function moveReadMarker(
+    channelId: ChannelId,
+    readTs: Ts,
+    options: { flashKey: Ts; failure: string; markUnread: boolean },
+  ): Promise<boolean> {
     const priorLastRead = deps.lastReadFor(channelId);
     const priorDivider = deps.unreadDividerTsFor(channelId);
-    deps.setLastReadByChannel(channelId, tsToMs(ts));
-    deps.setUnreadDividerTs(channelId, tsToMs(ts));
-    if (!(await deps.setChannelRead(channelId, ts))) {
-      deps.setLastReadByChannel(channelId, priorLastRead ?? 0);
-      deps.setUnreadDividerTs(channelId, priorDivider ?? Infinity);
-      feedback.flash(ts, "Failed to mark as read.", "error");
-      return false;
-    }
+    const readMs = tsToMs(readTs);
+    deps.setLastReadByChannel(channelId, readMs);
+    deps.setUnreadDividerTs(channelId, readMs);
+    if (options.markUnread) deps.setUnreadChannelIds(channelId, true);
+    if (await deps.setChannelRead(channelId, readTs)) return true;
+    deps.setLastReadByChannel(channelId, priorLastRead ?? 0);
+    deps.setUnreadDividerTs(channelId, priorDivider ?? Infinity);
+    if (options.markUnread) deps.setUnreadChannelIds(channelId, false);
+    feedback.flash(options.flashKey, options.failure, "error");
+    return false;
+  }
+  async function markMessageRead(channelId: ChannelId, ts: Ts): Promise<boolean> {
+    const moved = await moveReadMarker(channelId, ts, {
+      failure: "Failed to mark as read.",
+      flashKey: ts,
+      markUnread: false,
+    });
+    if (!moved) return false;
     const latest = messagesByChannel[channelId]?.at(-1)?.ts;
     if (!deps.hasNewerHistory(channelId) && (!latest || latest === ts))
       deps.clearChannelUnread(channelId);
@@ -150,19 +138,11 @@ export function createMessageStatusActions(deps: {
     const atRealStart = idx === 0 && !deps.hasMoreHistory(channelId);
     const previousTs =
       idx > 0 ? defined(list[idx - 1]).ts : atRealStart ? parseTs("0") : tsJustBefore(ts);
-    const previousMs = tsToMs(previousTs);
-    const priorLastRead = deps.lastReadFor(channelId);
-    deps.setLastReadByChannel(channelId, previousMs);
-    deps.setUnreadDividerTs(channelId, previousMs);
-    deps.setUnreadChannelIds(channelId, true);
-    if (!(await deps.setChannelRead(channelId, previousTs))) {
-      deps.setLastReadByChannel(channelId, priorLastRead ?? 0);
-      deps.setUnreadDividerTs(channelId, priorLastRead ?? Infinity);
-      deps.setUnreadChannelIds(channelId, false);
-      feedback.flash(ts, "Failed to mark as unread.", "error");
-      return false;
-    }
-    return true;
+    return moveReadMarker(channelId, previousTs, {
+      failure: "Failed to mark as unread.",
+      flashKey: ts,
+      markUnread: true,
+    });
   }
   return {
     isThreadSubscribed,

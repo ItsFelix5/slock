@@ -1,18 +1,15 @@
+import { toLocalInputValue } from "@slock/core";
 import { service } from "@slock/core/solid";
 import type { ChannelId, Ts } from "@slock/types";
 import { Button, Menu, MenuItem } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
-import {
-  dateDueFromInput,
-  nextHourInputValue,
-  REMINDER_OPTIONS,
-  toLocalInputValue,
-} from "../times";
+import { dateDueFromInput, nextHourInputValue, REMINDER_OPTIONS } from "../times";
 
 const later = service("later");
+const env = service("env");
 
 const isFuture = (dateDue: number | null): dateDue is number =>
-  dateDue !== null && dateDue > Math.floor(Date.now() / 1000);
+  dateDue !== null && dateDue > Math.floor(env.now() / 1000);
 
 export default function RemindMenu(props: {
   channelId: ChannelId;
@@ -21,7 +18,7 @@ export default function RemindMenu(props: {
   ts: Ts;
 }) {
   const [open, setOpen] = createSignal(false);
-  const [customTime, setCustomTime] = createSignal(nextHourInputValue(new Date()));
+  const [customTime, setCustomTime] = createSignal(nextHourInputValue(new Date(env.now())));
   const customDateDue = () => dateDueFromInput(customTime());
 
   const remind = (dateDue: number) => {
@@ -51,13 +48,15 @@ export default function RemindMenu(props: {
     >
       <For each={REMINDER_OPTIONS}>
         {(option) => (
-          <MenuItem onClick={() => remind(option.dateDue(new Date()))}>{option.label}</MenuItem>
+          <MenuItem onClick={() => remind(option.dateDue(new Date(env.now())))}>
+            {option.label}
+          </MenuItem>
         )}
       </For>
       <form class="custom-reminder-time" onSubmit={remindAtCustomTime}>
         <input
           id="custom-reminder-time"
-          min={toLocalInputValue(new Date())}
+          min={toLocalInputValue(env.now())}
           onInput={(event) => setCustomTime(event.currentTarget.value)}
           required
           type="datetime-local"

@@ -11,7 +11,6 @@ export type Bootstrap = {
 };
 
 export const C1 = ch("C1");
-export { ch, stamp };
 
 const brandedLastRead = (raw: Record<string, number>) =>
   Object.fromEntries(Object.entries(raw).map(([id, ms]) => [ch(id), ms]));
@@ -39,8 +38,6 @@ export const message = (ts: string, extra: Partial<Message> = {}): Message => ({
 });
 
 export const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
-
-export { flushSolid };
 
 const disposers: (() => void)[] = [];
 

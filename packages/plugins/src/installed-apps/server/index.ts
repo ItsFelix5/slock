@@ -4,7 +4,6 @@ import { route, routes } from "../../slack/server/api/router";
 import { fetchAppInstallers } from "./appInstallers";
 import { listInstalledApps } from "./installedApps";
 
-const USER_ID_RE = /^[UW][A-Z0-9]+$/;
 const APP_ID_RE = /^A[A-Z0-9]+$/;
 
 const setup: Setup = (ctx) => {
@@ -12,7 +11,6 @@ const setup: Setup = (ctx) => {
     "http",
     routes([
       route("GET", "users/:id/installed-apps", async (request) => {
-        if (!USER_ID_RE.test(request.params.id)) return errorResponse("invalid_user", 400);
         const reply = await listInstalledApps(request.params.id, request.creds);
         if (!reply.ok) return errorResponse(reply.error, 502);
         return jsonResponse({ apps: reply.apps });

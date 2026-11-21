@@ -1,10 +1,11 @@
 import { defined } from "@slock/core";
 import type { User } from "@slock/types";
-import { createDebouncedRequest } from "@slock/ui";
-import { createEffect, createSignal } from "solid-js";
+import { createDebouncedSearch } from "@slock/ui";
+import { createEffect } from "solid-js";
 import { queryToken } from "../querySuggestions";
 
 const PEOPLE_MODIFIERS = new Set(["from", "with"]);
+const SEARCH_DELAY_MS = 150;
 type NamedEntity = { id: string; name: string };
 
 export function stripNegation(token: string): string {
@@ -31,26 +32,23 @@ export interface TokenEntitySearchDeps {
 }
 
 export function createTokenEntitySearch(deps: TokenEntitySearchDeps) {
-  const [remoteUsers, setRemoteUsers] = createSignal<User[]>([]);
-  const [remoteChannels, setRemoteChannels] = createSignal<NamedEntity[]>([]);
-
-  const peopleRequest = createDebouncedRequest(deps.searchUsers, {
-    delay: 150,
-    onReset: () => setRemoteUsers([]),
-    onResult: setRemoteUsers,
+  const users = createDebouncedSearch({
+    delay: SEARCH_DELAY_MS,
+    empty: [],
+    search: deps.searchUsers,
   });
-  const channelRequest = createDebouncedRequest(deps.searchChannels, {
-    delay: 150,
-    onReset: () => setRemoteChannels([]),
-    onResult: setRemoteChannels,
+  const channels = createDebouncedSearch({
+    delay: SEARCH_DELAY_MS,
+    empty: [],
+    search: deps.searchChannels,
   });
   createEffect(
     () => currentToken(deps.query(), deps.cursor()),
     ({ modifier, term }) => {
-      peopleRequest.run(PEOPLE_MODIFIERS.has(modifier) ? term : "");
-      channelRequest.run(modifier === "in" ? term : "");
+      users.set(PEOPLE_MODIFIERS.has(modifier) ? term : "");
+      channels.set(modifier === "in" ? term : "");
     },
   );
 
-  return { remoteChannels, remoteUsers };
+  return { remoteChannels: channels.value, remoteUsers: users.value };
 }

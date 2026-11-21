@@ -81,7 +81,7 @@ async function findConversations(query: string, filter?: ConversationFilter) {
 }
 
 function describe(kind: EntityKind, id: string): ComboboxOption {
-  const user = usersStore.userById(id);
+  const user = isUserId(id) ? usersStore.userById(id) : undefined;
   if (user) return userOption(user);
   const channelId = isChannelId(id) ? id : undefined;
   const dm = kind === "conversations" && channelId ? dmsStore.dmById(channelId) : undefined;

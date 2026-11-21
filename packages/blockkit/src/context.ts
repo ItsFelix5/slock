@@ -1,4 +1,4 @@
-import type { Attachment } from "@slock/types";
+import type { Attachment, ChannelId, FileId, UserId } from "@slock/types";
 import type { JSX } from "@solidjs/web";
 import { createContext, useContext } from "solid-js";
 
@@ -14,20 +14,20 @@ export interface BlockKitMentionInfo {
 }
 
 export interface BlockKitResolver {
-  onCanvasClick(fileId: string, title?: string): void;
-  onChannelClick(id: string): void;
-  onUserClick(id: string): void;
+  onCanvasClick(fileId: FileId, title?: string): void;
+  onChannelClick(id: ChannelId): void;
+  onUserClick(id: UserId): void;
   onUsergroupClick(id: string): void;
-  resolveCanvasTitle(fileId: string): string | undefined;
-  resolveChannel(id: string): BlockKitMentionInfo | undefined;
-  resolveUser(id: string): BlockKitMentionInfo | undefined;
+  resolveCanvasTitle(fileId: FileId): string | undefined;
+  resolveChannel(id: ChannelId): BlockKitMentionInfo | undefined;
+  resolveUser(id: UserId): BlockKitMentionInfo | undefined;
   resolveUsergroup(id: string): BlockKitMentionInfo | undefined;
 
-  wrapChannelMention?(id: string, trigger: JSX.Element): JSX.Element;
+  wrapChannelMention?(id: ChannelId, trigger: JSX.Element): JSX.Element;
 
   wrapLink?(url: string, trigger: JSX.Element, attachments?: Attachment[]): JSX.Element;
 
-  wrapUserMention?(id: string, trigger: JSX.Element): JSX.Element;
+  wrapUserMention?(id: UserId, trigger: JSX.Element): JSX.Element;
 
   wrapUsergroupMention?(id: string, trigger: JSX.Element): JSX.Element;
 }

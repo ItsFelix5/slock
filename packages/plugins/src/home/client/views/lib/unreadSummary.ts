@@ -1,5 +1,8 @@
 import { formatLastSeen } from "@slock/blockkit";
+import { service } from "@slock/core/solid";
 import type { Message } from "@slock/types";
+
+const env = service("env");
 
 export function unreadSummary(opts: {
   mentions?: number;
@@ -8,7 +11,7 @@ export function unreadSummary(opts: {
   loadedMessages?: Message[];
   now?: number;
 }): string {
-  const now = opts.now ?? Date.now();
+  const now = opts.now ?? env.now();
   const parts: string[] = [];
   if (opts.mentions) parts.push(`${opts.mentions} mention${opts.mentions === 1 ? "" : "s"}`);
   const { lastRead } = opts;

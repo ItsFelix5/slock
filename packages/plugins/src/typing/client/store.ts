@@ -8,8 +8,13 @@ const SWEEP_SLACK_MS = 50;
 
 const env = service("env");
 
-export function createTypingSlice(deps: { userById: (id: string) => User | undefined }) {
-  const [typingByKey, setTypingByKey] = createStore<Record<string, Record<string, number>>>({});
+interface TypingEntry {
+  expiresAt: number;
+  userId: UserId;
+}
+
+export function createTypingSlice(deps: { userById: (id: UserId) => User | undefined }) {
+  const [typingByKey, setTypingByKey] = createStore<Record<string, TypingEntry[]>>({});
   let sweepTimer: TimerHandle | undefined;
 
   function sweep() {
@@ -18,11 +23,10 @@ export function createTypingSlice(deps: { userById: (id: string) => User | undef
     let nextExpiry = Number.POSITIVE_INFINITY;
     setTypingByKey((all) => {
       for (const [key, entries] of Object.entries(all)) {
-        for (const [userId, expiresAt] of Object.entries(entries)) {
-          if (expiresAt <= now) delete entries[userId];
-          else nextExpiry = Math.min(nextExpiry, expiresAt);
-        }
-        if (Object.keys(entries).length === 0) delete all[key];
+        const live = entries.filter((entry) => entry.expiresAt > now);
+        for (const entry of live) nextExpiry = Math.min(nextExpiry, entry.expiresAt);
+        if (live.length === 0) delete all[key];
+        else all[key] = live;
       }
     });
     if (nextExpiry !== Number.POSITIVE_INFINITY) armSweep(nextExpiry);
@@ -39,28 +43,28 @@ export function createTypingSlice(deps: { userById: (id: string) => User | undef
 
   function recordTyping(channelId: ChannelId, threadTs: Ts | undefined, userId: UserId) {
     const key = typingKey(channelId, threadTs);
-    const expiresAt = env.now() + TYPING_TTL_MS;
+    const entry = { expiresAt: env.now() + TYPING_TTL_MS, userId };
     setTypingByKey((all) => {
-      all[key] = { ...all[key], [userId]: expiresAt };
+      const entries = all[key] ?? [];
+      all[key] = entries.some((e) => e.userId === userId)
+        ? entries.map((e) => (e.userId === userId ? entry : e))
+        : [...entries, entry];
     });
-    armSweep(expiresAt);
+    armSweep(entry.expiresAt);
   }
 
   function clearTyping(channelId: ChannelId, threadTs: Ts | undefined, userId: UserId) {
     const key = typingKey(channelId, threadTs);
     setTypingByKey((all) => {
-      const entries = all[key];
-      if (!entries?.[userId]) return;
-      delete entries[userId];
-      if (Object.keys(entries).length === 0) delete all[key];
+      const rest = (all[key] ?? []).filter((entry) => entry.userId !== userId);
+      if (rest.length === 0) delete all[key];
+      else all[key] = rest;
     });
   }
 
   function typingUsers(key: string): User[] {
-    const entries = typingByKey[key];
-    if (!entries) return [];
-    return Object.keys(entries).flatMap((id) => {
-      const user = deps.userById(id);
+    return (typingByKey[key] ?? []).flatMap(({ userId }) => {
+      const user = deps.userById(userId);
       return user ? [user] : [];
     });
   }

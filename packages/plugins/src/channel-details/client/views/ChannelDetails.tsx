@@ -11,7 +11,7 @@ import {
   useTabStripShortcuts,
 } from "@slock/ui";
 import { dynamic } from "@solidjs/web";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import { channelIconName } from "../../../channels/client/api";
 import type { ChannelDetailsTabItem } from "../api";
 import type { ChannelDetailsTab } from "../channelDetails";
@@ -38,7 +38,7 @@ const ABOUT_TAB: TabEntry = { key: "about", label: "About" };
 export default function ChannelDetails() {
   const tabButtonRefs: (HTMLButtonElement | undefined)[] = [];
   let tabListRef: HTMLDivElement | undefined;
-  const [tab, setTab] = createSignal<ChannelDetailsTab>(() => {
+  const [requestedTab, setTab] = createSignal<ChannelDetailsTab>(() => {
     channelDetails.channelDetailsId();
     return channelDetails.channelDetailsTab();
   });
@@ -76,6 +76,14 @@ export default function ChannelDetails() {
       .map((item) => ({ item, key: item.id, label: item.label })),
   ]);
   const draft = createChannelDetailsDraft(details, refetch);
+  const tab = createMemo<ChannelDetailsTab>(() => {
+    const wanted = requestedTab();
+    const lockedOut =
+      tabItems().find((item) => item.id === wanted)?.managerOnly &&
+      !isWaiting(managerIds()) &&
+      !isManager();
+    return lockedOut ? "about" : wanted;
+  });
   const ActiveTabView = dynamic(() => activeTab()?.item?.view);
   const activeTab = () => visibleTabs().find((entry) => entry.key === tab());
   useTabStripShortcuts({
@@ -86,13 +94,6 @@ export default function ChannelDetails() {
     items: visibleTabs,
     root: () => tabListRef,
   });
-
-  createEffect(
-    () => !!activeTab()?.item?.managerOnly && !isWaiting(managerIds()) && !isManager(),
-    (locked) => {
-      if (locked) setTab("about");
-    },
-  );
 
   return (
     <Show when={channelDetails.channelDetailsId()}>

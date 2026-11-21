@@ -1,27 +1,11 @@
 import type { Manifest, PluginDef, Setup } from "@slock/core";
-import { isRecord } from "@slock/core";
-
-const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+import { readManifest } from "@slock/core";
 
 export type PluginModule = { default?: unknown; manifest?: unknown; css?: unknown };
 
-function stringList(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string")
-    : [];
-}
-
-function readManifest(mod: PluginModule): Manifest {
-  const { manifest } = mod;
-  if (!(isRecord(manifest) && typeof manifest.id === "string" && ID_PATTERN.test(manifest.id))) {
-    throw new Error("The plugin must export a manifest with a lowercase id.");
-  }
-  return {
-    id: manifest.id,
-    name: typeof manifest.name === "string" ? manifest.name : manifest.id,
-    provides: stringList(manifest.provides),
-    requires: stringList(manifest.requires),
-  };
+function manifestOf(mod: PluginModule): Manifest {
+  const manifest = readManifest(mod.manifest, "The plugin manifest");
+  return { ...manifest, name: manifest.name ?? manifest.id };
 }
 
 const isSetup = (value: unknown): value is Setup => typeof value === "function";
@@ -48,7 +32,7 @@ export async function definitionFromSource(code: string): Promise<PluginDef> {
   const url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
   try {
     const mod: PluginModule = await import(url);
-    return { ...readManifest(mod), setup: setupOf(mod) };
+    return { ...manifestOf(mod), setup: setupOf(mod) };
   } finally {
     URL.revokeObjectURL(url);
   }

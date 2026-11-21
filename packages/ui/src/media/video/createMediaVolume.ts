@@ -1,4 +1,5 @@
 import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js";
+import { mediaLevels, type VolumeState, volumeAfterMute, volumeAfterSet } from "./volumeLevels";
 
 export interface MediaVolumeControl {
   muted: Accessor<boolean>;
@@ -14,7 +15,7 @@ export function createMediaVolume(
   let audioContext: AudioContext | undefined;
   let gainNode: GainNode | undefined;
   let mediaElement: HTMLMediaElement | undefined;
-  const current = { muted: false, volume: 1 };
+  let current: VolumeState = { muted: false, volume: 1 };
   const [muted, setMutedSignal] = createSignal(current.muted);
   const [volume, setVolumeSignal] = createSignal(current.volume);
 
@@ -27,8 +28,8 @@ export function createMediaVolume(
 
   const applyVolume = () => {
     if (!mediaElement) return;
-    const value = current.volume;
-    if (value > 1 && !gainNode) {
+    const levels = mediaLevels(current.volume);
+    if (levels.boosted && !gainNode) {
       audioContext = new AudioContext();
       gainNode = audioContext.createGain();
       audioContext
@@ -36,19 +37,18 @@ export function createMediaVolume(
         .connect(gainNode)
         .connect(audioContext.destination);
     }
-    mediaElement.volume = Math.min(value, 1);
+    mediaElement.volume = levels.elementVolume;
     mediaElement.muted = current.muted;
     if (gainNode) {
-      gainNode.gain.value = Math.max(value, 1);
+      gainNode.gain.value = levels.gain;
       void audioContext?.resume();
     }
   };
 
-  const update = (nextVolume: number, nextMuted: boolean) => {
-    current.volume = nextVolume;
-    current.muted = nextMuted;
-    setVolumeSignal(nextVolume);
-    setMutedSignal(nextMuted);
+  const update = (next: VolumeState) => {
+    current = next;
+    setVolumeSignal(next.volume);
+    setMutedSignal(next.muted);
     applyVolume();
   };
 
@@ -62,13 +62,8 @@ export function createMediaVolume(
 
   return {
     muted,
-    setMuted: (nextMuted) => {
-      update(!nextMuted && current.volume === 0 ? 1 : current.volume, nextMuted);
-    },
-    setVolume: (nextVolume) => {
-      const value = Math.min(maxVolume, Math.max(0, nextVolume));
-      update(value, value === 0);
-    },
+    setMuted: (nextMuted) => update(volumeAfterMute(current, nextMuted)),
+    setVolume: (nextVolume) => update(volumeAfterSet(nextVolume, maxVolume)),
     volume,
   };
 }

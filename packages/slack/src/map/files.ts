@@ -1,4 +1,5 @@
 import { formatDay, formatTime } from "@slock/core";
+import { service } from "@slock/core/services";
 import type {
   Attachment,
   RawAttachment,
@@ -10,6 +11,8 @@ import type {
   SlackLink,
 } from "@slock/types";
 import { ifPresent, isUserId, parseChannelId, parseFileId, parseTs, parseUserId } from "../ids";
+
+const env = service("env");
 
 const EXTENSION_MIMETYPES = new Map(
   Object.entries({
@@ -150,7 +153,7 @@ export function mapAttachment(a: RawAttachment): Attachment {
     imageUrl: a.image_url || undefined,
     imageWidth: a.image_width,
     isMessageUnfurl: !!(a.is_reply_unfurl || a.is_msg_unfurl),
-    postedAt: a.ts ? `${formatDay(a.ts)} at ${formatTime(a.ts)}` : undefined,
+    postedAt: a.ts ? `${formatDay(a.ts, env.now())} at ${formatTime(a.ts)}` : undefined,
     pretext: a.pretext,
     serviceIcon: a.service_icon,
     serviceName: a.service_name,

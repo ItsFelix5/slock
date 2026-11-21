@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import type { ActivityItem } from "@slock/types";
+import type { ActivityItem, UserId } from "@slock/types";
 import { createMemo } from "solid-js";
 import {
   hasRealMessageAuthor,
@@ -55,7 +55,7 @@ export function createActivityRowDisplay(deps: {
     return [...new Set(candidates)];
   });
 
-  const interactorNames = (ids: string[], max?: number) =>
+  const interactorNames = (ids: UserId[], max?: number) =>
     formatInteractorNames(ids, usersStore.currentUser()?.id, usersStore.userById, max);
 
   return {

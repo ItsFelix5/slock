@@ -1,9 +1,10 @@
 import { createHost } from "@slock/core";
 import { setHost, solidReactive } from "@slock/core/solid";
-import { createFakeEnv } from "@slock/core/testing";
+import { createFakeEnv, type FakeEnv } from "@slock/core/testing";
 import { isChannelId } from "@slock/slack";
 import { ch, uid } from "@slock/slack/testing";
 import type { ChannelId, GatewayEvent, Message, Ts, User } from "@slock/types";
+import { provideUi } from "@slock/ui";
 import { createMemo, createRoot, createSignal, createStore, flush } from "solid-js";
 import type { View } from "../../../../src/conversations/client/api/types";
 import type { ThreadRef } from "../../../../src/messages/client/api";
@@ -22,13 +23,13 @@ export const settle = async () => {
   for (let i = 0; i < 200; i++) await Promise.resolve();
 };
 
-export async function createStoreHarness() {
-  const env = createFakeEnv();
+export async function createStoreHarness(env: FakeEnv = createFakeEnv()) {
   const slack = createFakeSlack(ME, env);
   const host = createHost({ env, reactive: solidReactive });
   setHost(host);
   await host.register(
     { id: "feedback", setup: (ctx) => ctx.provide("feedback", createFeedback()) },
+    { id: "ui", setup: provideUi },
     { id: "query", setup: querySetup },
   );
 

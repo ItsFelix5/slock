@@ -16,7 +16,7 @@ import {
 } from "./sectionWrite.ts";
 
 const FIELD_TABLE = 30;
-export const DEFAULT_COLUMN_WIDTH = 400;
+const DEFAULT_COLUMN_WIDTH = 400;
 
 function double(value: number): RawField {
   const bytes = new Uint8Array(8);
@@ -60,7 +60,7 @@ export function tableChanged(record: SectionRecord, node: CanvasTable): boolean 
   );
 }
 
-export function tableContent(record: SectionRecord | null, node: CanvasTable): number[] {
+function tableContent(record: SectionRecord | null, node: CanvasTable): number[] {
   const grid = gridOf(record);
   const rowKeys = keys(
     node.rows.map((row) => row.id),

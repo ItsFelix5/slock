@@ -13,7 +13,7 @@ function isVertical(placement: Placement): placement is VerticalPlacement {
   return placement === "top" || placement === "bottom";
 }
 
-export function resolveVerticalPlacement(
+function resolveVerticalPlacement(
   anchor: DOMRect,
   panelHeight: number,
   preferred: VerticalPlacement,
@@ -31,7 +31,7 @@ export function resolveVerticalPlacement(
       : "top";
 }
 
-export function resolveHorizontalPlacement(
+function resolveHorizontalPlacement(
   anchor: DOMRect,
   panelWidth: number,
   preferred: HorizontalPlacement,
@@ -117,7 +117,6 @@ export default function FloatingPanel(props: FloatingPanelProps) {
   };
 
   const schedulePosition = () => {
-    if (!props.open) return;
     cancelAnimationFrame(frame ?? 0);
     frame = requestAnimationFrame(() => {
       frame = undefined;
@@ -144,10 +143,7 @@ export default function FloatingPanel(props: FloatingPanelProps) {
     props.onScroll?.();
   };
 
-  createEffect(
-    () => props.anchor(),
-    () => untrack(schedulePosition),
-  );
+  createEffect(() => props.anchor(), schedulePosition);
 
   const onResize = () => schedulePosition();
   const onWindowScroll = (e: Event) => handleScroll(e);

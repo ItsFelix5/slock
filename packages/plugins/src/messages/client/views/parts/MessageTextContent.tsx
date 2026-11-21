@@ -1,4 +1,5 @@
 import { BlockKit, MessageAttachmentsContext, Mrkdwn, TimeAnchorContext } from "@slock/blockkit";
+import { firstTruthy } from "@slock/core";
 import { Slot, service, usePoint } from "@slock/core/solid";
 import type { Attachment, ChannelId, Message } from "@slock/types";
 import { createMemo, Show } from "solid-js";
@@ -22,12 +23,7 @@ export default function MessageTextContent(props: {
   tz: string | undefined;
 }) {
   const quotes = usePoint("messages.quote");
-  const quote = createMemo(() => {
-    for (const item of quotes()) {
-      const found = item(props.msg, props.channelId);
-      if (found) return found;
-    }
-  });
+  const quote = createMemo(() => firstTruthy(quotes(), (item) => item(props.msg, props.channelId)));
 
   return (
     <Show
@@ -77,7 +73,16 @@ export default function MessageTextContent(props: {
               ]}
             >
               <MessageAttachmentsContext value={() => props.msg.attachments}>
-                <TimeAnchorContext value={{ ms: parseFloat(props.msg.ts) * 1000, tz: props.tz }}>
+                <TimeAnchorContext
+                  value={{
+                    get ms() {
+                      return parseFloat(props.msg.ts) * 1000;
+                    },
+                    get tz() {
+                      return props.tz;
+                    },
+                  }}
+                >
                   <Show
                     fallback={
                       <>

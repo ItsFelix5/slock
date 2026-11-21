@@ -1,5 +1,5 @@
 import { apiGet, apiPost } from "@slock/slack";
-import type { AttachmentAction, Option, OptionGroup, RawBot } from "@slock/types";
+import type { AttachmentAction, ChannelId, Option, OptionGroup, RawBot, Ts } from "@slock/types";
 import type { BlockActionContext } from "../BlockKit";
 
 async function fetchBotAppInfo(botId: string): Promise<{ appId: string } | null> {
@@ -58,9 +58,9 @@ export async function runAttachmentAction(params: {
   botId: string;
   botUserId: string;
   callbackId: string;
-  channelId: string;
+  channelId: ChannelId;
   isEphemeral: boolean;
-  messageTs: string;
+  messageTs: Ts;
 }): Promise<void> {
   const data = await apiPost("/api/attachments/actions", params);
   if (!data.ok) throw new Error(data.error ?? "chat.attachmentAction failed");

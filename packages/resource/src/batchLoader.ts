@@ -1,5 +1,5 @@
 import { type Deferred, deferred } from "./deferred";
-import type { ResourceEnv } from "./env";
+import type { ResourceEnv } from "./delay";
 
 export class BatchMissingId extends Error {
   constructor(id: string) {

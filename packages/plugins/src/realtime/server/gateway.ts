@@ -1,4 +1,6 @@
 import { backoff, defined, type Env, type TimerHandle } from "@slock/core";
+import { isUserId } from "@slock/slack";
+import type { UserId } from "@slock/types";
 import { type Credentials, teamIdFromRoute } from "../../slack/server/api/auth";
 import type { GatewayEvent, RealtimeEventHook, RealtimeTrim } from "./api";
 import { parseFrame } from "./frame";
@@ -14,8 +16,8 @@ type ConnectionState = {
   gatewaySocket: WebSocket | null;
   gatewayAttempt: number;
   gatewayRetryTimer: TimerHandle | undefined;
-  presenceSubIds: Set<string>;
-  userChangeSubIds: Set<string>;
+  presenceSubIds: Set<UserId>;
+  userChangeSubIds: Set<UserId>;
   lastHeardAt: number;
   closed: boolean;
 };
@@ -37,7 +39,7 @@ function openSocket(url: string, headers: Record<string, string>): WebSocket {
   return socket;
 }
 
-export function statusMessage(connected: boolean): string {
+function statusMessage(connected: boolean): string {
   return JSON.stringify({ connected, type: "_status" });
 }
 
@@ -188,7 +190,7 @@ export function createGateway(
 
   function handleClientMessage(state: ConnectionState, msg: GatewayEvent) {
     if (msg.type === "watch_presence" && Array.isArray(msg.ids)) {
-      state.presenceSubIds = new Set(msg.ids.filter((id) => typeof id === "string"));
+      state.presenceSubIds = new Set(msg.ids.filter(isUserId));
       sendPresenceSub(state);
       sendUserChangeSubscriptions(state);
     }

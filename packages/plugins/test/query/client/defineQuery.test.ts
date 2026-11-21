@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createHost } from "@slock/core";
 import { setHost, solidReactive } from "@slock/core/solid";
 import { createFakeEnv } from "@slock/core/testing";
+import { provideUi } from "@slock/ui";
 import { createEffect, createRoot, flush } from "solid-js";
 import { defineQuery } from "../../../src/query/client/api";
 import querySetup from "../../../src/query/client/index";
@@ -10,7 +11,7 @@ async function start() {
   const env = createFakeEnv();
   const host = createHost({ env, reactive: solidReactive });
   setHost(host);
-  await host.register({ id: "query", setup: querySetup });
+  await host.register({ id: "ui", setup: provideUi }, { id: "query", setup: querySetup });
   return { env, host };
 }
 

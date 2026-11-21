@@ -1,5 +1,6 @@
 import { type HttpHandler, isRecord } from "@slock/core";
-import type { RawMessage } from "@slock/types";
+import { compareTs, isChannelId, isRawMessage, isTs, parseTs } from "@slock/slack";
+import type { ChannelId, RawMessage, Ts } from "@slock/types";
 import { jsonHeaders } from "../../slack/server/api/auth";
 import type { LogStore, TsRange } from "./store";
 import { workspaceOf } from "./workspace";
@@ -9,8 +10,8 @@ const REPLIES_PATH = /^\/api\/channels\/([^/]+)\/threads\/([^/]+)\/messages$/;
 
 type Page = { has_more?: boolean; messages?: RawMessage[] };
 
-function isRawMessage(value: unknown): value is RawMessage {
-  return isRecord(value) && typeof value.ts === "string";
+function isMessage(value: unknown): value is RawMessage {
+  return isRecord(value) && isRawMessage(value);
 }
 
 function parsePage(body: unknown): Page {
@@ -18,50 +19,65 @@ function parsePage(body: unknown): Page {
   return {
     ...body,
     has_more: body.has_more === true,
-    messages: Array.isArray(body.messages) ? body.messages.filter(isRawMessage) : undefined,
+    messages: Array.isArray(body.messages) ? body.messages.filter(isMessage) : undefined,
   };
 }
 
 function extremes(page: Page) {
-  const stamps = (page.messages ?? []).map((message) => message.ts).sort();
+  const stamps = (page.messages ?? [])
+    .map((message) => message.ts)
+    .filter(isTs)
+    .sort(compareTs);
   return { newest: stamps.at(-1), oldest: stamps[0] };
+}
+
+function tsParam(query: URLSearchParams, name: string): Ts | undefined {
+  const value = query.get(name);
+  return value && isTs(value) ? value : undefined;
 }
 
 function historyRange(page: Page, query: URLSearchParams): TsRange {
   return {
-    max: query.get("latest") ?? undefined,
-    min: page.has_more ? extremes(page).oldest : (query.get("oldest") ?? undefined),
+    max: tsParam(query, "latest"),
+    min: page.has_more ? extremes(page).oldest : tsParam(query, "oldest"),
   };
 }
 
 function repliesRange(page: Page, query: URLSearchParams): TsRange {
   const { newest, oldest } = extremes(page);
   return {
-    max: page.has_more ? newest : (query.get("latest") ?? undefined),
-    min: query.has("cursor") ? oldest : (query.get("oldest") ?? undefined),
+    max: page.has_more ? newest : tsParam(query, "latest"),
+    min: query.has("cursor") ? oldest : tsParam(query, "oldest"),
   };
+}
+
+function targetOf(pathname: string): { channel: ChannelId; threadTs?: Ts } | null {
+  const replies = REPLIES_PATH.exec(pathname);
+  const [channel, threadTs] = (replies ?? HISTORY_PATH.exec(pathname))?.slice(1) ?? [];
+  if (!(channel && isChannelId(channel))) return null;
+  if (!replies) return { channel };
+  return threadTs && isTs(threadTs) ? { channel, threadTs } : null;
 }
 
 export function restoreDeleted(store: LogStore): HttpHandler {
   return async (c, next) => {
     const { pathname, searchParams } = c.url;
-    const replies = REPLIES_PATH.exec(pathname);
-    const history = replies ? null : HISTORY_PATH.exec(pathname);
+    const target = targetOf(pathname);
     const { creds } = c;
     const res = await next();
-    if (c.req.method !== "GET" || !(replies || history) || !res?.ok || !creds) return res;
+    if (c.req.method !== "GET" || !target || !res?.ok || !creds) return res;
     const workspace = workspaceOf(creds);
-    const [channel = "", threadTs = ""] = (replies ?? history)?.slice(1) ?? [];
     const page = parsePage(await res.json());
     const live = page.messages ?? [];
-    const kept = replies
+    const { channel, threadTs } = target;
+    const kept = threadTs
       ? store.threadMessages(workspace, channel, threadTs, repliesRange(page, searchParams))
       : store.channelMessages(workspace, channel, historyRange(page, searchParams));
     const liveTs = new Set(live.map((message) => message.ts));
     const restored = kept.filter((message) => !liveTs.has(message.ts));
-    const direction = replies ? 1 : -1;
+    const direction = threadTs ? 1 : -1;
     const messages = [...live, ...restored].sort(
-      (a, b) => direction * (Number(a.ts) - Number(b.ts)),
+      (a, b) => direction * compareTs(parseTs(a.ts), parseTs(b.ts)),
     );
     return new Response(JSON.stringify({ ...page, messages }), { headers: jsonHeaders });
   };

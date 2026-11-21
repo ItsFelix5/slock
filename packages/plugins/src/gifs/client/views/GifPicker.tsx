@@ -1,3 +1,4 @@
+import type { TimerHandle } from "@slock/core";
 import { service } from "@slock/core/solid";
 import {
   gridNavigationIndex,
@@ -16,6 +17,7 @@ import { loadGifs } from "../tenor";
 import "./GifPicker.css";
 
 const gifs = service("gifs");
+const env = service("env");
 
 const COLS = 2;
 const SEARCH_DELAY_MS = 250;
@@ -36,7 +38,7 @@ export default function GifPicker(props: { onClose: () => void; onSelect: (gif: 
   const tenor = gifsQuery.state(query);
   let searchRef: HTMLInputElement | undefined;
   let bodyRef: HTMLDivElement | undefined;
-  let delay: ReturnType<typeof setTimeout> | undefined;
+  let delay: TimerHandle | undefined;
 
   useEscapeClose(props.onClose);
   useClickOutside(".gif-picker", props.onClose);
@@ -44,7 +46,7 @@ export default function GifPicker(props: { onClose: () => void; onSelect: (gif: 
     const frame = requestAnimationFrame(() => searchRef?.focus());
     return () => cancelAnimationFrame(frame);
   });
-  onCleanup(() => clearTimeout(delay));
+  onCleanup(() => env.clearTimeout(delay));
 
   const showingFavorites = () => tab() === "favorites" && !query();
   const entries = createMemo(() => (showingFavorites() ? gifs.favorites() : (tenor().data ?? [])));
@@ -57,8 +59,8 @@ export default function GifPicker(props: { onClose: () => void; onSelect: (gif: 
   const onInput = (value: string) => {
     setInput(value);
     setActiveIndex(0);
-    clearTimeout(delay);
-    delay = setTimeout(() => setQuery(value.trim()), SEARCH_DELAY_MS);
+    env.clearTimeout(delay);
+    delay = env.setTimeout(() => setQuery(value.trim()), SEARCH_DELAY_MS);
   };
 
   const focusTile = (index: number) =>

@@ -1,3 +1,4 @@
+import type { FileId } from "@slock/types";
 import { IconButton, MenuItem } from "@slock/ui";
 import type { ActivityMenuProps } from "../../../activity/client/api";
 import type { CanvasDocModel } from "../../../canvas/client/api";
@@ -36,7 +37,7 @@ function HoverDebugButton(props: { close(): void; entity: string; id: string }) 
   );
 }
 
-export function DebugButton(props: { entity: string; id: string; label: string }) {
+function DebugButton(props: { entity: string; id: string; label: string }) {
   return (
     <IconButton
       icon="bug"
@@ -64,7 +65,7 @@ export const ProfileDebugButton = (props: ProfileMetaProps) => (
   <DebugButton entity="user" id={props.user.id} label="User debug" />
 );
 
-export const CanvasDebugButton = (props: { doc: CanvasDocModel | null; fileId: string }) => (
+export const CanvasDebugButton = (props: { doc: CanvasDocModel | null; fileId: FileId }) => (
   <DebugButton entity="canvas" id={props.fileId} label="Canvas debug" />
 );
 

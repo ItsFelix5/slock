@@ -5,7 +5,7 @@ import {
   createMemo,
   createOptimisticStore,
   createSignal,
-  NotReadyError,
+  isPending,
   refresh,
 } from "solid-js";
 import type {
@@ -25,7 +25,9 @@ export type LaterApi = {
   updateSaved: typeof updateSaved;
 };
 
-type ListStatus = "idle" | "loading" | "ready" | "error";
+type SavedList = { failed: boolean; items: SavedItem[] };
+
+const NOT_LOADED: SavedList = { failed: false, items: [] };
 
 type Change = {
   optimistic: (list: SavedItem[]) => void;
@@ -34,40 +36,28 @@ type Change = {
 
 export function createLaterSlice(api: LaterApi, flash: Services["feedback"]["flash"]) {
   const [requested, setRequested] = createSignal(false);
+  async function loadList(): Promise<SavedList> {
+    try {
+      return { failed: false, items: await api.fetchSaved() };
+    } catch (err) {
+      console.error("Failed to load Later", err);
+      return { failed: true, items: [] };
+    }
+  }
   const [saved, setSaved] = createOptimisticStore(
-    async (): Promise<{ failed: boolean; items: SavedItem[] }> => {
-      if (!requested()) return { failed: false, items: [] };
-      try {
-        return { failed: false, items: await api.fetchSaved() };
-      } catch (err) {
-        console.error("Failed to load Later", err);
-        return { failed: true, items: [] };
-      }
-    },
-    null,
+    () => (requested() ? loadList() : NOT_LOADED),
+    NOT_LOADED,
     { key: (item: SavedItem) => laterKey(item.channelId, item.ts) },
   );
-  const laterItems = () => saved.items;
   const [saving, setSaving] = createOptimisticStore<Record<string, boolean>>({});
   const changing = new Set<string>();
 
-  const status = createMemo<ListStatus>(() => {
-    if (!requested()) return "idle";
-    try {
-      return saved.failed ? "error" : "ready";
-    } catch (err) {
-      if (err instanceof NotReadyError) return "loading";
-      throw err;
-    }
-  });
-
-  const laterLoading = () => status() === "loading";
+  const laterItems = () => saved.items;
+  const laterLoading = () => isPending(() => saved.items);
+  const laterLoadFailed = () => saved.failed;
 
   const savedKeys = createMemo(
-    () =>
-      new Set(
-        status() === "ready" ? saved.items.map((item) => laterKey(item.channelId, item.ts)) : [],
-      ),
+    () => new Set(saved.items.map((item) => laterKey(item.channelId, item.ts))),
   );
 
   const isSavedForLater = (channelId: ChannelId, ts: Ts) =>
@@ -78,12 +68,10 @@ export function createLaterSlice(api: LaterApi, flash: Services["feedback"]["fla
   const reloadList = () => refresh(saved).then(() => undefined);
 
   async function ensureLaterLoaded(): Promise<void> {
-    if (requested() && status() !== "error") return;
+    if (requested() && !saved.failed) return;
     setRequested(true);
     await reloadList();
   }
-
-  const laterLoadFailed = () => status() === "error";
 
   const reloadIfRequested = () => {
     if (requested()) void reloadList();
@@ -95,11 +83,11 @@ export function createLaterSlice(api: LaterApi, flash: Services["feedback"]["fla
     plan: (currentlySaved: boolean) => Change,
   ) {
     const key = laterKey(channelId, ts);
-    if (changing.has(key) || status() === "loading") return false;
+    if (changing.has(key) || laterLoading()) return false;
     changing.add(key);
     try {
-      if (status() !== "ready") yield ensureLaterLoaded();
-      if (status() !== "ready") return false;
+      yield ensureLaterLoaded();
+      if (saved.failed) return false;
       const { optimistic, request } = plan(isSavedForLater(channelId, ts));
       setSaving((pending) => {
         pending[key] = true;
@@ -153,7 +141,7 @@ export function createLaterSlice(api: LaterApi, flash: Services["feedback"]["fla
     }));
 
   const reminderDue = (channelId: ChannelId, ts: Ts) =>
-    status() === "ready" ? saved.items.find(matchesSaved(channelId, ts))?.dateDue : undefined;
+    saved.items.find(matchesSaved(channelId, ts))?.dateDue;
 
   function createLaterMessage(item: () => SavedItem) {
     return createMemo(async (): Promise<Message | null> => {

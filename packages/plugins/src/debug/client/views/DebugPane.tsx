@@ -29,11 +29,13 @@ export default function DebugPane(props: { pane: Pane<DebugPaneContent> }) {
   const data = debugData.state(target);
 
   const decorate = (value: string) => {
-    if (value === content().id) return;
-    for (const [kind, candidate] of Object.entries(entities)) {
-      if (candidate.pattern?.test(value) && candidate.load(value))
-        return <IdChip entity={kind} id={value} />;
-    }
+    const match =
+      value === content().id
+        ? undefined
+        : Object.entries(entities).find(
+            ([, candidate]) => candidate.pattern?.test(value) && candidate.load(value),
+          );
+    return match && <IdChip entity={match[0]} id={value} />;
   };
 
   return (

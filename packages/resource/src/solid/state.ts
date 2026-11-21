@@ -3,7 +3,7 @@ import type { ResourceCache, SubscribeOptions } from "../cacheTypes";
 import { stableKey } from "../key";
 import { type EntryState, IDLE } from "../state";
 
-export function sameKey(a: unknown, b: unknown): boolean {
+function sameKey(a: unknown, b: unknown): boolean {
   return a === b || stableKey(a) === stableKey(b);
 }
 
@@ -17,7 +17,7 @@ export function createCacheState<K, T>(
   options?: SubscribeOptions,
 ): Accessor<EntryState<T>> {
   const stable = createStableKey(key);
-  const [version, setVersion] = createSignal(0);
+  const [version, setVersion] = createSignal(0, { ownedWrite: true });
   const bump = () => setVersion((current) => current + 1);
 
   createEffect(stable, (current) => {

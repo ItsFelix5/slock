@@ -69,7 +69,7 @@ export function textContent(
   return encodeRawMessage(withFields(existing, new Map([[1, [rawMessage(text)]]])));
 }
 
-export function encodeSection(write: SectionWrite): Bytes {
+function encodeSection(write: SectionWrite): Bytes {
   const out: Bytes = [...stringField(1, write.id), ...varintField(2, write.sequence)];
   if (write.deleted) out.push(...boolField(3, true));
   if (write.position !== null) out.push(...stringField(8, write.position));

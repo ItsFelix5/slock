@@ -70,7 +70,7 @@ export function createHost(options: HostOptions = {}) {
 
   function resolveId(id: string): string | undefined {
     if (defs.has(id)) return id;
-    for (const def of defs.values()) if (def.provides?.includes(id)) return def.id;
+    return [...defs.values()].find((def) => def.provides?.includes(id))?.id;
   }
 
   function isEnabled(id: string): boolean {

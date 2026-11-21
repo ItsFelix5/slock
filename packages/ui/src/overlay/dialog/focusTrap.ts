@@ -12,28 +12,6 @@ const FOCUSABLE_SELECTOR = [
   "[tabindex]:not([tabindex^='-'])",
 ].join(",");
 
-const layers: object[] = [];
-
-export function pushFocusLayer(): object {
-  const layer = {};
-  layers.push(layer);
-  return layer;
-}
-
-export function isTopFocusLayer(layer: object | undefined): boolean {
-  return layers.at(-1) === layer;
-}
-
-export function popFocusLayer(layer: object): {
-  wasTop: boolean;
-  revealed: object | undefined;
-} {
-  const wasTop = isTopFocusLayer(layer);
-  const index = layers.indexOf(layer);
-  if (index >= 0) layers.splice(index, 1);
-  return { wasTop, revealed: layers.at(-1) };
-}
-
 export function focusableWithin(root: HTMLElement): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)].filter(
     (element) =>

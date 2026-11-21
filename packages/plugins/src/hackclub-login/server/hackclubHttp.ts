@@ -1,3 +1,7 @@
+import { service } from "@slock/core/services";
+
+const env = service("env");
+
 export type CookieJar = Map<string, string>;
 
 type Page = { body: string; url: string };
@@ -10,7 +14,7 @@ function isExpired(attributes: string[]): boolean {
   for (const attribute of attributes) {
     const [name = "", value = ""] = attribute.split("=").map((part) => part.trim().toLowerCase());
     if (name === "max-age" && Number(value) <= 0) return true;
-    if (name === "expires" && Date.parse(attribute.slice(attribute.indexOf("=") + 1)) < Date.now())
+    if (name === "expires" && Date.parse(attribute.slice(attribute.indexOf("=") + 1)) < env.now())
       return true;
   }
   return false;
@@ -34,7 +38,7 @@ async function request(cookies: CookieJar, url: string, init: RequestInit = {}):
   headers.set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
   const cookieValue = cookieHeader(cookies);
   if (cookieValue) headers.set("Cookie", cookieValue);
-  const response = await fetch(url, { ...init, headers, redirect: "manual" });
+  const response = await env.fetch(url, { ...init, headers, redirect: "manual" });
   storeCookies(cookies, response);
   return response;
 }

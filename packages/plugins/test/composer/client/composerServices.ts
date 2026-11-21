@@ -1,8 +1,10 @@
+import { createEmojiSource } from "@slock/blockkit";
 import type { PluginDef } from "@slock/core";
 import { createFakeEnv, partialService } from "@slock/core/testing";
 import type { Services } from "@slock/core/types";
 import { parseChannelId, parseUserId } from "@slock/slack";
 import type { Channel, User, UserId } from "@slock/types";
+import { provideUi } from "@slock/ui";
 import { createMemo, createRoot } from "solid-js";
 import { createPendingFilesStore } from "../../../src/composer/client/lib/pendingFiles";
 import { createDraftStore } from "../../../src/drafts/client/draftStore";
@@ -39,6 +41,7 @@ const USER_IDS = new Set<UserId>(USERS.map((user) => user.id));
 export function sourceOf<T>(value: T) {
   return createRoot(() => createMemo(() => value));
 }
+const emojiSource = createEmojiSource(async () => ({ aliases: new Map(), urls: new Map() }));
 const USERGROUPS = [{ id: "S1", name: "@devs" }];
 
 export interface SentMessage {
@@ -107,6 +110,7 @@ export function composerServices(outbox: Outbox): PluginDef[] {
         isChannelMember: () => true,
       }),
     ),
+    { id: "ui", setup: provideUi },
     provide("titles", partialService<Services["titles"]>({ label: titleOf, title: titleOf })),
     provide(
       "usergroups",
@@ -134,7 +138,7 @@ export function composerServices(outbox: Outbox): PluginDef[] {
       pendingFiles: createPendingFilesStore(),
       uploadOnAttach: () => false,
     }),
-    { id: "emoji", setup: (ctx) => ctx.provide("emoji", createEmojiIndex()) },
+    { id: "emoji", setup: (ctx) => ctx.provide("emoji", createEmojiIndex(emojiSource)) },
     { id: "emoji-autoconvert", setup: (ctx) => ctx.add("composer.editor", emojiAutoconvert) },
   ];
 }

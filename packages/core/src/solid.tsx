@@ -3,6 +3,7 @@ import { type Component, createComponent, createMemo, Errored, For, omit } from 
 import { usePoint } from "./solidHost";
 import type { Points } from "./types";
 
+export { createFlags, createOptimisticFlags } from "./flags";
 export { getHost, maybeService, service, setHost, solidReactive, usePoint } from "./solidHost";
 
 type ComponentPoint = {

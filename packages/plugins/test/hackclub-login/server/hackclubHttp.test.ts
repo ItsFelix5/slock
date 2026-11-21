@@ -1,4 +1,7 @@
-import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
+import { createHost } from "@slock/core";
+import { setHost } from "@slock/core/services";
+import { createFakeEnv, type FakeEnv } from "@slock/core/testing";
 import {
   followJsRedirects,
   postForm,
@@ -7,20 +10,30 @@ import {
 
 type Seen = { url: string; method: string; cookie: string | null; body: string; headers: Headers };
 
+let env: FakeEnv;
+
+beforeEach(() => {
+  env = createFakeEnv();
+  setHost(createHost({ env }));
+});
+
 function fakeFetch(respond: (seen: Seen, count: number) => Response) {
   const seen: Seen[] = [];
-  spyOn(globalThis, "fetch").mockImplementation(((input: URL | RequestInfo, init?: RequestInit) => {
-    const headers = new Headers(init?.headers);
-    const entry = {
-      body: String(init?.body ?? ""),
-      cookie: headers.get("cookie"),
-      headers,
-      method: init?.method ?? "GET",
-      url: String(input),
-    };
-    seen.push(entry);
-    return Promise.resolve(respond(entry, seen.length));
-  }) as typeof fetch);
+  env.fetch.respond(
+    () => true,
+    (call) => {
+      const headers = new Headers(call.init?.headers);
+      const entry = {
+        body: String(call.init?.body ?? ""),
+        cookie: headers.get("cookie"),
+        headers,
+        method: call.init?.method ?? "GET",
+        url: call.url,
+      };
+      seen.push(entry);
+      return respond(entry, seen.length);
+    },
+  );
   return seen;
 }
 
@@ -30,8 +43,6 @@ function page(body: string, cookies: string[] = [], status = 200, location?: str
   if (location) headers.set("location", location);
   return new Response(body, { headers, status });
 }
-
-afterEach(() => mock.restore());
 
 describe("cookie jar", () => {
   test("stores Set-Cookie pairs and sends them on the next request", async () => {

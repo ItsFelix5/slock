@@ -1,4 +1,11 @@
-import { isRichTextSubBlock } from "@slock/slack";
+import {
+  ifPresent,
+  isChannelId,
+  isFileId,
+  isRichTextSubBlock,
+  isUserId,
+  parseUserId,
+} from "@slock/slack";
 import type {
   RichTextBlock as RichTextBlockType,
   RichTextInlineElement,
@@ -62,9 +69,11 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
       );
     }
     case "user":
-      return el.user_id ? <Mention bold={el.style?.bold} id={el.user_id} kind="user" /> : null;
+      return isUserId(el.user_id) ? (
+        <Mention bold={el.style?.bold} id={el.user_id} kind="user" />
+      ) : null;
     case "channel":
-      return el.channel_id ? (
+      return isChannelId(el.channel_id) ? (
         <Mention bold={el.style?.bold} id={el.channel_id} kind="channel" />
       ) : null;
     case "usergroup":
@@ -92,15 +101,24 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
         />
       );
     case "message_mention": {
-      const channelId = el.channel_id ?? parseArchiveLink(el.url)?.channelId;
+      const channelId =
+        el.channel_id && isChannelId(el.channel_id)
+          ? el.channel_id
+          : parseArchiveLink(el.url)?.channelId;
       return channelId ? (
-        <MessageLinkMention authorId={el.author_id} channelId={channelId} url={el.url} />
+        <MessageLinkMention
+          authorId={ifPresent(parseUserId, el.author_id)}
+          channelId={channelId}
+          url={el.url}
+        />
       ) : (
         <Link label={el.text} url={el.url} />
       );
     }
     case "canvas":
-      return <CanvasMention fileId={el.file_id} label={el.text === el.url ? undefined : el.text} />;
+      return isFileId(el.file_id) ? (
+        <CanvasMention fileId={el.file_id} label={el.text === el.url ? undefined : el.text} />
+      ) : null;
     default:
       return null;
   }
@@ -149,7 +167,7 @@ function RichTextListView(props: { list: RichTextListType }) {
 }
 
 function SubBlockView(props: { sub: RichTextSubBlock; trailing?: JSX.Element }) {
-  const sub = props.sub;
+  const { sub } = props;
   switch (sub.type) {
     case "rich_text_section":
       return <RichTextSectionView section={sub} trailing={props.trailing} />;

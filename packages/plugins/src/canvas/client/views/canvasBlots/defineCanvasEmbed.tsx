@@ -23,11 +23,11 @@ export function defineCanvasEmbed<Value>(config: {
   const states = new WeakMap<Node, EmbedState<Value>>();
 
   class CanvasEmbedBlot extends BlockEmbed {
-    static blotName = config.name;
-    static tagName = "div";
-    static className = config.className;
+    static override blotName = config.name;
+    static override tagName = "div";
+    static override className = config.className;
 
-    static create(value: Value) {
+    static override create(value: Value) {
       const node = asElement(super.create(value), config.name);
       node.contentEditable = "false";
       const state: EmbedState<Value> = { dispose: () => undefined, read: () => value };
@@ -46,11 +46,11 @@ export function defineCanvasEmbed<Value>(config: {
       return node;
     }
 
-    static value(node: HTMLElement): Value | undefined {
+    static override value(node: HTMLElement): Value | undefined {
       return states.get(node)?.read();
     }
 
-    detach() {
+    override detach() {
       states.get(this.domNode)?.dispose();
       super.detach();
     }

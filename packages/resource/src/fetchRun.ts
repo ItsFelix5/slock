@@ -1,6 +1,6 @@
 import type { Cooldown } from "./cooldown";
+import { delay, type ResourceEnv } from "./delay";
 import type { Entry, Inflight } from "./entry";
-import { delay, type ResourceEnv } from "./env";
 import { planRetry, type RetryPolicy } from "./retry";
 
 export interface FetchContext {

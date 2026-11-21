@@ -1,45 +1,15 @@
 import { defined } from "@slock/core";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  getOwner,
-  onCleanup,
-  runWithOwner,
-} from "solid-js";
+import { createEffect, createMemo, getOwner, onCleanup, runWithOwner, untrack } from "solid-js";
 import type { PaneKind } from "../api";
 import type { PaneContent } from "../api/types";
+import {
+  historyAction,
+  type NavMark,
+  type NavSnapshot,
+  navSnapshotToPath,
+  parseNavPath,
+} from "./navHistory";
 import type { createPanesSlice } from "./panes";
-
-interface NavSnapshot {
-  panes: PaneContent[];
-}
-
-function parsePaneSegment(segment: string, kinds: PaneKind[]): PaneContent | null {
-  if (!segment) return null;
-  for (const kind of kinds) {
-    const content = kind.url?.parse(segment);
-    if (content) return content;
-  }
-  return null;
-}
-
-function serializePaneSegment(content: PaneContent, kinds: PaneKind[]): string {
-  return kinds.find((kind) => kind.kind === content.kind)?.url?.serialize(content) ?? "";
-}
-
-function parseNavPath(url: URL, kinds: PaneKind[]): PaneContent[] {
-  return url.pathname
-    .split("/")
-    .filter(Boolean)
-    .map((segment) => parsePaneSegment(segment, kinds))
-    .filter((c): c is PaneContent => c !== null);
-}
-
-function navSnapshotToPath(snap: NavSnapshot, kinds: PaneKind[]): string {
-  const segments = snap.panes.map((content) => serializePaneSegment(content, kinds));
-  return `/${segments.filter(Boolean).join("/")}`;
-}
 
 export function createViewStateSlice(deps: {
   defaultView: () => PaneContent | undefined;
@@ -65,14 +35,13 @@ export function createViewStateSlice(deps: {
         .find((kind) => kind.kind === content.kind)
         ?.identity?.(content) ?? content,
     );
-  const [lastPrimary, setLastPrimary] = createSignal<PaneContent | null>(null);
+  const lastPrimary = createMemo<PaneContent | null>(
+    (previous) => panes.focusedPrimaryContent() ?? previous ?? null,
+  );
 
   const activeContent = createMemo<PaneContent | null>(
     () => panes.focusedPrimaryContent() ?? lastPrimary() ?? deps.defaultView() ?? null,
   );
-
-  let lastNavSerialized: string | null = null;
-  let lastStructuralKey: string | null = null;
 
   function liveIdContentPairs(list: ReturnType<typeof panes.currentPanes>) {
     return list.flatMap((p) => (p.content ? [{ content: p.content, id: p.id }] : []));
@@ -123,14 +92,22 @@ export function createViewStateSlice(deps: {
     return snap.panes.map(paneKey).join("/");
   }
 
-  function pushOrReplace(snap: NavSnapshot, replace: boolean) {
-    const serialized = JSON.stringify(snap);
-    lastNavSerialized = serialized;
-    const entry = { slockNav: JSON.parse(serialized) };
-    const path = navSnapshotToPath(snap, deps.paneKinds());
-    if (replace) window.history.replaceState(entry, "", path);
-    else window.history.pushState(entry, "", path);
+  function markOf(serialized: string): NavMark {
+    const snap: NavSnapshot = JSON.parse(serialized);
+    return { key: structuralKey(snap), serialized };
   }
+
+  function writeHistory(mark: NavMark, action: "push" | "replace"): NavMark {
+    const snap: NavSnapshot = JSON.parse(mark.serialized);
+    const entry = { slockNav: snap };
+    const path = navSnapshotToPath(snap, deps.paneKinds());
+    if (action === "replace") window.history.replaceState(entry, "", path);
+    else window.history.pushState(entry, "", path);
+    return mark;
+  }
+
+  const replaceHistory = (snap: NavSnapshot) =>
+    writeHistory(markOf(JSON.stringify(snap)), "replace");
 
   const owner = getOwner();
   let started = false;
@@ -144,18 +121,14 @@ export function createViewStateSlice(deps: {
   }
 
   function installUrlSync(initialPanes: ReturnType<typeof parseNavPath>) {
-    const initialSnap: NavSnapshot = { panes: initialPanes };
-    pushOrReplace(initialSnap, true);
-    lastStructuralKey = structuralKey(initialSnap);
+    let last = replaceHistory({ panes: initialPanes });
 
     const onPopState = (e: PopStateEvent) => {
       const popped: NavSnapshot | undefined = e.state?.slockNav;
       if (!popped) return;
 
       reconcilePanesToward(popped.panes);
-      const merged = navSnapshotOf(panes.currentPanes());
-      pushOrReplace(merged, true);
-      lastStructuralKey = structuralKey(merged);
+      last = replaceHistory(navSnapshotOf(panes.currentPanes()));
     };
     window.addEventListener("popstate", onPopState);
     onCleanup(() => window.removeEventListener("popstate", onPopState));
@@ -163,26 +136,18 @@ export function createViewStateSlice(deps: {
     createEffect(
       () => JSON.stringify(navSnapshotOf(panes.panes())),
       (serialized) => {
-        if (serialized === lastNavSerialized) return;
-        const snap: NavSnapshot = JSON.parse(serialized);
-        const key = structuralKey(snap);
-        const replace = key === lastStructuralKey;
-        lastStructuralKey = key;
-        pushOrReplace(snap, replace);
-      },
-    );
-
-    createEffect(
-      () => panes.focusedPrimaryContent(),
-      (content) => {
-        if (content) setLastPrimary(content);
+        untrack(() => {
+          const next = markOf(serialized);
+          const action = historyAction(last, next);
+          if (action !== "skip") last = writeHistory(next, action);
+        });
       },
     );
 
     createEffect(
       () => (panes.focusedPrimaryContent() ? null : activeContent()),
       (next) => {
-        if (next) panes.navigateFocusedPane(next);
+        if (next) untrack(() => panes.navigateFocusedPane(next));
       },
     );
   }

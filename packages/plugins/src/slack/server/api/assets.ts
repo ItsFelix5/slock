@@ -1,5 +1,8 @@
 import { errorMessage, isRecord } from "@slock/core";
+import { service } from "@slock/core/services";
 import { type Credentials, jsonHeaders } from "./auth.ts";
+
+const env = service("env");
 
 export const ASSET_PATH = "/api/assets";
 
@@ -82,12 +85,13 @@ async function fetchFollowingRedirects(
   let target = url;
   const { cookie: _cookie, ...anonymousHeaders } = headers;
   for (let hops = 0; hops <= MAX_REDIRECTS; hops++) {
-    const res = await fetch(target, {
+    const init: RequestInit & { decompress: boolean } = {
       decompress: false,
       headers: isAllowedSlackUrl(target) ? headers : anonymousHeaders,
       redirect: "manual",
       signal,
-    });
+    };
+    const res = await env.fetch(target, init);
     const location = res.headers.get("location");
     if (res.status < 300 || res.status >= 400 || !location) return res;
     target = new URL(location, target).href;
@@ -102,11 +106,11 @@ const FILE_RETRY_DELAY_MS = 500;
 
 async function fetchFileOnce(url: string, headers: Record<string, string>): Promise<Response> {
   const controller = new AbortController();
-  const connectTimer = setTimeout(() => controller.abort(), FILE_CONNECT_TIMEOUT_MS);
+  const connectTimer = env.setTimeout(() => controller.abort(), FILE_CONNECT_TIMEOUT_MS);
   try {
     return await fetchFollowingRedirects(url, headers, controller.signal);
   } finally {
-    clearTimeout(connectTimer);
+    env.clearTimeout(connectTimer);
   }
 }
 
@@ -119,7 +123,7 @@ async function fetchFileWithRetry(url: string, headers: Record<string, string>):
     } catch (error) {
       if (attempt === FILE_RETRIES) throw error;
     }
-    await Bun.sleep(FILE_RETRY_DELAY_MS);
+    await new Promise<void>((resolve) => env.setTimeout(resolve, FILE_RETRY_DELAY_MS));
   }
 }
 
@@ -182,7 +186,7 @@ export async function slackUploadResponse(
   form.append("file", new Blob([new Uint8Array(body)]), filename ?? "file");
 
   try {
-    const uploadRes = await fetch(uploadUrl, {
+    const uploadRes = await env.fetch(uploadUrl, {
       body: form,
       method: "POST",
       signal: AbortSignal.timeout(60_000),

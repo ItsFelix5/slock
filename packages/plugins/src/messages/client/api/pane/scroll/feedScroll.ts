@@ -44,7 +44,6 @@ export function createFeedScroll(options: {
   let pendingMove = 0;
   let hidden = false;
   let landRun = 0;
-  let gesturing = false;
 
   function write(el: HTMLElement, top: number) {
     if (Math.abs(top - el.scrollTop) >= SUBPIXEL_PX) el.scrollTop = top;
@@ -104,14 +103,13 @@ export function createFeedScroll(options: {
     if (!el) return;
     if (el.clientHeight === 0) {
       hidden = true;
-      gesturing = false;
       return;
     }
     if (hidden) hidden = false;
     else absorb(el);
-    if (!(glide.active() || gesturing)) apply(el);
+    if (!glide.active()) apply(el);
     lastTop = el.scrollTop;
-    if (!gesturing) anchors = captureAnchors(el);
+    anchors = captureAnchors(el);
     seenMaxTop = maxScrollTop(el);
     setAtBottom(nearBottom(el));
     setAtTop(el.scrollTop <= el.clientHeight / 2);
@@ -128,21 +126,11 @@ export function createFeedScroll(options: {
     scroller = el;
     el.style.overflowAnchor = "none";
     lastTop = el.scrollTop;
-    const onScroll = () => {
-      gesturing = true;
-      settle();
-    };
-    const onScrollEnd = () => {
-      gesturing = false;
-      settle();
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    el.addEventListener("scrollend", onScrollEnd);
+    el.addEventListener("scroll", settle, { passive: true });
     const stopObserving = observeFeed(el, settle);
     detach = () => {
       glide.stop();
-      el.removeEventListener("scroll", onScroll);
-      el.removeEventListener("scrollend", onScrollEnd);
+      el.removeEventListener("scroll", settle);
       stopObserving();
       scroller = undefined;
       detach = undefined;

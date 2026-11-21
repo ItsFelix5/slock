@@ -1,6 +1,10 @@
+import type { TimerHandle } from "@slock/core";
+import { service } from "@slock/core/solid";
 import { describe } from "./describe";
 import { startDomChurn } from "./domChurn";
 import type { FrameRecord, InteractionRecord, Recording, ShiftRecord } from "./recording";
+
+const env = service("env");
 
 type LoafScript = {
   sourceURL: string;
@@ -144,7 +148,7 @@ export function startRecorder() {
       });
   };
   sampleHeap();
-  const timer = setInterval(sampleHeap, HEAP_INTERVAL_MS);
+  const timer: TimerHandle = env.setInterval(sampleHeap, HEAP_INTERVAL_MS);
 
   return {
     recording,
@@ -155,7 +159,7 @@ export function startRecorder() {
       recording.shifts.length = 0;
     },
     stop() {
-      clearInterval(timer);
+      env.clearInterval(timer);
       domChurn.stop();
       for (const observer of observers) observer.disconnect();
     },

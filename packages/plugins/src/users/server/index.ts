@@ -1,4 +1,5 @@
 import type { Setup } from "@slock/core";
+import { isUserId } from "@slock/slack";
 import { teamIdFromRoute } from "../../slack/server/api/auth";
 import { cachedEntityForId } from "../../slack/server/api/cachedEntity";
 import {
@@ -27,7 +28,7 @@ function userRoutes(decorators: () => UserDecorator[]): Route[] {
 
     route("POST", "users/lookup", async (ctx) => {
       const { ids } = await ctx.body.json<{ ids?: string[] }>();
-      if (!ids?.length) return errorResponse("invalid_ids", 400);
+      if (!(ids?.length && ids.every(isUserId))) return errorResponse("invalid_ids", 400);
       const data = await callSlackEdge<EdgeUsersInfoReply>(
         "users/info",
         {

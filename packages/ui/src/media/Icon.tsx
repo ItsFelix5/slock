@@ -6,7 +6,7 @@ export function isOneOf<T extends string>(value: string, options: readonly T[]):
   return pool.includes(value);
 }
 
-export function objectKeys<T extends object>(obj: T): (keyof T)[] {
+function objectKeys<T extends object>(obj: T): (keyof T)[] {
   return Object.keys(obj).filter((key): key is Extract<keyof T, string> => key in obj);
 }
 

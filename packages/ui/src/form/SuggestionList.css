@@ -60,7 +60,7 @@
 }
 .suggestion-item:hover .suggestion-action,
 .suggestion-item.active .suggestion-action,
-.suggestion-item:focus-within .suggestion-action {
+.suggestion-item:has(:focus-visible) .suggestion-action {
   display: flex;
 }
 .suggestion-action:hover {

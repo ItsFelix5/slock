@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { readManifest } from "@slock/core";
 
 const PLUGINS_DIR = join(import.meta.dir, "../packages/plugins/src");
 const SOURCE = /\.(ts|tsx)$/;
@@ -16,8 +17,6 @@ const GATEWAY_EVENTS_FILE = join(import.meta.dir, "../packages/types/src/wire/ga
 const INTERNAL_EVENTS = new Set(["_status"]);
 const fix = Bun.argv.includes("--fix");
 
-type Manifest = { id: string; requires?: string[]; provides?: string[] };
-
 function walk(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
@@ -29,8 +28,9 @@ function walk(dir: string): string[] {
 const ids = readdirSync(PLUGINS_DIR).filter((id) =>
   existsSync(join(PLUGINS_DIR, id, "plugin.json")),
 );
-const manifests = new Map<string, Manifest>(
-  ids.map((id) => [id, JSON.parse(readFileSync(join(PLUGINS_DIR, id, "plugin.json"), "utf8"))]),
+const manifestFile = (id: string) => join(PLUGINS_DIR, id, "plugin.json");
+const manifests = new Map(
+  ids.map((id) => [id, readManifest(JSON.parse(readFileSync(manifestFile(id), "utf8")), id)]),
 );
 const providers = new Map<string, string>();
 for (const [id, manifest] of manifests) {
@@ -88,8 +88,9 @@ for (const [id, manifest] of manifests) {
   });
   if (missing.length > 0) {
     if (fix) {
-      manifest.requires = [...new Set([...requires, ...missing])].sort();
-      writeFileSync(join(PLUGINS_DIR, id, "plugin.json"), `${JSON.stringify(manifest)}\n`);
+      const raw = JSON.parse(readFileSync(manifestFile(id), "utf8"));
+      raw.requires = [...new Set([...requires, ...missing])].sort();
+      writeFileSync(manifestFile(id), `${JSON.stringify(raw)}\n`);
     } else errors.push(`${id}: uses ${missing.join(", ")} without requiring it`);
   }
 }

@@ -21,6 +21,7 @@ import {
 } from "./activityViewFilters";
 
 const activityStore = service("activity");
+const env = service("env");
 const sidebarStore = service("sidebar");
 
 export default function ActivityView() {
@@ -101,7 +102,7 @@ export default function ActivityView() {
     const entries: ActivityListEntry[] = [];
     let lastDay: string | undefined;
     for (const row of visibleRows()) {
-      const day = formatDayFromMs(latestItem(row).time);
+      const day = formatDayFromMs(latestItem(row).time, env.now());
       if (day !== lastDay) {
         const dividerKey = `divider:${day}`;
         const cached = entriesCache.get(dividerKey);

@@ -1,8 +1,11 @@
+import { service } from "@slock/core/solid";
 import { mapFile, parseFileId } from "@slock/slack";
 import type { CanvasFile, CanvasImage, FileId, RawFile } from "@slock/types";
 import { uploadFilesForEdit } from "../../../slack/client/api";
 import type { FileEmbedValue, ImageEmbedValue } from "./canvasEmbedValues";
 import { resolveCanvasFile } from "./canvasRequests";
+
+const env = service("env");
 
 const IMAGE_RETRIES = 6;
 const IMAGE_RETRY_MS = 700;
@@ -11,7 +14,7 @@ const PREVIEW_WIDTH = 360;
 const SQUARE_THUMBS = [64, 80, 160];
 
 function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) => env.setTimeout(resolve, ms));
 }
 
 async function processedFile(id: FileId): Promise<RawFile> {

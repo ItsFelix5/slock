@@ -1,4 +1,5 @@
 import { defined } from "@slock/core";
+import { service } from "@slock/core/solid";
 import { apiGet, apiPost, ifPresent, mapFile, mapFileShare, parseUserId } from "@slock/slack";
 import type {
   ChannelId,
@@ -12,6 +13,8 @@ import type {
   Ts,
   UserId,
 } from "@slock/types";
+
+const env = service("env");
 
 export async function fetchSaved(): Promise<SavedItem[]> {
   const data = await apiGet<{ items?: SavedItem[] }>("/api/saved");
@@ -94,7 +97,7 @@ async function reserveAndUploadFiles(
   const uploaded: { id: string; title: string }[] = [];
   for (let i = 0; i < files.length; i++) {
     const { file, title } = defined(files[i]);
-    const reserve = await fetch("/api/files/reserve", {
+    const reserve = await env.fetch("/api/files/reserve", {
       body: JSON.stringify({ filename: file.name, length: String(file.size) }),
       headers: { "content-type": "application/json" },
       method: "POST",
@@ -115,7 +118,7 @@ async function completeUpload(
   uploaded: { id: string; title: string }[],
   extra?: Record<string, string>,
 ): Promise<SlackFile[]> {
-  const completeRes = await fetch("/api/files/complete", {
+  const completeRes = await env.fetch("/api/files/complete", {
     body: JSON.stringify({ files: JSON.stringify(uploaded), ...extra }),
     headers: { "content-type": "application/json" },
     method: "POST",

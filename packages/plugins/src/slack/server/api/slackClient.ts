@@ -131,7 +131,7 @@ export async function callSlack<T extends object = object>(
 ): Promise<SlackReply<T>> {
   if (!creds) return { error: "not_configured", ok: false };
   if (!DEDUPED_READ_METHODS.has(method)) return slackReply(await postSlack(method, params, creds));
-  const key = JSON.stringify([method, params, creds.domain, creds.token]);
+  const key = JSON.stringify([method, params, creds]);
   return slackReply(await dedupedWire(key, () => postSlack(method, params, creds)));
 }
 

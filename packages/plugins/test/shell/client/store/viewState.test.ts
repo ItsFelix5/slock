@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { defined } from "@slock/core";
 import { forAll, inRoot, int, pick } from "@slock/core/testing";
 import { flush } from "solid-js";
 import type { PaneContent } from "../../../../src/shell/client/api/types";
@@ -229,6 +230,22 @@ describe("invariants", () => {
       },
       100,
     );
+  });
+});
+
+describe("last primary", () => {
+  test("an emptied pane shows the last primary content again", () => {
+    const { layout, panes } = boot("/m-a", main("home"));
+    panes.setPaneContent(defined(panes.panes()[0]).id, main("b"));
+    layout();
+    panes.setPaneContent(defined(panes.panes()[0]).id, null);
+    expect(layout()).toEqual([main("b")]);
+  });
+
+  test("the default view fills an emptied pane when nothing primary was shown", () => {
+    const { layout, panes } = boot("/", main("home"));
+    panes.setPaneContent(defined(panes.panes()[0]).id, null);
+    expect(layout()).toEqual([main("home")]);
   });
 });
 

@@ -1,16 +1,17 @@
 import { apiGet } from "@slock/slack";
+import type { UserId } from "@slock/types";
 import type { MessageAuthorClass } from "../../messages/client/api";
 import { defineQuery } from "../../query/client/api";
 
 const STALE_MS = 5 * 60_000;
 
-async function fetchHackClubStatus(userId: string): Promise<string> {
-  const data = await apiGet<{ status: string }>(`/api/hackclub-status/${userId}`);
+async function fetchHackClubStatus(userId: UserId): Promise<string> {
+  const data = await apiGet<{ status: string }>(`/api/users/${userId}/hackclub-status`);
   if (!data.ok) throw new Error(data.error ?? "hack club status lookup failed");
   return data.status;
 }
 
-const hackclubStatus = defineQuery<string, string | null>({
+const hackclubStatus = defineQuery<UserId, string | null>({
   load: (id) => fetchHackClubStatus(id).catch(() => null),
   maxAgeMs: STALE_MS,
   name: "hackclubStatus",

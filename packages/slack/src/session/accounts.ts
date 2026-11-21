@@ -1,11 +1,10 @@
 import type { ApiReply } from "@slock/types";
 import { apiDelete, apiPost } from "../client";
 import { replyError } from "../error";
-import { getActiveAccountId, refreshAccountInfo } from "./account";
+import { getActiveAccountId } from "./account";
 
 async function sessionRequest(request: Promise<ApiReply>): Promise<void> {
   const reply = await request;
-  refreshAccountInfo();
   if (!reply.ok) throw replyError(reply, "Couldn't update the session.");
 }
 

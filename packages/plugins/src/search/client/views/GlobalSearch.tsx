@@ -47,7 +47,7 @@ export default function GlobalSearch(props: {
     setQuery(value);
     setActiveIndex(MESSAGE_SEARCH_INDEX);
     committed.restart();
-    directory.run(value);
+    directory.set(value);
   };
   const rows = () => (hasQuery() ? committed.rows() : recentRows());
   const items = createMemo<SearchItem[]>(() =>

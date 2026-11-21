@@ -1,6 +1,7 @@
 import { messageLinkLabel, parseArchiveLink, parseUserProfileLink } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import { isChannelId } from "@slock/slack";
+import type { UserId } from "@slock/types";
 import { iconElement } from "@slock/ui";
 import Quill, { getEmbedBlot } from "@slock/ui/editor/quill";
 import { asElement } from "@slock/ui/editor/quillText";
@@ -44,12 +45,11 @@ function mentionClassName(value: MentionValue, isSelf: boolean): string {
 
 function mentionIcon(value: MentionValue): HTMLElement | undefined {
   if (value.kind === "messagelink") return iconElement("message", 12);
-  if (
+  const isPrivate =
     value.kind === "channel" &&
     isChannelId(value.id) &&
-    channelsStore.channelById(value.id)?.private
-  )
-    return iconElement("lock", 12);
+    channelsStore.channelById(value.id)?.private;
+  return isPrivate ? iconElement("lock", 12) : undefined;
 }
 
 export function mentionLabel(value: MentionValue): (HTMLElement | string)[] {
@@ -58,11 +58,11 @@ export function mentionLabel(value: MentionValue): (HTMLElement | string)[] {
 }
 
 class MentionBlot extends getEmbedBlot() {
-  static blotName = "mention";
-  static className = "bk-mention";
-  static tagName = "span";
+  static override blotName = "mention";
+  static override className = "bk-mention";
+  static override tagName = "span";
 
-  static create(value: MentionValue) {
+  static override create(value: MentionValue) {
     const node = asElement(super.create(value), "mention");
     const isSelf =
       (value.kind === "user" && value.id === usersStore.currentUser()?.id) ||
@@ -75,7 +75,7 @@ class MentionBlot extends getEmbedBlot() {
     return node;
   }
 
-  static value(node: HTMLElement): MentionValue | undefined {
+  static override value(node: HTMLElement): MentionValue | undefined {
     const { kind, id, name } = node.dataset;
     return isMentionKind(kind) ? { id: id ?? "", kind, name: name ?? "" } : undefined;
   }
@@ -86,7 +86,7 @@ Quill.register(MentionBlot);
 export function linkMentionValue(
   url: string,
   label: string,
-  authorId?: string,
+  authorId?: UserId,
 ): MentionValue | undefined {
   const userId = parseUserProfileLink(url);
   if (userId) return { id: userId, kind: "userlink", name: stripLeadingAt(label) };

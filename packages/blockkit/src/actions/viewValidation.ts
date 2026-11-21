@@ -32,16 +32,19 @@ function textProblem(element: TextInputElement, value: string): string | undefin
   }
   if (element.type === "email_text_input" && !EMAIL.test(value)) return "Enter an email address";
   if (element.type === "url_text_input" && !URL.canParse(value)) return "Enter a URL";
-  if (element.type !== "number_input") return;
+  return element.type === "number_input" ? numberProblem(element, value) : undefined;
+}
+
+function numberProblem(element: TextInputElement, value: string): string | undefined {
   const number = Number(value);
   if (Number.isNaN(number)) return "Enter a number";
   if (!(element.is_decimal_allowed || Number.isInteger(number))) return "Enter a whole number";
   if (element.min_value !== undefined && number < Number(element.min_value)) {
     return `Use ${element.min_value} or more`;
   }
-  if (element.max_value !== undefined && number > Number(element.max_value)) {
-    return `Use ${element.max_value} or less`;
-  }
+  return element.max_value !== undefined && number > Number(element.max_value)
+    ? `Use ${element.max_value} or less`
+    : undefined;
 }
 
 export function validateView(blocks: Block[], { values }: ViewValues) {

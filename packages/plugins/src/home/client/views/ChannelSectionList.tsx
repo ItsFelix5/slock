@@ -1,8 +1,8 @@
+import { sameItems } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { createMemo, For } from "solid-js";
 import type { HomeSectionProps } from "../api";
 import CategorySection from "./CategorySection";
-import { idsEqual } from "./categories";
 import { useChannelSections } from "./useChannelSections";
 
 const sidebarStore = service("sidebar");
@@ -11,7 +11,7 @@ export default function ChannelSectionList(props: HomeSectionProps) {
   const sections = useChannelSections(props.unreadsOnly);
   sidebarStore.provideCycle(10, sections.cycleTargets);
   const categoryIds = createMemo(() => sections.categories().map((c) => c.id), {
-    equals: idsEqual,
+    equals: sameItems,
   });
   return (
     <div

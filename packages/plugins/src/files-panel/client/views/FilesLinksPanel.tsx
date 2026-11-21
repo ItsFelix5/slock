@@ -1,5 +1,11 @@
 import { service } from "@slock/core/solid";
-import { Button, initRovingTabIndexDefault, isOneOf, useEscapeClose } from "@slock/ui";
+import {
+  Button,
+  initRovingTabIndexDefault,
+  isNearScrollEnd,
+  isOneOf,
+  useEscapeClose,
+} from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { SearchQueryInput } from "../../../search/client/api";
 import {
@@ -17,6 +23,8 @@ import "./FilesLinksPanel.css";
 const filesPanel = service("files-panel");
 
 const searchStore = service("search");
+
+const SCROLL_LOAD_THRESHOLD = 160;
 
 const FILTER_MODIFIERS = ["from", "type", "after", "before", "during"];
 
@@ -57,8 +65,7 @@ export default function FilesLinksPanel() {
   };
 
   const loadMoreAtBottom = (body: HTMLDivElement) => {
-    if (body.scrollTop + body.clientHeight >= body.scrollHeight - 160)
-      filesPanel.loadMoreFilesLinks();
+    if (isNearScrollEnd(body, SCROLL_LOAD_THRESHOLD)) filesPanel.loadMoreFilesLinks();
   };
 
   createEffect(

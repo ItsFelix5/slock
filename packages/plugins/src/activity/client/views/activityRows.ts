@@ -1,13 +1,9 @@
+import { sameItems } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { createMemo } from "solid-js";
 import type { ActivityRow as ActivityRowData } from "./ActivityRow";
 
 const activityStore = service("activity");
-
-function sameItems(a: ActivityRowData["items"], b: ActivityRowData["items"]) {
-  if (a.length !== b.length) return false;
-  return a.every((item, i) => item === b[i]);
-}
 
 export function createActivityRows() {
   let rowsCache = new Map<string, ActivityRowData>();

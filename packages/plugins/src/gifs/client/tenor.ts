@@ -1,4 +1,7 @@
+import { service } from "@slock/core/solid";
 import type { Gif } from "./store";
+
+const env = service("env");
 
 const TENOR_KEY = "3Z0688EVWYKH";
 const TENOR_URL = "https://g.tenor.com/v1";
@@ -15,7 +18,7 @@ async function fetchTenor(path: string, params: Record<string, string>): Promise
     limit: String(LIMIT),
     media_filter: "minimal",
   });
-  const response = await fetch(`${TENOR_URL}/${path}?${query}`);
+  const response = await env.fetch(`${TENOR_URL}/${path}?${query}`);
   if (!response.ok) throw new Error(`Tenor returned ${response.status}`);
   const data: TenorResponse = await response.json();
   return data.results.flatMap((result) => {

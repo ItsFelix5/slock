@@ -1,5 +1,5 @@
-import { useClickOutside, useEscapeClose } from "@slock/ui";
-import type { Accessor } from "solid-js";
+import { scrollActiveListOption, useClickOutside, useEscapeClose } from "@slock/ui";
+import { type Accessor, createEffect } from "solid-js";
 import type { SuggestState } from "./suggestTypes";
 
 export function useSuggestUi(
@@ -12,4 +12,5 @@ export function useSuggestUi(
     () => setSuggest(null),
     () => suggest() !== null,
   );
+  createEffect(suggest, () => void scrollActiveListOption(suggestPopoverRef));
 }

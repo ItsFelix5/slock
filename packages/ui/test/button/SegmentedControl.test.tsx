@@ -1,10 +1,17 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, beforeEach, expect, test } from "bun:test";
 import { render } from "@solidjs/web";
 import SegmentedControl from "../../src/button/SegmentedControl";
+import { startFakeEnv } from "../fakeEnv";
 
 let dispose: (() => void) | undefined;
+let fake: Awaited<ReturnType<typeof startFakeEnv>>;
+
+beforeEach(async () => {
+  fake = await startFakeEnv();
+});
 
 afterEach(() => {
+  fake.stop();
   dispose?.();
   dispose = undefined;
   document.body.replaceChildren();

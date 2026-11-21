@@ -1,10 +1,13 @@
+import { service } from "@slock/core/solid";
 import { MenuItem } from "@slock/ui";
 import type { ComposerAttachProps } from "../../../composer/client/api";
 import type { Gif } from "../store";
 import GifPicker from "./GifPicker";
 
+const env = service("env");
+
 async function gifFile(gif: Gif) {
-  const response = await fetch(gif.media ?? gif.preview);
+  const response = await env.fetch(gif.media ?? gif.preview);
   if (!response.ok) throw new Error(`GIF returned ${response.status}`);
   return new File([await response.blob()], "tenor.gif", { type: "image/gif" });
 }

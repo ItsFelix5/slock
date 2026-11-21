@@ -1,11 +1,11 @@
 import type { CanvasLine } from "@slock/types";
 
-export const STYLE_PARAGRAPH = 0;
-export const STYLE_CODE = 4;
+const STYLE_PARAGRAPH = 0;
+const STYLE_CODE = 4;
 export const STYLE_DIVIDER = 18;
-export const STYLE_LIST_BULLET = 5;
-export const STYLE_LIST_ORDERED = 6;
-export const STYLE_LIST_CHECKLIST = 7;
+const STYLE_LIST_BULLET = 5;
+const STYLE_LIST_ORDERED = 6;
+const STYLE_LIST_CHECKLIST = 7;
 export const STYLE_CALLOUT = 49;
 export const STYLE_COLUMNS = 21;
 export const STYLE_FILE = 44;

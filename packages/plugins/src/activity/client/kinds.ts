@@ -48,7 +48,7 @@ export function channelPostKey(channelId: ChannelId, ts: Ts): string {
   return `${channelId}:${ts}`;
 }
 
-export const GATEWAY_PING_COUNT_KEYS = new Set([
+const GATEWAY_PING_COUNT_KEYS = new Set([
   "at_user",
   "dm",
   "keyword",

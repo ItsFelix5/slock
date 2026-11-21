@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import type { ChannelId, Ts } from "@slock/types";
+import type { ChannelId, FileId, Ts } from "@slock/types";
 import { getChannelLink, getPermalink } from "../../../slack/client/api";
 
 const feedback = service("feedback");
@@ -26,7 +26,7 @@ export async function copyChannelLink(channelId: ChannelId) {
   }
 }
 
-export async function copyCanvasLink(fileId: string, permalink: string | null) {
+export async function copyCanvasLink(fileId: FileId, permalink: string | null) {
   try {
     if (!permalink) throw new Error("no permalink");
     await navigator.clipboard.writeText(permalink);

@@ -3,10 +3,12 @@ import type { SlackRequest } from "./curlRequest";
 
 const FETCH_CALL = /\bfetch\(\s*("(?:[^"\\]|\\.)*")\s*,\s*(\{[\s\S]*\})\s*\)\s*;?\s*$/;
 
-function parseJson(text: string): unknown {
+export function parseJson(text: string): unknown {
   try {
     return JSON.parse(text);
-  } catch {}
+  } catch {
+    return null;
+  }
 }
 
 export function parseFetchRequest(raw: string): SlackRequest | undefined {

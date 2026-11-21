@@ -1,4 +1,4 @@
-import { delay, type ResourceEnv } from "./env";
+import { delay, type ResourceEnv } from "./delay";
 
 export interface Cooldown {
   active(): boolean;

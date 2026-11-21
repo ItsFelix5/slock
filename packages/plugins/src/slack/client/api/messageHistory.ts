@@ -1,6 +1,9 @@
 import { defined } from "@slock/core";
+import { service } from "@slock/core/solid";
 import { apiGet, HISTORY_PAGE_SIZE, mapVisibleMessages } from "@slock/slack";
 import type { ChannelId, HistoryPage, RawMessage, Ts } from "@slock/types";
+
+const env = service("env");
 
 type HistoryReply = {
   has_more?: boolean;
@@ -55,7 +58,7 @@ const NEWER_SPANS_SECONDS = [300, 3600, 43200, 518400];
 const NEWER_MIN_SPAN_SECONDS = 1;
 
 function newerSpans(start: number): number[] {
-  const now = Date.now() / 1000;
+  const now = env.now() / 1000;
   const reaching = NEWER_SPANS_SECONDS.findIndex((span) => start + span >= now);
   return reaching < 0 ? NEWER_SPANS_SECONDS : NEWER_SPANS_SECONDS.slice(0, reaching + 1);
 }
@@ -68,7 +71,7 @@ async function fetchNewerWindow(
   span: number,
 ): Promise<NewerWindow> {
   const end = start + span;
-  const reachesPresent = end >= Date.now() / 1000;
+  const reachesPresent = end >= env.now() / 1000;
   const query = new URLSearchParams({
     inclusive: "false",
     limit: String(NEWER_PAGE_SIZE),

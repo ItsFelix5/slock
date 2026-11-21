@@ -1,169 +1,138 @@
-import { service } from "@slock/core/solid";
+import { createOptimisticFlags, service } from "@slock/core/solid";
 import type { ChannelId, ChannelSection } from "@slock/types";
+import { action } from "solid-js";
 import {
   updateSectionChannels as apiUpdateSectionChannels,
   toggleStar,
 } from "../../../slack/client/api";
-import type { ChannelPlacementOutcome } from "../api/sectionMutations";
-import { createFlags } from "./flags";
 
 const feedback = service("feedback");
+
+const PREVIOUS_SECTION_WARNING =
+  "Starred, but couldn't remove the channel from its previous section.";
 
 export function createChannelStarPlacement(deps: {
   refreshSections: () => Promise<ChannelSection[] | null | undefined>;
   sections: () => ChannelSection[] | undefined;
   sectionStructurePending: () => boolean;
-  setSectionStructurePending: (pending: boolean) => void;
+  holdSectionStructure: () => void;
 }) {
-  const starred = createFlags<ChannelId>();
-  const placementPending = createFlags<ChannelId>();
-  const setStarredChannelIds = starred.set;
-  const setPlacementPendingByChannel = placementPending.set;
+  const starred = createOptimisticFlags<ChannelId>();
+  const placement = createOptimisticFlags<ChannelId>();
 
-  function isChannelStarred(channelId: ChannelId): boolean {
-    return starred.has(channelId);
-  }
-
-  function isChannelPlacementPending(channelId: ChannelId): boolean {
-    return placementPending.has(channelId);
-  }
-
-  async function toggleChannelStar(channelId: ChannelId): Promise<ChannelPlacementOutcome> {
-    if (isChannelPlacementPending(channelId)) return "failed";
-    const currentlyStarred = isChannelStarred(channelId);
+  const toggleChannelStar = action(function* (channelId: ChannelId) {
+    if (placement.has(channelId)) return "failed";
+    const currentlyStarred = starred.has(channelId);
     const changesSectionMembership = !currentlyStarred;
     if (changesSectionMembership && deps.sectionStructurePending()) return "failed";
-    setPlacementPendingByChannel(channelId, true);
-    if (changesSectionMembership) deps.setSectionStructurePending(true);
-    setStarredChannelIds(channelId, !currentlyStarred);
-    let starUpdated = false;
+    placement.hold(channelId, true);
+    if (changesSectionMembership) deps.holdSectionStructure();
+    starred.hold(channelId, !currentlyStarred);
     try {
-      await toggleStar(channelId, currentlyStarred);
-      starUpdated = true;
-      if (currentlyStarred) return "applied";
-
+      yield toggleStar(channelId, currentlyStarred);
+    } catch (err) {
+      console.error("Failed to toggle star", err);
+      feedback.flash(channelId, "Failed to update star.", "error");
+      return "failed";
+    }
+    starred.set(channelId, !currentlyStarred);
+    if (currentlyStarred) return "applied";
+    try {
       const from = (deps.sections() ?? []).find(
         (section) => section.type === "standard" && section.channelIds.includes(channelId),
       );
-      if (
-        from &&
-        !(await apiUpdateSectionChannels(from.id, {
+      if (from) {
+        const removed: boolean = yield apiUpdateSectionChannels(from.id, {
           removeChannelIds: [channelId],
-        }))
-      ) {
-        feedback.flash(
-          channelId,
-          "Starred, but couldn't remove the channel from its previous section.",
-          "error",
-        );
-        return "applied-with-warning";
+        });
+        if (!removed) {
+          feedback.flash(channelId, PREVIOUS_SECTION_WARNING, "error");
+          return "applied-with-warning";
+        }
+        yield deps.refreshSections();
       }
-      if (from) await deps.refreshSections();
-      return "applied";
     } catch (err) {
-      if (starUpdated) {
-        console.error("Failed to remove starred channel from its section", err);
-        feedback.flash(
-          channelId,
-          "Starred, but couldn't remove the channel from its previous section.",
-          "error",
-        );
-      } else {
-        console.error("Failed to toggle star", err);
-        feedback.flash(channelId, "Failed to update star.", "error");
-        setStarredChannelIds(channelId, currentlyStarred);
-        return "failed";
-      }
+      console.error("Failed to remove starred channel from its section", err);
+      feedback.flash(channelId, PREVIOUS_SECTION_WARNING, "error");
       return "applied-with-warning";
-    } finally {
-      setPlacementPendingByChannel(channelId, false);
-      if (changesSectionMembership) deps.setSectionStructurePending(false);
     }
-  }
+    return "applied";
+  });
 
-  async function moveChannelToSection(
+  const moveChannelToSection = action(function* (
     channelId: ChannelId,
     targetSectionId: string | null,
-  ): Promise<ChannelPlacementOutcome> {
-    if (isChannelPlacementPending(channelId) || deps.sectionStructurePending()) return "failed";
-    setPlacementPendingByChannel(channelId, true);
-    deps.setSectionStructurePending(true);
-    const current = deps.sections() ?? [];
-    const from = current.find(
+  ) {
+    if (placement.has(channelId) || deps.sectionStructurePending()) return "failed";
+    placement.hold(channelId, true);
+    deps.holdSectionStructure();
+    const from = (deps.sections() ?? []).find(
       (s) => s.type === "standard" && s.channelIds.includes(channelId) && s.id !== targetSectionId,
     );
     let removedFromSource = false;
     let insertedIntoTarget = false;
     try {
       if (from) {
-        const ok = await apiUpdateSectionChannels(from.id, {
+        const removed: boolean = yield apiUpdateSectionChannels(from.id, {
           removeChannelIds: [channelId],
         });
-        if (!ok) {
+        if (!removed) {
           feedback.flash(channelId, "Failed to move channel.", "error");
           return "failed";
         }
         removedFromSource = true;
       }
       if (targetSectionId) {
-        const ok = await apiUpdateSectionChannels(targetSectionId, {
+        const inserted: boolean = yield apiUpdateSectionChannels(targetSectionId, {
           insertChannelIds: [channelId],
         });
-        if (!ok) {
-          if (from)
-            await apiUpdateSectionChannels(from.id, {
-              insertChannelIds: [channelId],
-            });
+        if (!inserted) {
+          if (from) yield apiUpdateSectionChannels(from.id, { insertChannelIds: [channelId] });
           feedback.flash(channelId, "Failed to move channel.", "error");
-          await deps.refreshSections();
+          yield deps.refreshSections();
           return "failed";
         }
         insertedIntoTarget = true;
 
-        if (isChannelStarred(channelId)) {
-          setStarredChannelIds(channelId, false);
+        if (starred.has(channelId)) {
+          starred.hold(channelId, false);
           try {
-            await toggleStar(channelId, true);
+            yield toggleStar(channelId, true);
           } catch (err) {
             console.error("Failed to unstar channel", err);
-            setStarredChannelIds(channelId, true);
             feedback.flash(
               channelId,
               "Moved, but couldn't remove the channel from Starred.",
               "error",
             );
-            await deps.refreshSections();
+            yield deps.refreshSections();
             return "applied-with-warning";
           }
+          starred.set(channelId, false);
         }
       }
-      await deps.refreshSections();
+      yield deps.refreshSections();
       return "applied";
     } catch (err) {
       console.error("Failed to move channel", err);
       if (removedFromSource && !insertedIntoTarget && from) {
         try {
-          await apiUpdateSectionChannels(from.id, {
-            insertChannelIds: [channelId],
-          });
+          yield apiUpdateSectionChannels(from.id, { insertChannelIds: [channelId] });
         } catch (rollbackError) {
           console.error("Failed to restore channel to its previous section", rollbackError);
         }
       }
       feedback.flash(channelId, "Failed to move channel.", "error");
-      await deps.refreshSections();
+      yield deps.refreshSections();
       return "failed";
-    } finally {
-      setPlacementPendingByChannel(channelId, false);
-      deps.setSectionStructurePending(false);
     }
-  }
+  });
 
   return {
-    isChannelPlacementPending,
-    isChannelStarred,
+    isChannelPlacementPending: placement.has,
+    isChannelStarred: starred.has,
     moveChannelToSection,
-    setStarredChannelIds,
+    setStarredChannelIds: starred.set,
     toggleChannelStar,
   };
 }

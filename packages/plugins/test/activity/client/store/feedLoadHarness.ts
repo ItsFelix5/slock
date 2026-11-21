@@ -25,18 +25,17 @@ export function entry(id: string, time: number, patch: Partial<FeedEntry> = {}):
 
 export type Page = { entries: FeedEntry[]; nextCursor?: string };
 
-const disposers: (() => void)[] = [];
-
-export function disposeHarnesses(): void {
-  for (const dispose of disposers.splice(0)) dispose();
-}
-
-export function harness(pages: Record<string, Page>, options: { ready?: boolean } = {}) {
+export function harness(
+  pages: Record<string, Page>,
+  options: { held?: boolean; ready?: boolean } = {},
+) {
   const fetches: { cursor?: string; types?: string; unreadOnly?: boolean }[] = [];
   const reactionFlashes: string[] = [];
   const [ready, setReady] = createSignal(options.ready ?? true);
   const failures: string[] = [];
   let delayMs = 0;
+  const held = Promise.withResolvers<void>();
+  const gate = options.held ? held.promise : Promise.resolve();
   const itemsRoot = inRoot(createActivityItems);
   const items = itemsRoot.value;
   const root = inRoot(() =>
@@ -47,6 +46,7 @@ export function harness(pages: Record<string, Page>, options: { ready?: boolean 
       fetchActivityFeedEntries: async (_limit, cursor, types, unreadOnly) => {
         fetches.push({ cursor, types, ...(unreadOnly ? { unreadOnly } : {}) });
         if (delayMs) await wait(delayMs);
+        await gate;
         const key = `${types ?? ""}${unreadOnly ? "|unread" : ""}:${cursor ?? ""}`;
         if (failures.includes(key)) {
           failures.splice(failures.indexOf(key), 1);
@@ -62,12 +62,16 @@ export function harness(pages: Record<string, Page>, options: { ready?: boolean 
       resolveActivityEntry: (raw) => ({ ...raw, text: raw.text ?? "" }),
     }),
   );
-  disposers.push(root.dispose, itemsRoot.dispose);
   const load = root.value;
   return {
+    [Symbol.dispose]: () => {
+      root.dispose();
+      itemsRoot.dispose();
+    },
     failOnce: (types: string | undefined, cursor: string) =>
       failures.push(`${types ?? ""}:${cursor}`),
     fetches,
+    release: held.resolve,
     ids: () => items.list.map((item) => item.id),
     items: items.list,
     load,

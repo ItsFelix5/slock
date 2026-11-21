@@ -67,7 +67,7 @@ function merge(ops: Op[]): Op[] {
   return merged;
 }
 
-export function inlineDiff(previous: Op[], next: Op[]): Op[] {
+function inlineDiff(previous: Op[], next: Op[]): Op[] {
   const a = tokens(previous);
   const b = tokens(next);
   const table = lcsTable(a, b);

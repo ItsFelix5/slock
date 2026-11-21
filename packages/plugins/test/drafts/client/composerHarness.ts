@@ -33,7 +33,7 @@ export function mountComposer(initialKey: string) {
       loadIntoEditor: (loaded) => setCurrentSignal(loaded),
       ready: () => true,
       threadTs: () => {
-        const ts = key().split(":thread:")[1];
+        const [, ts] = key().split(":thread:");
         return ts ? stamp(ts) : undefined;
       },
     });

@@ -7,11 +7,11 @@ const LIST_PREFIX = /^\s*?(\d+\.|-|\*)$/;
 const CHECKLIST_PREFIX = /^\s*?(\d+\.|-|\*|\[ ?\]|\[x\])$/;
 
 class ListOffsetAttributor extends Parchment.StyleAttributor {
-  add(node: HTMLElement, value: string | number) {
+  override add(node: HTMLElement, value: string | number) {
     return super.add(node, `${COUNTER} ${Number(value)}`);
   }
 
-  value(node: HTMLElement) {
+  override value(node: HTMLElement) {
     return super.value(node).split(" ")[1] ?? "";
   }
 }

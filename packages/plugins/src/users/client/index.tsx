@@ -1,5 +1,6 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
+import { isUserId } from "@slock/slack";
 import { gatewayHandler } from "../../realtime/client/api";
 import { createUsersStore } from "./store";
 
@@ -16,17 +17,19 @@ const setup: Setup = (ctx) => {
     "realtime.handler",
     gatewayHandler(["user_invalidated"], (event) => {
       const ids = event.users ?? (event.user ? [event.user] : []);
-      for (const id of ids) store.invalidateUser(id);
+      for (const id of ids.filter(isUserId)) store.invalidateUser(id);
     }),
   );
   ctx.add(
     "realtime.handler",
-    gatewayHandler(["user_change"], (event) => store.invalidateUser(event.user.id)),
+    gatewayHandler(["user_change"], ({ user }) => {
+      if (isUserId(user.id)) store.invalidateUser(user.id);
+    }),
   );
   ctx.add(
     "realtime.handler",
     gatewayHandler(["bot_added", "bot_changed"], (event) => {
-      if (event.bot.id) store.invalidateUser(event.bot.id);
+      if (event.bot.id && isUserId(event.bot.id)) store.invalidateUser(event.bot.id);
     }),
   );
 };

@@ -15,6 +15,7 @@ import type {
   RawUser,
   RawUserProfile,
   User,
+  UserId,
   UserProfile,
 } from "@slock/types";
 import { createBatchedIdFetcher } from "./cache/batchedIdFetcher";
@@ -115,12 +116,15 @@ export async function setPresence(presence: "auto" | "away"): Promise<void> {
   if (!data.ok) throw new Error(data.error ?? "users.setPresence failed");
 }
 
-export const fetchUserPresence = createBatchedIdFetcher<"active" | "away" | null>(async (ids) => {
-  const data = await apiPost<{ presence?: Record<string, "active" | "away" | null> }>(
-    "/api/users/presence",
-    { ids },
-  );
-  if (!data.ok) throw new Error(data.error ?? "users.getPresence failed");
-  const presence = data.presence ?? {};
-  return new Map(ids.map((id) => [id, presence[id] ?? null]));
-}, MAX_PRESENCE_PER_BATCH);
+export const fetchUserPresence = createBatchedIdFetcher<"active" | "away" | null, UserId>(
+  async (ids) => {
+    const data = await apiPost<{ presence?: Record<string, "active" | "away" | null> }>(
+      "/api/users/presence",
+      { ids },
+    );
+    if (!data.ok) throw new Error(data.error ?? "users.getPresence failed");
+    const presence = data.presence ?? {};
+    return new Map(ids.map((id) => [id, presence[id] ?? null]));
+  },
+  MAX_PRESENCE_PER_BATCH,
+);

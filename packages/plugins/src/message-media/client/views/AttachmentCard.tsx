@@ -13,11 +13,13 @@ import { HideBrokenImage, MediaFrame } from "@slock/ui";
 import { Show } from "solid-js";
 import "./AttachmentCard.css";
 import { defined } from "@slock/core";
+import { service } from "@slock/core/solid";
 import AttachmentContent from "./AttachmentContent";
 import AttachmentImage from "./AttachmentImage";
 import MessageUnfurl from "./MessageUnfurl";
 
 const URL_SUFFIX_PATTERN = /[?#]/;
+const env = service("env");
 
 function isGifAttachment(attachment: Attachment) {
   if (!attachment.imageUrl || attachment.videoUrl) return false;
@@ -25,7 +27,7 @@ function isGifAttachment(attachment: Attachment) {
 }
 
 function footerText(a: Attachment) {
-  const date = a.ts ? formatSlackDateTokens("{date_short}", Number(a.ts)) : undefined;
+  const date = a.ts ? formatSlackDateTokens("{date_short}", Number(a.ts), env.now()) : undefined;
   return [a.footer, date].filter(Boolean).join(" | ");
 }
 

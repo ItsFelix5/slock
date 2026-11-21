@@ -6,6 +6,7 @@ import {
   isShippedBuiltin,
   OPERATOR_PLUGINS_DIR,
 } from "@slock/server/pluginDirs";
+import { manifestOf } from "@slock/server/plugins";
 
 const CLIENT_FILE = "client/index.js";
 const SERVER_ENTRIES = ["server/index.ts", "server/index.js"];
@@ -19,7 +20,7 @@ function manifestsIn(dir: string): Promise<{ root: string; manifest: Manifest }[
   const paths = [...new Bun.Glob("*/plugin.json").scanSync({ cwd: dir })].sort();
   return Promise.all(
     paths.map(async (path) => ({
-      manifest: await Bun.file(resolve(dir, path)).json(),
+      manifest: await manifestOf(resolve(dir, path)),
       root: resolve(dir, path, ".."),
     })),
   );

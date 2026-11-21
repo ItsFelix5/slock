@@ -1,24 +1,25 @@
-import { afterEach, beforeEach, expect, jest, test } from "bun:test";
+import { afterEach, beforeEach, expect, test } from "bun:test";
 import { createRoot, flush } from "solid-js";
 import { useHoverIntent } from "../src/hooks/useHoverIntent";
+import { startFakeEnv } from "./fakeEnv";
 
-beforeEach(() => {
-  jest.useFakeTimers();
-});
+let fake: Awaited<ReturnType<typeof startFakeEnv>>;
+const env = { advance: (ms: number) => fake.env.advance(ms) };
 
-afterEach(() => {
-  jest.useRealTimers();
+beforeEach(async () => {
+  fake = await startFakeEnv();
 });
+afterEach(() => fake.stop());
 
 const intent = () => createRoot((dispose) => ({ dispose, ...useHoverIntent(100, 50) }));
 
 test("opens after the open delay", () => {
   const hover = intent();
   hover.scheduleOpen();
-  jest.advanceTimersByTime(99);
+  env.advance(99);
   flush();
   expect(hover.open()).toBe(false);
-  jest.advanceTimersByTime(1);
+  env.advance(1);
   flush();
   expect(hover.open()).toBe(true);
 });
@@ -26,9 +27,9 @@ test("opens after the open delay", () => {
 test("leaving before the delay never opens", () => {
   const hover = intent();
   hover.scheduleOpen();
-  jest.advanceTimersByTime(60);
+  env.advance(60);
   hover.scheduleClose();
-  jest.advanceTimersByTime(500);
+  env.advance(500);
   flush();
   expect(hover.open()).toBe(false);
 });
@@ -36,10 +37,10 @@ test("leaving before the delay never opens", () => {
 test("repeated enter events leave only one pending open", () => {
   const hover = intent();
   hover.scheduleOpen();
-  jest.advanceTimersByTime(60);
+  env.advance(60);
   hover.scheduleOpen();
   hover.scheduleClose();
-  jest.advanceTimersByTime(45);
+  env.advance(45);
   flush();
   expect(hover.open()).toBe(false);
 });
@@ -48,13 +49,13 @@ test("closes after the close delay and re-entering cancels it", () => {
   const hover = intent();
   hover.openNow();
   hover.scheduleClose();
-  jest.advanceTimersByTime(30);
+  env.advance(30);
   hover.cancelClose();
-  jest.advanceTimersByTime(500);
+  env.advance(500);
   flush();
   expect(hover.open()).toBe(true);
   hover.scheduleClose();
-  jest.advanceTimersByTime(50);
+  env.advance(50);
   flush();
   expect(hover.open()).toBe(false);
 });
@@ -63,12 +64,12 @@ test("close and dispose clear every timer", () => {
   const hover = intent();
   hover.scheduleOpen();
   hover.close();
-  jest.advanceTimersByTime(500);
+  env.advance(500);
   flush();
   expect(hover.open()).toBe(false);
   hover.scheduleOpen();
   hover.dispose();
-  jest.advanceTimersByTime(500);
+  env.advance(500);
   flush();
   expect(hover.open()).toBe(false);
 });

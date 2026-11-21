@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { inRoot } from "@slock/core/testing";
 import { ch, stamp, uid } from "@slock/slack/testing";
 import type { Message, SavedItem, Ts } from "@slock/types";
-import { flush } from "solid-js";
+import { createEffect, flush } from "solid-js";
 import { createLaterSlice, type LaterApi } from "../../../src/later/client/store";
 
 const C1 = ch("C1");
@@ -15,6 +15,7 @@ function harness(initial: SavedItem[] = []) {
   const calls: Call[] = [];
   const flashes: string[] = [];
   let failing = false;
+  const failingTs = new Set<string>();
   let loadFailing = false;
   let server = initial;
   let fetches = 0;
@@ -22,7 +23,8 @@ function harness(initial: SavedItem[] = []) {
     <A extends unknown[]>(name: string) =>
     (...args: A) => {
       calls.push([name, ...args]);
-      return failing ? Promise.reject(new Error("boom")) : Promise.resolve();
+      const broken = failing || failingTs.has(String(args[1]));
+      return broken ? Promise.reject(new Error("boom")) : Promise.resolve();
     };
   const api: LaterApi = {
     fetchMessagesByIds: (entries) =>
@@ -66,6 +68,7 @@ function harness(initial: SavedItem[] = []) {
     fail: (value: boolean) => {
       failing = value;
     },
+    failFor: (ts: Ts) => failingTs.add(ts),
     failLoad: (value: boolean) => {
       loadFailing = value;
     },
@@ -81,6 +84,17 @@ const settle = async () => {
   await new Promise((resolve) => setTimeout(resolve, 5));
   flush();
 };
+
+function observe<T>(read: () => T) {
+  const values: T[] = [];
+  const root = inRoot(() =>
+    createEffect(read, (value) => {
+      if (values.at(-1) !== value) values.push(value);
+    }),
+  );
+  roots.push(root.dispose);
+  return values;
+}
 
 const savedMessage = (ts: string): Message => ({
   day: "",
@@ -148,6 +162,53 @@ describe("createLaterSlice", () => {
     expect(h.later.isSaveForLaterPending(C1, stamp("2.2"))).toBe(false);
   });
 
+  test("a failure shows the change, then reverts once, and a retry works", async () => {
+    const h = await loaded([item(stamp("1.1"))]);
+    const seen = observe(() =>
+      h.later
+        .laterItems()
+        .map((i) => i.ts)
+        .join(","),
+    );
+    flush();
+    h.failFor(stamp("2.2"));
+    expect(await h.later.toggleSaveForLater(C1, stamp("2.2"))).toBe(false);
+    await settle();
+    expect(seen).toEqual(["1.1", "1.1,2.2", "1.1"]);
+    expect(h.later.isSaveForLaterPending(C1, stamp("2.2"))).toBe(false);
+    h.fail(false);
+    expect(h.later.toggleSaveForLater(C1, stamp("3.3"))).resolves.toBe(true);
+    await settle();
+    expect(seen.at(-1)).toBe("1.1,3.3");
+  });
+
+  test("a failed change does not undo another one in flight", async () => {
+    const h = await loaded([item(stamp("1.1"))]);
+    h.failFor(stamp("2.2"));
+    const results = await Promise.all([
+      h.later.toggleSaveForLater(C1, stamp("2.2")),
+      h.later.toggleSaveForLater(C1, stamp("3.3")),
+      h.later.setReminder(C1, stamp("1.1"), 900),
+    ]);
+    await settle();
+    expect(results).toEqual([false, true, true]);
+    expect(h.later.laterItems().map((i) => [String(i.ts), i.dateDue])).toEqual([
+      ["1.1", 900],
+      ["3.3", undefined],
+    ]);
+    expect(h.flashes).toHaveLength(1);
+  });
+
+  test("a reminder change is optimistic and reverts on failure", async () => {
+    const h = await loaded([item(stamp("1.1"), 100)]);
+    const seen = observe(() => h.later.reminderDue(C1, stamp("1.1")));
+    flush();
+    h.failFor(stamp("1.1"));
+    expect(await h.later.clearReminder(C1, stamp("1.1"))).toBe(false);
+    await settle();
+    expect(seen).toEqual([100, undefined, 100]);
+  });
+
   test("a reminder on an unsaved message saves it with the due date", async () => {
     const { calls, later } = await loaded([]);
     await later.setReminder(C1, stamp("1.1"), 700);
@@ -178,8 +239,11 @@ describe("createLaterSlice", () => {
   test("changes are ignored while the list is loading", async () => {
     const h = harness([item(stamp("1.1"))]);
     const loading = h.later.ensureLaterLoaded();
+    flush();
+    expect(h.later.laterLoading()).toBe(true);
     expect(await h.later.toggleSaveForLater(C1, stamp("2.2"))).toBe(false);
     await loading;
+    expect(h.later.laterLoading()).toBe(false);
     expect(h.calls).toHaveLength(0);
   });
 
@@ -208,6 +272,7 @@ describe("createLaterSlice", () => {
     h.failLoad(false);
     await h.later.ensureLaterLoaded();
     await settle();
+    expect(h.later.laterLoadFailed()).toBe(false);
     expect(h.later.laterItems()).toHaveLength(1);
   });
 });

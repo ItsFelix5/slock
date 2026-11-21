@@ -17,7 +17,7 @@ function buildDigits(base: number): FontMap {
   return map;
 }
 
-export const UNICODE_FONTS = {
+const UNICODE_FONTS = {
   cursive: buildAlphabet(0x1d49c, 0x1d4b6, {
     B: "ℬ",
     E: "ℰ",

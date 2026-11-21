@@ -1,7 +1,7 @@
 import { BLOCKS_CLIPBOARD_TYPE, stripTrackingParams } from "@slock/blockkit";
 import { escapeRegExp } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { decodeTextEntities, isChannelId } from "@slock/slack";
+import { decodeTextEntities, isChannelId, isUserId } from "@slock/slack";
 import type { Block } from "@slock/types";
 import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
 import type Quill from "@slock/ui/editor/quill";
@@ -80,7 +80,7 @@ function insertMrkdwnLineAt(
     const index = match.index ?? 0;
     insertPlain(text.slice(lastIndex, index));
     if (userId) {
-      const user = usersStore.userById(userId);
+      const user = isUserId(userId) ? usersStore.userById(userId) : undefined;
       if (!user) onUnresolvedUser?.(userId);
       quill.insertEmbed(cursor, "mention", {
         id: userId,
@@ -142,7 +142,7 @@ function insertMrkdwnLineAt(
   return cursor;
 }
 
-export function insertMrkdwnAt(
+function insertMrkdwnAt(
   quill: Quill,
   start: number,
   text: string,

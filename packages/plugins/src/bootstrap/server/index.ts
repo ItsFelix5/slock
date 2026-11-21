@@ -40,6 +40,7 @@ function trimUserBoot(data: UserBootReply): BootstrapPayload {
 }
 
 const setup: Setup = (ctx) => {
+  const env = ctx.get("env");
   ctx.add(
     "bootstrap.part",
     slackPart("bootstrap", "client.userBoot", trimUserBoot, { required: true }),
@@ -49,7 +50,9 @@ const setup: Setup = (ctx) => {
     "http",
     routes([
       route("GET", "bootstrap", async ({ creds }) => {
-        const timeout = Bun.sleep(OPTIONAL_PART_WAIT_MS).then(() => null);
+        const timeout = new Promise<null>((resolve) =>
+          env.setTimeout(() => resolve(null), OPTIONAL_PART_WAIT_MS),
+        );
         const results = await Promise.all(
           parts().map(async (part) => {
             const loading = part.load(creds);

@@ -1,4 +1,8 @@
+import { service } from "@slock/core/solid";
+import type { TimerHandle } from "@slock/core/types";
 import { createSignal } from "solid-js";
+
+const env = service("env");
 
 export type FeedbackKind = "success" | "error";
 
@@ -9,14 +13,14 @@ export interface Feedback {
 
 export function createKeyedFeedback(ttlMs = 3000) {
   const [state, setState] = createSignal<Record<string, Feedback>>({});
-  const timers = new Map<string, ReturnType<typeof setTimeout>>();
+  const timers = new Map<string, TimerHandle>();
 
   function flash(key: string, text: string, kind: FeedbackKind = "success") {
-    clearTimeout(timers.get(key));
+    env.clearTimeout(timers.get(key));
     setState((s) => ({ ...s, [key]: { kind, text } }));
     timers.set(
       key,
-      setTimeout(() => {
+      env.setTimeout(() => {
         timers.delete(key);
         setState((s) => {
           if (!(key in s)) return s;
@@ -29,7 +33,7 @@ export function createKeyedFeedback(ttlMs = 3000) {
   }
 
   function clear(key: string) {
-    clearTimeout(timers.get(key));
+    env.clearTimeout(timers.get(key));
     timers.delete(key);
     setState((state) => {
       if (!(key in state)) return state;

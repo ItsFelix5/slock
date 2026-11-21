@@ -29,10 +29,12 @@ export function solidJsx(filter: RegExp): BunPlugin {
   };
 }
 
+const SOLID_MODULES = /^(solid-js|@solidjs\/web)$/;
+
 export const solidPlugin: BunPlugin = {
   name: "solid-production",
   setup(build) {
-    build.onResolve({ filter: /^(solid-js|@solidjs\/web)$/ }, ({ path }) => ({
+    build.onResolve({ filter: SOLID_MODULES }, ({ path }) => ({
       path: defined(PRODUCTION_ENTRIES[path]),
     }));
     solidJsx(WORKSPACE_SOURCE).setup(build);

@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
 import { createEffect, createSignal } from "solid-js";
-import { loadMoreReason } from "./activityScroll";
+import { type TopUpState, topUpStep } from "./activityScroll";
 
 const activityStore = service("activity");
 
@@ -12,8 +12,7 @@ export function createActivityTopUp(scope: {
   unreadOnly: () => boolean;
 }) {
   const [scrolled, setScrolled] = createSignal(0);
-  let attemptsKey: string | undefined;
-  let attempts = 0;
+  let topUp: TopUpState | undefined;
 
   createEffect(
     () => {
@@ -25,16 +24,9 @@ export function createActivityTopUp(scope: {
     },
     {
       effect: ({ key, types, unreadOnly }) => {
-        if (key !== attemptsKey) {
-          attemptsKey = key;
-          attempts = 0;
-        }
-        const el = scope.container();
-        if (!el) return;
-        const reason = loadMoreReason(el, attempts);
-        if (!reason) return;
-        if (reason === "top-up") attempts++;
-        activityStore.loadMoreActivity(types, unreadOnly);
+        const step = topUpStep(topUp, key, scope.container());
+        topUp = step.state;
+        if (step.load) activityStore.loadMoreActivity(types, unreadOnly);
       },
       error: () => {},
     },

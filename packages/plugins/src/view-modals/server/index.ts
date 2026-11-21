@@ -1,4 +1,7 @@
 import type { Setup } from "@slock/core";
+import { service } from "@slock/core/services";
+import { isChannelId, isTs } from "@slock/slack";
+import type { ChannelId, Ts } from "@slock/types";
 import { teamIdFromRoute } from "../../slack/server/api/auth";
 import {
   errorResponse,
@@ -15,6 +18,8 @@ type SubmitReply = {
   toast_message?: string;
   view?: unknown;
 };
+
+const env = service("env");
 
 const list: Route[] = [
   route("POST", "blocks/actions", async (ctx) => {
@@ -33,7 +38,7 @@ const list: Route[] = [
       {
         actions: JSON.stringify([body.action]),
         app_id: body.appId,
-        client_token: `web-${Date.now()}`,
+        client_token: `web-${env.now()}`,
         container: JSON.stringify(body.container),
         service_id: body.botId,
         service_team_id: teamIdFromRoute(ctx.creds?.route ?? "") ?? "",
@@ -78,7 +83,7 @@ const list: Route[] = [
     const data = await callSlack<SubmitReply>(
       "views.submit",
       {
-        client_token: `web-${Date.now()}`,
+        client_token: `web-${env.now()}`,
         state: JSON.stringify(body.state ?? { values: {} }),
         view_id: body.viewId,
       },
@@ -99,7 +104,7 @@ const list: Route[] = [
     return mutate(
       "views.close",
       {
-        client_token: `web-${Date.now()}`,
+        client_token: `web-${env.now()}`,
         ...(body.rootViewId ? { root_view_id: body.rootViewId } : {}),
         view_id: body.viewId,
       },
@@ -114,9 +119,9 @@ const list: Route[] = [
       botId?: string;
       botUserId?: string;
       callbackId?: string;
-      channelId?: string;
+      channelId?: ChannelId;
       isEphemeral?: boolean;
-      messageTs?: string;
+      messageTs?: Ts;
     }>();
     if (
       !(
@@ -127,7 +132,9 @@ const list: Route[] = [
         body.botUserId &&
         body.callbackId &&
         body.channelId &&
-        body.messageTs
+        isChannelId(body.channelId) &&
+        body.messageTs &&
+        isTs(body.messageTs)
       )
     ) {
       return errorResponse("invalid_attachment_action", 400);
@@ -137,7 +144,7 @@ const list: Route[] = [
       "chat.attachmentAction",
       {
         bot_user_id: body.botUserId,
-        client_token: `web-${Date.now()}`,
+        client_token: `web-${env.now()}`,
         payload: JSON.stringify({
           actions: [
             {

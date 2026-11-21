@@ -13,7 +13,7 @@ export default function MessageMeta(props: {
   channelId: ChannelId;
   displayName: () => string;
   threadTs?: Ts;
-  botUserId?: string;
+  botUserId?: UserId;
   onOpenBot: () => void;
   onOpenUser: () => void;
   showBroadcastBadge?: () => boolean;

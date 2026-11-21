@@ -8,7 +8,7 @@ const STORAGE_KEY = "slock-keybind-overrides";
 
 function parseKey(value: unknown): string | readonly string[] | undefined {
   if (typeof value === "string") return value;
-  if (Array.isArray(value) && value.every((key) => typeof key === "string")) return value;
+  return Array.isArray(value) && value.every((key) => typeof key === "string") ? value : undefined;
 }
 
 function parseFlag(value: unknown): boolean | undefined {
@@ -68,18 +68,5 @@ export function createKeybindOverrides(storage: Env["storage"]) {
     set(id: string, combo: ShortcutCombo | null): void {
       persist({ ...overrides(), [id]: combo });
     },
-  };
-}
-
-const NO_OVERRIDES: KeybindOverrides = {};
-let source: () => KeybindOverrides = () => NO_OVERRIDES;
-
-export const keybindOverrides = (): KeybindOverrides => source();
-
-export function installKeybindOverrides(store: { overrides: () => KeybindOverrides }): () => void {
-  const read = store.overrides;
-  source = read;
-  return () => {
-    if (source === read) source = () => NO_OVERRIDES;
   };
 }

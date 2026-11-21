@@ -1,10 +1,23 @@
-import { describe, expect, jest, test } from "bun:test";
-import { int, pick, seededRandom } from "@slock/core/testing";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { createHost } from "@slock/core";
+import { setHost } from "@slock/core/solid";
+import { createFakeEnv, type FakeEnv, int, pick, seededRandom } from "@slock/core/testing";
 import { parseChannelId, parseFileId, parseTs } from "@slock/slack";
 import type { ChannelId, SlackFile, SlackLink } from "@slock/types";
 import { createRoot, flush } from "solid-js";
 import { createFilesLinksPanel } from "../../../../src/files-panel/client/store/index";
 import type { searchChannelFilesAndLinks } from "../../../../src/slack/client/api";
+
+let env: FakeEnv;
+let host: ReturnType<typeof createHost>;
+
+beforeEach(() => {
+  env = createFakeEnv();
+  host = createHost({ env });
+  setHost(host);
+});
+
+afterEach(() => host.stop());
 
 type Page = Awaited<ReturnType<typeof searchChannelFilesAndLinks>>;
 type Call = {
@@ -146,28 +159,24 @@ describe("closing", () => {
   });
 
   test("close cancels a pending debounced query", () => {
-    jest.useFakeTimers();
     const { calls, panel } = harness();
     panel.openFilesLinksPanel(C1);
     panel.setFilesLinksQuery("report");
     panel.closeFilesLinksPanel();
-    jest.advanceTimersByTime(1000);
+    env.advance(1000);
     expect(calls).toHaveLength(1);
-    jest.useRealTimers();
   });
 
   test("opening again cancels a debounced query from the previous channel", () => {
-    jest.useFakeTimers();
     const { calls, panel } = harness();
     panel.openFilesLinksPanel(CA);
     panel.setFilesLinksQuery("old");
     panel.openFilesLinksPanel(CB);
-    jest.advanceTimersByTime(1000);
+    env.advance(1000);
     expect(calls.map(({ channelId, query }) => [channelId, query])).toEqual([
       ["CA", ""],
       ["CB", ""],
     ]);
-    jest.useRealTimers();
   });
 
   test("jumping to a message closes the panel and opens the message", () => {
@@ -182,34 +191,30 @@ describe("closing", () => {
 
 describe("query", () => {
   test("typing debounces to one search with the last query", () => {
-    jest.useFakeTimers();
     const { calls, panel } = harness();
     panel.openFilesLinksPanel(C1);
     panel.setFilesLinksQuery("r");
-    jest.advanceTimersByTime(200);
+    env.advance(200);
     panel.setFilesLinksQuery("re");
-    jest.advanceTimersByTime(299);
+    env.advance(299);
     expect(calls).toHaveLength(1);
-    jest.advanceTimersByTime(1);
+    env.advance(1);
     expect(calls.map(({ page, query }) => [page, query])).toEqual([
       [1, ""],
       [1, "re"],
     ]);
-    jest.useRealTimers();
   });
 
   test("a new query replaces the rows instead of appending", async () => {
-    jest.useFakeTimers();
     const { calls, panel } = harness();
     panel.openFilesLinksPanel(C1);
     calls[0]?.resolve(page([file("F1", 1), file("F2", 2)]));
     await settle();
     panel.setFilesLinksQuery("x");
-    jest.advanceTimersByTime(300);
+    env.advance(300);
     calls[1]?.resolve(page([file("F3", 3)]));
     await settle();
     expect(panel.filesLinksEntries()).toHaveLength(1);
-    jest.useRealTimers();
   });
 });
 
@@ -254,7 +259,6 @@ describe("invariant", () => {
   test("after close nothing changes whatever order late responses arrive in", async () => {
     const actions = ["open", "query", "more", "resolve", "reject", "close"] as const;
     for (let seed = 1; seed <= 60; seed++) {
-      jest.useFakeTimers();
       const random = seededRandom(seed);
       const { calls, panel } = harness();
       const steps = int(random, 3, 20);
@@ -269,19 +273,18 @@ describe("invariant", () => {
             page([file(`F${step}`, step)], [link(`${step}.1`)], random() > 0.5),
           );
         } else calls[int(random, 0, Math.max(0, calls.length - 1))]?.reject();
-        jest.advanceTimersByTime(int(random, 0, 400));
+        env.advance(int(random, 0, 400));
         await settle();
       }
       panel.closeFilesLinksPanel();
       const before = panel.filesLinksEntries();
       for (const call of calls) call.resolve(page([file("FLATE", 999)], [], true));
-      jest.advanceTimersByTime(1000);
+      env.advance(1000);
       await settle();
       expect(panel.filesLinksEntries()).toBe(before);
       expect(panel.filesLinksLoading()).toBe(false);
       expect(panel.filesLinksHasMore()).toBe(false);
       expect(panel.filesLinksChannelId()).toBeNull();
-      jest.useRealTimers();
     }
   });
 });

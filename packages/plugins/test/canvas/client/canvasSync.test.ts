@@ -9,7 +9,7 @@ describe("saving typed edits", () => {
   test("typing in a line saves only that line", async () => {
     h = createSyncHarness(["one", "two", "three"]);
     const lines = h.lines().map((l) => ({ ...l }));
-    const second = lines[1];
+    const [, second] = lines;
     if (second) second.text = "two!";
     h.setLines(lines);
     await h.quiesce();

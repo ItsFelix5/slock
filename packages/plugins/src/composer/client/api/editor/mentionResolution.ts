@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import { isChannelId } from "@slock/slack";
+import { isChannelId, isUserId } from "@slock/slack";
 import type Quill from "@slock/ui/editor/quill";
 import { createEffect, createSignal } from "solid-js";
 import type { MentionValue } from "../../lib/embedValues";
@@ -16,7 +16,7 @@ interface Pending {
 }
 
 function knownName({ id, kind }: Pending): string | undefined {
-  if (kind === "user") return usersStore.userById(id)?.name;
+  if (kind === "user") return isUserId(id) ? usersStore.userById(id)?.name : undefined;
   return isChannelId(id) ? channelsStore.channelById(id)?.name : undefined;
 }
 
@@ -26,13 +26,16 @@ export function useMentionResolution(
   const [pending, setPending] = createSignal<Pending[]>([]);
 
   createEffect(
-    () => pending().map((item) => ({ item, name: knownName(item) })),
-    (entries) => {
+    () => ({
+      entries: pending().map((item) => ({ item, name: knownName(item) })),
+      quill: getQuill(),
+    }),
+    ({ entries, quill }) => {
       const resolved = entries.flatMap(({ item, name }) => (name ? [{ item, name }] : []));
-      if (resolved.length === 0) return;
+      if (!quill || resolved.length === 0) return;
       for (const { item, name } of resolved) {
-        getQuill()
-          ?.root.querySelectorAll<HTMLElement>(
+        quill.root
+          .querySelectorAll<HTMLElement>(
             `.bk-mention[data-kind="${item.kind}"][data-id="${item.id}"]`,
           )
           .forEach((node) => {

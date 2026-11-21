@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { defined, isRecord, narrowByType } from "../../src/util/guards";
+import { defined, isRecord, sameItems } from "../../src/util/guards";
 
 describe("isRecord", () => {
   test("accepts objects", () => {
@@ -15,25 +15,6 @@ describe("isRecord", () => {
   });
 });
 
-describe("narrowByType", () => {
-  type Block = { type: "section"; text: string } | { type: "divider" };
-
-  test("returns the value when the type matches", () => {
-    const block: Block = { text: "hi", type: "section" };
-    expect(narrowByType<Block, Extract<Block, { type: "section" }>>(block, "section")).toBe(block);
-  });
-
-  test("returns undefined on another type or no value", () => {
-    const block: Block = { type: "divider" };
-    expect(
-      narrowByType<Block, Extract<Block, { type: "section" }>>(block, "section"),
-    ).toBeUndefined();
-    expect(
-      narrowByType<Block, Extract<Block, { type: "section" }>>(undefined, "section"),
-    ).toBeUndefined();
-  });
-});
-
 describe("defined", () => {
   test("passes through falsy values that are not null or undefined", () => {
     expect(defined(0)).toBe(0);
@@ -44,5 +25,16 @@ describe("defined", () => {
   test("throws for null and undefined", () => {
     expect(() => defined(null)).toThrow("expected a defined value");
     expect(() => defined(undefined)).toThrow("expected a defined value");
+  });
+});
+
+describe("sameItems", () => {
+  test("compares by identity, order and length", () => {
+    const row = { id: 1 };
+    expect(sameItems([row, "b"], [row, "b"])).toBe(true);
+    expect(sameItems([row], [{ id: 1 }])).toBe(false);
+    expect(sameItems(["a", "b"], ["b", "a"])).toBe(false);
+    expect(sameItems(["a"], ["a", "b"])).toBe(false);
+    expect(sameItems([], [])).toBe(true);
   });
 });

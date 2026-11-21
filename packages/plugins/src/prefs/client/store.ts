@@ -1,7 +1,8 @@
 import { splitHighlightWords } from "@slock/blockkit";
+import type { TimerHandle } from "@slock/core";
 import { service } from "@slock/core/solid";
 import type { ChannelId, UserPrefs } from "@slock/types";
-import { createEffect, createSignal } from "solid-js";
+import { createEffect, createMemo, createSignal } from "solid-js";
 import { defineQuery } from "../../query/client/api";
 import {
   endDndSnooze,
@@ -18,6 +19,9 @@ import {
   recentIds as calculateRecentIds,
   usedEmojiNames as calculateUsedEmojiNames,
 } from "./lib/frecency";
+
+const env = service("env");
+
 import { createMuteSync } from "./muteSync";
 
 const feedback = service("feedback");
@@ -31,9 +35,12 @@ export function createPrefsStore(deps: { userPrefs: () => UserPrefs | undefined 
   const notifyAll = createChannelFlags();
   const [highlightWords, setHighlightWordsSignal] = createSignal<string[]>([]);
   const [highlightWordsPending, setHighlightWordsPending] = createSignal(false);
-  const [dndSnoozedUntil, setDndSnoozedUntil] = createSignal<number | null>(null);
   const [dndPending, setDndPending] = createSignal(false);
   const dndStatus = dndStatusQuery.state(() => null);
+  const [dndSnoozedUntil, setDndSnoozedUntil] = createSignal<number | null>((previous) => {
+    const { data, error } = dndStatus();
+    return error || data === undefined ? (previous ?? null) : data;
+  });
 
   let muteClicks = 0;
   let lastMuteChannelId: ChannelId | undefined;
@@ -50,15 +57,10 @@ export function createPrefsStore(deps: { userPrefs: () => UserPrefs | undefined 
     setHighlightWordsSignal(prefs.highlightWords);
   }
 
-  let mutePrefsSeeded = false;
-  createEffect(
-    () => deps.userPrefs(),
-    (prefs) => {
-      if (!prefs || mutePrefsSeeded) return;
-      mutePrefsSeeded = true;
-      syncRemotePrefs(prefs);
-    },
-  );
+  const seedPrefs = createMemo<UserPrefs | undefined>((seed) => seed ?? deps.userPrefs());
+  createEffect(seedPrefs, (prefs) => {
+    if (prefs) syncRemotePrefs(prefs);
+  });
 
   function preferencesReady(): boolean {
     return deps.userPrefs() !== undefined;
@@ -70,25 +72,18 @@ export function createPrefsStore(deps: { userPrefs: () => UserPrefs | undefined 
     return false;
   }
 
-  createEffect(
-    () => (dndStatus().error ? undefined : dndStatus().data),
-    (status) => {
-      if (status !== undefined) setDndSnoozedUntil(status);
-    },
-  );
-
   createEffect(dndSnoozedUntil, (until) => {
     if (!until) return;
-    const remaining = until - Date.now();
+    const remaining = until - env.now();
     if (remaining <= 0) {
       setDndSnoozedUntil(null);
       return;
     }
-    const timer = setTimeout(() => setDndSnoozedUntil(null), remaining);
-    return () => clearTimeout(timer);
+    const timer: TimerHandle = env.setTimeout(() => setDndSnoozedUntil(null), remaining);
+    return () => env.clearTimeout(timer);
   });
 
-  const isChannelMuted = (channelId: string) => muted.isEnabled(channelId);
+  const isChannelMuted = (channelId: ChannelId) => muted.isEnabled(channelId);
 
   function isMutePending(): boolean {
     return !preferencesReady();
@@ -111,7 +106,7 @@ export function createPrefsStore(deps: { userPrefs: () => UserPrefs | undefined 
     return true;
   }
 
-  const isChannelNotifyAll = (channelId: string) => notifyAll.isEnabled(channelId);
+  const isChannelNotifyAll = (channelId: ChannelId) => notifyAll.isEnabled(channelId);
 
   function isHighlightWordsPending(): boolean {
     return !preferencesReady() || highlightWordsPending();
@@ -146,7 +141,7 @@ export function createPrefsStore(deps: { userPrefs: () => UserPrefs | undefined 
     return persistHighlightWords(highlightWords().filter((wordToRemove) => wordToRemove !== word));
   }
 
-  function isNotifyAllPending(channelId: string): boolean {
+  function isNotifyAllPending(channelId: ChannelId): boolean {
     return !preferencesReady() || notifyAll.isPending(channelId);
   }
 
@@ -178,10 +173,10 @@ export function createPrefsStore(deps: { userPrefs: () => UserPrefs | undefined 
 
   function isDndActive(): boolean {
     const until = dndSnoozedUntil();
-    return !!until && until > Date.now();
+    return !!until && until > env.now();
   }
 
-  const frecencyScore = (id: string) => calculateFrecencyScore(deps.userPrefs(), id);
+  const frecencyScore = (id: string) => calculateFrecencyScore(deps.userPrefs(), id, env.now());
   const recentIds = () => calculateRecentIds(deps.userPrefs());
   const emojiUseScore = (name: string) => calculateEmojiUseScore(deps.userPrefs(), name);
   const usedEmojiNames = () => calculateUsedEmojiNames(deps.userPrefs());
@@ -205,7 +200,7 @@ export function createPrefsStore(deps: { userPrefs: () => UserPrefs | undefined 
   async function snoozeDnd(minutes: number): Promise<boolean> {
     if (dndPending()) return false;
     const previous = dndSnoozedUntil();
-    const until = Date.now() + minutes * 60_000;
+    const until = env.now() + minutes * 60_000;
     setDndPending(true);
     setDndSnoozedUntil(until);
     try {

@@ -1,3 +1,4 @@
+import { firstTruthy } from "@slock/core";
 import { getHost, service, usePoint } from "@slock/core/solid";
 import { type Pane, useEscapeClose } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
@@ -29,11 +30,7 @@ export default function PaneSwitch(props: { pane: Pane<PaneContent | null> }) {
   const kind = createMemo(() => kinds().find((item) => item.kind === props.pane.content?.kind));
   const redirect = createMemo(() => {
     const { content } = props.pane;
-    if (!content) return;
-    for (const resolve of resolvers()) {
-      const next = resolve(content);
-      if (next) return next;
-    }
+    return content ? firstTruthy(resolvers(), (resolve) => resolve(content)) : undefined;
   });
   createEffect(redirect, (next) => {
     if (next) panes.setPaneContent(props.pane.id, next);

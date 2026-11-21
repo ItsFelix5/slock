@@ -24,7 +24,10 @@ export function localEnabledStore(
     write(overrides) {
       try {
         storage.set(key, JSON.stringify(overrides));
-      } catch {}
+        return true;
+      } catch {
+        return false;
+      }
     },
   };
 }

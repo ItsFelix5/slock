@@ -1,6 +1,6 @@
 import { type BlockKitResolver, noopBlockKitResolver } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
-import { isChannelId, isUserId } from "@slock/slack";
+import type { ChannelId, UserId } from "@slock/types";
 import type { Accessor } from "solid-js";
 
 const viewStore = service("conversations");
@@ -10,14 +10,9 @@ const usersStore = service("users");
 const titles = service("titles");
 
 const dataResolver = {
-  onChannelClick: (id: string) => {
-    if (isChannelId(id)) viewStore.setActiveView({ id, kind: "channel" });
-  },
-  onUserClick: (id: string) => {
-    if (isUserId(id)) usersStore.openUserProfile(id);
-  },
-  resolveChannel: (id: string) => {
-    if (!isChannelId(id)) return;
+  onChannelClick: (id: ChannelId) => viewStore.setActiveView({ id, kind: "channel" }),
+  onUserClick: (id: UserId) => usersStore.openUserProfile(id),
+  resolveChannel: (id: ChannelId) => {
     const channel = channelsStore.channelById(id);
     if (channel) {
       return {
@@ -32,7 +27,7 @@ const dataResolver = {
       ? { isMember: true, isPrivate: true, name: titles.title(id), label: titles.label(id) }
       : undefined;
   },
-  resolveUser: (id: string) => {
+  resolveUser: (id: UserId) => {
     const user = usersStore.userById(id);
     return user ? { isSelf: id === usersStore.currentUser()?.id, name: user.name } : undefined;
   },

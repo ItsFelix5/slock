@@ -57,7 +57,7 @@
 }
 
 .message-search-history-item:hover .message-search-history-remove,
-.message-search-history-item:focus-within .message-search-history-remove {
+.message-search-history-item:has(:focus-visible) .message-search-history-remove {
   opacity: 1;
 }
 

@@ -1,4 +1,6 @@
+import { afterEach } from "bun:test";
 import { Window } from "happy-dom";
+import { trackSolidDiagnostics } from "../packages/core/src/testing";
 import { solidJsx } from "../packages/plugins/src/web/server/solidPlugin";
 
 const KEEP_BUN = new Set([
@@ -44,3 +46,10 @@ define("document", dom.document);
 process.env.TZ = "Europe/Brussels";
 
 Bun.plugin(solidJsx(/\.tsx$/));
+
+const drainDiagnostics = trackSolidDiagnostics();
+
+afterEach(() => {
+  const found = drainDiagnostics();
+  if (found.length > 0) throw new Error(`Solid diagnostics:\n${found.join("\n")}`);
+});

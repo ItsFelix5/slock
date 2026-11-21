@@ -89,7 +89,7 @@ describe("retry", () => {
     clock.advance(60_000);
     await flush();
     expect(calls).toHaveLength(1);
-    expect(clock.pending()).toBe(1);
+    expect(clock.pendingTimers()).toBe(1);
   });
 });
 

@@ -1,5 +1,7 @@
+import type { BlockKitResolver } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import { isChannelId, isFileId, isTs, isUserId } from "@slock/slack";
+import type { ChannelId, Ts } from "@slock/types";
 import { Avatar, Icon } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { Show } from "solid-js";
@@ -26,13 +28,13 @@ export type Entity = {
   open(id: string): void;
   related?(id: string): Ref[];
   pattern?: RegExp;
-  wrap?: "wrapUserMention" | "wrapChannelMention" | "wrapUsergroupMention";
+  wrap?(resolver: BlockKitResolver, id: string, trigger: JSX.Element): JSX.Element | undefined;
   chip?(id: string): JSX.Element;
 };
 
 const MESSAGE_SEPARATOR = ":";
 
-export const messageId = (channelId: string, ts: string) => `${channelId}${MESSAGE_SEPARATOR}${ts}`;
+export const messageId = (channelId: ChannelId, ts: Ts) => `${channelId}${MESSAGE_SEPARATOR}${ts}`;
 
 function splitMessageId(id: string) {
   const split = id.indexOf(MESSAGE_SEPARATOR);
@@ -45,6 +47,7 @@ function splitMessageId(id: string) {
 }
 
 const dmOf = (id: string) => (isChannelId(id) ? dms.dmById(id) : undefined);
+const userOf = (id: string) => (isUserId(id) ? users.userById(id) : undefined);
 const channelOf = (id: string) => (isChannelId(id) ? channels.channelById(id) : undefined);
 
 function messageOf(id: string) {
@@ -87,7 +90,8 @@ export const entities: Record<string, Entity> = {
     },
     pattern: /^[CGD][A-Z0-9]{8,}$/,
     title: (id) => `${dmOf(id) ? "DM" : "Channel"} ${id}`,
-    wrap: "wrapChannelMention",
+    wrap: (resolver, id, trigger) =>
+      isChannelId(id) ? resolver.wrapChannelMention?.(id, trigger) : undefined,
   },
   message: {
     label: "Message",
@@ -100,17 +104,16 @@ export const entities: Record<string, Entity> = {
     title: (id) => `Message ${id.slice(id.indexOf(MESSAGE_SEPARATOR) + 1)}`,
   },
   user: {
-    chip: (id) => (
-      <Show when={users.userById(id)}>{(user) => <Avatar size="tiny" user={user()} />}</Show>
-    ),
+    chip: (id) => <Show when={userOf(id)}>{(user) => <Avatar size="tiny" user={user()} />}</Show>,
     label: "Profile",
-    load: (id) => users.userById(id),
+    load: userOf,
     open: (id) => {
       if (isUserId(id)) users.openUserProfile(id);
     },
     pattern: /^[UWB][A-Z0-9]{8,}$/,
     title: (id) => `User ${id}`,
-    wrap: "wrapUserMention",
+    wrap: (resolver, id, trigger) =>
+      isUserId(id) ? resolver.wrapUserMention?.(id, trigger) : undefined,
   },
   usergroup: {
     chip: () => <Icon name="user-groups" size={12} />,
@@ -122,7 +125,7 @@ export const entities: Record<string, Entity> = {
     open: (id) => usergroupDetails.openUsergroupDetails(id),
     pattern: /^S[A-Z0-9]{8,}$/,
     title: (id) => `Pinggroup ${id}`,
-    wrap: "wrapUsergroupMention",
+    wrap: (resolver, id, trigger) => resolver.wrapUsergroupMention?.(id, trigger),
   },
 };
 

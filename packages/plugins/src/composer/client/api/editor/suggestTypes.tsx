@@ -1,8 +1,11 @@
-import { emojiUrl } from "@slock/blockkit";
+import { assertNever } from "@slock/core";
+import { service } from "@slock/core/solid";
 import { blockPreviewText } from "@slock/slack";
 import type { Block, ChannelId, SlackFile, User, UserId } from "@slock/types";
 import { Avatar, Icon, type IconName, imageSrc } from "@slock/ui";
 import { channelIconName } from "../../../../channels/client/api";
+
+const emojiIndex = service("emoji");
 
 export type UserSuggestItem = {
   kind: "user";
@@ -132,7 +135,7 @@ export function suggestItemContent(item: SuggestItem) {
         </>
       );
     case "emoji": {
-      const url = emojiUrl(item.name);
+      const url = emojiIndex.source.url(item.name);
       return (
         <>
           <span class="suggestion-icon composer-suggest-emoji flex-center">
@@ -159,5 +162,7 @@ export function suggestItemContent(item: SuggestItem) {
           <span class="suggestion-desc truncate">{blockPreviewText(item.blocks)}</span>
         </>
       );
+    default:
+      return assertNever(item);
   }
 }

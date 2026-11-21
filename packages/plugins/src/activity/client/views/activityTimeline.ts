@@ -49,36 +49,30 @@ export function createActivityTimeline(deps: {
     deps.items().find((item) => item.kind === "thread_reply" && (item.unreadCount ?? 0) > 1),
   );
 
-  let timelineCache = new Map<Ts, TimelineEntry>();
-  function timelineEntry(
-    ts: Ts,
-    isRoot: boolean,
-    item: ActivityItem | undefined,
-    message: Message | undefined,
-  ): TimelineEntry {
-    const cached = timelineCache.get(ts);
-    return cached && cached.isRoot === isRoot && cached.item === item && cached.message === message
-      ? cached
-      : { isRoot, item, message, ts };
-  }
-  const timeline = createMemo<TimelineEntry[]>(() => {
+  const timeline = createMemo<TimelineEntry[]>((previous) => {
+    const cache = new Map((previous ?? []).map((entry) => [entry.ts, entry]));
+    const entryFor = (
+      ts: Ts,
+      isRoot: boolean,
+      item: ActivityItem | undefined,
+      message: Message | undefined,
+    ): TimelineEntry => {
+      const cached = cache.get(ts);
+      return cached &&
+        cached.isRoot === isRoot &&
+        cached.item === item &&
+        cached.message === message
+        ? cached
+        : { isRoot, item, message, ts };
+    };
     const list = fullThread();
-    const entries =
-      list && list.length > 0
-        ? (() => {
-            const byTs = activityByTs();
-            return list.map((message) =>
-              timelineEntry(
-                message.ts,
-                message.ts === deps.threadTs(),
-                byTs.get(message.ts),
-                message,
-              ),
-            );
-          })()
-        : orderedItems().map((item) => timelineEntry(item.ts, false, item, undefined));
-    timelineCache = new Map(entries.map((entry) => [entry.ts, entry]));
-    return entries;
+    if (!list || list.length === 0) {
+      return orderedItems().map((item) => entryFor(item.ts, false, item, undefined));
+    }
+    const byTs = activityByTs();
+    return list.map((message) =>
+      entryFor(message.ts, message.ts === deps.threadTs(), byTs.get(message.ts), message),
+    );
   });
 
   function entryUserId(entry: TimelineEntry): UserId | undefined {

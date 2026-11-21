@@ -3,11 +3,11 @@ type PendingRequest<T> = {
   resolve: (value: T) => void;
 };
 
-export function createBatchedIdFetcher<T>(
-  loadBatch: (ids: string[]) => Promise<ReadonlyMap<string, T>>,
+export function createBatchedIdFetcher<T, K extends string = string>(
+  loadBatch: (ids: K[]) => Promise<ReadonlyMap<K, T>>,
   maxBatchSize: number,
-): (id: string) => Promise<T> {
-  const pending = new Map<string, PendingRequest<T>[]>();
+): (id: K) => Promise<T> {
+  const pending = new Map<K, PendingRequest<T>[]>();
   let scheduled = false;
 
   async function flush(): Promise<void> {
@@ -15,7 +15,7 @@ export function createBatchedIdFetcher<T>(
     const requests = new Map(pending);
     pending.clear();
     const ids = [...requests.keys()];
-    const batches: string[][] = [];
+    const batches: K[][] = [];
     for (let start = 0; start < ids.length; start += maxBatchSize)
       batches.push(ids.slice(start, start + maxBatchSize));
 

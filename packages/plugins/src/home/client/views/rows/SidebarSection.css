@@ -88,7 +88,7 @@
 }
 
 .sidebar-section-header:hover .sidebar-section-menu-btn,
-.sidebar-section-header:focus-within .sidebar-section-menu-btn {
+.sidebar-section-header:has(:focus-visible) .sidebar-section-menu-btn {
   visibility: visible;
 }
 

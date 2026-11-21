@@ -18,9 +18,17 @@ import {
   type EditableUsergroupDetails,
   editableUsergroupDetails,
   mergeUsergroupDetailsDraft,
+  type UsergroupDetailsDraft,
 } from "./usergroupDetailsDraft";
 
 const groupActions = service("usergroup-details");
+
+type Draft = { fields: UsergroupDetailsDraft; seeded: EditableUsergroupDetails | undefined };
+
+const EMPTY_DRAFT: Draft = {
+  fields: { description: "", handle: "", title: "" },
+  seeded: undefined,
+};
 
 const feedback = service("feedback");
 
@@ -49,27 +57,25 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
     items: () => TABS,
     root: () => tabListRef,
   });
-  const [nameInput, setNameInput] = createSignal("");
-  const [handleInput, setHandleInput] = createSignal("");
-  const [descriptionInput, setDescriptionInput] = createSignal("");
-
   const details = createMemo(() => usergroups.usergroupDetailsById(usergroupId()));
+  const [draft, setDraft] = createSignal((previous: Draft = EMPTY_DRAFT): Draft => {
+    const d = details();
+    if (!d) return previous;
+    return {
+      fields: mergeUsergroupDetailsDraft(previous.fields, previous.seeded, d),
+      seeded: editableUsergroupDetails(d),
+    };
+  });
+  const setField = (key: keyof UsergroupDetailsDraft) => (value: string) =>
+    setDraft((previous) => ({ ...previous, fields: { ...previous.fields, [key]: value } }));
+  const nameInput = () => draft().fields.title;
+  const handleInput = () => draft().fields.handle;
+  const descriptionInput = () => draft().fields.description;
+  const setNameInput = setField("title");
+  const setHandleInput = setField("handle");
+  const setDescriptionInput = setField("description");
 
   createEffect(usergroupId, (id) => void groupActions.loadUsergroupDetails(id));
-
-  let seededDetails: EditableUsergroupDetails | undefined;
-  createEffect(details, (d) => {
-    if (!d) return;
-    const merged = mergeUsergroupDetailsDraft(
-      { description: descriptionInput(), handle: handleInput(), title: nameInput() },
-      seededDetails,
-      d,
-    );
-    setNameInput(merged.title);
-    setHandleInput(merged.handle);
-    setDescriptionInput(merged.description);
-    seededDetails = editableUsergroupDetails(d);
-  });
 
   const saveName = async () => {
     const v = nameInput().trim();

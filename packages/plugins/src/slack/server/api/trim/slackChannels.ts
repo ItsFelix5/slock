@@ -1,4 +1,7 @@
+import { parseChannelId } from "@slock/slack";
 import type {
+  ChannelId,
+  FileId,
   RawChannel,
   RawChannelProperties,
   RawChannelSection,
@@ -76,11 +79,11 @@ export function isHostedChannel(channel: NamedChannel): boolean {
   return !!channel.is_file || !!channel.name_normalized?.startsWith(HOSTED_NAME_PREFIX);
 }
 
-export function hostedChannelId(fileId: string): string {
-  return `C${fileId.slice(1)}`;
+export function hostedChannelId(fileId: FileId): ChannelId {
+  return parseChannelId(`C${fileId.slice(1)}`);
 }
 
-export function publicName(channel: NamedChannel): string | undefined {
+function publicName(channel: NamedChannel): string | undefined {
   return isHostedChannel(channel) ? HOSTED_CHANNEL_NAME : channel.name;
 }
 

@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { toLocalInputValue } from "@slock/core";
 import { forAll, int } from "@slock/core/testing";
 import {
   dateDueFromInput,
   nextHourInputValue,
   REMINDER_OPTIONS,
-  toLocalInputValue,
 } from "../../../src/reminders/client/times";
 
 const option = (label: string) => {

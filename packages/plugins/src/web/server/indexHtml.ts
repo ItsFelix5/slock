@@ -1,5 +1,3 @@
-import { HISTORY_PAGE_SIZE } from "@slock/slack";
-
 export function renderIndexHtml(
   entryPath: string,
   cssPaths: string[],
@@ -38,12 +36,7 @@ ${preloads}
 `;
 }
 
-const CHANNEL_PATH = /^\/([CDG][A-Z0-9]+)\/?$/;
-
-export function channelPreloadLinks(pathname: string): string | undefined {
-  const id = CHANNEL_PATH.exec(pathname)?.[1];
-  if (!id) return;
-  return [`/api/channels/${id}/view`, `/api/channels/${id}/messages?limit=${HISTORY_PAGE_SIZE}`]
-    .map((href) => `<${href}>; rel=preload; as=fetch; crossorigin`)
-    .join(", ");
+export function preloadLinkHeader(hrefs: string[]): string | undefined {
+  if (hrefs.length === 0) return;
+  return hrefs.map((href) => `<${href}>; rel=preload; as=fetch; crossorigin`).join(", ");
 }

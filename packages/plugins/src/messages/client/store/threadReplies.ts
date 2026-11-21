@@ -10,6 +10,7 @@ import {
 } from "../../../slack/client/api";
 import type { ThreadRef } from "../api";
 import { mergeMessages } from "../api/messageMerge";
+import { planThreadLoad } from "./history/loadPlan";
 import {
   coversAnchor,
   forwardPatch,
@@ -17,7 +18,7 @@ import {
   missingReplyCount,
   type ThreadPaging,
 } from "./history/threadPaging";
-import { replaceMessageList, updateMessageList } from "./storeWrites";
+import { ensureMessageList, replaceMessageList, updateMessageList } from "./storeWrites";
 
 const KEEP_RECENT_THREADS = 8;
 const THREAD_FETCH_CONCURRENCY = 4;
@@ -41,6 +42,14 @@ export function createThreadReplies(
   const inFlight = new Map<Ts, Promise<void>>();
   const queue = createConcurrencyQueue(THREAD_FETCH_CONCURRENCY);
   const [threadMessages, setThreadMessages] = createStore<Record<Ts, Message[]>>({});
+  const editThreadList = (ts: Ts, edit: (list: Message[]) => void) =>
+    setThreadMessages((s) => edit(ensureMessageList(s, ts)));
+  const updateThreadMessages = (ts: Ts, compute: (existing: Message[]) => Message[]) =>
+    setThreadMessages((s) => updateMessageList(s, ts, compute));
+  const dropThreadMessages = (ts: Ts) =>
+    setThreadMessages((s) => {
+      delete s[ts];
+    });
   const [paging, setPaging] = createStore<Record<Ts, ThreadPaging>>({});
   const [loads, setLoads] = createStore<Record<Ts, ThreadLoad>>({});
 
@@ -98,7 +107,7 @@ export function createThreadReplies(
     return mergeMessages(current, page.messages);
   }
 
-  async function catchUp(channelId: ChannelId, ts: Ts, after: string) {
+  async function catchUp(channelId: ChannelId, ts: Ts, after: Ts) {
     const run = runs.get(ts);
     const page = await api.fetchRepliesFrom(channelId, ts, after);
     const current = threadMessages[ts] ?? [];
@@ -160,19 +169,22 @@ export function createThreadReplies(
 
   function ensureThreadRepliesLoaded(channelId: ChannelId, ts: Ts, anchor?: Ts): boolean {
     channelForThread.set(ts, channelId);
-    if (
-      anchor &&
-      anchor !== ts &&
-      anchorAttempted.get(ts) !== anchor &&
-      !coversAnchor(paging[ts], ts, anchor)
-    ) {
-      anchorForThread.set(ts, anchor);
+    const plan = planThreadLoad({
+      anchor,
+      anchorAttempted: anchorAttempted.get(ts),
+      anchorCovered: !!anchor && coversAnchor(paging[ts], ts, anchor),
+      hasError: hasThreadError(ts),
+      hasPaging: !!paging[ts],
+      ts,
+    });
+    if (plan.kind === "none") return false;
+    if (plan.kind === "anchored") {
+      anchorForThread.set(ts, plan.anchor);
       void refreshThread(ts).then(() => {
         if (anchorForThread.has(ts)) void refreshThread(ts);
       });
       return true;
     }
-    if (paging[ts] || hasThreadError(ts)) return false;
     void refreshThread(ts);
     return true;
   }
@@ -235,9 +247,7 @@ export function createThreadReplies(
     channelForThread.delete(ts);
     anchorForThread.delete(ts);
     anchorAttempted.delete(ts);
-    setThreadMessages((s) => {
-      delete s[ts];
-    });
+    dropThreadMessages(ts);
     setPaging((s) => {
       delete s[ts];
     });
@@ -269,8 +279,10 @@ export function createThreadReplies(
     loadEarlierReplies,
     loadMoreReplies,
     missingReplies: settledMissing,
+    dropThreadMessages,
+    editThreadList,
     refreshThreadReplies: refreshThread,
-    setThreadMessages,
     threadMessages,
+    updateThreadMessages,
   };
 }

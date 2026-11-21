@@ -1,5 +1,5 @@
 import type { Cooldown } from "./cooldown";
-import type { ResourceEnv } from "./env";
+import type { ResourceEnv } from "./delay";
 import type { FetchContext } from "./fetchRun";
 import type { PersistOptions } from "./persistence";
 import type { RetryPolicy } from "./retry";
@@ -16,8 +16,16 @@ export interface CacheOptions<K, T> {
   load: (key: K, context: FetchContext) => Promise<T>;
   maxAgeMs?: number;
   maxAutoFailures?: number;
+  name?: string;
   persist?: PersistOptions<K, T>;
   retry?: RetryPolicy;
+}
+
+export interface EntryInfo<K, T> {
+  dataAt: number;
+  key: K;
+  state: EntryState<T>;
+  subscribers: number;
 }
 
 export interface EnsureOptions {
@@ -32,6 +40,7 @@ export interface ResourceCache<K, T> {
   clear(): void;
   dispose(): void;
   ensure(key: K, options?: EnsureOptions): Promise<T>;
+  entries(): EntryInfo<K, T>[];
   evictInactive(): void;
   invalidate(key: K): void;
   invalidateWhere(match: (key: K) => boolean): void;

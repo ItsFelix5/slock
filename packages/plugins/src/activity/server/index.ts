@@ -1,6 +1,6 @@
 import type { Setup } from "@slock/core";
 import { isRecord } from "@slock/core";
-import { richTextBlocksToPlainText } from "@slock/slack";
+import { isTs, richTextBlocksToPlainText } from "@slock/slack";
 import type { RawActivityEntry, RawActivityFeedEntry, RawActivityMessage } from "@slock/types";
 import type { Credentials } from "../../slack/server/api/auth";
 import {
@@ -157,8 +157,24 @@ function trimActivityMessage(
   };
 }
 
+function firstNested<T>(
+  value: Record<string, unknown>,
+  find: (nested: unknown) => T | undefined,
+): T | undefined {
+  return Object.values(value).reduce<T | undefined>(
+    (found, nested) => found ?? find(nested),
+    undefined,
+  );
+}
+
 function findActivityMessageReference(value: unknown, depth = 0): RawActivityMessage | undefined {
-  if (!isRecord(value) || depth > MAX_NESTING_DEPTH) return;
+  return isRecord(value) && depth <= MAX_NESTING_DEPTH ? referenceIn(value, depth) : undefined;
+}
+
+function referenceIn(
+  value: Record<string, unknown>,
+  depth: number,
+): RawActivityMessage | undefined {
   const reference = {
     ...value,
     channel: value.channel ?? value.channel_id,
@@ -166,21 +182,18 @@ function findActivityMessageReference(value: unknown, depth = 0): RawActivityMes
     user: value.user ?? value.user_id ?? value.latest_user_id,
   };
   if (isMessageReference(reference)) return reference;
-  for (const nested of Object.values(value)) {
-    const message = findActivityMessageReference(nested, depth + 1);
-    if (message) return message;
-  }
+  return firstNested(value, (nested) => findActivityMessageReference(nested, depth + 1));
 }
 
 function findActivityText(value: unknown, depth = 0): string | undefined {
-  if (!isRecord(value) || depth > MAX_NESTING_DEPTH) return;
-  for (const candidate of [value.text, value.title, value.description]) {
-    if (typeof candidate === "string" && candidate.trim()) return candidate;
-  }
-  for (const nested of Object.values(value)) {
-    const text = findActivityText(nested, depth + 1);
-    if (text) return text;
-  }
+  return isRecord(value) && depth <= MAX_NESTING_DEPTH ? textIn(value, depth) : undefined;
+}
+
+function textIn(value: Record<string, unknown>, depth: number): string | undefined {
+  const direct = [value.text, value.title, value.description].find(
+    (candidate): candidate is string => typeof candidate === "string" && candidate.trim() !== "",
+  );
+  return direct ?? firstNested(value, (nested) => findActivityText(nested, depth + 1));
 }
 
 function trimActivityEntry(entry: RawActivityEntry): RawActivityEntry {
@@ -213,7 +226,7 @@ const list: Route[] = [
       ts?: string;
       type?: string;
     }>();
-    if (!(key && ts && type)) return errorResponse("invalid_activity_entry", 400);
+    if (!(key && type && ts && isTs(ts))) return errorResponse("invalid_activity_entry", 400);
     if (type === "saved_reminder" && linkedItemId) {
       const done = await callSlack(
         "saved.update",
@@ -237,7 +250,8 @@ const list: Route[] = [
       key?: string;
       type?: string;
     }>();
-    if (!(feedTs && key && type)) return errorResponse("invalid_activity_entry", 400);
+    if (!(key && type && feedTs && isTs(feedTs)))
+      return errorResponse("invalid_activity_entry", 400);
     return mutate("activity.markRead", { feed_ts: feedTs, key, type }, ctx);
   }),
 

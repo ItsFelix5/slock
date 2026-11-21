@@ -6,8 +6,11 @@ import { createMemo, Errored, isPending, Loading, Show } from "solid-js";
 const activityStore = service("activity");
 
 function Await(props: { for: () => unknown }) {
-  createMemo(() => props.for());
-  return null;
+  const settled = createMemo(() => {
+    props.for();
+    return null;
+  });
+  return <>{settled()}</>;
 }
 
 function Notice(props: { label: string; onRetry: () => void }) {

@@ -1,14 +1,17 @@
+import type { TimerHandle } from "@slock/core";
 import { service } from "@slock/core/solid";
 import type { ChannelId, Message } from "@slock/types";
 import { createEffect, onCleanup, untrack } from "solid-js";
 import type { ChannelMessageTarget, View } from "../../conversations/client/api/types";
 import type { FeedScroll } from "./api/pane/scroll/feedScroll";
+import { initialLandingState, type LandingStep, planLanding } from "./lib/landingPlan";
 import { tsFromMs, tsToMs } from "./lib/tsTime";
 import { findUnreadDividerIndex } from "./lib/unreadDivider";
 
 const unreadStore = service("unread");
 const messagesStore = service("messages");
 const scrollAnchors = service("messages.anchors");
+const env = service("env");
 
 const DIVIDER_WAIT_MS = 3000;
 
@@ -21,10 +24,8 @@ export function createMessageListLanding(deps: {
   paneView: () => View | null;
 }) {
   const { feed } = deps;
-  let lastViewId: ChannelId | undefined;
-  let positionedViewId: ChannelId | undefined;
-  let requestedMessageTarget: ChannelMessageTarget | null = null;
-  let dividerWait: ReturnType<typeof setTimeout> | undefined;
+  let state = initialLandingState;
+  let dividerWait: TimerHandle | undefined;
 
   const landOnBottom = () => feed.land({ at: "bottom" });
 
@@ -57,14 +58,14 @@ export function createMessageListLanding(deps: {
   }
 
   function waitForDivider(view: View) {
-    dividerWait ??= setTimeout(() => {
+    dividerWait ??= env.setTimeout(() => {
       dividerWait = undefined;
-      if (positionedViewId === view.id || deps.paneView()?.id !== view.id) return;
-      positionedViewId = view.id;
+      if (state.positionedViewId === view.id || deps.paneView()?.id !== view.id) return;
+      state = { ...state, positionedViewId: view.id };
       landOnRememberedOrBottom(view);
     }, DIVIDER_WAIT_MS);
   }
-  onCleanup(() => clearTimeout(dividerWait));
+  onCleanup(() => env.clearTimeout(dividerWait));
 
   function landOnFirstMessage(jump: (viewId: ChannelId) => Promise<boolean>) {
     const view = deps.paneView();
@@ -76,61 +77,65 @@ export function createMessageListLanding(deps: {
     });
   }
 
-  function landOnTarget(view: View, target: ChannelMessageTarget, msgs: Message[]) {
-    if (msgs.some((candidate) => candidate.ts === target.ts)) {
-      const reloaded = requestedMessageTarget === target;
-      requestedMessageTarget = target;
-      positionedViewId = view.id;
+  function run(view: View, step: LandingStep) {
+    if (step.kind === "land-target") {
       deps.clearMessageTarget();
-      if (reloaded || !untrack(feed.ready))
-        feed.land({ at: "row", ts: target.ts, align: "center", flash: true });
-      else feed.glideTo(target.ts);
-      return;
-    }
-    if (requestedMessageTarget === target) return;
-    requestedMessageTarget = target;
-    void messagesStore.ensureChannelMessage(target.channelId, target.ts).then((found) => {
-      if (!found && deps.messageTarget() === target) deps.clearMessageTarget();
-    });
-  }
-
-  function landInitially(view: View) {
-    const anchor = unreadStore.unreadDividerTsForChannel(view.id);
-    if (anchor === undefined && !messagesStore.hasNewerHistory(view.id)) {
+      if (step.reloaded || !untrack(feed.ready))
+        feed.land({ at: "row", ts: step.target.ts, align: "center", flash: true });
+      else feed.glideTo(step.target.ts);
+    } else if (step.kind === "request-target") {
+      void messagesStore
+        .ensureChannelMessage(step.target.channelId, step.target.ts)
+        .then((found) => {
+          if (!found && deps.messageTarget() === step.target) deps.clearMessageTarget();
+        });
+    } else if (step.kind === "wait-divider") {
       waitForDivider(view);
-      return;
+    } else if (step.kind === "land-initial") {
+      env.clearTimeout(dividerWait);
+      dividerWait = undefined;
+      if (step.anchor === undefined) landOnRememberedOrBottom(view);
+      else landOnDivider(view, step.anchor, false);
     }
-    clearTimeout(dividerWait);
-    dividerWait = undefined;
-    positionedViewId = view.id;
-    if (anchor !== undefined && Number.isFinite(anchor)) landOnDivider(view, anchor, false);
-    else landOnRememberedOrBottom(view);
   }
 
   createEffect(
     () => {
       const view = deps.paneView();
+      const msgs = deps.messages();
+      const target = deps.messageTarget();
       return {
-        anchor: view && unreadStore.unreadDividerTsForChannel(view.id),
+        anchor: view ? unreadStore.unreadDividerTsForChannel(view.id) : undefined,
         hasElement: !!feed.element(),
-        hasNewer: view && messagesStore.hasNewerHistory(view.id),
-        msgs: deps.messages(),
-        target: deps.messageTarget(),
+        hasMessages: msgs.length > 0,
+        hasNewer: !!view && messagesStore.hasNewerHistory(view.id),
+        target,
+        targetLoaded: !!target && msgs.some((m) => m.ts === target.ts),
         view,
+        viewId: view?.id,
       };
     },
-    ({ hasElement, msgs, target, view }) => {
-      if (view?.id !== lastViewId) {
-        lastViewId = view?.id;
-        positionedViewId = undefined;
-        clearTimeout(dividerWait);
+    ({ anchor, hasElement, hasMessages, hasNewer, target, targetLoaded, view, viewId }) => {
+      const {
+        state: next,
+        step,
+        viewSwitched,
+      } = planLanding(state, {
+        anchor,
+        hasElement,
+        hasMessages,
+        hasNewer,
+        target,
+        targetLoaded,
+        viewId,
+      });
+      state = next;
+      if (viewSwitched) {
+        env.clearTimeout(dividerWait);
         dividerWait = undefined;
         deps.onViewSwitch();
       }
-      if (!(view && hasElement)) return;
-
-      if (target?.channelId === view.id) landOnTarget(view, target, msgs);
-      else if (positionedViewId !== view.id && msgs.length > 0) landInitially(view);
+      if (view) untrack(() => run(view, step));
     },
   );
 

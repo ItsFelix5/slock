@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
 import type { ChannelId, Message } from "@slock/types";
-import { createEffect, createSignal } from "solid-js";
+import { createSignal } from "solid-js";
 import type { ChannelMessageTarget, View } from "../../conversations/client/api/types";
 import { createFeedPagination } from "./api/pane/scroll/feedPagination";
 import { createFeedScroll } from "./api/pane/scroll/feedScroll";
@@ -33,6 +33,19 @@ export function createMessageListScroll(deps: {
     }
   }
 
+  const feed = createFeedScroll({
+    isLive,
+    onMove: (direction) => {
+      if (!feed.ready()) return;
+      whenView(
+        (id) =>
+          scrollAnchors.remember(id, feed.atBottom() && isLive() ? undefined : feed.topAnchor()),
+        undefined,
+      );
+      pagination.check(direction);
+    },
+  });
+
   const pagination = createFeedPagination({
     busy: () => whenView((id) => messagesStore.isLoadingHistory(id), false),
     canLoadNewer: () =>
@@ -52,19 +65,6 @@ export function createMessageListScroll(deps: {
     size: () => deps.messages().length,
   });
 
-  const feed = createFeedScroll({
-    isLive,
-    onMove: (direction) => {
-      if (!feed.ready()) return;
-      whenView(
-        (id) =>
-          scrollAnchors.remember(id, feed.atBottom() && isLive() ? undefined : feed.topAnchor()),
-        undefined,
-      );
-      pagination.check(direction);
-    },
-  });
-
   const landing = createMessageListLanding({
     ...deps,
     feed,
@@ -74,15 +74,7 @@ export function createMessageListScroll(deps: {
     },
   });
 
-  createEffect(viewId, (id) => {
-    if (id) return () => unreadStore.setBottomSeen(id, false);
-  });
-  createEffect(
-    () => ({ id: viewId(), seen: feed.ready() && feed.atBottom() && isLive() }),
-    ({ id, seen }) => {
-      if (id) unreadStore.setBottomSeen(id, seen);
-    },
-  );
+  unreadStore.trackBottomSeen(viewId, () => feed.ready() && feed.atBottom() && isLive());
 
   const visibleDay = () => {
     const ts = feed.topTs();

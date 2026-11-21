@@ -99,7 +99,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
 
   createEffect(
     () => [content().data, outline()?.items()],
-    () => queueMicrotask(updateActiveHeading),
+    () => void queueMicrotask(updateActiveHeading),
   );
 
   return (

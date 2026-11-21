@@ -1,4 +1,5 @@
 import type { Setup } from "@slock/core";
+import { parseUserId } from "@slock/slack";
 import { errorResponse, jsonResponse } from "../../slack/server/api/jsonResponse";
 import type { Route } from "../../slack/server/api/router";
 import { mutate, route, routes } from "../../slack/server/api/router";
@@ -8,7 +9,8 @@ import type { PresenceSeen } from "./api";
 function presenceRoutes(seen: () => PresenceSeen[]): Route[] {
   return [
     route("POST", "users/presence", async (ctx) => {
-      const { ids } = await ctx.body.json<{ ids?: string[] }>();
+      const { ids: rawIds } = await ctx.body.json<{ ids?: string[] }>();
+      const ids = rawIds?.map(parseUserId);
       if (!ids?.length) return errorResponse("invalid_ids", 400);
       const entries = await Promise.all(
         ids.map(async (id) => {

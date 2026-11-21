@@ -1,3 +1,5 @@
+import "./api";
+
 export { ariaBoolean } from "./ariaBoolean";
 export type { AvatarUser } from "./avatar/Avatar";
 export {
@@ -12,7 +14,7 @@ export { default as ClickableInline } from "./button/ClickableInline";
 export { default as IconButton } from "./button/IconButton";
 export { default as SegmentedControl } from "./button/SegmentedControl";
 export { createConcurrencyQueue } from "./concurrencyQueue";
-export { createDebouncedRequest } from "./debouncedRequest";
+export { createDebouncedSearch } from "./debouncedQuery";
 export { default as ConnectionStatus } from "./feedback/ConnectionStatus";
 export { createCopyFeedback } from "./feedback/copyFeedback";
 export { default as InlineFeedback } from "./feedback/InlineFeedback";
@@ -38,8 +40,9 @@ export { default as Slider } from "./form/Slider";
 export { default as SuggestionList } from "./form/SuggestionList";
 export { default as Switch } from "./form/Switch";
 export { fuzzySearch } from "./fuzzy";
+export { createClock } from "./hooks/createClock";
+export { SHORTCUT_GROUPS, type ShortcutInfo } from "./hooks/shortcutRegistry";
 export { useClickOutside } from "./hooks/useClickOutside";
-export { useDeferredMount } from "./hooks/useDeferredMount";
 export { useElementVisible } from "./hooks/useElementVisible";
 export {
   useCancelShortcut,
@@ -57,20 +60,7 @@ export {
   useSeekShortcuts,
   useTabStripShortcuts,
 } from "./hooks/useNavShortcuts";
-export {
-  inside,
-  listShortcuts,
-  SHORTCUT_GROUPS,
-  type ShortcutInfo,
-  shortcutConflicts,
-  useShortcut,
-} from "./hooks/useShortcut";
-export { createKeybindOverrides, installKeybindOverrides } from "./keybindOverrides";
-export {
-  createKeyedAsyncCache,
-  type KeyedAsyncCache,
-  type KeyedCacheSetter,
-} from "./keyedAsyncCache";
+export { inside, useShortcut } from "./hooks/useShortcut";
 export { default as PanelHeader } from "./layout/PanelHeader";
 export { createWindowWidth, default as ResizeHandle } from "./layout/ResizeHandle";
 export { formatSize } from "./media/formatSize";
@@ -96,6 +86,7 @@ export { formatDuration } from "./media/video/videoTime";
 export { default as NavRow } from "./nav/NavRow";
 export { focusPaneById, usePaneNavigation } from "./nav/paneNav";
 export { initRovingTabIndexDefault } from "./nav/rovingFocus";
+export { isNearScrollEnd } from "./nav/scrollEnd";
 export {
   ConfirmDialog,
   type ConfirmDialogOptions,
@@ -158,4 +149,5 @@ export {
   type ThemeFamily,
   type ThemePreset,
 } from "./theme/themePresets";
+export { provideUi, type Ui } from "./ui";
 export { createUndoStack, useGlobalUndoShortcut } from "./undoStack";

@@ -151,17 +151,34 @@ describe("holding position", () => {
     );
   });
 
-  test("layout changes mid-gesture wait for scrollend", () => {
+  test("a prepend mid-gesture never moves the rows on screen", () => {
     const view = mount(uniform(40, 60), 300);
     view.settle();
     view.fixture.container.scrollTop = 500;
     view.fixture.container.dispatchEvent(new Event("scroll"));
     const { group, offset } = topRow(view);
-    const writes = view.fixture.writes();
-    view.layout(() => view.fixture.prepend([200]));
-    expect(view.fixture.writes()).toBe(writes);
-    view.fixture.container.dispatchEvent(new Event("scrollend"));
+    view.layout(() => view.fixture.prepend(uniform(30, 60)));
     expect(view.fixture.offsetOf(group)).toBeCloseTo(offset, 0);
+  });
+
+  test("a scroll and a prepend in the same frame keep the scrolled position", () => {
+    const view = mount(uniform(40, 60), 300);
+    view.settle();
+    view.fixture.container.scrollTop = 500;
+    view.fixture.container.dispatchEvent(new Event("scroll"));
+    view.fixture.container.scrollTop = 560;
+    const { group, offset } = topRow(view);
+    view.fixture.prepend(uniform(30, 60));
+    view.settle();
+    expect(view.fixture.offsetOf(group)).toBeCloseTo(offset, 0);
+  });
+
+  test("the scroll event from our own landing write keeps following the bottom", async () => {
+    const view = mount(uniform(40, 60), 300);
+    await view.land({ at: "bottom" });
+    view.fixture.container.dispatchEvent(new Event("scroll"));
+    view.layout(() => view.fixture.prepend(uniform(20, 60)));
+    expect(view.fixture.container.scrollTop).toBe(view.maxTop());
   });
 
   test("resizing the pane keeps the top row in place", () => {

@@ -1,9 +1,10 @@
-import type { Setup } from "@slock/core";
+import type { Setup, TimerHandle } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { buildUnreadMap, isChannelId, isTs, parseBadgeCounts, parseCountGroup } from "@slock/slack";
+import type { ChannelId } from "@slock/types";
 import { isDmId } from "../../dms/client/api";
 import { gatewayHandler } from "../../realtime/client/api";
-import { fetchCounts, markChannelRead, markThreadRead } from "../../slack/client/api";
+import { fetchLatestCounts, markChannelRead, markThreadRead } from "../../slack/client/api";
 import { createUnreadStore } from "./store";
 
 const feedback = service("feedback");
@@ -13,14 +14,15 @@ const DELETION_REFRESH_MS = 500;
 const READ_REFRESH_MS = 300;
 
 const setup: Setup = (ctx) => {
+  const env = ctx.get("env");
   const bootstrap = service("bootstrap");
   const channels = service("channels");
   const dms = service("dms");
-  let refreshTimer: ReturnType<typeof setTimeout> | undefined;
-  ctx.onCleanup(() => clearTimeout(refreshTimer));
+  let refreshTimer: TimerHandle | undefined;
+  ctx.onCleanup(() => env.clearTimeout(refreshTimer));
   const refreshSoon = (ms: number) => {
-    clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(() => void refreshCounts(), ms);
+    env.clearTimeout(refreshTimer);
+    refreshTimer = env.setTimeout(() => void refreshCounts(), ms);
   };
   const store = createUnreadStore({
     api: { markChannelRead, markThreadRead },
@@ -34,23 +36,30 @@ const setup: Setup = (ctx) => {
   const onCounts = ctx.use("unread.counts");
   let lastRefreshAt = 0;
   let refreshSeq = 0;
+  let eventClock = 0;
+  const eventAt = new Map<ChannelId, number>();
+  const touched = (id: ChannelId) => void eventAt.set(id, ++eventClock);
   let disposed = false;
   ctx.onCleanup(() => {
     disposed = true;
   });
   const refreshCounts = async () => {
-    lastRefreshAt = Date.now();
+    lastRefreshAt = env.now();
     const seq = ++refreshSeq;
-    const data = await fetchCounts().catch(() => undefined);
+    const requestedAt = eventClock;
+    const data = await fetchLatestCounts().catch(() => undefined);
     if (!data || disposed || seq !== refreshSeq) return;
     const counts = buildUnreadMap(data.unreads);
+    const isNewer = (id: ChannelId) => (eventAt.get(id) ?? 0) > requestedAt;
     for (const { id } of channels.channels()) {
+      if (isNewer(id)) continue;
       store.setUnreadChannelIds(id, !!counts[id]?.unread);
-      channels.patchChannel(id, { mentions: counts[id]?.mentions || undefined });
+      channels.patchChannel(id, { mentions: counts[id]?.mentions ?? 0 });
     }
     for (const { id } of dms.directMessages()) {
+      if (isNewer(id)) continue;
       store.setUnreadChannelIds(id, !!counts[id]?.unread);
-      dms.patchDm(id, { mentions: counts[id]?.mentions || undefined });
+      dms.patchDm(id, { mentions: counts[id]?.mentions ?? 0 });
     }
     for (const run of onCounts()) run(data.notifications ?? {});
   };
@@ -65,7 +74,7 @@ const setup: Setup = (ctx) => {
     }),
   );
   const refreshWhenBack = () => {
-    if (document.visibilityState === "visible" && Date.now() - lastRefreshAt > REFRESH_AFTER_MS)
+    if (document.visibilityState === "visible" && env.now() - lastRefreshAt > REFRESH_AFTER_MS)
       void refreshCounts();
   };
   window.addEventListener("focus", refreshWhenBack);
@@ -79,6 +88,7 @@ const setup: Setup = (ctx) => {
     gatewayHandler(["badge_counts_updated"], (event) => {
       for (const [id, { unread, mentions }] of Object.entries(parseBadgeCounts(event))) {
         if (!isChannelId(id)) continue;
+        touched(id);
         store.setUnreadChannelIds(id, unread);
         if (isDmId(id, (dmId) => !!dms.dmById(dmId))) dms.patchDm(id, { mentions });
         else channels.patchChannel(id, { mentions });
@@ -90,6 +100,7 @@ const setup: Setup = (ctx) => {
     gatewayHandler(["channel_marked", "group_marked", "im_marked", "mpim_marked"], (event) => {
       if (!(event.channel && event.ts && isChannelId(event.channel) && isTs(event.ts))) return;
       if (store.isStaleReadEcho(event.channel, event.ts)) return;
+      touched(event.channel);
       const isDm = isDmId(event.channel, (dmId) => !!dms.dmById(dmId));
       const { unread, mentions } = parseCountGroup({ id: event.channel, ...event }, isDm) ?? {
         mentions: 0,

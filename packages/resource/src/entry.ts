@@ -1,5 +1,5 @@
+import type { TimerHandle } from "@slock/core/types";
 import type { Deferred } from "./deferred";
-import type { TimerHandle } from "./env";
 import { type EntryState, IDLE, type StateListener } from "./state";
 
 export interface Inflight {

@@ -5,16 +5,12 @@ import { INFO_COOKIE, parseSessionInfo, sessionInfoCookie } from "./info";
 const SLACK_DOMAIN_SUFFIX_RE = /(\.enterprise)?\.slack\.com$/;
 const INFO_COOKIE_RE = new RegExp(`(?:^|; )${INFO_COOKIE}=([^;]*)`);
 
-let cachedInfo: SessionInfo | null | undefined;
-
-function readInfoCookie(): SessionInfo | null {
-  const match = document.cookie.match(INFO_COOKIE_RE);
-  return match?.[1] ? parseSessionInfo(match[1]) : null;
-}
+let parsed: { raw: string | undefined; info: SessionInfo | null } = { info: null, raw: undefined };
 
 function info(): SessionInfo | null {
-  if (cachedInfo === undefined) cachedInfo = readInfoCookie();
-  return cachedInfo;
+  const raw = document.cookie.match(INFO_COOKIE_RE)?.[1];
+  if (parsed.raw !== raw) parsed = { info: raw ? parseSessionInfo(raw) : null, raw };
+  return parsed.info;
 }
 
 function activeAccount(): AccountSummary | undefined {
@@ -43,10 +39,6 @@ export function userProfileUrl(domain: string, userId: UserId): string {
   return `https://${sub}.enterprise.slack.com/team/${userId}`;
 }
 
-export function refreshAccountInfo(): void {
-  cachedInfo = undefined;
-}
-
 export function listAccounts(): AccountSummary[] {
   return info()?.accounts ?? [];
 }
@@ -58,7 +50,6 @@ export function getActiveAccountId(): string | null {
 export function switchAccount(id: string): void {
   const current = info();
   if (current) document.cookie = sessionInfoCookie({ ...current, id });
-  refreshAccountInfo();
 }
 
 export const REAUTH_EVENT = "slock:reauth";
@@ -68,7 +59,6 @@ export async function forceReauth(): Promise<never> {
   try {
     if (activeId) await sendRequest(`/api/session/${activeId}`, { method: "DELETE" });
   } finally {
-    refreshAccountInfo();
     window.dispatchEvent(new Event(REAUTH_EVENT));
   }
   return new Promise<never>(() => {});

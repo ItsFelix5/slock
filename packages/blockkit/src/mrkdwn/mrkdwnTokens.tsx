@@ -1,6 +1,8 @@
 import { formatTimeFromMs } from "@slock/core";
+import { service } from "@slock/core/solid";
 import "./mrkdwnTokens.css";
 import { decodeTextEntities } from "@slock/slack";
+import type { ChannelId, FileId, UserId } from "@slock/types";
 import { Icon, Tooltip } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { For, Show } from "solid-js";
@@ -20,6 +22,7 @@ import { stripTrackingParams } from "../urlCleanup";
 import { messageLinkLabel, parseArchiveLink, parseUserProfileLink } from "./mrkdwnInline";
 import { findTimeMentions, splitTimeMentions } from "./textTimeMentions";
 
+const env = service("env");
 const LEADING_AT_RE = /^@/;
 
 export function Link(props: {
@@ -65,7 +68,11 @@ export function Link(props: {
   );
 }
 
-export function MessageLinkMention(props: { url: string; channelId: string; authorId?: string }) {
+export function MessageLinkMention(props: {
+  url: string;
+  channelId: ChannelId;
+  authorId?: UserId;
+}) {
   const resolver = useBlockKitResolver();
   const attachments = useMessageAttachments();
   const unfurl = () => attachments()?.find((a) => a.fromUrl === props.url);
@@ -110,14 +117,14 @@ export function DateToken(props: {
   timestamp: number;
   url?: string;
 }) {
-  const label = formatSlackDateTokens(props.format, props.timestamp, props.fallback);
+  const label = formatSlackDateTokens(props.format, props.timestamp, env.now(), props.fallback);
   const dateData = () => ({
     "data-date-fallback": props.fallback ?? "",
     "data-date-format": props.format,
     "data-date-ts": String(props.timestamp),
   });
   return (
-    <Tooltip content={formatHoverDateTime(props.timestamp)}>
+    <Tooltip content={formatHoverDateTime(props.timestamp, env.now())}>
       {props.url ? (
         <Link class="bk-date" data={dateData()} url={props.url}>
           {label}
@@ -177,23 +184,18 @@ export function TimeAwareText(props: { text: string }) {
   );
 }
 
-export function Mention(props: {
-  id: string;
-  kind: "user" | "channel";
-  label?: string;
-  bold?: boolean;
-  url?: string;
-}) {
+export function Mention(
+  props: {
+    label?: string;
+    bold?: boolean;
+    url?: string;
+  } & ({ id: UserId; kind: "user" } | { id: ChannelId; kind: "channel" }),
+) {
   const resolver = useBlockKitResolver();
   const isUser = props.kind === "user";
-  const user = () => (isUser ? resolver.resolveUser(props.id) : undefined);
-  const channel = () => (isUser ? undefined : resolver.resolveChannel(props.id));
-  const name = () =>
-    decodeTextEntities(
-      isUser
-        ? (user()?.name ?? props.label ?? props.id)
-        : (channel()?.name ?? props.label ?? props.id),
-    );
+  const user = () => (props.kind === "user" ? resolver.resolveUser(props.id) : undefined);
+  const channel = () => (props.kind === "channel" ? resolver.resolveChannel(props.id) : undefined);
+  const name = () => decodeTextEntities((user() ?? channel())?.name ?? props.label ?? props.id);
   const isPrivate = () => !isUser && channel()?.isPrivate === true;
 
   const isInaccessible = () =>
@@ -202,7 +204,7 @@ export function Mention(props: {
   const onClick = (e: Event) => {
     e.stopPropagation();
     if (isInaccessible()) return;
-    if (isUser) resolver.onUserClick(props.id);
+    if (props.kind === "user") resolver.onUserClick(props.id);
     else resolver.onChannelClick(props.id);
   };
 
@@ -238,7 +240,7 @@ export function Mention(props: {
     </InlineAction>
   );
 
-  return isUser
+  return props.kind === "user"
     ? (resolver.wrapUserMention?.(props.id, trigger) ?? trigger)
     : (resolver.wrapChannelMention?.(props.id, trigger) ?? trigger);
 }
@@ -262,7 +264,7 @@ export function UsergroupMention(props: { id: string; label?: string }) {
   return resolver.wrapUsergroupMention?.(props.id, trigger) ?? trigger;
 }
 
-export function CanvasMention(props: { fileId: string; label?: string }) {
+export function CanvasMention(props: { fileId: FileId; label?: string }) {
   const resolver = useBlockKitResolver();
   const title = () => props.label || resolver.resolveCanvasTitle(props.fileId);
   const onClick = (e: Event) => {

@@ -1,8 +1,8 @@
 import type { CanvasCommentThread, FileId } from "@slock/types";
-import { FloatingPanel, scrollActiveListOption } from "@slock/ui";
+import { FloatingPanel } from "@slock/ui";
 import type Quill from "@slock/ui/editor/quill";
 import { indexAlignedText } from "@slock/ui/editor/quillText";
-import { createEffect, createSignal, onSettled, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import ComposerSuggestPopover from "../../../composer/client/api/editor/ComposerSuggestPopover";
 import { insertSuggestionAt } from "../../../composer/client/api/editor/mrkdwnInsert";
 import {
@@ -20,13 +20,7 @@ import { diffToOps } from "../lib/canvasDiffView";
 import { applyIdFixes } from "../lib/canvasEditorSetup";
 import { annotateSelection, commentAnchorAt } from "../lib/canvasFormatting";
 import { createCanvasNames } from "../lib/canvasNames";
-import {
-  headingElement,
-  type OutlineItem,
-  type OutlineSource,
-  outlineFromDom,
-  titleItem,
-} from "../lib/canvasOutline";
+import type { OutlineSource } from "../lib/canvasOutline";
 import { watchRemoteChanges } from "../lib/canvasRemoteWatch";
 import { type LoadedCanvas, postCanvasEdit } from "../lib/canvasRequests";
 import { createCanvasSync } from "../lib/canvasSync";
@@ -36,6 +30,7 @@ import CanvasSelectionActions from "./CanvasSelectionActions";
 import CanvasSurface from "./CanvasSurface";
 import { CANVAS_FORMATS } from "./canvasBlots";
 import { type CanvasServices, provideCanvasServices } from "./canvasBlots/canvasServices";
+import { useCanvasOutline } from "./useCanvasOutline";
 import { useCanvasSelectionShortcuts } from "./useCanvasSelectionShortcuts";
 import "./CanvasBlocks.css";
 import "./CanvasEditor.css";
@@ -63,18 +58,22 @@ export default function CanvasEditor(props: {
   const [title, setTitle] = createSignal(canvasTitle(props.doc, names));
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
   const ops = props.diff ? diffToOps(props.diff, props.doc, names) : canvasToOps(props.doc, names);
-  const [headings, setHeadings] = createSignal<OutlineItem[]>([]);
   const [active, setActive] = createSignal<Quill>();
   const surfaces = new Map<Quill, () => string>();
   let root: Quill | undefined;
-  let outlineTimer: ReturnType<typeof setTimeout> | undefined;
   let caretIndex = 0;
   let titleRef: HTMLTextAreaElement | undefined;
   let suggestPopoverRef: HTMLDivElement | undefined;
+  const outline = useCanvasOutline({
+    onOutline: props.onOutline,
+    quill: () => root,
+    title,
+    titleElement: () => titleRef,
+  });
   const newId = () => newSectionId(props.doc.meta.shardChars);
 
   function findSurface(scope: string): Quill | undefined {
-    for (const [quill, scopeOf] of surfaces) if (scopeOf() === scope) return quill;
+    return [...surfaces].find(([, scopeOf]) => scopeOf() === scope)?.[0];
   }
 
   const sync = createCanvasSync({
@@ -126,20 +125,12 @@ export default function CanvasEditor(props: {
   });
   useSuggestUi(() => suggestPopoverRef, suggest, setSuggest);
   useSuggestShortcuts({ setSuggest, suggest, suggestions });
-  createEffect(suggest, () => scrollActiveListOption(() => suggestPopoverRef));
-
-  function refreshOutline() {
-    clearTimeout(outlineTimer);
-    outlineTimer = setTimeout(() => {
-      if (root) setHeadings(outlineFromDom(root.root));
-    }, 250);
-  }
 
   const services: CanvasServices = {
     activate: setActive,
     afterChange(quill) {
       sync.markDirty();
-      refreshOutline();
+      outline.schedule();
       syncSuggestionsAfterChange(quill, indexAlignedText(quill), suggestions, (index) => {
         caretIndex = index;
       });
@@ -153,18 +144,6 @@ export default function CanvasEditor(props: {
     },
   };
 
-  onSettled(() => {
-    props.onOutline({
-      element: (index) =>
-        index === 0 ? (titleRef ?? null) : root ? headingElement(root.root, index) : null,
-      items: () => [titleItem(title()), ...headings()],
-    });
-    return () => {
-      clearTimeout(outlineTimer);
-      props.onOutline(null);
-    };
-  });
-
   function resizeTitle() {
     if (!titleRef) return;
     titleRef.style.height = "auto";
@@ -174,7 +153,7 @@ export default function CanvasEditor(props: {
   function ready(quill: Quill) {
     root = quill;
     setActive(quill);
-    setHeadings(outlineFromDom(quill.root));
+    outline.load(quill);
     quill.root.addEventListener("blur", () => void sync.flush());
   }
 

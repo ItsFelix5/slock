@@ -6,6 +6,6 @@ export function createAppHomeStore() {
   return {
     closeHome: () => setHomeChannelId(undefined),
     homeChannelId,
-    openHome: setHomeChannelId,
+    openHome: (channelId: ChannelId) => setHomeChannelId(channelId),
   };
 }

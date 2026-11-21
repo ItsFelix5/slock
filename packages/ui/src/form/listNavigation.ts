@@ -1,7 +1,30 @@
+import { assertNever } from "@slock/core";
 import { createEffect, createSignal } from "solid-js";
 
 export type NavDirection = "down" | "end" | "left" | "right" | "start" | "up";
 export type ListDirection = "down" | "end" | "start" | "up";
+
+function stepListIndex(
+  direction: ListDirection,
+  current: number | null,
+  itemCount: number,
+  wrap: boolean,
+): number {
+  switch (direction) {
+    case "down":
+      if (current === null) return 0;
+      return wrap ? (current + 1) % itemCount : Math.min(current + 1, itemCount - 1);
+    case "up":
+      if (current === null) return itemCount - 1;
+      return wrap ? (current - 1 + itemCount) % itemCount : Math.max(current - 1, 0);
+    case "start":
+      return 0;
+    case "end":
+      return itemCount - 1;
+    default:
+      return assertNever(direction);
+  }
+}
 
 export function listNavigationIndex(
   direction: ListDirection,
@@ -9,18 +32,33 @@ export function listNavigationIndex(
   itemCount: number,
   options?: { wrap?: boolean },
 ): number | undefined {
-  if (itemCount <= 0) return;
-  const wrap = options?.wrap ?? false;
-  if (direction === "down") {
-    if (current === null) return 0;
-    return wrap ? (current + 1) % itemCount : Math.min(current + 1, itemCount - 1);
+  return itemCount > 0
+    ? stepListIndex(direction, current, itemCount, options?.wrap ?? false)
+    : undefined;
+}
+
+function stepGridIndex(
+  direction: NavDirection,
+  current: number | null,
+  itemCount: number,
+  columns: number,
+): number {
+  switch (direction) {
+    case "start":
+      return 0;
+    case "end":
+      return itemCount - 1;
+    case "right":
+      return current === null ? 0 : Math.min(current + 1, itemCount - 1);
+    case "left":
+      return current === null ? itemCount - 1 : Math.max(current - 1, 0);
+    case "down":
+      return current === null ? 0 : Math.min(current + columns, itemCount - 1);
+    case "up":
+      return current === null ? itemCount - 1 : Math.max(current - columns, 0);
+    default:
+      return assertNever(direction);
   }
-  if (direction === "up") {
-    if (current === null) return itemCount - 1;
-    return wrap ? (current - 1 + itemCount) % itemCount : Math.max(current - 1, 0);
-  }
-  if (direction === "start") return 0;
-  if (direction === "end") return itemCount - 1;
 }
 
 export function gridNavigationIndex(
@@ -29,14 +67,7 @@ export function gridNavigationIndex(
   itemCount: number,
   columns: number,
 ): number | undefined {
-  if (itemCount <= 0) return;
-  if (direction === "start") return 0;
-  if (direction === "end") return itemCount - 1;
-  if (direction === "right") return current === null ? 0 : Math.min(current + 1, itemCount - 1);
-  if (direction === "left") return current === null ? itemCount - 1 : Math.max(current - 1, 0);
-  if (direction === "down")
-    return current === null ? 0 : Math.min(current + columns, itemCount - 1);
-  if (direction === "up") return current === null ? itemCount - 1 : Math.max(current - columns, 0);
+  return itemCount > 0 ? stepGridIndex(direction, current, itemCount, columns) : undefined;
 }
 
 export function rovingTabIndex(rows: HTMLElement[], activeIndex: number) {
@@ -72,7 +103,7 @@ export function createListboxActiveIndex(
   };
 
   if (listboxRef) {
-    createEffect(activeIndex, () => scrollActiveListOption(listboxRef));
+    createEffect(activeIndex, () => void scrollActiveListOption(listboxRef));
   }
 
   return { activeIndex, setActiveIndex, optionId, activeOptionId };

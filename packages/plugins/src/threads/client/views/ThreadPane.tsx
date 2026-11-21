@@ -11,6 +11,7 @@ import { createInPaneSearch } from "../../../messages/client/api/pane/inPaneSear
 import MessageRows from "../../../messages/client/api/pane/MessageRows";
 import { createFeedPagination } from "../../../messages/client/api/pane/scroll/feedPagination";
 import { createFeedScroll } from "../../../messages/client/api/pane/scroll/feedScroll";
+import { planThreadFocus } from "../lib/threadFocusPlan";
 import ThreadHeader from "./ThreadHeader";
 import ThreadJumpPills from "./ThreadJumpPills";
 import { ThreadEarlierStatus, ThreadLoadStatus, ThreadMoreStatus } from "./ThreadLoadStatus";
@@ -87,33 +88,43 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
 
   let handledFocusKey: string | undefined;
   createEffect(
-    () => ({
-      loading: messagesStore.isLoadingThread(thread().ts),
-      msgs: messages(),
-      thread: thread(),
-    }),
-    ({ loading, msgs, thread: { channelId, highlightTs, ts } }) => {
-      const key = `${ts}:${highlightTs ?? ""}`;
-      if (handledFocusKey === key) return;
-      const [first] = msgs;
-      if (!first) return;
-      const highlightMissing = highlightTs !== undefined && !msgs.some((m) => m.ts === highlightTs);
-      if (highlightMissing) {
-        if (loading) return;
+    () => {
+      const { channelId, highlightTs, ts } = thread();
+      return {
+        channelId,
+        highlightTs,
+        loading: messagesStore.isLoadingThread(ts),
+        msgs: messages(),
+        ts,
+      };
+    },
+    ({ channelId, highlightTs, loading, msgs, ts }) => {
+      const input = {
+        handledKey: handledFocusKey,
+        highlightTs,
+        loading,
+        messages: msgs,
+        remembered: scrollAnchors.get(ts),
+        repliesExhausted: false,
+        ts,
+      };
+      let step = planThreadFocus(input);
+      if (step.kind === "load-replies") {
         if (messagesStore.ensureThreadRepliesLoaded(channelId, ts, highlightTs)) return;
+        step = planThreadFocus({ ...input, repliesExhausted: true });
       }
-      handledFocusKey = key;
-      const found = highlightTs !== undefined && msgs.some((m) => m.ts === highlightTs);
-      if (highlightTs && !found) feedback.flash("navigation", "Couldn't find that reply.", "error");
-      const remembered = highlightTs ? undefined : scrollAnchors.get(ts);
-      if (found && highlightTs) {
-        messageFocus.focusMessage(highlightTs);
-        feed.land({ align: "center", at: "row", flash: true, ts: highlightTs });
-      } else if (remembered && msgs.some((m) => m.ts === remembered.ts)) {
-        feed.land({ at: "offset", offset: remembered.offset, ts: remembered.ts });
+      if (step.kind !== "land") return;
+      handledFocusKey = step.key;
+      if (step.missingHighlight) feedback.flash("navigation", "Couldn't find that reply.", "error");
+      const { landing } = step;
+      if (landing.at === "highlight") {
+        messageFocus.focusMessage(landing.ts);
+        feed.land({ align: "center", at: "row", flash: true, ts: landing.ts });
+      } else if (landing.at === "remembered") {
+        feed.land({ at: "offset", offset: landing.offset, ts: landing.ts });
       } else {
-        messageFocus.focusMessage(first.ts);
-        feed.land({ align: "start", at: "row", ts: first.ts });
+        messageFocus.focusMessage(landing.ts);
+        feed.land({ align: "start", at: "row", ts: landing.ts });
       }
     },
   );
@@ -129,13 +140,9 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
     setReplyTarget({ permalink, ts: msg.ts });
   }
 
-  createEffect(
+  unreadStore.trackBottomSeen(
     () => thread().ts,
-    (ts) => () => unreadStore.setBottomSeen(ts, false),
-  );
-  createEffect(
-    () => ({ seen: feed.ready() && feed.atBottom() && !hasMore(), ts: thread().ts }),
-    ({ seen, ts }) => unreadStore.setBottomSeen(ts, seen),
+    () => feed.ready() && feed.atBottom() && !hasMore(),
   );
 
   return (

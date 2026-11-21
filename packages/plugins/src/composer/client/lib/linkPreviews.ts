@@ -1,7 +1,11 @@
+import { sameItems, type TimerHandle } from "@slock/core";
+import { service } from "@slock/core/solid";
 import type { Attachment, Block, ChannelId } from "@slock/types";
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { fetchLinkPreview } from "../../../slack/client/api";
 import { previewableLinks } from "./blockLinks";
+
+const env = service("env");
 
 export interface LinkPreview {
   attachment: Attachment;
@@ -9,9 +13,6 @@ export interface LinkPreview {
 }
 
 const SEND_WAIT_MS = 2000;
-
-const sameUrls = (a: string[], b: string[]) =>
-  a.length === b.length && a.every((u, i) => u === b[i]);
 
 const lookupKey = (channelId: ChannelId, url: string) => `${channelId} ${url}`;
 
@@ -26,7 +27,7 @@ export function createLinkPreviews(opts: {
   const inflight = new Set<Promise<void>>();
 
   const urls = createMemo(() => (opts.enabled() ? previewableLinks(opts.blocks()) : []), {
-    equals: sameUrls,
+    equals: sameItems,
   });
 
   const lookup = (channelId: ChannelId, url: string) => {
@@ -68,10 +69,12 @@ export function createLinkPreviews(opts: {
     previews,
     reset: () => setDismissed(new Set<string>()),
     async urlsToSend() {
-      await Promise.race([
-        Promise.all(inflight),
-        new Promise((resolve) => setTimeout(resolve, SEND_WAIT_MS)),
-      ]);
+      let timer: TimerHandle | undefined;
+      const timeout = new Promise<void>((resolve) => {
+        timer = env.setTimeout(resolve, SEND_WAIT_MS);
+      });
+      await Promise.race([Promise.all(inflight), timeout]);
+      env.clearTimeout(timer);
       return previews().map((preview) => preview.url);
     },
   };

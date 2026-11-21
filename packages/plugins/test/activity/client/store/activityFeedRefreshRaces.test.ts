@@ -1,15 +1,13 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { stamp } from "@slock/slack/testing";
 import { flush, refresh } from "solid-js";
-import { disposeHarnesses, entry, harness, wait } from "./feedLoadHarness";
-
-afterEach(disposeHarnesses);
+import { entry, harness, wait } from "./feedLoadHarness";
 
 describe("refresh and races", () => {
   test("a live refresh updates an item that got newer activity", async () => {
     const thread = (time: number, unreadCount: number) =>
       entry("t", time, { kind: "thread_reply", threadTs: stamp("9.9"), unreadCount });
-    const h = harness({ ":": { entries: [thread(100, 1)] } });
+    using h = harness({ ":": { entries: [thread(100, 1)] } });
     await h.loaded();
     h.pages[":"] = { entries: [thread(500, 4), entry("n", 300)] };
     await refresh(h.load.activityFeed);
@@ -18,7 +16,7 @@ describe("refresh and races", () => {
   });
 
   test("a refresh keeps scoped pagination state", async () => {
-    const h = harness({
+    using h = harness({
       ":": { entries: [entry("a", 100)], nextCursor: "main" },
       "keyword:": { entries: [entry("s", 50)] },
     });
@@ -29,7 +27,7 @@ describe("refresh and races", () => {
   });
 
   test("a refresh while loading more is skipped and never duplicates items", async () => {
-    const h = harness({
+    using h = harness({
       ":": { entries: [entry("n3", 300), entry("n2", 200)], nextCursor: "p2" },
       ":p2": { entries: [entry("n1", 100)] },
     });
@@ -44,7 +42,7 @@ describe("refresh and races", () => {
   });
 
   test("loading more while a refresh is in flight is ignored", async () => {
-    const h = harness({
+    using h = harness({
       ":": { entries: [entry("a", 100)], nextCursor: "p2" },
       ":p2": { entries: [entry("b", 50)] },
     });
@@ -59,7 +57,7 @@ describe("refresh and races", () => {
   });
 
   test("an update refreshes the feed without the view open", async () => {
-    const h = harness({ ":": { entries: [entry("a", 100)] } });
+    using h = harness({ ":": { entries: [entry("a", 100)] } });
     await h.loaded();
     h.load.requestActivityRefresh();
     await wait(300);
@@ -67,10 +65,10 @@ describe("refresh and races", () => {
   });
 
   test("a pending live refresh is dropped when the store is disposed", async () => {
-    const h = harness({ ":": { entries: [entry("a", 100)] } });
+    using h = harness({ ":": { entries: [entry("a", 100)] } });
     await h.loaded();
     h.load.requestActivityRefresh();
-    disposeHarnesses();
+    h[Symbol.dispose]();
     await wait(300);
     expect(h.fetches).toHaveLength(1);
   });

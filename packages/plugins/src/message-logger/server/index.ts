@@ -7,11 +7,12 @@ import { createLogStore } from "./store";
 const PURGE_INTERVAL_MS = 60 * 60 * 1000;
 
 const setup: Setup = (ctx) => {
-  const store = createLogStore(`${Bun.env.SLOCK_DATA ?? "data"}/message-logger.sqlite`);
+  const env = ctx.get("env");
+  const store = createLogStore(`${Bun.env.SLOCK_DATA ?? "data"}/message-logger.sqlite`, env);
   store.purge();
-  const purgeTimer = setInterval(store.purge, PURGE_INTERVAL_MS);
+  const purgeTimer = env.setInterval(store.purge, PURGE_INTERVAL_MS);
   ctx.onCleanup(() => {
-    clearInterval(purgeTimer);
+    env.clearInterval(purgeTimer);
     store.close();
   });
   ctx.add("realtime.event", captureDeleted(store));

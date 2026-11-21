@@ -1,6 +1,6 @@
 import { EmojiText } from "@slock/blockkit";
-import { formatTimeFromMs } from "@slock/core";
-import { usePoint } from "@slock/core/solid";
+import { assertNever, formatTimeFromMs } from "@slock/core";
+import { service, usePoint } from "@slock/core/solid";
 import { blockPreviewText } from "@slock/slack";
 import type { DraftEntry } from "@slock/types";
 import {
@@ -17,15 +17,18 @@ import { createMemo, createSignal, Show } from "solid-js";
 import type { ComposerDraftAction } from "../../api";
 import "./DraftsMenu.css";
 
+const env = service("env");
+
 function relativeLabel(ts: string | undefined): string {
   if (!ts) return "";
   const ms = Number(ts) * 1000;
   if (!Number.isFinite(ms)) return "";
-  const diff = Date.now() - ms;
+  const now = env.now();
+  const diff = now - ms;
   if (diff < 60_000) return "just now";
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
   const d = new Date(ms);
-  const sameDay = new Date().toDateString() === d.toDateString();
+  const sameDay = new Date(now).toDateString() === d.toDateString();
   return sameDay
     ? formatTimeFromMs(ms)
     : d.toLocaleDateString([], { day: "numeric", month: "short" });
@@ -153,6 +156,8 @@ export default function DraftsMenu(props: {
             <span class="suggestion-label truncate">{row.action.label}</span>
           </>
         );
+      default:
+        return assertNever(row);
     }
   };
 

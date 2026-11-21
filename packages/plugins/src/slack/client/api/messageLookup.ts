@@ -1,10 +1,10 @@
 import { isRecord } from "@slock/core";
-import { apiPost, isRawMessage, mapVisibleMessage } from "@slock/slack";
+import { apiPost, isRawMessage, mapVisibleMessage, parseChannelId, parseTs } from "@slock/slack";
 import type { ChannelId, Message, RawMessage, Ts } from "@slock/types";
 import { defineQuery } from "../../../query/client/api";
 import { createBatchedIdFetcher } from "./cache/batchedIdFetcher";
 
-type MessageIdGroup = { channel: string; timestamps: string[] };
+type MessageIdGroup = { channel: ChannelId; timestamps: Ts[] };
 type MessageRef = { channelId: ChannelId; ts: Ts };
 
 const MESSAGES_LIST_BATCH_SIZE = 25;
@@ -43,10 +43,11 @@ async function lookup(messageIds: MessageIdGroup[]): Promise<Map<string, Message
 }
 
 const fetchBatched = createBatchedIdFetcher<Message | null>(async (keys) => {
-  const timestampsByChannel = new Map<string, string[]>();
+  const timestampsByChannel = new Map<ChannelId, Ts[]>();
   for (const key of keys) {
-    const [channel = "", ts = ""] = key.split(":");
-    timestampsByChannel.set(channel, [...(timestampsByChannel.get(channel) ?? []), ts]);
+    const [rawChannel = "", rawTs = ""] = key.split(":");
+    const channel = parseChannelId(rawChannel);
+    timestampsByChannel.set(channel, [...(timestampsByChannel.get(channel) ?? []), parseTs(rawTs)]);
   }
   const found = await lookup(
     [...timestampsByChannel].map(([channel, timestamps]) => ({ channel, timestamps })),

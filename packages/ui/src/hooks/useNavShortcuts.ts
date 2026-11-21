@@ -1,8 +1,9 @@
 import { defined } from "@slock/core";
 import type { Accessor } from "solid-js";
 import { type ListDirection, listNavigationIndex, type NavDirection } from "../form/listNavigation";
+import type { ShortcutOptions } from "./shortcutRegistry";
 import { useCancelShortcut } from "./useEscapeClose";
-import { inside, type ShortcutOptions, useShortcut } from "./useShortcut";
+import { inside, useShortcut } from "./useShortcut";
 
 type Root = () => Element | null | undefined;
 type Roots = Root | Root[];
@@ -54,7 +55,7 @@ const LIST_DIRECTIONS_WITHOUT_EDGES: readonly ListDirection[] = ["down", "up"];
 const GRID_DIRECTIONS: readonly NavDirection[] = ["up", "down", "left", "right", "start", "end"];
 const SLIDER_DIRECTIONS: readonly NavDirection[] = ["left", "right", "start", "end"];
 
-export const CONFIRM_SHORTCUT = {
+const CONFIRM_SHORTCUT = {
   combo: { key: "Enter" },
   id: "general.confirm",
   label: "Confirm the focused field or item",

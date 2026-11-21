@@ -5,8 +5,8 @@ import Quill from "./quill";
 const CONTEXT_PREFIX = /^-#$/;
 
 export default class ContextBlot extends Block {
-  static blotName = "context";
-  static tagName = "aside";
+  static override blotName = "context";
+  static override tagName = "aside";
 
   static bindShortcut(editor: Quill) {
     bindLinePrefix(editor, {

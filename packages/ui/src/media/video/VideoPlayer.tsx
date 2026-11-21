@@ -35,6 +35,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     src: () => props.src,
   });
   const { mediaVolume } = playback;
+  const boxStyle = () =>
+    props.width && props.height ? mediaBoxStyle(props.width, props.height) : undefined;
 
   return (
     <Show
@@ -43,6 +45,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
           class={props.class}
           href={fileSrc(props.openHref ?? props.src)}
           onRetry={playback.retry}
+          style={boxStyle()}
         />
       }
       when={!playback.failed()}
@@ -50,11 +53,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       <div
         class="video-player-wrap"
         ref={playback.setWrapRef}
-        style={
-          props.width && props.height && !playback.fullscreen()
-            ? mediaBoxStyle(props.width, props.height)
-            : undefined
-        }
+        style={playback.fullscreen() ? undefined : boxStyle()}
       >
         <FloatingMountContext
           value={() => (playback.fullscreen() ? playback.wrapElement() : undefined)}

@@ -1,6 +1,7 @@
-import { afterEach, beforeAll, describe, expect, mock, spyOn, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 import { createHost } from "@slock/core";
 import { setHost } from "@slock/core/services";
+import { createFakeEnv, type FakeEnv } from "@slock/core/testing";
 import {
   type EmailChallenge,
   exchangeEmailCode,
@@ -27,28 +28,32 @@ function respond(
 const csrfPage = (token: string, extra = "") =>
   `<html><head><meta name="csrf-token" content="${token}"></head><body>${extra}</body></html>`;
 
+let env: FakeEnv;
+
 function serve(route: Route) {
   const requests: { url: string; method: string; cookie: string | null; body: string }[] = [];
-  spyOn(globalThis, "fetch").mockImplementation(((input: URL | RequestInfo, init?: RequestInit) => {
-    const url = new URL(String(input));
-    requests.push({
-      body: String(init?.body ?? ""),
-      cookie: new Headers(init?.headers).get("cookie"),
-      method: init?.method ?? "GET",
-      url: url.toString(),
-    });
-    return Promise.resolve(route(url, init));
-  }) as typeof fetch);
+  env.fetch.respond(
+    () => true,
+    (call) => {
+      const url = new URL(call.url);
+      requests.push({
+        body: String(call.init?.body ?? ""),
+        cookie: new Headers(call.init?.headers).get("cookie"),
+        method: call.init?.method ?? "GET",
+        url: url.toString(),
+      });
+      return route(url, call.init);
+    },
+  );
   return requests;
 }
 
 beforeAll(async () => {
-  const host = createHost();
+  env = createFakeEnv();
+  const host = createHost({ env });
   setHost(host);
   await host.register({ id: "slack", setup: slack });
 });
-
-afterEach(() => mock.restore());
 
 function loginRoute(afterPost: Response): Route {
   return (url, init) => {

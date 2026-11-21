@@ -1,7 +1,8 @@
 import { service } from "@slock/core/solid";
 import type { ChannelDetails } from "@slock/types";
-import { createEffect, createSignal } from "solid-js";
+import { createSignal } from "solid-js";
 import {
+  type ChannelDetailsDraft,
   type EditableChannelDetails,
   editableChannelDetails,
   mergeChannelDetailsDraft,
@@ -9,6 +10,10 @@ import {
 
 const channelDetails = service("channel-details");
 const feedback = service("feedback");
+
+type Draft = { fields: ChannelDetailsDraft; seeded: EditableChannelDetails | undefined };
+
+const EMPTY_DRAFT: Draft = { fields: { name: "", purpose: "", topic: "" }, seeded: undefined };
 
 function stripLeadingHash(name: string): string {
   return name.startsWith("#") ? name.slice(1) : name;
@@ -18,24 +23,23 @@ export function createChannelDetailsDraft(
   details: () => ChannelDetails | null | undefined,
   refetch: () => unknown,
 ) {
-  const [topicInput, setTopicInput] = createSignal("");
-  const [purposeInput, setPurposeInput] = createSignal("");
-  const [nameInput, setNameInput] = createSignal("");
-  const [saving, setSaving] = createSignal(false);
-
-  let seededDetails: EditableChannelDetails | undefined;
-  createEffect(details, (d) => {
-    if (!d) return;
-    const merged = mergeChannelDetailsDraft(
-      { name: nameInput(), purpose: purposeInput(), topic: topicInput() },
-      seededDetails,
-      d,
-    );
-    setTopicInput(merged.topic);
-    setPurposeInput(merged.purpose);
-    setNameInput(merged.name);
-    seededDetails = editableChannelDetails(d);
+  const [draft, setDraft] = createSignal((previous: Draft = EMPTY_DRAFT): Draft => {
+    const d = details();
+    if (!d) return previous;
+    return {
+      fields: mergeChannelDetailsDraft(previous.fields, previous.seeded, d),
+      seeded: editableChannelDetails(d),
+    };
   });
+  const nameInput = () => draft().fields.name;
+  const topicInput = () => draft().fields.topic;
+  const purposeInput = () => draft().fields.purpose;
+  const setField = (key: keyof ChannelDetailsDraft) => (value: string) =>
+    setDraft((previous) => ({ ...previous, fields: { ...previous.fields, [key]: value } }));
+  const setNameInput = setField("name");
+  const setTopicInput = setField("topic");
+  const setPurposeInput = setField("purpose");
+  const [saving, setSaving] = createSignal(false);
 
   const nameDirty = () => {
     const d = details();

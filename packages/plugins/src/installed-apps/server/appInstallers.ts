@@ -1,5 +1,8 @@
+import { service } from "@slock/core/services";
 import { decodeTextEntities } from "@slock/slack";
 import type { Credentials } from "../../slack/server/api/auth";
+
+const env = service("env");
 
 type Authorizations = { authorizations: { encodedUserLink: string }[] };
 type BotUser = { memberships: string[]; otherGroups: number };
@@ -26,7 +29,7 @@ export async function fetchAppInstallers(
   creds: Credentials,
 ): Promise<AppInstallers | null> {
   const [team = ""] = creds.route.split(":");
-  const page = await fetch(`https://slack.com/marketplace/${appId}?team=${team}`, {
+  const page = await env.fetch(`https://slack.com/marketplace/${appId}?team=${team}`, {
     headers: { cookie: `d=${creds.slackSession}` },
     signal: AbortSignal.timeout(15_000),
   });

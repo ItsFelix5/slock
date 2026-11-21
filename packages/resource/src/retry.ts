@@ -1,4 +1,4 @@
-import type { ResourceEnv } from "./env";
+import type { ResourceEnv } from "./delay";
 
 export type RetryDecision = "retry" | "stop" | { retryAfterMs: number };
 
@@ -16,7 +16,7 @@ export type RetryPlan =
 
 const STOP: RetryPlan = { kind: "stop" };
 
-export function backoffMs(
+function backoffMs(
   env: ResourceEnv,
   attempt: number,
   policy: Pick<RetryPolicy, "baseMs" | "maxMs">,

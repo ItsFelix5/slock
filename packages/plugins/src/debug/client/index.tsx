@@ -17,6 +17,7 @@ import {
 
 const DebugPane = lazy(() => import("./views/DebugPane"));
 const IconsTab = lazy(() => import("./views/IconsTab"));
+const CacheTab = lazy(() => import("./views/CacheTab"));
 
 const SEGMENT_PREFIX = "debug:";
 
@@ -56,6 +57,7 @@ const setup: Setup = (ctx) => {
   ctx.add("messages.menu", MessageDebugItem, { order: 70 });
   ctx.add("messages.channelMenu", ChannelDebugItem, { order: 70 });
   ctx.add("activity.menu", ActivityDebugItem, { order: 70 });
+  ctx.add("settings.tab", { id: "cache", label: "Cache", view: CacheTab }, { order: 89 });
   ctx.add("settings.tab", { id: "icons", label: "Icons", view: IconsTab }, { order: 90 });
 };
 

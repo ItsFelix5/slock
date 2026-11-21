@@ -1,13 +1,17 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { service } from "@slock/core/solid";
 import { createRoot, createSignal, flush } from "solid-js";
-import {
-  dispatchManualShortcut,
-  inside,
-  listShortcuts,
-  type ShortcutDef,
-  shortcutConflicts,
-  useShortcut,
-} from "../src/hooks/useShortcut";
+import type { ShortcutDef } from "../src/hooks/shortcutRegistry";
+import { inside, useShortcut } from "../src/hooks/useShortcut";
+import { startFakeEnv } from "./fakeEnv";
+
+const ui = service("ui");
+let fake: Awaited<ReturnType<typeof startFakeEnv>>;
+
+beforeEach(async () => {
+  fake = await startFakeEnv();
+});
+afterEach(() => fake.stop());
 
 const body = () => document.body;
 
@@ -142,8 +146,8 @@ describe("useShortcut dispatch", () => {
     const dispose = register({ log, manual: true, name: "manual" });
     press({ key: "x" });
     expect(log).toEqual([]);
-    expect(dispatchManualShortcut(keydown({ key: "x" }))).toBe(true);
-    expect(dispatchManualShortcut(keydown({ key: "q" }))).toBe(false);
+    expect(ui.shortcuts.dispatchManual(keydown({ key: "x" }))).toBe(true);
+    expect(ui.shortcuts.dispatchManual(keydown({ key: "q" }))).toBe(false);
     expect(log).toEqual(["manual"]);
     dispose();
   });
@@ -176,7 +180,7 @@ describe("shortcut registry", () => {
   test("lists each id once and marks it as not customised", () => {
     const one = register({ combo: { key: "k", mod: true }, name: "dup" });
     const two = register({ combo: { key: "j" }, name: "dup" });
-    const entries = listShortcuts().filter((entry) => entry.id === "test.dup");
+    const entries = ui.shortcuts.list().filter((entry) => entry.id === "test.dup");
     expect(entries).toHaveLength(1);
     expect(entries[0]?.isCustom).toBe(false);
     one();
@@ -191,7 +195,8 @@ describe("shortcut registry", () => {
       register({ combo: { key: "z" }, name: "m", scope: "messages" }),
     ];
     const conflictsOf = (id: string, key: string) =>
-      shortcutConflicts(id, { key })
+      ui.shortcuts
+        .conflicts(id, { key })
         .map((info) => info.id)
         .sort();
     expect(conflictsOf("test.c", "q")).toEqual(["test.g"]);
@@ -199,5 +204,17 @@ describe("shortcut registry", () => {
     expect(conflictsOf("test.m", "q")).toEqual(["test.g"]);
     expect(conflictsOf("test.m", "z")).toEqual([]);
     for (const dispose of disposers) dispose();
+  });
+});
+
+describe("host lifetime", () => {
+  test("a restarted host starts with an empty registry and no stale listener", async () => {
+    const log: string[] = [];
+    register({ log, name: "old" });
+    expect(ui.shortcuts.list()).toHaveLength(1);
+    await fake.restart();
+    expect(ui.shortcuts.list()).toEqual([]);
+    press({ key: "x" });
+    expect(log).toEqual([]);
   });
 });

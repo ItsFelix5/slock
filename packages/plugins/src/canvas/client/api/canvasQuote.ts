@@ -12,9 +12,8 @@ export function canvasHtmlLines(doc: CanvasDocModel | null | undefined): string[
 
 export function annotationQuote(html: string[], threadId: string): string | undefined {
   const pattern = /<annotation id="([^"]*)">(.*?)<\/annotation>/g;
-  for (const line of html) {
-    for (const [, id = "", text = ""] of line.matchAll(pattern)) {
-      if (isThreadAnnotation(id, threadId)) return text.replace(TAG_RE, "");
-    }
-  }
+  const match = html
+    .flatMap((line) => [...line.matchAll(pattern)])
+    .find(([, id = ""]) => isThreadAnnotation(id, threadId));
+  return match?.[2]?.replace(TAG_RE, "");
 }

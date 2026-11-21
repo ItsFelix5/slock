@@ -1,20 +1,25 @@
+import type { TimerHandle } from "@slock/core";
+import { service } from "@slock/core/solid";
 import type { PaneLayoutProps } from "@slock/ui";
 import { createEffect, createSignal, For, onCleanup } from "solid-js";
 import ScrollingCell from "./ScrollingCell";
+import { scrollLeftToReveal } from "./scrollTarget";
 import "./ScrollingLayout.css";
 
 const DRAG_IDLE_MS = 150;
 
+const env = service("env");
+
 export default function ScrollingLayout<T>(props: PaneLayoutProps<T>) {
   let rowEl: HTMLDivElement | undefined;
   const [dragging, setDragging] = createSignal(false);
-  let dragIdle: ReturnType<typeof setTimeout> | undefined;
-  onCleanup(() => clearTimeout(dragIdle));
+  let dragIdle: TimerHandle | undefined;
+  onCleanup(() => env.clearTimeout(dragIdle));
 
   const markDragging = () => {
     setDragging(true);
-    clearTimeout(dragIdle);
-    dragIdle = setTimeout(() => setDragging(false), DRAG_IDLE_MS);
+    env.clearTimeout(dragIdle);
+    dragIdle = env.setTimeout(() => setDragging(false), DRAG_IDLE_MS);
   };
 
   createEffect(
@@ -24,13 +29,11 @@ export default function ScrollingLayout<T>(props: PaneLayoutProps<T>) {
       const frame = requestAnimationFrame(() => {
         const cell = rowEl?.querySelector<HTMLElement>(`[data-cell="${CSS.escape(id)}"]`);
         if (!(rowEl && cell)) return;
-        const left = cell.offsetLeft;
-        const right = left + cell.offsetWidth;
-        if (left >= rowEl.scrollLeft && right <= rowEl.scrollLeft + rowEl.clientWidth) return;
-        rowEl.scrollTo({
-          behavior: "smooth",
-          left: left - (rowEl.clientWidth - cell.offsetWidth) / 2,
-        });
+        const left = scrollLeftToReveal(
+          { left: cell.offsetLeft, width: cell.offsetWidth },
+          { scrollLeft: rowEl.scrollLeft, width: rowEl.clientWidth },
+        );
+        if (left !== undefined) rowEl.scrollTo({ behavior: "smooth", left });
       });
       return () => cancelAnimationFrame(frame);
     },

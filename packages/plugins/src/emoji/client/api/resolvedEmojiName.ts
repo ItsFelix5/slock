@@ -1,6 +1,8 @@
-import { emojiUrl } from "@slock/blockkit";
+import { service } from "@slock/core/solid";
 import { standardEmojiUnicode } from "./emojiSearch";
 
+const emoji = service("emoji");
+
 export function resolvedEmojiName(name: string): boolean {
-  return !!standardEmojiUnicode(name) || typeof emojiUrl(name) === "string";
+  return !!standardEmojiUnicode(name) || typeof emoji.source.url(name) === "string";
 }

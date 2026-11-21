@@ -23,13 +23,15 @@ export function typeaheadIndex(
   query: string,
   currentIndex: number,
 ): number | undefined {
-  if (labels.length === 0 || query === "") return;
   const first = query.charAt(0);
   const cycling = [...query].every((char) => char === first);
   const needle = cycling ? first : query;
   const start = cycling ? currentIndex + 1 : Math.max(currentIndex, 0);
-  for (let offset = 0; offset < labels.length; offset++) {
-    const index = (start + offset) % labels.length;
-    if (labels[index]?.trim().toLowerCase().startsWith(needle)) return index;
-  }
+  const order = Array.from(
+    { length: labels.length },
+    (_, offset) => (start + offset) % labels.length,
+  );
+  return labels.length === 0 || query === ""
+    ? undefined
+    : order.find((index) => labels[index]?.trim().toLowerCase().startsWith(needle));
 }

@@ -1,51 +1,7 @@
-import type { ResourceEnv, TimerHandle } from "./env";
+import { createFakeEnv, type FakeEnv } from "@slock/core/testing";
 
-interface Timer {
-  at: number;
-  callback: () => void;
-  id: number;
-}
-
-export interface FakeClock extends ResourceEnv {
-  advance(ms: number): void;
-  pending(): number;
-}
-
-export function createFakeClock(
-  options: { random?: () => number; start?: number } = {},
-): FakeClock {
-  let time = options.start ?? 0;
-  let nextId = 1;
-  let timers: Timer[] = [];
-
-  const advance = (ms: number) => {
-    const target = time + ms;
-    for (;;) {
-      const [due] = timers
-        .filter((timer) => timer.at <= target)
-        .sort((a, b) => a.at - b.at || a.id - b.id);
-      if (!due) break;
-      timers = timers.filter((timer) => timer !== due);
-      time = Math.max(time, due.at);
-      due.callback();
-    }
-    time = target;
-  };
-
-  return {
-    advance,
-    clearTimeout: (handle: TimerHandle) => {
-      timers = timers.filter((timer) => timer.id !== handle);
-    },
-    now: () => time,
-    pending: () => timers.length,
-    random: options.random ?? (() => 0.5),
-    setTimeout: (callback, ms) => {
-      const id = nextId++;
-      timers.push({ at: time + Math.max(0, ms), callback, id });
-      return id;
-    },
-  };
+export function createFakeClock(options: { random?: () => number } = {}): FakeEnv {
+  return { ...createFakeEnv(1, 0), random: options.random ?? (() => 0.5) };
 }
 
 export function manualLoader<K, T>() {

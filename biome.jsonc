@@ -93,6 +93,7 @@
         "packages/plugins/src/message-logger/server/store.ts",
         "packages/app/src/index.tsx",
         "types/virtual.d.ts",
+        "test/preload.ts",
         "**/*.test.ts",
         "**/*.test.tsx"
       ],

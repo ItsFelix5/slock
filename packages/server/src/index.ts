@@ -10,7 +10,7 @@ const disabled = (Bun.env.SLOCK_DISABLE ?? "").split(",").filter(Boolean);
 const host = createHost({
   enabled: {
     read: () => Object.fromEntries(disabled.map((id) => [id, false])),
-    write: () => {},
+    write: () => false,
   },
 });
 setHost(host);

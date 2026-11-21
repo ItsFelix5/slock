@@ -29,7 +29,7 @@ const listRoutes = (wire: CanvasWire): Route[] => [
 
   route("GET", "canvases/:id/raw", async (ctx) => {
     if (!ctx.creds) return notConfigured();
-    const lookup = await lookupThread(ctx, ctx.creds);
+    const lookup = await lookupThread(ctx.params.id, ctx.creds);
     if ("response" in lookup) return lookup.response;
     const raw = await wire.fetchRaw(lookup.threadId, ctx.creds);
     if (!raw.ok) {
@@ -46,7 +46,7 @@ const listRoutes = (wire: CanvasWire): Route[] => [
     if (!ctx.creds) return notConfigured();
     const edit = parseCanvasEdit(await ctx.body.json<unknown>());
     if (!edit) return errorResponse("invalid_edit", 400);
-    const lookup = await lookupThread(ctx, ctx.creds);
+    const lookup = await lookupThread(ctx.params.id, ctx.creds);
     if ("response" in lookup) return lookup.response;
     if (!lookup.editable) return errorResponse("not_editable", 403);
     const result = await applyCanvasEdit(wire, lookup.threadId, edit, ctx.creds);

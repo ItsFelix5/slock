@@ -6,17 +6,14 @@ import { accountAvatarResponse, credentialsFromCookie, removeAccount } from "./a
 const STATIC_PREFIXES = ["/assets/", "/public/"];
 
 const sessionRoutes = [
-  route("DELETE", "session/:id", (ctx) => removeAccount(ctx.cookie, ctx.params.id ?? "")),
-  route("GET", "accounts/:id/avatar", (ctx) =>
-    accountAvatarResponse(ctx.cookie, ctx.params.id ?? ""),
-  ),
+  route("DELETE", "session/:id", (ctx) => removeAccount(ctx.cookie, ctx.params.id)),
+  route("GET", "accounts/:id/avatar", (ctx) => accountAvatarResponse(ctx.cookie, ctx.params.id)),
   route("GET", "assets", (ctx) =>
     slackAssetResponse(ctx.searchParams.get("url"), ctx.creds, ctx.acceptEncoding, ctx.range),
   ),
 ];
 
 const setup: Setup = (ctx) => {
-  ctx.provide("slack.inFlight", { pending: new Map() });
   ctx.provide("slack.inFlight", { pending: new Map() });
   ctx.add(
     "http",

@@ -2,9 +2,6 @@
   flex: 1;
   min-width: 0;
 }
-.message-content-pending {
-  min-height: 1lh;
-}
 .message-meta {
   display: flex;
   gap: var(--message-meta-gap);

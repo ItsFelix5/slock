@@ -1,4 +1,4 @@
-import { createRoot, flush } from "solid-js";
+import { createRoot, flush, OBSERVE } from "solid-js";
 import { type Random, seededRandom } from "./fake/seededRandom";
 
 export { createFakeEnv, type FakeEnv } from "./fake/fakeEnv";
@@ -71,4 +71,17 @@ export function inRoot<T>(create: () => T): TestRoot<T> {
   });
   flush();
   return { value, dispose };
+}
+
+const FAILING_DIAGNOSTICS = new Set(["STRICT_READ_UNTRACKED", "REACTIVE_WRITE_IN_OWNED_SCOPE"]);
+
+export function trackSolidDiagnostics(): () => string[] {
+  const findings: string[] = [];
+  OBSERVE?.diagnostics.subscribe((event) => {
+    if (!FAILING_DIAGNOSTICS.has(event.code)) return;
+    findings.push(
+      event.ownerPath ? `${event.message} in ${event.ownerPath.join(" > ")}` : event.message,
+    );
+  });
+  return () => findings.splice(0);
 }

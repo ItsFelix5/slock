@@ -1,6 +1,6 @@
 import { EmojiText } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
-import type { Reaction } from "@slock/types";
+import type { Reaction, UserId } from "@slock/types";
 import {
   AvatarStack,
   ContextMenu,
@@ -19,7 +19,7 @@ const usersStore = service("users");
 
 const FloatingEmojiPicker = lazy(() => import("../../../emoji/client/api/FloatingEmojiPicker"));
 
-function reactorNames(users: string[]) {
+function reactorNames(users: UserId[]) {
   return formatInteractorNames(users, usersStore.currentUser()?.id, usersStore.userById);
 }
 

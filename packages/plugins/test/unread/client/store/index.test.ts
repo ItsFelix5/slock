@@ -1,16 +1,15 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
-import type { Message } from "@slock/types";
+import { ch, stamp } from "@slock/slack/testing";
+import type { Channel, Message } from "@slock/types";
+import { createSignal, flush as flushSolid } from "solid-js";
 import {
-  ch,
   channel,
   dm,
   fakeWindow,
   flush,
-  flushSolid,
   harness,
   message,
   mount,
-  stamp,
   unmountAll,
 } from "./unreadTestKit";
 
@@ -155,6 +154,35 @@ describe("window activity", () => {
     browser.setFocused(false);
     flushSolid();
     expect(store.isViewed(ch("C1"))).toBe(false);
+  });
+
+  test("tracked bottom state follows the view and resets when the view changes or goes away", () => {
+    browser.setFocused(true);
+    const [view, setView] = createSignal<Channel["id"] | undefined>(ch("C1"));
+    const [atBottom, setAtBottom] = createSignal(true);
+    const { store } = mount(() => {
+      const { store } = harness();
+      store.trackBottomSeen(view, atBottom);
+      return { store };
+    });
+    expect(store.isViewed(ch("C1"))).toBe(true);
+    setAtBottom(false);
+    flushSolid();
+    expect(store.isViewed(ch("C1"))).toBe(false);
+    setAtBottom(true);
+    flushSolid();
+    setView(ch("C2"));
+    flushSolid();
+    expect(store.isViewed(ch("C1"))).toBe(false);
+    expect(store.isViewed(ch("C2"))).toBe(true);
+    setView(undefined);
+    flushSolid();
+    expect(store.isViewed(ch("C2"))).toBe(false);
+    setView(ch("C2"));
+    flushSolid();
+    unmountAll();
+    flushSolid();
+    expect(store.isViewed(ch("C2"))).toBe(false);
   });
 
   test("every listener is removed on dispose", () => {

@@ -5,7 +5,7 @@ export function translucent(color: string, amount: number) {
   return `rgb(from ${color} r g b / ${amount}%)`;
 }
 
-export function channelShift(color: string, deltaL?: number, deltaC?: number) {
+function channelShift(color: string, deltaL?: number, deltaC?: number) {
   const l = deltaL === undefined ? "l" : `calc(l + ${deltaL / 100})`;
   const c = deltaC === undefined ? "c" : `calc(c + ${deltaC / 100})`;
   return `oklch(from ${color} ${l} ${c} h)`;

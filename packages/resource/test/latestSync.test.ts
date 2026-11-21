@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { forAll, int } from "@slock/core/testing";
 import { createLatestValueSync } from "../src/latestSync";
+import { settleMicrotasks } from "../src/testing";
 
 type Cursor = { id: string; version: number };
 
@@ -38,7 +39,7 @@ function setup(options: { onError?: (value: Cursor, error: unknown) => boolean |
   return { failNext, gates, release, sync, written };
 }
 
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+const flush = () => settleMicrotasks();
 
 describe("createLatestValueSync", () => {
   test("writes once and resolves true", async () => {

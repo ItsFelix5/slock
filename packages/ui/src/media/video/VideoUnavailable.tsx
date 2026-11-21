@@ -1,12 +1,14 @@
+import type { JSX } from "@solidjs/web";
 import Icon from "../Icon";
 
 export default function VideoUnavailable(props: {
   class?: string;
   href: string;
   onRetry: () => void;
+  style?: JSX.CSSProperties;
 }) {
   return (
-    <div class={`video-player-error flex-col gap-sm ${props.class ?? ""}`}>
+    <div class={`video-player-error flex-col gap-sm ${props.class ?? ""}`} style={props.style}>
       <Icon name="video-off" size={22} />
       <span>Video unavailable</span>
       <span class="video-player-actions">

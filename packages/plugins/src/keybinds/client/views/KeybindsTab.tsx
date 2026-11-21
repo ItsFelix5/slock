@@ -6,12 +6,10 @@ import {
   inside,
   KeybindField,
   listNavigationIndex,
-  listShortcuts,
   rovingTabIndex,
   SHORTCUT_GROUPS,
   type ShortcutCombo,
   type ShortcutInfo,
-  shortcutConflicts,
   useCancelShortcut,
   useConfirmShortcut,
   useKeybindRecorder,
@@ -21,7 +19,7 @@ import {
 import { createEffect, createMemo, createSignal, For, onSettled, Show } from "solid-js";
 
 const dialogs = service("shell.dialogs");
-const keybinds = service("keybinds");
+const ui = service("ui");
 
 function includesText(text: string, query: string) {
   return text.toLowerCase().includes(query);
@@ -29,7 +27,7 @@ function includesText(text: string, query: string) {
 
 function ConflictNote(props: { info: ShortcutInfo }) {
   const conflicts = createMemo(() =>
-    props.info.combo ? shortcutConflicts(props.info.id, props.info.combo) : [],
+    props.info.combo ? ui.shortcuts.conflicts(props.info.id, props.info.combo) : [],
   );
   return (
     <Show when={conflicts().length > 0}>
@@ -55,8 +53,8 @@ function ShortcutRow(props: { info: ShortcutInfo }) {
         combo={props.info.combo}
         isCustom={props.info.isCustom}
         label={props.info.label}
-        onChange={(combo) => keybinds.set(props.info.id, combo)}
-        onReset={() => keybinds.clear(props.info.id)}
+        onChange={(combo) => ui.keybinds.set(props.info.id, combo)}
+        onReset={() => ui.keybinds.clear(props.info.id)}
       />
     </div>
   );
@@ -78,12 +76,14 @@ export default function KeybindsTab() {
 
   const groups = createMemo(() => {
     const combo = keyCombo();
-    const ids = combo ? new Set(shortcutConflicts("", combo).map((s) => s.id)) : null;
-    const shortcuts = listShortcuts().filter((info) =>
-      ids
-        ? ids.has(info.id)
-        : !text() || includesText(info.label, text()) || includesText(info.keys, text()),
-    );
+    const ids = combo ? new Set(ui.shortcuts.conflicts("", combo).map((s) => s.id)) : null;
+    const shortcuts = ui.shortcuts
+      .list()
+      .filter((info) =>
+        ids
+          ? ids.has(info.id)
+          : !text() || includesText(info.label, text()) || includesText(info.keys, text()),
+      );
     return SHORTCUT_GROUPS.map((label) => ({
       label,
       shortcuts: shortcuts.filter((info) => info.group === label),
@@ -160,7 +160,7 @@ export default function KeybindsTab() {
         danger: true,
       })
     )
-      keybinds.resetAll();
+      ui.keybinds.resetAll();
   }
 
   return (

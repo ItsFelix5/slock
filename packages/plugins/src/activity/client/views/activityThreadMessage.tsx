@@ -15,6 +15,7 @@ import {
 } from "../../../messages/client/api/messageAuthor";
 import { ClickableAuthorName } from "../../../profile/client/api/AppBadge";
 
+const env = service("env");
 const usersStore = service("users");
 
 export function ActivityMessageText(props: {
@@ -111,7 +112,9 @@ export function ThreadMessageRow(props: {
               </ClickableAuthorName>
             )}
           </Show>
-          <Tooltip content={`${formatDayFromMs(timeMs())} at ${formatTimeFromMs(timeMs())}`}>
+          <Tooltip
+            content={`${formatDayFromMs(timeMs(), env.now())} at ${formatTimeFromMs(timeMs())}`}
+          >
             <span class="activity-thread-message-time meta-dim">{formatTimeFromMs(timeMs())}</span>
           </Tooltip>
         </span>

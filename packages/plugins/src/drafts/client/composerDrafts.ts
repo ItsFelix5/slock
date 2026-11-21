@@ -1,11 +1,19 @@
-import type { Env, TimerHandle } from "@slock/core";
+import { assertNever, type Env, type TimerHandle } from "@slock/core";
 import { blockPreviewText, isSlackError } from "@slock/slack";
 import type { Block, ChannelId, DraftEntry, Ts } from "@slock/types";
 import { createEffect, createSignal, onCleanup, untrack } from "solid-js";
 import { saveDraft } from "./draftApi";
-import { type DraftStore, draftCacheKey, isNewerDraft } from "./draftStore";
+import {
+  initialSession,
+  reduceSession,
+  type SessionEffect,
+  type SessionInput,
+} from "./draftSession";
+import { type DraftStore, draftCacheKey } from "./draftStore";
 
 const SAVE_DELAY_MS = 1000;
+
+const isEmpty = (blocks: Block[]) => !blockPreviewText(blocks).trim();
 
 export type ComposerDraftOptions = {
   channelId: () => ChannelId | undefined;
@@ -19,20 +27,48 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
   const { drafts } = store;
   const [activeDraftId, setActiveDraftId] = createSignal<string | undefined>(undefined);
   const [syncError, setSyncError] = createSignal(false);
-  let clientMsgId: string | undefined;
+  let session = initialSession;
   let saveTimer: TimerHandle | undefined;
   let pendingSave: (() => void) | undefined;
   let saveQueue: Promise<void> = Promise.resolve();
-  let defaultForKey: string | undefined;
-  let loadedFor: string | undefined;
-  let persistedFor: string | undefined;
-  let sessionGeneration = 0;
   const unsaved = new Map<string, Block[]>();
 
   const key = () => {
     const channelId = opts.channelId();
     return channelId ? draftCacheKey(channelId, opts.threadTs()) : undefined;
   };
+
+  function dispatch(input: SessionInput) {
+    const step = reduceSession(session, input);
+    session = step.state;
+    for (const effect of step.effects) run(effect);
+  }
+
+  function run(effect: SessionEffect) {
+    switch (effect.kind) {
+      case "loadIntoEditor":
+        return opts.loadIntoEditor(effect.blocks);
+      case "setActiveDraftId":
+        return setActiveDraftId(effect.id);
+      case "flushPendingSave":
+        return flushPendingSave();
+      case "upsertDraft":
+        return store.upsert(effect.entry);
+      case "removeDraft":
+        return store.remove(effect.draftKey, effect.id);
+      case "scheduleSave": {
+        const { blocks, channelId, clientMsgId, generation, id, threadTs } = effect;
+        cancelPendingSave();
+        pendingSave = () => {
+          void runSave(channelId, threadTs, blocks, id, clientMsgId, generation);
+        };
+        saveTimer = env.setTimeout(flushPendingSave, SAVE_DELAY_MS);
+        return;
+      }
+      default:
+        return assertNever(effect);
+    }
+  }
 
   function enqueue(task: () => Promise<void>): Promise<void> {
     const next = saveQueue.then(task, task);
@@ -68,16 +104,22 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
           setSyncError(true);
           return;
         }
-        if (!blockPreviewText(blocks).trim()) {
+        if (isEmpty(blocks)) {
           if (startId) {
             await store.deleteOnServer(startId);
             store.remove(draftKey, startId);
-            if (generation === sessionGeneration && activeDraftId() === startId) {
-              setActiveDraftId(undefined);
-            }
+            dispatch({
+              activeId: activeDraftId(),
+              draftKey,
+              generation,
+              kind: "deleted",
+              startId,
+              typedEmpty: untrack(() => isEmpty(opts.blocks())),
+            });
           }
           return;
         }
+        if (generation !== session.generation) return;
         const cmid = startCmid ?? crypto.randomUUID();
         const knownTs = startId
           ? drafts[draftKey]?.find((e) => e.id === startId)?.lastUpdatedTs
@@ -92,18 +134,18 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
           threadTs,
         });
         unsaved.delete(draftKey);
-        if (generation === sessionGeneration && activeDraftId() === knownId && draftKey === key()) {
-          clientMsgId = cmid;
-          loadedFor = `${draftKey}::${result.id}`;
-          setActiveDraftId(result.id);
-        }
+        dispatch({
+          activeId: activeDraftId(),
+          clientMsgId: cmid,
+          currentKey: key(),
+          draftKey,
+          generation,
+          id: result.id,
+          kind: "saved",
+          knownId,
+        });
       }),
     );
-  }
-
-  function currentClientMsgId(): string {
-    clientMsgId ??= crypto.randomUUID();
-    return clientMsgId;
   }
 
   function cancelPendingSave() {
@@ -122,13 +164,14 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
     cancelPendingSave();
     const channelId = opts.channelId();
     if (!channelId) return Promise.resolve();
+    dispatch({ kind: "claimClientMsgId", mintedId: crypto.randomUUID() });
     return runSave(
       channelId,
       opts.threadTs(),
       opts.blocks(),
       activeDraftId(),
-      currentClientMsgId(),
-      sessionGeneration,
+      session.clientMsgId,
+      session.generation,
     );
   }
 
@@ -137,94 +180,24 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
   });
 
   createEffect(
-    () => ({ draftKey: key(), ready: store.ready() }),
-    ({ draftKey, ready }) => {
-      if (!ready || draftKey === defaultForKey) return;
-      defaultForKey = draftKey;
-      const top = untrack(() => {
-        const newest = ((draftKey && drafts[draftKey]) || []).reduce<DraftEntry | undefined>(
-          (best, entry) => (best && !isNewerDraft(entry, best) ? best : entry),
-          undefined,
-        );
-        return { clientMsgId: newest?.clientMsgId, id: newest?.id };
-      });
-      clientMsgId = top.clientMsgId;
-      setActiveDraftId(top.id);
-    },
-  );
-
-  createEffect(
     () => {
       const draftKey = key();
-      const id = activeDraftId();
-      const orphaned =
-        store.ready() && !!draftKey && !!id && !drafts[draftKey]?.some((e) => e.id === id);
-      return { draftKey, orphaned };
-    },
-    ({ draftKey, orphaned }) => {
-      if (!(orphaned && draftKey)) return;
-      sessionGeneration += 1;
-      clientMsgId = undefined;
-      if (untrack(() => blockPreviewText(opts.blocks()).trim())) {
-        loadedFor = `${draftKey}::new`;
-        persistedFor = loadedFor;
-      }
-      setActiveDraftId(undefined);
-    },
-  );
-
-  createEffect(
-    () => ({
-      draftKey: key(),
-      id: activeDraftId(),
-      ready: opts.ready() && store.ready(),
-    }),
-    ({ draftKey, id, ready }) => {
-      if (!ready) return;
-      const token = `${draftKey}::${id ?? "new"}`;
-      if (token === loadedFor) return;
-      loadedFor = token;
-      untrack(() => {
-        const entry = draftKey && id ? drafts[draftKey]?.find((e) => e.id === id) : undefined;
-        opts.loadIntoEditor(entry?.blocks ?? (draftKey ? unsaved.get(draftKey) : undefined) ?? []);
-      });
-    },
-  );
-
-  createEffect(
-    () => ({
-      blocks: opts.blocks(),
-      channelId: opts.channelId(),
-      draftKey: key(),
-      empty: !blockPreviewText(opts.blocks()).trim(),
-      id: activeDraftId(),
-      ready: opts.ready() && store.ready(),
-      threadTs: opts.threadTs(),
-    }),
-    ({ blocks, channelId, draftKey, empty, id, ready, threadTs }) => {
-      if (!(ready && draftKey && channelId)) return;
-      const token = `${draftKey}::${id ?? "new"}`;
-      const skip = token !== persistedFor;
-      persistedFor = token;
-      if (skip) {
-        flushPendingSave();
-        return;
-      }
-
-      if (!empty && id) {
-        store.upsert({ blocks, channelId, clientMsgId: clientMsgId ?? "", id, threadTs });
-      } else if (empty && id) {
-        store.remove(draftKey, id);
-      }
-
-      const scheduledCmid = currentClientMsgId();
-      const scheduledGeneration = sessionGeneration;
-      cancelPendingSave();
-      pendingSave = () => {
-        void runSave(channelId, threadTs, blocks, id, scheduledCmid, scheduledGeneration);
+      const blocks = opts.blocks();
+      return {
+        activeDraftId: activeDraftId(),
+        blocks,
+        channelId: opts.channelId(),
+        draftKey,
+        editorReady: opts.ready(),
+        empty: isEmpty(blocks),
+        entries: draftKey ? (drafts[draftKey] ?? []).map((entry) => ({ ...entry })) : [],
+        mintedId: crypto.randomUUID(),
+        storeReady: store.ready(),
+        threadTs: opts.threadTs(),
+        unsaved: draftKey ? untrack(() => unsaved.get(draftKey)) : undefined,
       };
-      saveTimer = env.setTimeout(flushPendingSave, SAVE_DELAY_MS);
     },
+    (facts) => void dispatch({ facts, kind: "sync" }),
   );
 
   onCleanup(() => {
@@ -234,18 +207,15 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
   return {
     activeDraftId,
     async clearAfterSend(pendingFiles: { clear: (key: string) => void }) {
-      sessionGeneration += 1;
-      const sentClientMsgId = clientMsgId;
-      clientMsgId = undefined;
+      const sentClientMsgId = session.clientMsgId;
       const channelId = opts.channelId();
-      if (!channelId) return;
+      if (!channelId) return dispatch({ draftKey: undefined, kind: "sent" });
       const draftKey = draftCacheKey(channelId, opts.threadTs());
       pendingFiles.clear(draftKey);
       cancelPendingSave();
       const activeId = activeDraftId();
       if (activeId) store.remove(draftKey, activeId);
-      loadedFor = `${draftKey}::new`;
-      setActiveDraftId(undefined);
+      dispatch({ draftKey, kind: "sent" });
       await enqueue(() =>
         tracked(async () => {
           const ids = new Set(
@@ -270,9 +240,7 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
     },
     async saveAndStartNew() {
       await flush();
-      sessionGeneration += 1;
-      clientMsgId = undefined;
-      setActiveDraftId(undefined);
+      dispatch({ kind: "startNew" });
     },
     stack(): DraftEntry[] {
       const draftKey = key();
@@ -281,8 +249,7 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
       return (drafts[draftKey] ?? []).filter((e) => e.id !== id);
     },
     switchTo(entry: DraftEntry) {
-      ({ clientMsgId } = entry);
-      setActiveDraftId(entry.id);
+      dispatch({ clientMsgId: entry.clientMsgId, id: entry.id, kind: "switch" });
     },
     syncError,
   };

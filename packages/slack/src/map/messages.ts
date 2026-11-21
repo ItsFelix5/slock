@@ -1,8 +1,11 @@
 import { formatDay, formatTime } from "@slock/core";
+import { service } from "@slock/core/services";
 import type { Message, MessageKind, RawMessage, RawReaction, Reaction, User } from "@slock/types";
-import { ifPresent, parseTs, parseUserId } from "../ids";
+import { ifPresent, isTs, parseTs, parseUserId } from "../ids";
 import { blockPreviewText } from "../richText/plainText";
 import { mapAttachment, mapFile } from "./files";
+
+const env = service("env");
 
 const SYSTEM_SUBTYPES = new Set([
   "channel_join",
@@ -60,6 +63,11 @@ export function mapReaction(raw: RawReaction): Reaction {
   return { count: raw.count, name: raw.name, users: raw.users.map(parseUserId) };
 }
 
+function editedTsOf(edited: unknown) {
+  if (typeof edited !== "object" || edited === null || !("ts" in edited)) return;
+  return typeof edited.ts === "string" && isTs(edited.ts) ? edited.ts : undefined;
+}
+
 export function mapMessage(m: RawMessage): Message {
   const ts = parseTs(m.ts);
   const subtype: string | undefined = m.subtype;
@@ -81,9 +89,10 @@ export function mapMessage(m: RawMessage): Message {
 
     botName: m.username ?? m.bot_profile?.name,
     canvasThreadId: m.document_comment?.thread_id,
-    day: formatDay(ts),
+    day: formatDay(ts, env.now()),
     deleted: isHiddenSubtype(subtype) || m.deleted || undefined,
     edited: !!m.edited,
+    editedTs: editedTsOf(m.edited),
     files: Array.isArray(m.files) ? m.files.map(mapFile) : undefined,
     id: ts,
     isBroadcast: subtype === "thread_broadcast",
@@ -93,7 +102,7 @@ export function mapMessage(m: RawMessage): Message {
     kind,
     latestReply: ifPresent(parseTs, m.latest_reply),
     lastReplyLabel: m.latest_reply
-      ? `${formatDay(m.latest_reply)} at ${formatTime(m.latest_reply)}`
+      ? `${formatDay(m.latest_reply, env.now())} at ${formatTime(m.latest_reply)}`
       : undefined,
     metadata: m.metadata,
     reactions: m.reactions?.map(mapReaction),

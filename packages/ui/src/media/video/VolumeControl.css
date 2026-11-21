@@ -36,7 +36,7 @@
 }
 
 .volume-control:hover .volume-control-panel,
-.volume-control:focus-within .volume-control-panel {
+.volume-control:has(:focus-visible) .volume-control-panel {
   pointer-events: auto;
   visibility: visible;
   opacity: 1;

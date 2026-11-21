@@ -8,7 +8,7 @@ import {
   initRovingTabIndexDefault,
   isOneOf,
 } from "@slock/ui";
-import { createEffect, For, onCleanup, Show } from "solid-js";
+import { createEffect, Errored, For, Loading, Show } from "solid-js";
 import type { SortMode } from "../searchQuery";
 import SearchHistoryList from "./SearchHistoryList";
 import SearchResultRow from "./SearchResultRow";
@@ -23,41 +23,56 @@ const SORT_OPTIONS: { key: SortMode; label: string }[] = [
   { key: "oldest", label: "Oldest" },
 ];
 
+function ResultList(props: {
+  container: () => HTMLElement | undefined;
+  loading: boolean;
+  onResult: (result: SearchResult) => void;
+  results: SearchResult[];
+}) {
+  initRovingTabIndexDefault(props.container, () => props.results);
+
+  createEffect(
+    () => props.results,
+    () => {
+      const ranges: Range[] = [];
+      for (const el of props.container()?.querySelectorAll<HTMLElement>("[data-search-terms]") ??
+        []) {
+        const terms: string[] = JSON.parse(el.dataset.searchTerms ?? "[]");
+        if (terms.length === 0) continue;
+        const index = indexElementText(el);
+        for (const term of terms) ranges.push(...findTextRanges(index, term));
+      }
+      if (ranges.length > 0) CSS.highlights.set(SEARCH_TERM_HIGHLIGHT, new Highlight(...ranges));
+      return () => CSS.highlights.delete(SEARCH_TERM_HIGHLIGHT);
+    },
+  );
+
+  return (
+    <Show
+      fallback={
+        <div class="message-search-empty empty-state">
+          {props.loading ? "Searching messages…" : "No matches."}
+        </div>
+      }
+      when={props.results.length > 0}
+    >
+      <For each={props.results}>
+        {(result) => <SearchResultRow onOpen={props.onResult} result={result} />}
+      </For>
+    </Show>
+  );
+}
+
 export default function MessageSearchResults(props: {
   canSearch: boolean;
   loading: boolean;
   onHistorySearch: (query: string) => void;
   onResult: (result: SearchResult) => void;
-  onRetry: () => void;
   onSortModeChange: (mode: SortMode) => void;
   results: SearchResult[];
-  searchError: boolean;
   sortMode: SortMode;
 }) {
   let containerRef: HTMLDivElement | undefined;
-  initRovingTabIndexDefault(
-    () => containerRef,
-    () => props.results,
-  );
-
-  createEffect(
-    () => props.results,
-    () => {
-      const container = containerRef;
-      const ranges: Range[] = [];
-      if (container) {
-        for (const el of container.querySelectorAll<HTMLElement>("[data-search-terms]")) {
-          const terms: string[] = JSON.parse(el.dataset.searchTerms ?? "[]");
-          if (terms.length === 0) continue;
-          const index = indexElementText(el);
-          for (const term of terms) ranges.push(...findTextRanges(index, term));
-        }
-      }
-      if (ranges.length > 0) CSS.highlights.set(SEARCH_TERM_HIGHLIGHT, new Highlight(...ranges));
-      else CSS.highlights.delete(SEARCH_TERM_HIGHLIGHT);
-    },
-  );
-  onCleanup(() => CSS.highlights.delete(SEARCH_TERM_HIGHLIGHT));
 
   return (
     <div aria-busy={ariaBoolean(props.loading)} class="message-search-results" ref={containerRef}>
@@ -78,9 +93,13 @@ export default function MessageSearchResults(props: {
       >
         <div class="message-search-toolbar flex-align-center">
           <span class="global-search-filter-label">
-            {props.loading
-              ? "Searching…"
-              : `${props.results.length} ${props.results.length === 1 ? "result" : "results"}`}
+            <Errored fallback={null}>
+              <Loading fallback="Searching…">
+                {props.loading
+                  ? "Searching…"
+                  : `${props.results.length} ${props.results.length === 1 ? "result" : "results"}`}
+              </Loading>
+            </Errored>
           </span>
           <select
             class="message-search-sort-select input-reset"
@@ -94,31 +113,25 @@ export default function MessageSearchResults(props: {
             <For each={SORT_OPTIONS}>{(opt) => <option value={opt.key}>{opt.label}</option>}</For>
           </select>
         </div>
-        <Show
-          fallback={<div class="global-search-hint empty-state">Searching messages…</div>}
-          when={!props.loading || props.results.length > 0}
+        <Errored
+          fallback={(_, reset) => (
+            <div class="message-search-error flex-center empty-state">
+              <span>Couldn't search messages.</span>
+              <Button onClick={reset} size="sm">
+                Try again
+              </Button>
+            </div>
+          )}
         >
-          <Show
-            fallback={
-              <div class="message-search-error flex-center empty-state">
-                <span>Couldn't search messages.</span>
-                <Button onClick={props.onRetry} size="sm">
-                  Try again
-                </Button>
-              </div>
-            }
-            when={!props.searchError}
-          >
-            <Show
-              fallback={<div class="message-search-empty empty-state">No matches.</div>}
-              when={props.results.length > 0}
-            >
-              <For each={props.results}>
-                {(result) => <SearchResultRow onOpen={props.onResult} result={result} />}
-              </For>
-            </Show>
-          </Show>
-        </Show>
+          <Loading fallback={<div class="global-search-hint empty-state">Searching messages…</div>}>
+            <ResultList
+              container={() => containerRef}
+              loading={props.loading}
+              onResult={props.onResult}
+              results={props.results}
+            />
+          </Loading>
+        </Errored>
       </Show>
     </div>
   );

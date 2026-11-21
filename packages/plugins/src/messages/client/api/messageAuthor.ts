@@ -20,7 +20,7 @@ export function resolveBotProfileUserId(
     : undefined;
 }
 
-export function resolveRelaySenderId(msg: Pick<Message, "botId" | "botName">): UserId | undefined {
+function resolveRelaySenderId(msg: Pick<Message, "botId" | "botName">): UserId | undefined {
   return msg.botId === RELAY_BOT_ID && msg.botName
     ? ifPresent(parseUserId, usersStore.userIdByName(msg.botName))
     : undefined;
@@ -68,7 +68,7 @@ export function isBareLinkUnfurl(a: Attachment) {
 
 export function resolveAttachmentAuthorName(
   attachment: Pick<Attachment, "authorId" | "authorName">,
-  userById: (id: string) => { name: string } | undefined,
+  userById: (id: UserId) => { name: string } | undefined,
 ): string | undefined {
   return (
     (attachment.authorId ? userById(attachment.authorId)?.name : undefined) ?? attachment.authorName
@@ -107,7 +107,7 @@ export interface MessageAuthorAvatarView {
 
 export function resolveMessageAuthorAvatar(
   msg: MessageAuthorFields,
-  userById: (id: string) => { avatarColor?: string; avatarUrl?: string; name: string } | undefined,
+  userById: (id: UserId) => { avatarColor?: string; avatarUrl?: string; name: string } | undefined,
 ): MessageAuthorAvatarView {
   const profileUserId = resolveProfileUserId(msg);
   const user = profileUserId ? userById(profileUserId) : undefined;

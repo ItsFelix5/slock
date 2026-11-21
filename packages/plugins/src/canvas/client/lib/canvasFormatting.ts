@@ -143,7 +143,7 @@ function hex(newId: () => string): string {
   return newId().slice(-HEX_LENGTH);
 }
 
-export function newTableValue(newId: () => string): TableEmbedValue {
+function newTableValue(newId: () => string): TableEmbedValue {
   const id = newId();
   return {
     columns: Array.from({ length: TABLE_COLUMNS }, () => ({
@@ -166,7 +166,7 @@ export function insertTable(quill: Quill, newId: () => string) {
   focusFirstNested(quill, insertBlock(quill, { name: TABLE_EMBED, value }, value.id));
 }
 
-export function newColumnsValue(count: number, newId: () => string): ColumnsEmbedValue {
+function newColumnsValue(count: number, newId: () => string): ColumnsEmbedValue {
   return {
     columns: Array.from({ length: count }, () => [{ attributes: { sid: newId() }, insert: "\n" }]),
     id: newId(),

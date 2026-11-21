@@ -30,7 +30,7 @@ export interface ActivityRow {
   key: string;
 }
 
-export function rowTarget(row: ActivityRow) {
+function rowTarget(row: ActivityRow) {
   const latest = defined(row.items[0]);
   return { channelId: latest.channelId, ts: latest.threadTs ?? latest.ts };
 }

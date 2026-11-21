@@ -1,5 +1,5 @@
 import { isChannelId, isUserId } from "@slock/slack";
-import type { CanvasControl, ChannelId, TeamId } from "@slock/types";
+import type { CanvasControl, ChannelId, TeamId, UserId } from "@slock/types";
 import type { CanvasEmbed } from "../../protocol/api";
 import type { EmbedValue } from "./canvasHtml";
 
@@ -8,7 +8,7 @@ export interface CanvasNames {
   controlLabel(embed: CanvasEmbed): string;
   emojiText(name: string): string | null;
   teamId: TeamId | null;
-  user(id: string): string;
+  user(id: UserId): string;
 }
 
 export const CANVAS_DATE_FORMAT = "{date_short_pretty}";

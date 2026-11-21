@@ -1,7 +1,7 @@
 import { EMOJI_TOKEN_RE } from "@slock/blockkit";
 import { narrowByType } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { isChannelId, isRichTextSubBlock } from "@slock/slack";
+import { ifPresent, isChannelId, isRichTextSubBlock, parseUserId } from "@slock/slack";
 import type {
   Block,
   ContextBlock,
@@ -43,10 +43,11 @@ function inlineOps(
         Object.keys(attributes).length ? { attributes, insert: el.text } : { insert: el.text },
       );
     } else if (el.type === "user") {
-      const user = usersStore.userById(el.user_id);
-      if (!user) onUnresolvedUser?.(el.user_id);
+      const userId = parseUserId(el.user_id);
+      const user = usersStore.userById(userId);
+      if (!user) onUnresolvedUser?.(userId);
       ops.push({
-        insert: { mention: { id: el.user_id, kind: "user", name: user?.name ?? el.user_id } },
+        insert: { mention: { id: userId, kind: "user", name: user?.name ?? userId } },
       });
     } else if (el.type === "channel") {
       ops.push({
@@ -83,7 +84,7 @@ function inlineOps(
           : { insert: `@${el.range}` },
       );
     } else if (el.type === "message_mention") {
-      const mention = linkMentionValue(el.url, el.url, el.author_id);
+      const mention = linkMentionValue(el.url, el.url, ifPresent(parseUserId, el.author_id));
       ops.push({ insert: mention ? { mention } : el.url });
     } else if (el.type === "link") {
       const mention = linkMentionValue(el.url, el.text || el.url);

@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
 import type { ChannelId, ChannelMembersPage, User, UserId } from "@slock/types";
-import { createDebouncedRequest } from "@slock/ui";
-import { createEffect, createMemo, createSignal, onSettled } from "solid-js";
+import { createDebouncedSearch, isNearScrollEnd } from "@slock/ui";
+import { createEffect, createMemo, createSignal, onSettled, untrack } from "solid-js";
 import type { MemberFilter } from "../../channel-details/client/api";
 import { createKeyedPageLoader } from "./keyedPageLoader";
 
@@ -15,6 +15,7 @@ const usersStore = service("users");
 type PagedFilter = "everyone" | "apps";
 
 const SCROLL_LOAD_THRESHOLD = 160;
+const MEMBER_SEARCH_DELAY_MS = 250;
 
 const pagedKeyFor = (filter: MemberFilter): PagedFilter | undefined =>
   filter === "managers" ? undefined : filter;
@@ -40,6 +41,7 @@ function createPendingIds() {
 export function createChannelMembers(deps: {
   channelId: () => ChannelId;
   channelName: () => string;
+  list: () => HTMLElement | undefined;
   memberCount: () => number | undefined;
   onMembersChanged?: () => void;
 }) {
@@ -85,10 +87,12 @@ export function createChannelMembers(deps: {
   };
 
   onSettled(() => void loadManagers());
-  createEffect(filter, (f) => {
-    const key = pagedKeyFor(f);
-    if (key && !pagedLoader.hasLoaded(key)) void loadMore(key);
-  });
+  createEffect(
+    () => pagedKeyFor(filter()),
+    (key) => {
+      if (key && !untrack(() => pagedLoader.hasLoaded(key))) untrack(() => void loadMore(key));
+    },
+  );
 
   const filterCount = (f: MemberFilter): number | undefined => {
     if (f === "everyone") return deps.memberCount();
@@ -108,7 +112,7 @@ export function createChannelMembers(deps: {
   });
   const searchActive = () => filter() === "everyone" && !!query().trim();
   const filteredMembers = createMemo(() => {
-    if (searchActive()) return searchResults()?.inChannel ?? [];
+    if (searchActive()) return memberSearch.value().inChannel;
     const q = query().trim().toLowerCase();
     return q ? visibleMembers().filter((u) => u.name.toLowerCase().includes(q)) : visibleMembers();
   });
@@ -129,38 +133,40 @@ export function createChannelMembers(deps: {
     if (filter() === "managers") return "channel managers";
     return filter() === "apps" ? "apps" : "members";
   };
-  const loadMoreAtBottom = (el: HTMLDivElement) => {
+  const nextPageKey = createMemo(() => {
     const key = pagedKeyFor(filter());
-    if (!(key && pagedCursors()[key]) || pagedLoader.isLoading(key)) return;
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - SCROLL_LOAD_THRESHOLD) loadMore(key);
+    return key && pagedCursors()[key] && !pagedLoader.isLoading(key) ? key : undefined;
+  });
+  const loadMoreAtBottom = (el: HTMLElement) => {
+    const key = untrack(nextPageKey);
+    if (key && isNearScrollEnd(el, SCROLL_LOAD_THRESHOLD)) untrack(() => void loadMore(key));
   };
+  createEffect(
+    () => ({ key: nextPageKey(), list: deps.list() }),
+    ({ key, list }) => {
+      if (key && list) loadMoreAtBottom(list);
+    },
+  );
 
-  type SearchResults = { inChannel: User[]; directory: User[] };
-  const [searchResults, setSearchResults] = createSignal<SearchResults>();
-  const [searching, setSearching] = createSignal(false);
-  const searchRequest = createDebouncedRequest<SearchResults>(
-    async (q) => {
+  const memberSearch = createDebouncedSearch<{ inChannel: User[]; directory: User[] }>({
+    delay: MEMBER_SEARCH_DELAY_MS,
+    empty: { directory: [], inChannel: [] },
+    search: async (q) => {
       const [inChannel, directory] = await Promise.all([
         channelDetails.searchChannelMembers(deps.channelId(), q),
         usersStore.searchUsers(q),
       ]);
       return { directory, inChannel };
     },
-    {
-      onPendingChange: setSearching,
-      onReset: () => setSearchResults(undefined),
-      onResult: setSearchResults,
-    },
-  );
+  });
   const activeSearchTerm = () => (searchActive() ? query() : "");
-  const runSearch = () => searchRequest.run(activeSearchTerm());
   createEffect(activeSearchTerm, (term) => {
-    searchRequest.run(term);
+    memberSearch.set(term);
   });
 
   const nonMembers = createMemo(() => {
-    const results = searchResults();
-    if (!(searchActive() && results)) return [];
+    if (!searchActive()) return [];
+    const results = memberSearch.value();
     const inChannel = new Set(results.inChannel.map((u) => u.id));
     return results.directory.filter((u) => !inChannel.has(u.id));
   });
@@ -172,11 +178,11 @@ export function createChannelMembers(deps: {
     if (filter() === "managers") return "No channel managers.";
     return filter() === "apps" ? "No apps in this channel." : "No members.";
   };
-  const showSearching = () => searching() && searchActive();
+  const showSearching = () => memberSearch.searching() && searchActive();
 
   const membersChanged = () => {
     channelsStore.invalidateChannelRoster(deps.channelId());
-    runSearch();
+    memberSearch.refresh();
     deps.onMembersChanged?.();
   };
 
@@ -230,8 +236,8 @@ export function createChannelMembers(deps: {
     query,
     removeMember,
     retryLoad,
-    setFilter,
-    setQuery,
+    setFilter: (next: MemberFilter) => setFilter(next),
+    setQuery: (next: string) => setQuery(next),
     showEmpty,
     showSearching,
   };

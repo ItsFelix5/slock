@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
 import {
-  createDebouncedRequest,
+  createDebouncedSearch,
   createListboxActiveIndex,
   fuzzySearch,
   listNavigationIndex,
@@ -13,6 +13,8 @@ import { createMemo, createSignal, createUniqueId, For, Show } from "solid-js";
 import "../../api/pickers/ComposeUserPicker.css";
 
 const prefsStore = service("prefs");
+
+const REMOTE_SEARCH_DELAY_MS = 250;
 
 interface PickerItem {
   id: string;
@@ -32,9 +34,6 @@ export default function ComposePicker<T extends PickerItem>(props: {
   searchingMessage: string;
 }) {
   const [query, setQuery] = createSignal("");
-  const [remoteResults, setRemoteResults] = createSignal<T[]>([]);
-  const [searching, setSearching] = createSignal(false);
-  const [searchError, setSearchError] = createSignal(false);
   const listboxId = createUniqueId();
 
   let listRef: HTMLDivElement | undefined;
@@ -48,31 +47,25 @@ export default function ComposePicker<T extends PickerItem>(props: {
   useClickOutside(".compose-picker", props.onClose);
 
   const excludedIds = () => new Set(props.excludeIds ?? []);
-  const remoteRequest = createDebouncedRequest(
-    async (q) => (await props.remoteSearch(q)).filter((item) => !excludedIds().has(item.id)),
-    {
-      onError: () => setSearchError(true),
-      onPendingChange: setSearching,
-      onReset: () => {
-        setRemoteResults([]);
-        setSearchError(false);
-      },
-      onResult: setRemoteResults,
-    },
-  );
+  const remote = createDebouncedSearch<T[]>({
+    delay: REMOTE_SEARCH_DELAY_MS,
+    empty: [],
+    search: (q) => props.remoteSearch(q),
+  });
   const localFiltered = () => props.localItems().filter((item) => !excludedIds().has(item.id));
 
   const onInput = (value: string) => {
     setQuery(value);
     setActiveIndex(0);
-    remoteRequest.run(value);
+    remote.set(value);
   };
 
   const items = createMemo(() => {
     const merged = new Map<string, T>();
     for (const item of localFiltered()) merged.set(item.id, item);
-    for (const item of remoteResults()) {
-      if (!merged.has(item.id)) merged.set(item.id, item);
+    const excluded = excludedIds();
+    for (const item of remote.value()) {
+      if (!(merged.has(item.id) || excluded.has(item.id))) merged.set(item.id, item);
     }
     const pool = [...merged.values()];
     const q = query().trim();
@@ -115,9 +108,9 @@ export default function ComposePicker<T extends PickerItem>(props: {
         <Show
           fallback={
             <div class="compose-picker-empty">
-              {searching()
+              {remote.searching()
                 ? props.searchingMessage
-                : searchError()
+                : remote.failed()
                   ? props.notFoundMessage
                   : props.emptyMessage}
             </div>

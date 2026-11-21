@@ -41,6 +41,8 @@ Yes this instruction is in a file and not a prompt THAT IS NOT A REASON TO MENTI
 - later/todo/issue tracker/triage/recall/lists/notes/directories/folders
 - typing any key (including esc) should close message formatting bubble
 - leaving a channel should clear its "you were added" notif
+- let plugins manage eachother?
+- make message logger worse
 
 metadata
 @channel

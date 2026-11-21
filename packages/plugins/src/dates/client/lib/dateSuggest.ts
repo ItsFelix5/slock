@@ -1,6 +1,9 @@
 import { formatSlackDate, formatSlackDateTokens } from "@slock/blockkit";
+import { service } from "@slock/core/solid";
 import type { ComposerSuggest, ExtraSuggestion } from "../../../composer/client/api";
 import { parseDateQuery } from "./parseDateQuery";
+
+const env = service("env");
 
 const DATE_FORMATS = [
   { description: "Natural", format: "{date}", relative: "{date_pretty}" },
@@ -15,7 +18,8 @@ const TIME_FORMATS = [
 
 export const dateSuggest: ComposerSuggest = {
   search(query) {
-    const parsed = parseDateQuery(query);
+    const now = env.now();
+    const parsed = parseDateQuery(query, new Date(now));
     if (!parsed) return [];
     const fallback = formatSlackDate(parsed.ts);
     const suffix = parsed.hasTime ? " at {time}" : "";
@@ -23,7 +27,7 @@ export const dateSuggest: ComposerSuggest = {
       description,
       id: `${query}${format}`,
       insert: `<!date^${parsed.ts}^${format}|${fallback}>`,
-      label: formatSlackDateTokens(format, parsed.ts),
+      label: formatSlackDateTokens(format, parsed.ts, now),
     });
     const suggestions: ExtraSuggestion[] = [
       ...DATE_FORMATS.map(({ description, format, relative }) => ({

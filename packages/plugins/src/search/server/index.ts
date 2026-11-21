@@ -3,7 +3,7 @@ import { defined } from "@slock/core";
 import { teamIdFromRoute } from "../../slack/server/api/auth";
 import { jsonResponse, slackErrorResponse } from "../../slack/server/api/jsonResponse";
 import type { Route } from "../../slack/server/api/router";
-import { route, routes } from "../../slack/server/api/router";
+import { mutate, route, routes } from "../../slack/server/api/router";
 import type { SlackReply } from "../../slack/server/api/slackClient";
 import { callSlack, callSlackEdge } from "../../slack/server/api/slackClient";
 import type {
@@ -19,10 +19,8 @@ import { trimFile } from "../../slack/server/api/trim/slackMessages";
 
 function threadTsFromMatch(match: { permalink?: string; thread_ts?: string }): string | undefined {
   if (match.thread_ts) return match.thread_ts;
-  if (!match.permalink) return;
-  try {
-    return new URL(match.permalink).searchParams.get("thread_ts") || undefined;
-  } catch {}
+  if (!(match.permalink && URL.canParse(match.permalink))) return;
+  return new URL(match.permalink).searchParams.get("thread_ts") || undefined;
 }
 
 function extractHighlights(raw: string): { highlights: string[]; text: string } {
@@ -200,12 +198,8 @@ const list: Route[] = [
 
   route("POST", "search/save", async (ctx) => {
     const { query } = await ctx.body.json<{ query?: string }>();
-    if (query?.trim()) {
-      try {
-        await callSlack("search.save", { module: "messages", query: query.trim() }, ctx.creds);
-      } catch {}
-    }
-    return jsonResponse({ ok: true });
+    if (!query?.trim()) return jsonResponse({ ok: true });
+    return mutate("search.save", { module: "messages", query: query.trim() }, ctx);
   }),
 ];
 

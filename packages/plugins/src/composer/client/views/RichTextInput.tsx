@@ -3,8 +3,9 @@ import { narrowByType } from "@slock/core";
 import type { Block, RichTextBlock } from "@slock/types";
 import QuillEditor from "@slock/ui/editor/QuillEditor";
 import type Quill from "@slock/ui/editor/quill";
-import { createEffect, createSignal } from "solid-js";
+import { createSignal } from "solid-js";
 import "../api/MrkdwnComposer.css";
+import { useQuillEnabled } from "../api/editor/useQuillEnabled";
 import { buildRichTextBlocks } from "../lib/richTextBuild";
 import { loadRichTextIntoQuill } from "../lib/richTextLoad";
 
@@ -13,12 +14,7 @@ const FORMATS = ["bold", "code", "italic", "link", "strike", "blockquote", "list
 export default function RichTextInput(props: RichTextInputProps) {
   const [editor, setEditor] = createSignal<Quill>();
 
-  createEffect(
-    () => ({ disabled: props.disabled, quill: editor() }),
-    ({ disabled, quill }) => {
-      quill?.enable(!disabled);
-    },
-  );
+  useQuillEnabled(editor, () => props.disabled);
 
   return (
     <div class={["mrkdwn-composer multiline", { disabled: props.disabled }]}>

@@ -1,3 +1,4 @@
+import type { TimerHandle } from "@slock/core";
 import { service } from "@slock/core/solid";
 import type { ChannelId, FileId, Ts } from "@slock/types";
 import { createSignal } from "solid-js";
@@ -9,6 +10,7 @@ export type { FilesLinksEntry } from "./entries";
 
 const messageLinks = service("message-links");
 const titles = service("titles");
+const env = service("env");
 
 const QUERY_DEBOUNCE_MS = 300;
 
@@ -51,7 +53,7 @@ export function createFilesLinksPanel(deps: PanelDeps = liveDeps) {
   let state = CLOSED;
   const [view, setView] = createSignal(state);
   let loadEpoch = 0;
-  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  let debounceTimer: TimerHandle | undefined;
 
   function commit(patch: Partial<PanelState>) {
     state = { ...state, ...patch };
@@ -83,14 +85,14 @@ export function createFilesLinksPanel(deps: PanelDeps = liveDeps) {
   }
 
   function openFilesLinksPanel(channelId: ChannelId) {
-    clearTimeout(debounceTimer);
+    env.clearTimeout(debounceTimer);
     commit({ channelId, entries: [], hasMore: false, page: 1, query: "" });
     void load(channelId, "");
   }
 
   function closeFilesLinksPanel() {
     loadEpoch++;
-    clearTimeout(debounceTimer);
+    env.clearTimeout(debounceTimer);
     commit({ channelId: null, error: false, hasMore: false, loading: false, page: 1 });
   }
 
@@ -114,14 +116,14 @@ export function createFilesLinksPanel(deps: PanelDeps = liveDeps) {
     commit({ query });
     const { channelId } = state;
     if (!channelId) return;
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => void load(channelId, query), QUERY_DEBOUNCE_MS);
+    env.clearTimeout(debounceTimer);
+    debounceTimer = env.setTimeout(() => void load(channelId, query), QUERY_DEBOUNCE_MS);
   }
 
   function retryFilesLinks() {
     const { channelId, query } = state;
     if (!channelId) return;
-    clearTimeout(debounceTimer);
+    env.clearTimeout(debounceTimer);
     void load(channelId, query);
   }
 

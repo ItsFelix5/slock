@@ -16,7 +16,7 @@
 }
 
 .canvas-margin-thread:hover,
-.canvas-margin-thread:focus-within,
+.canvas-margin-thread:has(:focus-visible),
 .canvas-margin-thread.active {
   opacity: 1;
 }
@@ -43,7 +43,7 @@
 }
 
 .canvas-margin-thread:hover [aria-label="Add a reaction"],
-.canvas-margin-thread:focus-within [aria-label="Add a reaction"] {
+.canvas-margin-thread:has(:focus-visible) [aria-label="Add a reaction"] {
   display: flex;
 }
 

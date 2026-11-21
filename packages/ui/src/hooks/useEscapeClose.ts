@@ -1,21 +1,23 @@
+import { service } from "@slock/core/solid";
 import { type Accessor, getOwner, type Owner, onSettled, runWithOwner } from "solid-js";
-import { type ShortcutOptions, useShortcut } from "./useShortcut";
+import type { ShortcutOptions } from "./shortcutRegistry";
+import { useShortcut } from "./useShortcut";
 
-interface EscapeLayer {
+export interface EscapeLayer {
   enabled: Accessor<boolean>;
   onClose: () => void;
   owner: Owner | null;
 }
 
-const layers: EscapeLayer[] = [];
+const ui = service("ui");
 
-export function closeAfterBlur(onClose: () => void, activeElement: { blur: () => void } | null) {
+function closeAfterBlur(onClose: () => void, activeElement: { blur: () => void } | null) {
   activeElement?.blur();
   onClose();
 }
 
 function topLayer(): EscapeLayer | undefined {
-  return layers.findLast((layer) => runWithOwner(layer.owner, layer.enabled));
+  return ui.escapeLayers.findLast((layer) => runWithOwner(layer.owner, layer.enabled));
 }
 
 const CLOSE_SHORTCUT = {
@@ -56,11 +58,9 @@ export function useCloseShortcut() {
 export function useEscapeClose(onClose: () => void, enabled: Accessor<boolean> = () => true) {
   const owner = getOwner();
   onSettled(() => {
-    const layer = { enabled, onClose, owner };
-    layers.push(layer);
+    const layer = ui.escapeLayers.push({ enabled, onClose, owner });
     return () => {
-      const index = layers.indexOf(layer);
-      if (index >= 0) layers.splice(index, 1);
+      ui.escapeLayers.pop(layer);
     };
   });
 }

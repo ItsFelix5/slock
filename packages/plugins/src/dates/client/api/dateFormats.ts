@@ -9,22 +9,11 @@ export const TIME_OPTIONS = [
   { format: "{time_secs}", label: "Including seconds" },
 ];
 
-export function nextHour(): Date {
-  const d = new Date();
+export function nextHour(now: number): Date {
+  const d = new Date(now);
   d.setMinutes(0, 0, 0);
   d.setHours(d.getHours() + 1);
   return d;
-}
-
-export function startOfToday(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-export function toLocalInputValue(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 export function dateToTs(d: Date): number {

@@ -1,3 +1,4 @@
+import { startOfDay } from "@slock/core";
 import { service } from "@slock/core/solid";
 import type { CanvasVersion } from "@slock/types";
 
@@ -35,12 +36,6 @@ export function versionAuthorUser(version: CanvasVersion) {
   return usersStore.userById(version.authorId);
 }
 
-function startOfDay(ms: number): number {
-  const date = new Date(ms);
-  date.setHours(0, 0, 0, 0);
-  return date.getTime();
-}
-
 function dayLabel(ms: number, now: number): string {
   const days = Math.round((startOfDay(now) - startOfDay(ms)) / 86_400_000);
   if (days === 0) return "Today";
@@ -48,7 +43,7 @@ function dayLabel(ms: number, now: number): string {
   return DAY_FORMAT.format(new Date(ms));
 }
 
-export function groupVersionsByDay(versions: CanvasVersion[], now = Date.now()): VersionDay[] {
+export function groupVersionsByDay(versions: CanvasVersion[], now: number): VersionDay[] {
   const days: VersionDay[] = [];
   for (const version of versions) {
     const label = dayLabel(version.createdMs, now);

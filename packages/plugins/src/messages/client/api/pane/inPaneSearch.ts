@@ -8,7 +8,7 @@ import {
   useEscapeClose,
   useShortcut,
 } from "@slock/ui";
-import { type Accessor, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
+import { type Accessor, createEffect, createMemo, createSignal } from "solid-js";
 import type { FeedScroll } from "./scroll/feedScroll";
 
 const ALL_MATCHES = "search-match";
@@ -79,10 +79,7 @@ export function createInPaneSearch(
       q: query().trim().toLowerCase(),
     }),
     ({ current, index, list, q }) => {
-      if (!(q && index)) {
-        clearHighlights();
-        return;
-      }
+      if (!(q && index)) return;
       const currentRanges: Range[] = [];
       const otherRanges: Range[] = [];
       for (const m of list) {
@@ -93,9 +90,9 @@ export function createInPaneSearch(
       }
       CSS.highlights.set(ALL_MATCHES, new Highlight(...otherRanges));
       CSS.highlights.set(CURRENT_MATCH, new Highlight(...currentRanges));
+      return clearHighlights;
     },
   );
-  onCleanup(clearHighlights);
 
   useShortcut({
     allowInInputs: true,

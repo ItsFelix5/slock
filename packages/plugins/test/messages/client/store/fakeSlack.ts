@@ -3,6 +3,7 @@ import type { FakeEnv } from "@slock/core/testing";
 import { compareTs } from "@slock/slack";
 import { ch, stamp } from "@slock/slack/testing";
 import type { ChannelId, GatewayMessageEvent, RawMessage, Ts, UserId } from "@slock/types";
+import { createFakeReactions } from "./fakeReactions";
 
 type Reply = { body?: Record<string, unknown>; path: string[]; query: URLSearchParams };
 
@@ -13,6 +14,7 @@ const json = (body: object, status = 200) =>
 
 export function createFakeSlack(me: UserId, env: FakeEnv) {
   const posts = new Map<ChannelId, RawMessage[]>();
+  const reactions = createFakeReactions();
   let last = 0;
   let postGate: Promise<void> = Promise.resolve();
   let failures = 0;
@@ -37,10 +39,11 @@ export function createFakeSlack(me: UserId, env: FakeEnv) {
     !m.thread_ts || m.thread_ts === m.ts || m.subtype === "thread_broadcast";
 
   function withThreadFields(id: ChannelId, m: RawMessage): RawMessage {
+    const base = reactions.attach(id, m);
     const replies = repliesOf(id, stamp(m.ts));
-    if (replies.length === 0) return m;
+    if (replies.length === 0) return base;
     return {
-      ...m,
+      ...base,
       latest_reply: replies.at(-1)?.ts,
       reply_count: replies.length,
       reply_users: [...new Set(replies.map((r) => r.user ?? ""))],
@@ -64,6 +67,12 @@ export function createFakeSlack(me: UserId, env: FakeEnv) {
     channel(id).push(raw);
     channel(id).sort((a, b) => byTs(a.ts, b.ts));
     return raw;
+  }
+
+  function edit(id: ChannelId, ts: Ts, text?: string) {
+    const target = defined(parentOf(id, ts));
+    if (text !== undefined) target.text = text;
+    target.edited = { ts: nextTs(), user: target.user ?? me };
   }
 
   function history(id: ChannelId, query: URLSearchParams) {
@@ -111,6 +120,13 @@ export function createFakeSlack(me: UserId, env: FakeEnv) {
   }
 
   async function route(method: string, { body, path, query }: Reply) {
+    if (path[1] === "messages" && path[4] === "reactions") {
+      const name = typeof body?.name === "string" ? body.name : "";
+      const on = method === "POST";
+      if (!reactions.set(ch(path[2] ?? ""), stamp(path[3] ?? ""), name, me, on))
+        return { error: on ? "already_reacted" : "no_reaction", ok: false };
+      return { ok: true };
+    }
     const [, , rawId = "", kind, rawTs, tail] = path;
     const id = ch(rawId);
     const ts = rawTs === undefined ? undefined : stamp(rawTs);
@@ -119,6 +135,7 @@ export function createFakeSlack(me: UserId, env: FakeEnv) {
       await repliesGate;
       return snapshot;
     }
+    if (kind === "threads" && tail === "subscription") return { ok: true };
     if (kind !== "messages") return { error: "not_found", ok: false };
     if (method === "GET") {
       const snapshot = history(id, query);
@@ -138,8 +155,7 @@ export function createFakeSlack(me: UserId, env: FakeEnv) {
     const target = channel(id).find((m) => m.ts === ts);
     if (!(target && tail === undefined)) return { error: "message_not_found", ok: false };
     if (method === "PATCH") {
-      if (typeof body?.text === "string") target.text = body.text;
-      target.edited = { ts: nextTs(), user: me };
+      edit(id, defined(ts), typeof body?.text === "string" ? body.text : undefined);
     } else {
       posts.set(
         id,
@@ -192,6 +208,10 @@ export function createFakeSlack(me: UserId, env: FakeEnv) {
       subtype: "message_changed",
       type: "message",
     }),
+    edit,
+    reacted: reactions.event,
+    react: reactions.set,
+    reactionUsers: reactions.users,
     dropReply(ts: Ts, times: number) {
       dropped = { times, ts };
     },

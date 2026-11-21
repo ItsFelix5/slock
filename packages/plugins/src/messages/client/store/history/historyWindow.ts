@@ -1,7 +1,7 @@
 import type { Message } from "@slock/types";
 import { mergeMessages } from "../../api/messageMerge";
 
-export const MAX_LOADED_MESSAGES = 120;
+const MAX_LOADED_MESSAGES = 120;
 
 export type WindowMerge = { cut: boolean; list: Message[] };
 

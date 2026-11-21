@@ -17,10 +17,12 @@ function isFromSlack(req: Request, raw: string) {
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
-function parseAction(text: string): Action | undefined {
+function parseAction(text: string): Action | null {
   try {
     return JSON.parse(text);
-  } catch {}
+  } catch {
+    return null;
+  }
 }
 
 async function runAndReport(form: URLSearchParams) {

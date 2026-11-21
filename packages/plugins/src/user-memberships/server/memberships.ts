@@ -1,3 +1,5 @@
+import { ifPresent, parseChannelId, parseUserId } from "@slock/slack";
+import type { ChannelId, UserId } from "@slock/types";
 import type { Credentials } from "../../slack/server/api/auth";
 import { callSlack, type SlackReply } from "../../slack/server/api/slackClient";
 
@@ -16,10 +18,10 @@ type Page = { channels: RawConversation[]; response_metadata?: { next_cursor?: s
 export type MembershipKind = "public" | "private" | "mpim" | "im";
 
 export type Membership = {
-  id: string;
+  id: ChannelId;
   kind: MembershipKind;
   name: string;
-  userId?: string;
+  userId?: UserId;
   created: boolean;
 };
 
@@ -32,7 +34,7 @@ function kindOf(conversation: RawConversation): MembershipKind {
 }
 
 export async function listMemberships(
-  userId: string,
+  userId: UserId,
   creds: Credentials | null,
 ): Promise<SlackReply<{ memberships: Membership[] }>> {
   const memberships: Membership[] = [];
@@ -53,10 +55,10 @@ export async function listMemberships(
     for (const conversation of reply.channels) {
       memberships.push({
         created: conversation.creator === userId,
-        id: conversation.id,
+        id: parseChannelId(conversation.id),
         kind: kindOf(conversation),
         name: conversation.name ?? "",
-        userId: conversation.user,
+        userId: ifPresent(parseUserId, conversation.user),
       });
     }
     cursor = reply.response_metadata?.next_cursor ?? "";

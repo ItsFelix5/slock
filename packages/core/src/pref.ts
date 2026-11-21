@@ -26,7 +26,7 @@ export type PrefSpec<T> = {
 export type Pref<T> = {
   get(): T;
   set(value: T): boolean;
-  reset(): void;
+  reset(): boolean;
   onRemoteChange(listener: (value: T) => void): () => void;
 };
 
@@ -72,7 +72,10 @@ export function createPref<T>(storage: Env["storage"], spec: PrefSpec<T>): Pref<
       current = spec.fallback;
       try {
         storage.remove(spec.key);
-      } catch {}
+        return true;
+      } catch {
+        return false;
+      }
     },
     set(value) {
       current = value;

@@ -1,10 +1,17 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createRoot, flush } from "solid-js";
 import { useVideoShortcuts } from "../../src/media/video/useVideoShortcuts";
+import { startFakeEnv } from "../fakeEnv";
 
 const disposers: (() => void)[] = [];
+let fake: Awaited<ReturnType<typeof startFakeEnv>>;
+
+beforeEach(async () => {
+  fake = await startFakeEnv();
+});
 
 afterEach(() => {
+  fake.stop();
   for (const dispose of disposers.splice(0)) dispose();
   document.body.replaceChildren();
 });

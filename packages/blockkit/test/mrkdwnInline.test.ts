@@ -1,25 +1,28 @@
 import { describe, expect, test } from "bun:test";
 import { forAll, pick, text } from "@slock/core/testing";
 import { parseChannelId } from "@slock/slack";
+import { ch, fid, uid } from "@slock/slack/testing";
 import { type InlineNode, parseArchiveLink, parseInline } from "../src/mrkdwn/mrkdwnInline";
 
 describe("canvas token", () => {
   test("parses id only", () => {
     expect(parseInline("<!canvas^F123>")).toEqual([
-      { fileId: "F123", label: undefined, t: "canvas" },
+      { fileId: fid("F123"), label: undefined, t: "canvas" },
     ]);
   });
 
   test("parses id with label", () => {
     expect(parseInline("see <!canvas^F123|Q3 plan> now")).toEqual([
       { t: "text", text: "see " },
-      { fileId: "F123", label: "Q3 plan", t: "canvas" },
+      { fileId: fid("F123"), label: "Q3 plan", t: "canvas" },
       { t: "text", text: " now" },
     ]);
   });
 
   test("keeps pipes after the first in the label", () => {
-    expect(parseInline("<!canvas^F1|a|b>")).toEqual([{ fileId: "F1", label: "a|b", t: "canvas" }]);
+    expect(parseInline("<!canvas^F1|a|b>")).toEqual([
+      { fileId: fid("F1"), label: "a|b", t: "canvas" },
+    ]);
   });
 
   test("falls back to literal text without an id", () => {
@@ -30,8 +33,8 @@ describe("canvas token", () => {
 
 describe("tokens", () => {
   test.each<[string, InlineNode[]]>([
-    ["<@U1>", [{ id: "U1", t: "user" }]],
-    ["<#C1|general>", [{ id: "C1", label: "general", t: "channel" }]],
+    ["<@U1>", [{ id: uid("U1"), t: "user" }]],
+    ["<#C1|general>", [{ id: ch("C1"), label: "general", t: "channel" }]],
     ["<!subteam^S1|@devs>", [{ id: "S1", label: "@devs", t: "usergroup" }]],
     ["<!here>", [{ range: "here", t: "broadcast" }]],
     ["<!nobody>", [{ t: "text", text: "<!nobody>" }]],

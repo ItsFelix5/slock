@@ -1,6 +1,9 @@
-import { createEffect, createSignal, Show } from "solid-js";
+import { service } from "@slock/core/solid";
+import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import Icon from "../media/Icon";
 import "./ConnectionStatus.css";
+
+const env = service("env");
 
 export type ConnectionStatusState = "connected" | "connecting" | "offline" | "reconnecting";
 
@@ -8,27 +11,20 @@ export default function ConnectionStatus(props: {
   onRetry: () => void;
   state: ConnectionStatusState;
 }) {
-  const [visible, setVisible] = createSignal(false);
-  let hasConnected = false;
+  const [graceOver, setGraceOver] = createSignal(false);
+  const hasConnected = createMemo((seen?: boolean) => seen || props.state === "connected");
 
   createEffect(
-    () => props.state,
-    (state) => {
-      if (state === "connected") {
-        hasConnected = true;
-        setVisible(false);
-        return;
-      }
-      if (state === "offline" || hasConnected) {
-        setVisible(true);
-        return;
-      }
-      const timer = setTimeout(() => setVisible(true), 1000);
-      return () => clearTimeout(timer);
+    () => !hasConnected() && props.state !== "offline",
+    (waiting) => {
+      if (!waiting) return;
+      const timer = env.setTimeout(() => setGraceOver(true), 1000);
+      return () => env.clearTimeout(timer);
     },
   );
 
-  const shown = () => (visible() || props.state === "offline") && props.state !== "connected";
+  const shown = () =>
+    props.state !== "connected" && (props.state === "offline" || hasConnected() || graceOver());
   return (
     <div
       class={[

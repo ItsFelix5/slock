@@ -14,8 +14,11 @@ import { fieldRoutes } from "./fields";
 
 const list: Route[] = [
   route("GET", "users/:id/profile", async (ctx) => {
-    const params: Record<string, string> = ctx.params.id === "me" ? {} : { user: ctx.params.id };
-    const data = await callSlack<UserProfileReply>("users.profile.get", params, ctx.creds);
+    const data = await callSlack<UserProfileReply>(
+      "users.profile.get",
+      { user: ctx.params.id },
+      ctx.creds,
+    );
     if (!data.ok) return slackErrorResponse(data, "users.profile.get");
     return jsonResponse({ ok: true, profile: trimProfile(data.profile) });
   }),
