@@ -7,7 +7,7 @@ The codebase is split between packages:
 - blockkit: A block kit renderer
 - resource: The data engine
 - installer: `bun plugin`. Fetches, builds and links plugins into an instance dir and confirms every action first. The only code that reads plugin source on behalf of an admin
-- relay: A small standalone Bun service that verifies Slack signed requests and performs actions. Not part of the app bundle
+- central: A standalone Bun service every slock instance can talk to, with its own SQLite database. Not part of the app bundle. One folder per feature (`relay` performs actions for Slack users from signed slash commands, `settings` stores slock settings per workspace and user). A feature is a `Handler` plus its own migrations through `migrate`, and is mounted in `index.ts`. Unlike `core` it is allowed to store what its features need
 - test/ (repo root): every test, fake, mock and test helper, never anywhere else. `test/<package>/` per package, shared fakes in `test/support/`
 Client and server never import each other. Browser code goes in a `client/` folder, server code in a `server/` folder, and everything else is shared and imports neither. `ui`, `blockkit` and `resource` are client, `installer` and `relay` are server. `checkSource` enforces this.
 When writing code consider in which package it should go. New features are plugins, never edits to a host's list of features.

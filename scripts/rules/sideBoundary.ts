@@ -4,7 +4,7 @@ import ts from "typescript";
 type Side = "client" | "server" | undefined;
 
 const CLIENT_PACKAGES = new Set(["blockkit", "resource", "ui"]);
-const SERVER_PACKAGES = new Set(["installer", "relay"]);
+const SERVER_PACKAGES = new Set(["central", "installer"]);
 const CLIENT_MODULE =
   /^(@slock\/(core\/(boot|solid)|blockkit|resource|ui)|@solidjs\/web|solid-js|quill|quill-delta)(\/|$)/;
 const SERVER_MODULE = /^((@slock\/(core\/(http|serve)|installer)|bun)(\/|$)|bun:|node:)/;

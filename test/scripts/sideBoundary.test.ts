@@ -26,7 +26,7 @@ test.each([
   [shared, "@slock/ui"],
   ["packages/slack/src/index.ts", "./client"],
   ["packages/ui/src/a.ts", "bun"],
-  ["packages/relay/src/a.ts", "@slock/core/solid"],
+  ["packages/central/src/a.ts", "@slock/core/solid"],
 ])("%s may not import %s", (file, specifier) => {
   expect(crosses(file, specifier)).toBe(true);
 });

@@ -15,6 +15,6 @@
     { "path": "./packages/plugins/tsconfig.server.json" },
     { "path": "./packages/plugins/tsconfig.client.json" },
     { "path": "./test" },
-    { "path": "./packages/relay" }
+    { "path": "./packages/central" }
   ]
 }

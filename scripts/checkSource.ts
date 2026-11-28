@@ -43,7 +43,7 @@ const LAZY_OWNER = "packages/core/src/client/solid.tsx";
 const ENV_EXEMPT = [
   "packages/core/src/env.ts",
   "packages/core/src/client/browserEnv.ts",
-  "packages/relay/",
+  "packages/central/",
   "packages/installer/",
 ];
 const MODULE_STATE_EXEMPT = [

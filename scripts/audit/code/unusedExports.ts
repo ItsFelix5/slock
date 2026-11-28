@@ -5,7 +5,7 @@ const ids = ["unused-export"];
 
 const ENTRY_DEFAULT = /^packages\/plugins\/src\/[^/]+\/(?:client|server)\/index\.tsx?$/;
 const ENTRY_ALL_EXPORTS = /^examplePlugin\/(?:client|server)\/index\.tsx?$/;
-const ENTRY_FILES = new Set(["packages/core/src/client/boot.tsx", "packages/relay/src/index.ts"]);
+const ENTRY_FILES = new Set(["packages/core/src/client/boot.tsx", "packages/central/src/index.ts"]);
 
 function check(files: SourceFile[]): Violation[] {
   const modules = readModules(files);

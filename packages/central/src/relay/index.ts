@@ -1,13 +1,11 @@
 import { timingSafeEqual } from "node:crypto";
+import type { Handler } from "../server";
 import { type Action, perform } from "./actions";
 import { hasWorkspace } from "./slack";
 
-const PORT = Number(Bun.env.SLOCK_RELAY_PORT) || 5176;
 const MAX_AGE_SECONDS = 300;
-const signingSecret = Bun.env.SLACK_SIGNING_SECRET;
-if (!signingSecret) throw new Error("SLACK_SIGNING_SECRET is required");
 
-function isFromSlack(req: Request, raw: string) {
+function isFromSlack(signingSecret: string, req: Request, raw: string) {
   const timestamp = req.headers.get("x-slack-request-timestamp") ?? "";
   if (Math.abs(Date.now() / 1000 - Number(timestamp)) > MAX_AGE_SECONDS) return false;
   const expected = Buffer.from(
@@ -39,16 +37,13 @@ async function runAndReport(form: URLSearchParams) {
   });
 }
 
-async function handle(req: Request): Promise<Response> {
-  if (new URL(req.url).pathname !== "/slack/command" || req.method !== "POST") {
-    return new Response(null, { status: 404 });
-  }
-  const raw = await req.text();
-  if (!isFromSlack(req, raw)) return new Response(null, { status: 401 });
-  void runAndReport(new URLSearchParams(raw));
-  return new Response();
+/** Performs actions on behalf of Slack users that arrive as signed slash commands. */
+export function relay(signingSecret: string): Handler {
+  return async (req, url) => {
+    if (url.pathname !== "/slack/command" || req.method !== "POST") return;
+    const raw = await req.text();
+    if (!isFromSlack(signingSecret, req, raw)) return new Response(null, { status: 401 });
+    runAndReport(new URLSearchParams(raw)).catch((error) => console.error("relay:", error));
+    return new Response();
+  };
 }
-
-Bun.serve({ fetch: handle, hostname: "0.0.0.0", port: PORT });
-
-console.log(`relay: http://localhost:${PORT}`);
