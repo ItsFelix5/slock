@@ -9,7 +9,7 @@ import {
   PanelHeader,
   useTabStripShortcuts,
 } from "@slock/ui";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
 import type { UsergroupDetailsPaneContent } from "../api";
 import UsergroupChannelsTab from "./UsergroupChannelsTab";
 import "./UsergroupDetails.css";
@@ -58,6 +58,9 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
     root: () => tabListRef,
   });
   const details = createMemo(() => usergroups.usergroupDetailsById(usergroupId()));
+  const loading = () => groupActions.usergroupDetailsLoading(usergroupId());
+  const loadError = () => groupActions.usergroupDetailsLoadError(usergroupId());
+  const saving = () => groupActions.usergroupMutationPending(usergroupId());
   const [draft, setDraft] = createSignal((previous: Draft = EMPTY_DRAFT): Draft => {
     const d = details();
     if (!d) return previous;
@@ -108,18 +111,13 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
         feedback={feedback.get(usergroupId())}
         priority={2}
       />
-      <div
-        aria-busy={ariaBoolean(
-          groupActions.usergroupDetailsLoading() || groupActions.usergroupMutationPending(),
-        )}
-        class="usergroup-details-body flex-col"
-      >
-        <Show when={details() && groupActions.usergroupDetailsLoading()}>
+      <div aria-busy={ariaBoolean(loading() || saving())} class="usergroup-details-body flex-col">
+        <Show when={details() && loading()}>
           <div class="usergroup-details-load-notice flex-center gap-sm text-dim text-sm">
             Refreshing pinggroup details…
           </div>
         </Show>
-        <Show when={details() && groupActions.usergroupDetailsLoadError()}>
+        <Show when={details() && loadError()}>
           <div class="usergroup-details-load-notice flex-center gap-sm usergroup-details-load-warning">
             <span>Couldn't refresh pinggroup details.</span>
             <Button onClick={() => groupActions.loadUsergroupDetails(usergroupId())} size="sm">
@@ -127,7 +125,7 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
             </Button>
           </div>
         </Show>
-        <Show when={groupActions.usergroupMutationPending()}>
+        <Show when={saving()}>
           <div class="usergroup-details-load-notice flex-center gap-sm text-dim text-sm">
             Saving pinggroup changes…
           </div>
@@ -146,7 +144,7 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
                   </Button>
                 </div>
               }
-              when={!groupActions.usergroupDetailsLoadError()}
+              when={!loadError()}
             >
               <p class="usergroup-details-meta usergroup-details-tab-content">
                 Loading pinggroup details…
@@ -168,7 +166,7 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
                       ]}
                       onClick={() => setTab(t.key)}
                       ref={(el) => {
-                        tabButtonRefs[i()] = el;
+                        tabButtonRefs[untrack(i)] = el;
                       }}
                       role="tab"
                       tabindex={tab() === t.key ? 0 : -1}
@@ -194,7 +192,7 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
                     </label>
                     <input
                       class="text-field"
-                      disabled={groupActions.usergroupMutationPending()}
+                      disabled={saving()}
                       id="usergroup-details-name"
                       onBlur={saveName}
                       onInput={(e) => setNameInput(e.currentTarget.value)}
@@ -211,7 +209,7 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
                       <span class="usergroup-details-handle-prefix">@</span>
                       <input
                         class="text-field"
-                        disabled={groupActions.usergroupMutationPending()}
+                        disabled={saving()}
                         id="usergroup-details-handle"
                         onBlur={saveHandle}
                         onInput={(e) => setHandleInput(e.currentTarget.value)}
@@ -227,7 +225,7 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
                     </label>
                     <MrkdwnComposer
                       ariaLabel="Description"
-                      disabled={groupActions.usergroupMutationPending()}
+                      disabled={saving()}
                       id="usergroup-details-description"
                       multiline
                       onBlur={saveDescription}
@@ -241,7 +239,7 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
 
               <Show when={tab() === "members"}>
                 <UsergroupMembersTab
-                  disabled={groupActions.usergroupMutationPending()}
+                  disabled={saving()}
                   memberIds={d().memberIds}
                   usergroupId={d().id}
                 />
@@ -250,7 +248,7 @@ export default function UsergroupDetails(props: { pane: Pane<UsergroupDetailsPan
               <Show when={tab() === "channels"}>
                 <UsergroupChannelsTab
                   channelIds={d().channelIds}
-                  disabled={groupActions.usergroupMutationPending()}
+                  disabled={saving()}
                   sectionEnabled={d().isSection}
                   usergroupId={d().id}
                 />

@@ -1,4 +1,4 @@
-import { errorMessage, isRecord } from "@slock/core";
+import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/services";
 import { type Credentials, jsonHeaders } from "./auth.ts";
 
@@ -24,11 +24,9 @@ export function safeTypeHeaders(type: string | null): Record<string, string> {
 
 const FILE_CONNECT_TIMEOUT_MS = 15_000;
 const MAX_REDIRECTS = 5;
-const CONTENT_ADDRESSED_HOST_RE = /\.slack-edge\.com$/;
-const SLACK_ASSET_KEY_RE =
-  /(?:^|_)(?:avatar|icon|image|thumb|video)(?:_|$)|^url_private(?:_download)?$|^original$|^vtt$/i;
+export const CONTENT_ADDRESSED_HOST_RE = /\.slack-edge\.com$/;
 
-function isAllowedSlackUrl(value: string): boolean {
+export function isAllowedSlackUrl(value: string): boolean {
   try {
     const parsed = new URL(value);
     return (
@@ -37,10 +35,6 @@ function isAllowedSlackUrl(value: string): boolean {
   } catch {
     return false;
   }
-}
-
-function isStaticAssetUrl(value: string): boolean {
-  return isAllowedSlackUrl(value) && CONTENT_ADDRESSED_HOST_RE.test(new URL(value).hostname);
 }
 
 function assetCacheControl(url: string): string {
@@ -64,17 +58,6 @@ export function imageUrl(url: string): string {
   return isAllowedSlackUrl(url)
     ? `${ASSET_PATH}?url=${encodeURIComponent(url)}`
     : (slackImgsProxyUrl(url) ?? url);
-}
-
-export function slackAssetUrlsIn(value: unknown, key = ""): string[] {
-  if (typeof value === "string") {
-    const asset =
-      isStaticAssetUrl(value) || (SLACK_ASSET_KEY_RE.test(key) && isAllowedSlackUrl(value));
-    return asset ? [value] : [];
-  }
-  if (Array.isArray(value)) return value.flatMap((entry) => slackAssetUrlsIn(entry));
-  if (!isRecord(value)) return [];
-  return Object.entries(value).flatMap(([name, entry]) => slackAssetUrlsIn(entry, name));
 }
 
 async function fetchFollowingRedirects(

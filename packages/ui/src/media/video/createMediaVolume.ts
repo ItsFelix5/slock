@@ -1,17 +1,7 @@
 import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js";
 import { mediaLevels, type VolumeState, volumeAfterMute, volumeAfterSet } from "./volumeLevels";
 
-export interface MediaVolumeControl {
-  muted: Accessor<boolean>;
-  setMuted: (muted: boolean) => void;
-  setVolume: (volume: number) => void;
-  volume: Accessor<number>;
-}
-
-export function createMediaVolume(
-  media: Accessor<HTMLMediaElement | undefined>,
-  maxVolume = 5,
-): MediaVolumeControl {
+export function createMediaVolume(media: Accessor<HTMLMediaElement | undefined>, maxVolume = 5) {
   let audioContext: AudioContext | undefined;
   let gainNode: GainNode | undefined;
   let mediaElement: HTMLMediaElement | undefined;
@@ -62,8 +52,8 @@ export function createMediaVolume(
 
   return {
     muted,
-    setMuted: (nextMuted) => update(volumeAfterMute(current, nextMuted)),
-    setVolume: (nextVolume) => update(volumeAfterSet(nextVolume, maxVolume)),
+    setMuted: (nextMuted: boolean) => update(volumeAfterMute(current, nextMuted)),
+    setVolume: (nextVolume: number) => update(volumeAfterSet(nextVolume, maxVolume)),
     volume,
   };
 }

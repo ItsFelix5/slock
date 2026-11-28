@@ -1,26 +1,22 @@
 import { EmojiText } from "@slock/blockkit";
 import { Slot, service } from "@slock/core/solid";
 import { copyCanvasLink } from "@slock/plugins/message-links/client/api/messageLinks";
-import {
-  Button,
-  createResetSignal,
-  IconButton,
-  InlineFeedback,
-  type Pane,
-  PanelHeader,
-  useShortcut,
-} from "@slock/ui";
-import { createEffect, createSignal, Show } from "solid-js";
+import { mentionText } from "@slock/plugins/users/client/api";
+import { Button, IconButton, InlineFeedback, type Pane, PanelHeader } from "@slock/ui";
+import { Show } from "solid-js";
 import type { CanvasPaneContent } from "../api";
 import { createCanvasComments } from "../lib/canvasComments";
 import { createCanvasHistory } from "../lib/canvasHistory";
-import type { OutlineItem, OutlineSource } from "../lib/canvasOutline";
+import { createCanvasFileQuery } from "../lib/canvasRequests";
 import "./CanvasPane.css";
 import { defined, errorMessage } from "@slock/core";
+import CanvasCommentList from "./CanvasCommentList";
 import CanvasEditor from "./CanvasEditor";
 import CanvasHistory from "./CanvasHistory";
 import CanvasOutlineNav from "./CanvasOutlineNav";
-import CanvasVersionBanner from "./CanvasVersionBanner";
+import CanvasVersionView from "./CanvasVersionView";
+import { useCanvasHeadings } from "./useCanvasHeadings";
+import { useCanvasPanels } from "./useCanvasPanels";
 
 const feedback = service("feedback");
 
@@ -32,8 +28,13 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
   const fileId = () => props.pane.content.fileId;
 
   const content = canvas.createCanvasContentQuery(fileId);
-  const permalink = canvas.createCanvasPermalinkQuery(fileId);
+  const file = createCanvasFileQuery(fileId);
   const loading = () => content().status === "loading";
+  // The editor merges new content in place, so it only remounts for another file or access level.
+  const editorKey = () => {
+    const access = content().data?.doc && content().data?.access;
+    return access ? `${access} ${fileId()}` : undefined;
+  };
   const refetch = () => canvas.refreshCanvasContent(fileId());
 
   const files = service("files");
@@ -41,66 +42,22 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
   const canvasComments = createCanvasComments(fileId);
 
   let historyButton: HTMLButtonElement | undefined;
-
-  function toggleHistory() {
-    history.setOpen(!history.open());
-  }
-
+  let commentsButton: HTMLButtonElement | undefined;
   let bodyRef: HTMLDivElement | undefined;
-  const [activeIndex, setActiveIndex] = createSignal<number | null>(null);
-
-  const [editorOutline, setEditorOutline] = createResetSignal<OutlineSource | null>(fileId, null);
-  const outline = () => editorOutline();
-  const headings = (): OutlineItem[] => (outline()?.items() ?? []).filter((item) => item.text);
-
-  function jumpTo(index: number) {
-    outline()?.element(index)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  function jumpRelative(delta: number) {
-    const items = headings();
-    if (items.length === 0) return;
-    const currentPos = items.findIndex((h) => h.index === activeIndex());
-    const nextPos = Math.min(Math.max(currentPos + delta, 0), items.length - 1);
-    jumpTo(defined(items[nextPos]).index);
-  }
-
-  useShortcut({
-    combo: { alt: true, key: "ArrowDown" },
-    enabled: () => panesStore.focusedPaneId() === props.pane.id && headings().length > 1,
-    handler: () => jumpRelative(1),
-    id: "canvas.jumpNextHeading",
-    label: "Jump to the next heading",
-    scope: "general",
-    group: "Canvas",
-  });
-  useShortcut({
-    combo: { alt: true, key: "ArrowUp" },
-    enabled: () => panesStore.focusedPaneId() === props.pane.id && headings().length > 1,
-    handler: () => jumpRelative(-1),
-    id: "canvas.jumpPrevHeading",
-    label: "Jump to the previous heading",
-    scope: "general",
-    group: "Canvas",
+  const paneFocused = () => panesStore.focusedPaneId() === props.pane.id;
+  const panels = useCanvasPanels({ fileId, focused: paneFocused, history });
+  const outline = useCanvasHeadings({
+    body: () => bodyRef,
+    content: () => content().data,
+    fileId,
+    focused: paneFocused,
   });
 
-  function updateActiveHeading() {
-    if (!bodyRef) return;
-    const items = headings();
-    if (items.length === 0) return;
-    const containerTop = bodyRef.getBoundingClientRect().top;
-    let current = defined(items[0]).index;
-    for (const { index } of items) {
-      const el = outline()?.element(index);
-      if (el && el.getBoundingClientRect().top - containerTop <= 32) current = index;
-    }
-    setActiveIndex(current);
+  function revealComment(threadId: string) {
+    bodyRef
+      ?.querySelector(`[data-annotation*="${CSS.escape(threadId)}"]`)
+      ?.scrollIntoView({ block: "center" });
   }
-
-  createEffect(
-    () => [content().data, outline()?.items()],
-    () => void queueMicrotask(updateActiveHeading),
-  );
 
   return (
     <div class="canvas-panel-card flex-col surface-card" data-pane={props.pane.id}>
@@ -110,9 +67,9 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
       >
         <div class="canvas-panel-header-info flex-align-center">
           <div class="canvas-panel-title truncate title-sm">
-            <EmojiText text={props.pane.content.title || "Untitled canvas"} />
+            <EmojiText text={mentionText(props.pane.content.title) || "Untitled canvas"} />
           </div>
-          <Show when={permalink().data}>
+          <Show when={file().data?.permalink}>
             {(link) => (
               <IconButton
                 class="canvas-panel-copy-link"
@@ -141,12 +98,23 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
             size="sm"
           />
           <IconButton
+            active={panels.commentsOpen()}
+            icon="comments"
+            iconSize={15}
+            label="Comments"
+            onClick={panels.toggleComments}
+            ref={(element) => {
+              commentsButton = element;
+            }}
+            size="sm"
+          />
+          <IconButton
             active={history.open()}
             class="canvas-panel-history"
             icon="history"
             iconSize={15}
             label="Version history"
-            onClick={toggleHistory}
+            onClick={panels.toggleHistory}
             ref={(element) => {
               historyButton = element;
             }}
@@ -156,7 +124,7 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
           <InlineFeedback feedback={feedback.get(fileId())} priority={2} variant="icon" />
         </div>
       </PanelHeader>
-      <div class="canvas-panel-body" onScroll={updateActiveHeading} ref={bodyRef}>
+      <div class="canvas-panel-body" onScroll={outline.updateActive} ref={bodyRef}>
         <Show when={loading()}>
           <div class="canvas-panel-loading flex-center text-dim text-sm">Loading…</div>
         </Show>
@@ -181,25 +149,15 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
           <div class="canvas-panel-scroll-row">
             <Show
               fallback={
-                <Show keyed when={content().data?.doc}>
-                  {(doc) => (
+                <Show keyed when={editorKey()}>
+                  {(_key) => (
                     <CanvasEditor
-                      doc={doc}
-                      editable={content().data?.editable ?? false}
+                      access={defined(content().data?.access)}
+                      doc={defined(content().data?.doc)}
                       fileId={fileId()}
-                      onComment={(annotationId) => void canvasComments.openAnnotation(annotationId)}
-                      onOpenThread={(thread) => canvasComments.openThread(thread)}
-                      onReact={(annotationId, name) =>
-                        void canvasComments.reactToAnnotation(annotationId, name)
-                      }
-                      onReactToThread={(thread, name) =>
-                        void canvasComments.reactToThread(thread, name)
-                      }
-                      threads={canvasComments.comments()?.threads}
-                      onOutline={setEditorOutline}
-                      fetchLatest={() => canvas.loadLatestCanvas(fileId())}
-                      remoteChangeTick={() => canvas.remoteChangeTick(fileId())}
-                      onRemoteChange={(latest) => canvas.setCanvasContent(fileId(), latest)}
+                      latest={content().data}
+                      comments={canvasComments}
+                      onOutline={outline.setOutline}
                       onTitle={(title) => canvas.setCanvasTitle(props.pane.id, fileId(), title)}
                     />
                   )}
@@ -209,53 +167,43 @@ export default function CanvasPane(props: { pane: Pane<CanvasPaneContent> }) {
               when={history.selected()}
             >
               {(version) => (
-                <div class="canvas-version-view">
-                  <CanvasVersionBanner
-                    canRestore={content().data?.editable ?? false}
-                    onExit={() => history.setSelected(null)}
-                    onRestore={() => void history.restore(version)}
-                    restoring={history.restoring()}
-                    version={version}
-                  />
-                  <Show
-                    fallback={
-                      <div class="canvas-panel-loading flex-center text-dim text-sm">Loading…</div>
-                    }
-                    keyed
-                    when={history.viewing().data?.doc}
-                  >
-                    {(doc) => (
-                      <CanvasEditor
-                        diff={history.diff()}
-                        doc={doc}
-                        editable={false}
-                        fetchLatest={() => Promise.resolve(null)}
-                        fileId={fileId()}
-                        onOutline={setEditorOutline}
-                        onRemoteChange={() => undefined}
-                      />
-                    )}
-                  </Show>
-                </div>
+                <CanvasVersionView
+                  canRestore={content().data?.access === "edit"}
+                  fileId={fileId()}
+                  history={history}
+                  onOutline={outline.setOutline}
+                  version={version}
+                />
+              )}
+            </Show>
+            <Show when={panels.commentsOpen() && content().data?.doc}>
+              {(doc) => (
+                <CanvasCommentList
+                  access={defined(content().data?.access)}
+                  anchor={() => commentsButton}
+                  comments={canvasComments}
+                  doc={doc()}
+                  fileId={fileId()}
+                  onClose={panels.closeComments}
+                  onReveal={revealComment}
+                />
               )}
             </Show>
             <Show when={history.open()}>
-              <div class="canvas-history-slot">
-                <CanvasHistory
-                  anchor={() => historyButton}
-                  error={history.versions().status === "error"}
-                  loading={history.versions().refreshing || history.viewing().refreshing}
-                  onClose={() => history.setOpen(false)}
-                  onSelect={history.setSelected}
-                  selected={history.selected()}
-                  versions={history.versions().data ?? []}
-                />
-              </div>
+              <CanvasHistory
+                anchor={() => historyButton}
+                error={history.versions().status === "error"}
+                loading={history.versions().refreshing || history.viewing().refreshing}
+                onClose={() => history.setOpen(false)}
+                onSelect={history.setSelected}
+                selected={history.selected()}
+                versions={history.versions().data ?? []}
+              />
             </Show>
             <CanvasOutlineNav
-              activeIndex={activeIndex()}
-              headings={headings()}
-              onNavigate={jumpTo}
+              activeIndex={outline.activeIndex()}
+              headings={outline.headings()}
+              onNavigate={outline.jumpTo}
             />
           </div>
         </Show>

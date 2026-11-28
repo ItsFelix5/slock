@@ -1,1 +1,6 @@
-{ "id": "http", "name": "HTTP security and compression", "requires": [] }
+{
+  "id": "http",
+  "category": "Core",
+  "name": "HTTP security and compression",
+  "requires": []
+}

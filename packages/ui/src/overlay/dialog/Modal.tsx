@@ -5,7 +5,7 @@ import { useEscapeClose } from "../../hooks/useEscapeClose";
 import "./Modal.css";
 import Overlay from "../Overlay";
 
-export interface ModalProps {
+interface ModalProps {
   align?: "center" | "top";
   ariaLabel: string;
   children: JSX.Element;
@@ -22,7 +22,7 @@ export default function Modal(props: ModalProps) {
   );
 }
 
-export interface ModalCloseButtonProps {
+interface ModalCloseButtonProps {
   class?: string;
   onClose: () => void;
 }
@@ -38,7 +38,7 @@ export function ModalCloseButton(props: ModalCloseButtonProps) {
   );
 }
 
-export interface ModalHeaderProps {
+interface ModalHeaderProps {
   children?: JSX.Element;
   onClose: () => void;
   title?: JSX.Element;

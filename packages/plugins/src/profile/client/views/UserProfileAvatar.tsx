@@ -1,3 +1,4 @@
+import { service } from "@slock/core/solid";
 import type { User } from "@slock/types";
 import { AvatarImage, ariaBoolean } from "@slock/ui";
 import { dynamic } from "@solidjs/web";
@@ -6,6 +7,8 @@ import type { ProfileForm } from "./profileForm";
 
 const TEXT_INPUT_TAG_RE = /^(INPUT|TEXTAREA)$/;
 
+const usersStore = service("users");
+
 export default function UserProfileAvatar(props: {
   form: ProfileForm;
   isSelf: boolean;
@@ -13,7 +16,7 @@ export default function UserProfileAvatar(props: {
   user: User;
 }) {
   const [photoInput, setPhotoInput] = createSignal<HTMLInputElement>();
-  const saving = () => props.form.isSavingPhoto();
+  const saving = () => usersStore.isSavingPhoto();
   const Wrap = dynamic(() => (props.isSelf ? "button" : "div"));
 
   onSettled(() => {
@@ -67,16 +70,16 @@ export default function UserProfileAvatar(props: {
       </Wrap>
       <Show when={props.isSelf}>
         <button
-          aria-busy={ariaBoolean(props.form.isSavingPresence())}
+          aria-busy={ariaBoolean(usersStore.isSavingPresence())}
           aria-label={
-            props.form.isSavingPresence()
+            usersStore.isSavingPresence()
               ? "Updating presence"
               : props.user.presence === "away"
                 ? "Set yourself active"
                 : "Set yourself away"
           }
           class={["user-profile-presence busy", { away: props.user.presence === "away" }]}
-          disabled={props.form.isSavingPresence()}
+          disabled={usersStore.isSavingPresence()}
           onClick={(event) => {
             event.stopPropagation();
             void props.form.togglePresence();

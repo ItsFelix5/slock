@@ -1,12 +1,5 @@
-import { apiGet, apiPost, canvasFileIdOf, mapFile, mapUser, parseChannelId } from "@slock/slack";
-import type {
-  BrowsableChannel,
-  GlobalSearchResults,
-  RawChannel,
-  RawFile,
-  RawUser,
-  User,
-} from "@slock/types";
+import { canvasFileIdOf, parseChannelId } from "@slock/slack";
+import type { BrowsableChannel, RawChannel } from "@slock/types";
 
 export function mapBrowsableChannels(items: RawChannel[]): BrowsableChannel[] {
   return items
@@ -30,35 +23,4 @@ export function mapBrowsableChannels(items: RawChannel[]): BrowsableChannel[] {
       private: !!channel.is_private,
       topic: typeof channel.topic === "string" ? channel.topic : (channel.topic?.value ?? ""),
     }));
-}
-
-export function saveSearchHistory(query: string): void {
-  void apiPost("/api/search/save", { query }).catch(() => {});
-}
-
-export async function searchGlobal(query: string): Promise<GlobalSearchResults> {
-  const data = await apiGet<{ channels?: RawChannel[]; files?: RawFile[]; users?: RawUser[] }>(
-    `/api/search?query=${encodeURIComponent(query)}`,
-  );
-  if (!data.ok) throw new Error(data.error ?? "global search failed");
-  return {
-    channels: mapBrowsableChannels(data.channels ?? []),
-    files: (data.files ?? []).map(mapFile),
-    users: (data.users ?? []).map(mapUser),
-  };
-}
-
-export async function searchDirectory(
-  query: string,
-): Promise<{ users: User[]; truncated: boolean }> {
-  const q = query.trim();
-  if (!q) return { truncated: false, users: [] };
-  const data = await apiGet<{ truncated?: boolean; users?: RawUser[] }>(
-    `/api/directory?query=${encodeURIComponent(q)}`,
-  );
-  if (!data.ok) throw new Error(data.error ?? "search.modules.people failed");
-  return {
-    truncated: !!data.truncated,
-    users: (data.users ?? []).map(mapUser),
-  };
 }

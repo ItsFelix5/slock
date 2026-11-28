@@ -1,6 +1,7 @@
-import type { HttpContext, Setup } from "@slock/core";
+import type { Setup } from "@slock/core";
 import { errorMessage } from "@slock/core";
-import { UPGRADED } from "@slock/server/http";
+import type { HttpContext } from "@slock/core/http";
+import { UPGRADED } from "@slock/core/http";
 import { compressResponse } from "./api/compression";
 import type { CspDirectives } from "./api/csp";
 

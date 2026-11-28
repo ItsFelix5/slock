@@ -8,6 +8,7 @@ import {
   type NavSnapshot,
   navSnapshotToPath,
   parseNavPath,
+  parsesCompletely,
 } from "./navHistory";
 import type { createPanesSlice } from "./panes";
 
@@ -17,6 +18,7 @@ export function createViewStateSlice(deps: {
   paneKinds: () => PaneKind[];
   panes: Pick<
     ReturnType<typeof createPanesSlice>,
+    | "activatePane"
     | "closePane"
     | "currentPanes"
     | "focusedPrimaryContent"
@@ -78,6 +80,7 @@ export function createViewStateSlice(deps: {
     const targetMid = target.slice(prefix, target.length - suffix);
 
     const shared = Math.min(liveMid.length, targetMid.length);
+    let touched = liveMid[shared - 1]?.id;
     for (let i = 0; i < shared; i++)
       panes.setPaneContent(defined(liveMid[i]).id, defined(targetMid[i]));
     for (let i = liveMid.length - 1; i >= shared; i--) panes.closePane(defined(liveMid[i]).id);
@@ -85,7 +88,9 @@ export function createViewStateSlice(deps: {
     let afterId = liveMid[shared - 1]?.id ?? live[prefix - 1]?.id ?? null;
     for (let i = shared; i < targetMid.length; i++) {
       afterId = panes.insertContentPane(defined(targetMid[i]), afterId);
+      touched = afterId;
     }
+    if (touched) panes.activatePane(touched);
   }
 
   function structuralKey(snap: Pick<NavSnapshot, "panes">): string {
@@ -115,10 +120,19 @@ export function createViewStateSlice(deps: {
   function start() {
     if (started) return;
     started = true;
-    const initialPanes = parseNavPath(new URL(window.location.href), deps.paneKinds());
-    panes.setAllPanes(initialPanes);
-    runWithOwner(owner, () => installUrlSync(initialPanes));
+    untrack(() => {
+      const initialPanes = parseNavPath(new URL(window.location.href), deps.paneKinds());
+      panes.setAllPanes(initialPanes);
+      runWithOwner(owner, () => installUrlSync(initialPanes));
+    });
   }
+
+  createEffect(
+    () => parsesCompletely(new URL(window.location.href), deps.paneKinds()),
+    (parses) => {
+      if (parses) start();
+    },
+  );
 
   function installUrlSync(initialPanes: ReturnType<typeof parseNavPath>) {
     let last = replaceHistory({ panes: initialPanes });

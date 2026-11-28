@@ -1,4 +1,4 @@
-import type { HttpHandler } from "@slock/core";
+import type { HttpHandler } from "@slock/core/http";
 import { ASSET_PATH, safeTypeHeaders } from "@slock/plugins/slack/server/api/assets";
 import type { LogStore } from "./store";
 import { ownerOf } from "./workspace";

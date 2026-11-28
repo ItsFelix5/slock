@@ -21,7 +21,7 @@ const workspaceResolver: BunPlugin = {
   },
 };
 
-export function serverModule(units: Unit[]): string {
+function serverModule(units: Unit[]): string {
   const withServer = units.flatMap((unit) => {
     const { serverEntry } = halvesOf(unit.dir);
     return serverEntry ? [{ entry: serverEntry, unit }] : [];
@@ -36,7 +36,7 @@ export function serverModule(units: Unit[]): string {
   );
   const info = JSON.stringify(units.map(unitInfo));
   return `import { dirname } from "node:path";
-import { startServer } from "@slock/server";
+import { startServer } from "@slock/core/serve";
 ${imports.join("\n")}
 const root = dirname(Bun.main);
 startServer({

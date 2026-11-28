@@ -1,4 +1,5 @@
-import { getCachedWorkspaceDomain, isUserId, userProfileUrl } from "@slock/slack";
+import { isUserId } from "@slock/slack";
+import { getCachedWorkspaceDomain, userProfileUrl } from "@slock/slack/client";
 
 export interface MentionValue {
   kind: "user" | "channel" | "special" | "usergroup" | "userlink" | "messagelink";

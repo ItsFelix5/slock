@@ -1,5 +1,4 @@
 import type { ChannelMessageTarget, View } from "@slock/plugins/conversations/client/api/types";
-import { isMyRelayedMessage } from "@slock/slack";
 import type { ChannelId, ConversationViewData, Message, Ts, User, UserId } from "@slock/types";
 import { reconcile, snapshot } from "solid-js";
 import type { ThreadRef } from "../api";
@@ -9,6 +8,7 @@ import {
   type MessageLocation,
   reactionMessageKey,
 } from "../lib/messageLocations";
+import { isMyRelayedMessage } from "../lib/relayedMessages";
 import { createMessageMergeActions } from "./merge/messageMergeActions";
 import { createMessageHistory } from "./messageHistory";
 import { createMessageMutations } from "./messageMutations";
@@ -33,12 +33,14 @@ export function createMessagesStore(deps: {
   visibleViews: () => View[];
   visibleThreads: () => ThreadRef[];
   onConversationView?: (view: ConversationViewData) => void;
+  onHistoryLoaded: (channelId: ChannelId, pinCount: number | undefined) => void;
   onMessageDeleted: (channelId: ChannelId, ts: Ts) => void;
   extendPatch: (current: Message, patch: Partial<Message>) => Partial<Message>;
   retainsDeleted: (msg: Message) => boolean;
 }) {
   const history = createMessageHistory({
     onConversationView: deps.onConversationView,
+    onHistoryLoaded: deps.onHistoryLoaded,
     visibleMessageTargets: deps.visibleMessageTargets,
     visibleThreads: deps.visibleThreads,
     visibleViews: deps.visibleViews,
@@ -73,15 +75,18 @@ export function createMessagesStore(deps: {
     missingReplies,
     hasThreadError,
     isLoadingMoreReplies,
+    loadLatestReplies,
     loadMoreReplies,
     isLoadingHistory,
     isLoadingThread,
+    isThreadStale,
     ensureChannelMessage,
     ensureThreadRepliesLoaded,
     jumpToBeginning,
     jumpToDate,
     jumpToTs,
     refreshThreadReplies,
+    resyncThreads,
   } = history;
   const statusActions = createMessageStatusActions({
     clearChannelUnread: deps.clearChannelUnread,
@@ -147,7 +152,14 @@ export function createMessagesStore(deps: {
       history.forgetRemoved(channelId, ts);
       for (const { location } of locations) removeMessage(location, ts);
       dropThreadMessages(ts);
+      if (msg?.threadTs && msg.threadTs !== ts) dropReplyFromCount(channelId, msg.threadTs);
     }
+  }
+  function dropReplyFromCount(channelId: ChannelId, threadTs: Ts) {
+    const root = findAllMessageLocations(channelId, threadTs)[0]?.list.find(
+      (m) => m.ts === threadTs,
+    );
+    if (root?.replyCount) patchMessage(channelId, threadTs, { replyCount: root.replyCount - 1 });
   }
   const dismissMessage = (channelId: ChannelId, ts: Ts) => {
     for (const { location } of findAllMessageLocations(channelId, ts)) removeMessage(location, ts);
@@ -200,9 +212,11 @@ export function createMessagesStore(deps: {
     missingReplies,
     hasThreadError,
     isLoadingMoreReplies,
+    loadLatestReplies,
     loadMoreReplies,
     isLoadingHistory,
     isLoadingThread,
+    isThreadStale,
     isMine,
     acceptsLiveReplies,
     jumpToBeginning,
@@ -218,10 +232,10 @@ export function createMessagesStore(deps: {
     messagesByChannel,
     messagesInChannel,
     messagesInThread,
-    prefetchHistory: history.prefetchHistory,
     patchMessage,
     reactionMessageFor,
     refreshThreadReplies,
+    resyncThreads,
     removeMessage,
     threadMessages,
     updateChannelMessages,

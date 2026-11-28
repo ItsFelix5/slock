@@ -1,12 +1,15 @@
 import { defined } from "@slock/core";
 import { createFlags, service } from "@slock/core/solid";
-import { toggleThreadSubscription } from "@slock/plugins/slack/client/api";
+import { defineMutation } from "@slock/plugins/query/client/api";
 import { parseTs } from "@slock/slack";
 import type { ChannelId, Message, Ts } from "@slock/types";
 import { tsFromMs, tsJustBefore, tsToMs } from "../lib/tsTime";
+import { toggleThreadSubscription } from "../requests/send";
 
 const feedback = service("feedback");
 const env = service("env");
+
+type SubscriptionWrite = { channelId: ChannelId; ts: Ts; wasSubscribed: boolean };
 
 export function createMessageStatusActions(deps: {
   clearChannelUnread: (channelId: ChannelId) => void;
@@ -26,41 +29,35 @@ export function createMessageStatusActions(deps: {
   patchMessage: (channelId: ChannelId, ts: Ts, patch: Partial<Message>) => void;
 }) {
   const { messagesByChannel, threadMessages, patchMessage } = deps;
-  const threadSubscriptionPending = createFlags<string>();
   const threadUnsubscribed = createFlags<string>();
-  const subscriptionPendingKey = (channelId: ChannelId, ts: Ts) => `${channelId}:${ts}`;
+  const threadKey = (channelId: ChannelId, ts: Ts) => `${channelId}:${ts}`;
+  const showSubscribed = ({ channelId, ts }: SubscriptionWrite, subscribed: boolean) => {
+    patchMessage(channelId, ts, { isSubscribed: subscribed });
+    threadUnsubscribed.set(threadKey(channelId, ts), !subscribed);
+  };
+  const subscription = defineMutation<SubscriptionWrite, unknown>({
+    key: (write) => threadKey(write.channelId, write.ts),
+    mode: "single",
+    onError: (error, write) => {
+      console.error("Failed to update thread subscription", error);
+      feedback.flash(write.ts, "Failed to update thread subscription.", "error");
+      showSubscribed(write, write.wasSubscribed);
+    },
+    optimistic: (write) => showSubscribed(write, !write.wasSubscribed),
+    run: (write) => toggleThreadSubscription(write.channelId, write.ts, write.wasSubscribed),
+  });
   const isThreadSubscriptionPending = (channelId: ChannelId, ts: Ts) =>
-    threadSubscriptionPending.has(subscriptionPendingKey(channelId, ts));
+    subscription.pending(threadKey(channelId, ts));
   const isThreadUnsubscribed = (channelId: ChannelId, ts: Ts) =>
-    threadUnsubscribed.has(subscriptionPendingKey(channelId, ts));
+    threadUnsubscribed.has(threadKey(channelId, ts));
   function isThreadSubscribed(ts: Ts): boolean {
     return !!threadMessages[ts]?.[0]?.isSubscribed;
   }
-  async function changeThreadSubscription(channelId: ChannelId, ts: Ts, wasSubscribed: boolean) {
-    const key = subscriptionPendingKey(channelId, ts);
-    if (threadSubscriptionPending.has(key)) return;
-    const apply = (subscribed: boolean) => {
-      patchMessage(channelId, ts, { isSubscribed: subscribed });
-      threadUnsubscribed.set(key, !subscribed);
-    };
-    threadSubscriptionPending.set(key, true);
-    apply(!wasSubscribed);
-    try {
-      await toggleThreadSubscription(channelId, ts, wasSubscribed);
-    } catch (err) {
-      console.error("Failed to update thread subscription", err);
-      feedback.flash(ts, "Failed to update thread subscription.", "error");
-      apply(wasSubscribed);
-    } finally {
-      threadSubscriptionPending.set(key, false);
-    }
-  }
-
   const toggleThreadSubscribed = (channelId: ChannelId, ts: Ts) =>
-    changeThreadSubscription(channelId, ts, isThreadSubscribed(ts));
+    subscription.run({ channelId, ts, wasSubscribed: isThreadSubscribed(ts) });
 
   const unsubscribeFromThread = (channelId: ChannelId, ts: Ts) =>
-    changeThreadSubscription(channelId, ts, true);
+    subscription.run({ channelId, ts, wasSubscribed: true });
   async function markCurrentChannelRead(channelId: ChannelId): Promise<boolean> {
     const loadedLatest = deps.hasNewerHistory(channelId)
       ? undefined

@@ -45,7 +45,7 @@ export type MentionCardProps = {
   hoverIntent: ReturnType<typeof useHoverIntent>;
 } & MentionTarget;
 
-export type OutgoingDraft = {
+type OutgoingDraft = {
   channelId: ChannelId;
   threadTs?: Ts;
   text: string;
@@ -53,11 +53,11 @@ export type OutgoingDraft = {
   files: File[];
 };
 
-export type BeforeSend = (
+type BeforeSend = (
   draft: OutgoingDraft,
 ) => { cancel: string } | undefined | Promise<{ cancel: string } | undefined>;
 
-export type DraftContent = {
+type DraftContent = {
   blocks: Block[];
   files: SlackFile[];
 };

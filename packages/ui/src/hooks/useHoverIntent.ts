@@ -1,41 +1,37 @@
-import { service } from "@slock/core/solid";
-import type { TimerHandle } from "@slock/core/types";
-import { createSignal, onCleanup } from "solid-js";
-
-const env = service("env");
+import { useDebouncer } from "@slock/core/solid";
+import { createSignal } from "solid-js";
 
 export function useHoverIntent(openDelay = 350, closeDelay = 160) {
   const [open, setOpen] = createSignal(false);
-  let openTimer: TimerHandle | undefined;
-  let closeTimer: TimerHandle | undefined;
+  const opening = useDebouncer(() => setOpen(true), openDelay);
+  const closing = useDebouncer(() => setOpen(false), closeDelay);
 
   const close = () => {
-    env.clearTimeout(openTimer);
-    env.clearTimeout(closeTimer);
+    opening.cancel();
+    closing.cancel();
     setOpen(false);
   };
 
   const scheduleOpen = () => {
-    env.clearTimeout(openTimer);
-    env.clearTimeout(closeTimer);
-    openTimer = env.setTimeout(() => setOpen(true), openDelay);
+    closing.cancel();
+    opening.schedule();
   };
   const scheduleClose = () => {
-    env.clearTimeout(openTimer);
-    env.clearTimeout(closeTimer);
-    closeTimer = env.setTimeout(close, closeDelay);
+    opening.cancel();
+    closing.schedule();
   };
-  const cancelClose = () => env.clearTimeout(closeTimer);
+  const cancelClose = () => closing.cancel();
   const openNow = () => {
-    env.clearTimeout(openTimer);
-    env.clearTimeout(closeTimer);
+    opening.cancel();
+    closing.cancel();
     setOpen(true);
   };
 
-  onCleanup(() => {
-    env.clearTimeout(openTimer);
-    env.clearTimeout(closeTimer);
-  });
+  // Presses inside a portal panel bubble to the anchor too, hence contains.
+  const closeOnPress = (event: Event & { currentTarget: Element }) => {
+    if (event instanceof KeyboardEvent && event.key !== "Enter" && event.key !== " ") return;
+    if (event.target instanceof Node && event.currentTarget.contains(event.target)) close();
+  };
 
-  return { cancelClose, close, open, openNow, scheduleClose, scheduleOpen };
+  return { cancelClose, close, closeOnPress, open, openNow, scheduleClose, scheduleOpen };
 }

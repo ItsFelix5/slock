@@ -1,5 +1,5 @@
+import { createDebouncer } from "@slock/core";
 import { service } from "@slock/core/solid";
-import type { TimerHandle } from "@slock/core/types";
 import { createSignal, getOwner, onCleanup } from "solid-js";
 
 const env = service("env");
@@ -10,14 +10,14 @@ export function createCopyFeedback(
   writeText: (text: string) => Promise<void> = (text) => navigator.clipboard.writeText(text),
 ) {
   const [copiedKey, setCopiedKey] = createSignal<string | null>(null);
-  let timer: TimerHandle | undefined;
+  const reset = createDebouncer(env, () => setCopiedKey(null), ttlMs);
   let active = true;
   let latestRequest = 0;
 
   if (getOwner()) {
     onCleanup(() => {
       active = false;
-      env.clearTimeout(timer);
+      reset.cancel();
     });
   }
 
@@ -26,9 +26,8 @@ export function createCopyFeedback(
     try {
       await writeText(text);
       if (!active || request !== latestRequest) return true;
-      env.clearTimeout(timer);
       setCopiedKey(key);
-      timer = env.setTimeout(() => setCopiedKey(null), ttlMs);
+      reset.schedule();
       return true;
     } catch {
       if (active && request === latestRequest) onError?.();

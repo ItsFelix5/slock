@@ -1,5 +1,6 @@
 import type { ChartAxisConfig, ChartSeries, DataVisualizationBlock } from "@slock/types";
 import { For, Match, Show, Switch } from "solid-js";
+import Unsupported from "../Unsupported";
 import "./DataVisualization.css";
 
 const CHART_W = 300;
@@ -186,9 +187,7 @@ export function DataVisualization(props: { block: DataVisualizationBlock }) {
   return (
     <section class="bk-chart">
       <div class="bk-chart-title">{props.block.title}</div>
-      <Switch
-        fallback={<div class="bk-chart-empty">Unsupported chart: {props.block.chart.type}</div>}
-      >
+      <Switch fallback={<Unsupported kind="chart" type={props.block.chart.type} />}>
         <Match keyed when={props.block.chart.type === "pie" ? props.block.chart : undefined}>
           {(c) => <PieChart segments={c.segments} />}
         </Match>

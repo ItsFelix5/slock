@@ -43,19 +43,13 @@ export default function Overflow(props: {
 
   return (
     <Menu
+      align="end"
       class="bk-overflow-wrap"
       onClose={() => setOpen(false)}
       open={open()}
       panelClass="menu-panel bk-overflow-menu"
       trigger={
-        <button
-          class="bk-overflow-btn"
-          onClick={() => setOpen(!open())}
-          title={
-            canDispatch(props.el.action_id) ? "More options" : "This menu needs its app to respond"
-          }
-          type="button"
-        >
+        <button class="bk-overflow-btn" onClick={() => setOpen(!open())} type="button">
           <Icon name="ellipsis-horizontal-filled" size={16} />
         </button>
       }

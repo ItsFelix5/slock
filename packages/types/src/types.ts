@@ -1,6 +1,6 @@
 import type { Block } from "./blocks/blocks";
 import type { Attachment, PendingFile, SlackFile } from "./fileTypes";
-import type { ChannelId, FileId, Ts, UserId } from "./ids";
+import type { ChannelId, FileId, TeamId, Ts, UserId } from "./ids";
 import type { User } from "./userTypes";
 import type { RawMessage } from "./wire/rawTypes";
 
@@ -24,7 +24,8 @@ export interface Message {
 
   botId?: string;
   botName?: string;
-  canvasThreadId?: string;
+  botTeamId?: TeamId;
+  canvasComment?: { resolved: boolean; threadId: string };
   day: string;
   deleted?: boolean;
   edited?: boolean;
@@ -48,6 +49,7 @@ export interface Message {
   reactions?: Reaction[];
   replyCount?: number;
   replyUsers?: UserId[];
+  replyUsersCount?: number;
   subtype?: string;
   text: string;
 
@@ -78,6 +80,7 @@ export interface DirectMessage {
   lastActivity?: number;
   mentions?: number;
   name?: string;
+  topic?: string;
   unread: boolean;
 
   userId?: UserId;

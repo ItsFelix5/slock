@@ -1,15 +1,16 @@
+import { INLINE_STYLE_FORMATS } from "./inlineFormats";
 import { listAutofillBinding, listIndentBindings } from "./listOffset";
-import { INLINE_MARKS } from "./markdownAutoformat";
 import type Quill from "./quill";
 import { getEmbedBlot } from "./quill";
 
-export const BASE_FORMATS = ["bold", "code", "italic", "link", "strike", "mention", "emoji"];
+export const BASE_FORMATS = [...INLINE_STYLE_FORMATS, "tag", "link", "mention", "emoji"];
 export const EXTENDED_FORMATS = [
   "blockquote",
   "context",
   "header",
   "indent",
   "list",
+  "listOffset",
   "code-block",
   "divider",
   "date",
@@ -27,7 +28,7 @@ export function quillKeyboardBindings(
   return {
     bold: false,
     italic: false,
-    "list autofill": listAutofillBinding(checklists),
+    "list autofill": has("list") && listAutofillBinding(checklists, has("listOffset")),
     ...(has("list") && has("indent") ? listIndentBindings() : {}),
     "embed backspace": {
       key: "Backspace",
@@ -47,7 +48,7 @@ export function quillKeyboardBindings(
       },
     },
     ...Object.fromEntries(
-      INLINE_MARKS.map(([, format]) => [
+      INLINE_STYLE_FORMATS.map((format) => [
         `${format} backspace`,
         {
           key: "Backspace",

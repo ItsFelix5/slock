@@ -1,4 +1,5 @@
 import type { ModalView } from "../blocks/blocks";
+import type { RawActivityFeedEntry } from "./rawActivity";
 import type { RawDraftEntry } from "./rawApi";
 import type { RawChannel, RawCounts, RawMessage, RawUser } from "./rawTypes";
 
@@ -30,7 +31,7 @@ export interface ChannelUpdates {
   topic?: string;
 }
 
-export type MembershipEventType =
+type MembershipEventType =
   | "channel_archive"
   | "channel_deleted"
   | "channel_joined"
@@ -126,11 +127,11 @@ export type GatewayEvent =
     }
   | { channels: string[]; type: "channel_updated"; updates: ChannelUpdates }
   | { name?: string; type: "pref_change"; value?: string }
-  | { file_id?: string; type: "document_change" | "document_update" }
+  | { file_id?: string; type: "document_update" }
   | { draft: RawDraftEntry; type: "draft_create" | "draft_update" }
   | { draft_id?: string; type: "draft_delete" | "draft_send" }
   | { type: "dnd_updated_user" | "dnd_invalidated"; user?: string }
-  | { subtype?: string; type: "activity" }
+  | { entry?: RawActivityFeedEntry; subtype?: string; type: "activity" }
   | { subteam_id?: string; type: "subteam_self_added" | "subteam_self_removed" }
   | {
       type:

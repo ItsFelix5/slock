@@ -1,7 +1,7 @@
 import { assertNever } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { channelIconName } from "@slock/plugins/channels/client/api";
-import { blockPreviewText } from "@slock/slack";
+import { blockPreviewText } from "@slock/slack/client";
 import type { Block, ChannelId, SlackFile, User, UserId } from "@slock/types";
 import { Avatar, Icon, type IconName, imageSrc } from "@slock/ui";
 

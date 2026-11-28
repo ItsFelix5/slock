@@ -1,35 +1,47 @@
-import { isFileId } from "@slock/slack";
-import type { CanvasFile, CanvasImage, LayoutFrame } from "@slock/types";
-import { asMessage, asString, field, type RawField } from "./protobufRaw.ts";
+import { isChannelId, isFileId, isTs } from "@slock/slack";
+import type { CanvasCard, CanvasFile, CanvasImage, LayoutFrame } from "@slock/types";
+import { asMessage, asString, field, type RawField, type RawMessage } from "./protobufRaw.ts";
 import { encodeRawMessage } from "./rawEncode.ts";
 import type { SectionRecord } from "./sections.ts";
 import { rawMessage, rawString, rawVarint } from "./sectionWrite.ts";
 
-const FIELD_FILE = 50;
+const FIELD_ATTACHMENT = 50;
 const FIELD_IMAGES = 2;
+const KIND_FILE = 2;
+const KIND_CARD = 3;
+const FLAG_FILE = 4;
+const FLAG_MESSAGE_CARD = 6;
 const FILE_REF_PREFIX = "sf:";
+const CARD_REF = /^suo:([^/]+)\/([^/]+)\/([^/]+)$/;
 const ZERO_DOUBLE: RawField = { fixed64: new Uint8Array(8) };
 
 function content(record: SectionRecord) {
   return asMessage(field(record.msg, 12));
 }
 
-export function readFile(record: SectionRecord, frames: LayoutFrame[]): CanvasFile | null {
-  const file = asMessage(field(content(record) ?? new Map(), FIELD_FILE));
-  if (!(file && record.id)) return null;
-  const ref = asMessage(field(asMessage(field(file, 3)) ?? new Map(), 2));
-  const fileRef = (ref && asString(field(ref, 1))) ?? "";
+function attachmentRef(attachment: RawMessage, kind: number): string {
+  const slot = asMessage(field(asMessage(field(attachment, 3)) ?? new Map(), kind));
+  return (slot && asString(field(slot, 1))) ?? "";
+}
+
+export function readAttachment(
+  record: SectionRecord,
+  frames: LayoutFrame[],
+): CanvasCard | CanvasFile | null {
+  const attachment = asMessage(field(content(record) ?? new Map(), FIELD_ATTACHMENT));
+  const { id } = record;
+  if (!(attachment && id)) return null;
+  const url = asString(field(attachment, 1)) ?? "";
+  const fileRef = attachmentRef(attachment, KIND_FILE);
   const fileId = fileRef.startsWith(FILE_REF_PREFIX)
     ? fileRef.slice(FILE_REF_PREFIX.length)
     : fileRef;
-  if (!isFileId(fileId)) return null;
-  return {
-    fileId,
-    frames,
-    id: record.id,
-    kind: "file",
-    permalink: asString(field(file, 1)) ?? "",
-  };
+  if (isFileId(fileId)) return { fileId, frames, id, kind: "file", permalink: url };
+  const [, ownerId, channelId = "", ts = ""] =
+    attachmentRef(attachment, KIND_CARD).match(CARD_REF) ?? [];
+  if (!(ownerId && isChannelId(channelId) && isTs(ts))) return null;
+  const isMessage = field(attachment, FLAG_MESSAGE_CARD)?.varint === 1n;
+  return { channelId, frames, id, isMessage, kind: "card", ownerId, ts, url };
 }
 
 export function readImage(
@@ -67,18 +79,19 @@ export function readImage(
   };
 }
 
-export function fileContent(node: CanvasFile): number[] {
-  const file = new Map([
-    [1, [rawString(node.permalink)]],
-    [2, [rawVarint(2)]],
-    [
-      3,
-      [rawMessage(new Map([[2, [rawMessage(new Map([[1, [rawString(`sf:${node.fileId}`)]]]))]]]))],
-    ],
-    [4, [rawVarint(1)]],
+export function attachmentContent(node: CanvasCard | CanvasFile): number[] {
+  const card = node.kind === "card";
+  const kind = card ? KIND_CARD : KIND_FILE;
+  const ref = card ? `suo:${node.ownerId}/${node.channelId}/${node.ts}` : `sf:${node.fileId}`;
+  const attachment = new Map([
+    [1, [rawString(card ? node.url : node.permalink)]],
+    [2, [rawVarint(kind)]],
+    [3, [rawMessage(new Map([[kind, [rawMessage(new Map([[1, [rawString(ref)]]]))]]]))]],
     [8, [rawVarint(0)]],
   ]);
-  return encodeRawMessage(new Map([[FIELD_FILE, [rawMessage(file)]]]));
+  if (!card) attachment.set(FLAG_FILE, [rawVarint(1)]);
+  else if (node.isMessage) attachment.set(FLAG_MESSAGE_CARD, [rawVarint(1)]);
+  return encodeRawMessage(new Map([[FIELD_ATTACHMENT, [rawMessage(attachment)]]]));
 }
 
 function pictureMessage(

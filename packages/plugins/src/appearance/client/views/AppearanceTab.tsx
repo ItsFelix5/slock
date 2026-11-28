@@ -1,18 +1,17 @@
 import { service } from "@slock/core/solid";
 import {
-  activeFontPreset,
   ariaBoolean,
   ColorField,
   type ColorRef,
   createCopyFeedback,
-  FONT_PRESETS,
   Icon,
   IconButton,
   Slider,
-  THEME_FAMILIES,
-  type ThemeColorDefinition,
 } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
+import { activeFontPreset, FONT_PRESETS } from "../theme/fontPresets";
+import type { ThemeColorDefinition } from "../theme/themeColorRegistry";
+import { THEME_FAMILIES } from "../theme/themePresets";
 import "./AppearanceTab.css";
 import CustomCssField from "./CustomCssField";
 import ThemeFamilyChip from "./ThemeFamilyChip";
@@ -129,7 +128,7 @@ export default function AppearanceTab() {
       </div>
 
       <div class="settings-section">
-        <div class="settings-section-title">Theme</div>
+        <div class="settings-section-title">Preset</div>
         <div class="settings-preset-group">
           <For each={THEME_FAMILIES}>
             {(family) => <ThemeFamilyChip activeId={activeThemeId()} family={family} />}

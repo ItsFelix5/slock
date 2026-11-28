@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import { getChannelLink, getPermalink } from "@slock/plugins/slack/client/api";
+import { getChannelLink } from "@slock/plugins/slack/client/api";
 import type { ChannelId, FileId, Ts } from "@slock/types";
 
 const feedback = service("feedback");
@@ -47,4 +47,11 @@ export async function prepareReplyLink(
     console.error("Failed to get permalink", err);
     return null;
   }
+}
+
+async function getPermalink(channelId: ChannelId, ts: Ts, threadTs?: Ts): Promise<string | null> {
+  const channelLink = await getChannelLink(channelId);
+  if (!channelLink) return null;
+  const base = `${channelLink}/p${ts.replace(".", "")}`;
+  return threadTs && threadTs !== ts ? `${base}?thread_ts=${threadTs}&cid=${channelId}` : base;
 }

@@ -9,13 +9,10 @@ import {
 import type { Route } from "@slock/plugins/slack/server/api/router";
 import { route, routes } from "@slock/plugins/slack/server/api/router";
 import { callSlack, callSlackEdge } from "@slock/plugins/slack/server/api/slackClient";
-import type {
-  BotReply,
-  EdgeUsersInfoReply,
-  EdgeUsersReply,
-} from "@slock/plugins/slack/server/api/slackReplies";
-import { trimBot, trimUser } from "@slock/plugins/slack/server/api/trim/slackEntities";
+import type { EdgeUsersReply, EntityIndex } from "@slock/plugins/slack/server/api/slackReplies";
+import { trimIcons, trimUser } from "@slock/plugins/slack/server/api/trim/slackEntities";
 import { isUserId } from "@slock/slack";
+import type { RawBot, RawUser } from "@slock/types";
 import type { UserDecorator } from "./api";
 
 function userRoutes(decorators: () => UserDecorator[]): Route[] {
@@ -93,3 +90,21 @@ const setup: Setup = (ctx) => {
 };
 
 export default setup;
+
+type EdgeUsersInfoReply = {
+  results?: EntityIndex<RawUser>;
+  user?: RawUser;
+  users?: EntityIndex<RawUser>;
+};
+
+type BotReply = { bot: RawBot };
+
+function trimBot(bot: RawBot): RawBot {
+  return {
+    app_id: bot.app_id,
+    icons: trimIcons(bot.icons),
+    id: bot.id,
+    name: bot.name,
+    user_id: bot.user_id,
+  };
+}

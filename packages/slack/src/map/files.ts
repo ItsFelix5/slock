@@ -1,18 +1,12 @@
-import { formatDay, formatTime } from "@slock/core";
+import { formatDay, formatTime, logUnknown } from "@slock/core";
 import { service } from "@slock/core/services";
-import type {
-  Attachment,
-  RawAttachment,
-  RawFile,
-  RawFileShare,
-  RawLink,
-  SlackFile,
-  SlackFileShare,
-  SlackLink,
-} from "@slock/types";
-import { ifPresent, isUserId, parseChannelId, parseFileId, parseTs, parseUserId } from "../ids";
+import type { Attachment, RawAttachment, RawFile, SlackFile } from "@slock/types";
+import { ifPresent, isUserId, parseChannelId, parseFileId, parseTs } from "../ids";
+import { decodeTextEntities } from "../richText/entities";
 
 const env = service("env");
+
+const IFRAME_SRC_RE = /<iframe\b[^>]*?\ssrc="([^"]+)"/i;
 
 const EXTENSION_MIMETYPES = new Map(
   Object.entries({
@@ -99,49 +93,35 @@ export function mapFile(f: RawFile): SlackFile {
 
     urlPrivate: f.url_private ?? "",
     urlPrivateDownload: f.url_private_download ? f.url_private_download : undefined,
+    userId: f.user && isUserId(f.user) ? f.user : undefined,
     vtt: f.vtt || undefined,
     waveform: hasWaveform ? f.audio_wave_samples : undefined,
     width: thumb?.w ?? f.original_w,
   };
 }
 
-export function mapLink(raw: RawLink): SlackLink {
-  return {
-    iconUrl: raw.icon_url || undefined,
-    thumbHeight: raw.thumb_height ?? undefined,
-    thumbUrl: raw.thumb_url || undefined,
-    thumbWidth: raw.thumb_width ?? undefined,
-    title: raw.title,
-    ts: parseTs(raw.timestamp),
-    url: raw.url,
-  };
-}
-
-export function mapFileShare(raw: RawFileShare): SlackFileShare {
-  return {
-    access: raw.access,
-    channelId: parseChannelId(raw.channel_id),
-    channelName: raw.channel_name ?? raw.channel_id,
-    replyCount: raw.reply_count,
-    sharedByUserId: ifPresent(parseUserId, raw.share_user_id),
-    threadTs: ifPresent(parseTs, raw.thread_ts),
-    ts: parseTs(raw.ts),
-  };
-}
-
 export function mapAttachment(a: RawAttachment): Attachment {
+  const embedSrc = IFRAME_SRC_RE.exec(a.video_html ?? "")?.[1];
+  const image = a.image_url
+    ? { height: a.image_height, url: a.image_url, width: a.image_width }
+    : { height: a.thumb_height, url: a.thumb_url || undefined, width: a.thumb_width };
   return {
-    actions: a.actions?.flatMap(({ id, name = id, style, text, type, url, value }) =>
-      type === "button" && name && text ? [{ name, style, text, url, value }] : [],
-    ),
+    actions: a.actions?.flatMap(({ id, name = id, style, text, type, url, value }) => {
+      if (type !== "button") logUnknown("attachment action", type);
+      return type === "button" && name && text ? [{ name, style, text, url, value }] : [];
+    }),
     authorIcon: a.author_icon || undefined,
     authorId: a.author_id && isUserId(a.author_id) ? a.author_id : undefined,
+    authorLink: a.author_link,
     authorName: a.author_name,
     authorSubname: a.author_subname,
     blocks: a.blocks,
+    botId: a.bot_id,
+    botTeamId: a.bot_team_id,
     callbackId: a.callback_id,
     channelId: ifPresent(parseChannelId, a.channel_id),
     color: a.color,
+    embedUrl: ifPresent(decodeTextEntities, embedSrc),
     fallback: a.fallback,
     fields: a.fields,
     files: Array.isArray(a.files) ? a.files.map(mapFile) : undefined,
@@ -149,9 +129,9 @@ export function mapAttachment(a: RawAttachment): Attachment {
     footerIcon: a.footer_icon || undefined,
     fromUrl: a.from_url,
     id: a.id,
-    imageHeight: a.image_height,
-    imageUrl: a.image_url || undefined,
-    imageWidth: a.image_width,
+    imageHeight: image.height,
+    imageUrl: image.url,
+    imageWidth: image.width,
     isMessageUnfurl: !!(a.is_reply_unfurl || a.is_msg_unfurl),
     postedAt: a.ts ? `${formatDay(a.ts, env.now())} at ${formatTime(a.ts)}` : undefined,
     pretext: a.pretext,

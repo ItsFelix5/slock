@@ -2,14 +2,13 @@ import type { ChannelId } from "@slock/types";
 import type { Component } from "solid-js";
 import type { createChannelDetailsStore } from "./channelDetails";
 
-export type { MemberFilter } from "./channelDetails";
-
-export type ChannelDetailsTabProps = {
+type ChannelDetailsTabProps = {
   channelId: ChannelId;
   channelName: string;
   memberCount?: number;
   archived: boolean;
   private: boolean;
+  groupChat: boolean;
   refetch(): void;
 };
 
@@ -17,7 +16,7 @@ export type ChannelDetailsTabItem = {
   id: string;
   label: string;
   view: Component<ChannelDetailsTabProps>;
-  managerOnly?: boolean;
+  audience?: "channelManagers" | "groupChat";
   count?: (details: { memberCount?: number }) => number | undefined;
 };
 

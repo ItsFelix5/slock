@@ -1,32 +1,18 @@
 import { EmojiText } from "@slock/blockkit";
-import { service } from "@slock/core/solid";
-import { renameFile } from "@slock/plugins/slack/client/api";
+import { mentionText } from "@slock/plugins/users/client/api";
 import type { SlackFile } from "@slock/types";
 import { IconButton } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
+import { fileRename } from "../../fileMutations";
 
-const feedback = service("feedback");
-
-export default function FileTitle(props: {
-  editable: boolean;
-  file: SlackFile;
-  onRenamed: () => void;
-}) {
-  const [saved, setSaved] = createSignal<string | null>(null);
-  const current = () => saved() ?? (props.file.title || props.file.name);
+export default function FileTitle(props: { editable: boolean; file: SlackFile }) {
+  const current = () => props.file.title || props.file.name;
   const [draft, setDraft] = createSignal<string | null>(null);
 
-  async function commit() {
+  function commit() {
     const title = draft()?.trim();
     setDraft(null);
-    if (!title || title === current()) return;
-    try {
-      await renameFile(props.file.id, title);
-      setSaved(title);
-      props.onRenamed();
-    } catch (error) {
-      feedback.caught(props.file.id, error, "Couldn't rename the file");
-    }
+    if (title && title !== current()) void fileRename.run({ fileId: props.file.id, title });
   }
 
   return (
@@ -35,7 +21,7 @@ export default function FileTitle(props: {
         <input
           aria-label="File name"
           class="file-detail-title-input text-field"
-          onBlur={() => void commit()}
+          onBlur={commit}
           onInput={(event) => setDraft(event.currentTarget.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter") event.currentTarget.blur();
@@ -55,7 +41,7 @@ export default function FileTitle(props: {
       when={draft() === null}
     >
       <h2 class="file-detail-title truncate">
-        <EmojiText text={current()} />
+        <EmojiText text={mentionText(current())} />
       </h2>
       <Show when={props.editable}>
         <IconButton

@@ -1,5 +1,5 @@
 import { isChannelId, isUserId } from "@slock/slack";
-import type { CanvasControl, ChannelId, TeamId, UserId } from "@slock/types";
+import type { CanvasControl, ChannelId, UserId } from "@slock/types";
 import type { CanvasEmbed } from "../../protocol/api";
 import type { EmbedValue } from "./canvasHtml";
 
@@ -7,7 +7,6 @@ export interface CanvasNames {
   channel(id: ChannelId): string;
   controlLabel(embed: CanvasEmbed): string;
   emojiText(name: string): string | null;
-  teamId: TeamId | null;
   user(id: UserId): string;
 }
 
@@ -103,15 +102,12 @@ export function embedToValue(
       fileId: embed?.type === "file" ? embed.fileId : undefined,
       id: controlId,
       label: controlLabel(embed, names),
+      url: embed?.type === "link" ? embed.url : undefined,
     },
   };
 }
 
-export function valueToControl(
-  value: EmbedValue,
-  id: string,
-  names: CanvasNames,
-): CanvasControl | null {
+export function valueToControl(value: EmbedValue, id: string): CanvasControl | null {
   const { date, emoji, mention } = value;
   if (isRecord(mention) && isString(mention.id)) {
     if (mention.kind === "user" && isUserId(mention.id))
@@ -119,8 +115,7 @@ export function valueToControl(
     if (mention.kind === "channel" && isChannelId(mention.id))
       return { channelId: mention.id, id, kind: "channel" };
   }
-  if (isRecord(emoji) && isString(emoji.name) && names.teamId)
-    return { id, kind: "emoji", name: emoji.name, teamId: names.teamId };
+  if (isRecord(emoji) && isString(emoji.name)) return { id, kind: "emoji", name: emoji.name };
   if (isRecord(date) && typeof date.ts === "number")
     return { id, kind: "date", label: dateLabel(dateMs(date.ts)), ms: dateMs(date.ts) };
   return null;

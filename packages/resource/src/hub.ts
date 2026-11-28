@@ -1,6 +1,6 @@
 import { createResourceCache } from "./cache";
 import type { CacheOptions, ResourceCache } from "./cacheTypes";
-import { type Cooldown, createCooldown } from "./cooldown";
+import { createCooldown } from "./cooldown";
 import type { ResourceEnv } from "./delay";
 import type { EntryState } from "./state";
 
@@ -16,38 +16,45 @@ export interface HubEntry {
 
 type Lifecycle = Pick<
   ResourceCache<never, never>,
-  "clear" | "dispose" | "evictInactive" | "restore"
+  "clear" | "dispose" | "evictInactive" | "flush" | "restore"
 > & { inspect(): HubEntry[]; revalidate(): void };
 
 export interface ResourceHub {
-  cache<K, T>(options: Omit<CacheOptions<K, T>, "env">): ResourceCache<K, T>;
+  cache<K, T>(options: HubCacheOptions<K, T>): ResourceCache<K, T>;
   clear(): void;
-  cooldown: Cooldown;
   dispose(): void;
   evictInactive(): void;
+  flush(): void;
   inspect(): HubEntry[];
+  onFlush(flush: () => void): () => void;
   restore(): Promise<void>;
   revalidate(): void;
 }
+
+type HubCacheOptions<K, T> = Omit<CacheOptions<K, T>, "env"> & {
+  revalidates?: boolean;
+};
 
 export function createResourceHub(
   env: ResourceEnv,
   options: { jitterMs?: number } = {},
 ): ResourceHub {
-  const cooldown = createCooldown(env, options);
   const members = new Set<Lifecycle>();
+  const pendingWork = new Set<() => void>();
 
   const each = (action: (member: Lifecycle) => void) => {
     for (const member of members) action(member);
   };
 
   return {
-    cache: (cacheOptions) => {
+    cache: ({ revalidates = true, ...cacheOptions }) => {
+      const cooldown = createCooldown(env, options);
       const cache = createResourceCache({ cooldown, ...cacheOptions, env });
       members.add({
         clear: cache.clear,
         dispose: cache.dispose,
         evictInactive: cache.evictInactive,
+        flush: cache.flush,
         inspect: () =>
           cache.entries().map((entry) => ({
             ...entry,
@@ -57,19 +64,29 @@ export function createResourceHub(
               await cache.refresh(entry.key);
             },
           })),
-        revalidate: () => cache.invalidateWhere(() => true),
+        revalidate: () => {
+          if (revalidates) cache.invalidateWhere(() => true);
+        },
         restore: cache.restore,
       });
       return cache;
     },
     clear: () => each((member) => member.clear()),
-    cooldown,
     dispose: () => {
       each((member) => member.dispose());
       members.clear();
+      pendingWork.clear();
     },
     evictInactive: () => each((member) => member.evictInactive()),
+    flush: () => {
+      for (const flush of pendingWork) flush();
+      each((member) => member.flush());
+    },
     inspect: () => [...members].flatMap((member) => member.inspect()),
+    onFlush: (flush) => {
+      pendingWork.add(flush);
+      return () => pendingWork.delete(flush);
+    },
     restore: async () => {
       await Promise.all([...members].map((member) => member.restore()));
     },

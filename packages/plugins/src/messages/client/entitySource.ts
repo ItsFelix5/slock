@@ -1,7 +1,8 @@
 import type { EntityKind, EntitySource } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import { channelIconName } from "@slock/plugins/channels/client/api";
-import { fetchBrowsableChannels, openDm } from "@slock/plugins/slack/client/api";
+import { channelMatches } from "@slock/plugins/slack/client/api";
+import { openDm } from "@slock/plugins/slack/client/api/channels";
 import { isChannelId, isUserId } from "@slock/slack";
 import type { Channel, ConversationFilter, DirectMessage, User } from "@slock/types";
 import { type ComboboxOption, fuzzySearch } from "@slock/ui";
@@ -47,7 +48,7 @@ async function findChannels(query: string, include: Set<string>) {
     channelsStore.channels().map((channel) => [channel.id, channel]),
   );
   if (query) {
-    for (const channel of await fetchBrowsableChannels(query)) {
+    for (const channel of await channelMatches.ensure(query)) {
       merged.set(channel.id, channel);
     }
   }
@@ -72,9 +73,7 @@ async function findConversations(query: string, filter?: ConversationFilter) {
     .map(dmOption);
   const newDms = include.has("im")
     ? (await findUsers(query))
-        .filter(
-          (user) => user.id !== usersStore.currentUser()?.id && !dmsStore.dmIdForUser(user.id),
-        )
+        .filter((user) => user.id !== usersStore.currentUserId() && !dmsStore.dmIdForUser(user.id))
         .map(userOption)
     : [];
   return ranked([...channels, ...dms, ...newDms], query);

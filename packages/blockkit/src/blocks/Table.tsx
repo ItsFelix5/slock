@@ -1,9 +1,21 @@
 import type { TableBlock } from "@slock/types";
 import { For, Show } from "solid-js";
+import type { BlockActionContext } from "../BlockKit";
+import ElementRenderer from "../elements/ElementRenderer";
 import RichText from "./RichText";
 import "./Table.css";
 
-function Cell(props: { cell: TableBlock["rows"][number][number] }) {
+function Cell(props: {
+  blockId?: string;
+  cell: TableBlock["rows"][number][number];
+  context?: BlockActionContext;
+}) {
+  if (props.cell.type === "action_cell")
+    return (
+      <Show when={props.cell.element}>
+        {(el) => <ElementRenderer blockId={props.blockId} context={props.context} el={el()} />}
+      </Show>
+    );
   return props.cell.type === "rich_text" ? (
     <RichText block={{ elements: props.cell.elements ?? [], type: "rich_text" }} />
   ) : (
@@ -11,7 +23,7 @@ function Cell(props: { cell: TableBlock["rows"][number][number] }) {
   );
 }
 
-export function Table(props: { block: TableBlock }) {
+export function Table(props: { block: TableBlock; context?: BlockActionContext }) {
   return (
     <div class="bk-table-scroll">
       <table class="bk-table">
@@ -27,14 +39,15 @@ export function Table(props: { block: TableBlock }) {
                       "text-align": setting()?.align,
                       "white-space": setting()?.is_wrapped ? "normal" : "nowrap",
                     });
-                    return rowIndex() === 0 ? (
-                      <th scope="col" style={style()}>
-                        <Cell cell={cell} />
-                      </th>
-                    ) : (
-                      <td style={style()}>
-                        <Cell cell={cell} />
-                      </td>
+                    const content = () => (
+                      <Cell blockId={props.block.block_id} cell={cell} context={props.context} />
+                    );
+                    return (
+                      <Show fallback={<td style={style()}>{content()}</td>} when={rowIndex() === 0}>
+                        <th scope="col" style={style()}>
+                          {content()}
+                        </th>
+                      </Show>
                     );
                   }}
                 </For>

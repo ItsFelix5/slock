@@ -7,7 +7,7 @@ export interface OutlineItem {
 }
 
 export interface OutlineSource {
-  element(index: number): HTMLElement | null;
+  elements(): (HTMLElement | null)[];
   items(): OutlineItem[];
 }
 
@@ -17,14 +17,14 @@ export function titleItem(title: string): OutlineItem {
 
 const HEADING_SELECTOR = "h1,h2,h3,h4,h5,h6";
 
+export function headingElements(root: HTMLElement): HTMLElement[] {
+  return [...root.querySelectorAll<HTMLElement>(HEADING_SELECTOR)];
+}
+
 export function outlineFromDom(root: HTMLElement): OutlineItem[] {
-  return [...root.querySelectorAll<HTMLElement>(HEADING_SELECTOR)].map((heading, index) => ({
+  return headingElements(root).map((heading, index) => ({
     index: index + 1,
     level: Number(heading.tagName.slice(1)),
     text: encodeTextEntities(heading.textContent?.trim() ?? ""),
   }));
-}
-
-export function headingElement(root: HTMLElement, index: number): HTMLElement | null {
-  return root.querySelectorAll<HTMLElement>(HEADING_SELECTOR)[index - 1] ?? null;
 }

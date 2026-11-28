@@ -1,6 +1,6 @@
 import type { Setup } from "@slock/core";
 import { lazyChunk } from "@slock/core/solid";
-import { isConfigured, REAUTH_EVENT } from "@slock/slack";
+import { isConfigured, REAUTH_EVENT } from "@slock/slack/client";
 import { Button } from "@slock/ui";
 import { createSignal } from "solid-js";
 import { confirmLogout, logoutAndRestart, restartApp } from "./session";

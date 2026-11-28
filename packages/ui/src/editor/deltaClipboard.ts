@@ -1,7 +1,10 @@
 import { Delta, type Range } from "quill/core";
 import Clipboard from "quill/modules/clipboard";
+import { domToMarkdown } from "../markdown";
 
-const DELTA_CLIPBOARD_TYPE = "application/x-slock-delta";
+export const DELTA_CLIPBOARD_TYPE = "application/x-slock-delta";
+
+export type PasteFilter = (pasted: Delta, from: "editor" | "html") => Delta;
 
 function endFormat(pasted: Delta) {
   const last = pasted.ops.at(-1);
@@ -11,6 +14,12 @@ function endFormat(pasted: Delta) {
 }
 
 export default class DeltaClipboard extends Clipboard {
+  filter: PasteFilter = (pasted) => pasted;
+
+  override convert(...args: Parameters<Clipboard["convert"]>): Delta {
+    return this.filter(super.convert(...args), "html");
+  }
+
   override onPaste(range: Range, content: { html?: string; text?: string }): void {
     const pasted = this.convert(content, this.quill.getFormat(range.index));
     const format = endFormat(pasted);
@@ -21,6 +30,12 @@ export default class DeltaClipboard extends Clipboard {
     this.quill.updateContents(delta, "user");
     this.quill.setSelection(range.index + body.length(), "silent");
     this.quill.scrollSelectionIntoView();
+  }
+
+  override onCopy(...args: Parameters<Clipboard["onCopy"]>) {
+    const { html } = super.onCopy(...args);
+    const { body } = new DOMParser().parseFromString(html, "text/html");
+    return { html, text: domToMarkdown(body) };
   }
 
   override onCaptureCopy(event: ClipboardEvent, isCut = false): void {
@@ -38,7 +53,7 @@ export default class DeltaClipboard extends Clipboard {
     }
     event.preventDefault();
     const range = this.quill.getSelection(true);
-    const pasted = new Delta(JSON.parse(json));
+    const pasted = this.filter(new Delta(JSON.parse(json)), "editor");
     this.quill.updateContents(
       new Delta().retain(range.index).delete(range.length).concat(pasted),
       "user",

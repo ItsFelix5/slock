@@ -15,8 +15,10 @@
   ],
   "references": [
     { "path": "../core" },
+    { "path": "../core/src/client" },
     { "path": "../ui" },
     { "path": "../slack" },
+    { "path": "../slack/src/client" },
     { "path": "../types" },
     { "path": "../blockkit" },
     { "path": "../resource" }

@@ -2,7 +2,7 @@ import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/services";
 import type { Credentials } from "./auth.ts";
 
-export type SlackFailure = { error: string; ok: false; retry_after?: string };
+type SlackFailure = { error: string; ok: false; retry_after?: string };
 export type SlackReply<T extends object = object> = (T & { ok: true }) | SlackFailure;
 
 type Wire =
@@ -135,6 +135,27 @@ export async function callSlack<T extends object = object>(
   return slackReply(await dedupedWire(key, () => postSlack(method, params, creds)));
 }
 
+export async function callSlackEdge<T extends object = object>(
+  method: string,
+  params: Record<string, unknown>,
+  creds: Credentials | null,
+): Promise<SlackReply<T>> {
+  if (!creds) return { error: "not_configured", ok: false };
+  const [enterpriseId] = creds.route.split(":");
+  return slackReply(
+    await send(
+      `https://edgeapi.slack.com/cache/${enterpriseId}/${method}`,
+      {
+        body: JSON.stringify({ ...params, enterprise_token: creds.token, token: creds.token }),
+        headers: { "content-type": "application/json", cookie: `d=${creds.slackSession}` },
+        method: "POST",
+        signal: AbortSignal.timeout(15_000),
+      },
+      "Slack Edge request failed",
+    ),
+  );
+}
+
 export async function callSlackMultipart<T extends object = object>(
   method: string,
   params: Record<string, string>,
@@ -160,27 +181,6 @@ export async function callSlackMultipart<T extends object = object>(
         signal: AbortSignal.timeout(60_000),
       },
       "Slack request failed",
-    ),
-  );
-}
-
-export async function callSlackEdge<T extends object = object>(
-  method: string,
-  params: Record<string, unknown>,
-  creds: Credentials | null,
-): Promise<SlackReply<T>> {
-  if (!creds) return { error: "not_configured", ok: false };
-  const [enterpriseId] = creds.route.split(":");
-  return slackReply(
-    await send(
-      `https://edgeapi.slack.com/cache/${enterpriseId}/${method}`,
-      {
-        body: JSON.stringify({ ...params, enterprise_token: creds.token, token: creds.token }),
-        headers: { "content-type": "application/json", cookie: `d=${creds.slackSession}` },
-        method: "POST",
-        signal: AbortSignal.timeout(15_000),
-      },
-      "Slack Edge request failed",
     ),
   );
 }

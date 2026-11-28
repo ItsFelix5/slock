@@ -8,7 +8,7 @@ import { createTypingSlice } from "./store";
 
 const setup: Setup = (ctx) => {
   const store = createTypingSlice({ userById: service("users").userById });
-  const currentUserId = () => service("users").currentUser()?.id;
+  const { currentUserId } = service("users");
   ctx.provide("typing", store);
 
   function TypingFooter(props: MessageFooterProps) {

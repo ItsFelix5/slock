@@ -2,10 +2,14 @@ import { service } from "@slock/core/solid";
 import { uploadFilesForEdit } from "@slock/plugins/slack/client/api";
 import { mapFile, parseFileId } from "@slock/slack";
 import type { CanvasFile, CanvasImage, FileId, RawFile } from "@slock/types";
-import type { FileEmbedValue, ImageEmbedValue } from "./canvasEmbedValues";
-import { resolveCanvasFile } from "./canvasRequests";
+import Quill from "@slock/ui/editor/quill";
+import { createSignal } from "solid-js";
+import { type AtomEmbedValue, IMAGE_EMBED } from "./canvasEmbedValues";
+import { insertBlocks } from "./canvasFormatting";
+import { refreshCanvasFile, resolveCanvasFile } from "./canvasRequests";
 
 const env = service("env");
+const feedback = service("feedback");
 
 const IMAGE_RETRIES = 6;
 const IMAGE_RETRY_MS = 700;
@@ -22,7 +26,7 @@ async function processedFile(id: FileId): Promise<RawFile> {
   for (let attempt = 0; attempt < IMAGE_RETRIES; attempt++) {
     if (!mapFile(file).isImage || file.original_w) break;
     await wait(IMAGE_RETRY_MS);
-    file = await resolveCanvasFile(id);
+    file = await refreshCanvasFile(id);
   }
   return file;
 }
@@ -62,15 +66,19 @@ function fileNode(file: RawFile, id: string): CanvasFile {
   };
 }
 
-export type UploadedBlock =
-  | { id: string; name: "canvasFile"; value: FileEmbedValue }
-  | { id: string; name: "canvasImage"; value: ImageEmbedValue };
+type UploadedBlock =
+  | { id: string; name: "canvasFile"; value: AtomEmbedValue<CanvasFile> }
+  | { id: string; name: "canvasImage"; value: AtomEmbedValue<CanvasImage> };
 
-export async function uploadCanvasBlocks(
+async function uploadCanvasBlocks(
   files: File[],
   newId: () => string,
+  onProgress: (done: number) => void,
 ): Promise<UploadedBlock[]> {
-  const uploaded = await uploadFilesForEdit(files.map((file) => ({ file })));
+  const uploaded = await uploadFilesForEdit(
+    files.map((file) => ({ file })),
+    (index, fraction) => onProgress((index + fraction) / files.length),
+  );
   const blocks: UploadedBlock[] = [];
   for (const { id: fileId } of uploaded) {
     const file = await processedFile(parseFileId(fileId));
@@ -82,4 +90,88 @@ export async function uploadCanvasBlocks(
     );
   }
   return blocks;
+}
+
+function followIndex(quill: Quill, start: number) {
+  let index = start;
+  function move(...[name, delta]: [string, ReturnType<Quill["getContents"]>]) {
+    if (name === "text-change") index = delta.transformPosition(index);
+  }
+  quill.on("editor-change", move);
+  return {
+    index: () => index,
+    stop: () => void quill.off("editor-change", move),
+  };
+}
+
+export function createCanvasUploads(options: { fileId: FileId; newId: () => string }) {
+  const running = new Map<symbol, number>();
+  const [progress, setProgress] = createSignal<number>();
+
+  function report(key: symbol, done?: number) {
+    if (done === undefined) running.delete(key);
+    else running.set(key, done);
+    const total = [...running.values()].reduce((sum, value) => sum + value, 0);
+    setProgress(running.size > 0 ? total / running.size : undefined);
+  }
+
+  async function upload(quill: Quill, files: File[], index?: number) {
+    if (files.length === 0 || !quill.isEnabled() || !quill.scroll.query(IMAGE_EMBED)) return;
+    const key = Symbol();
+    const target = followIndex(quill, index ?? quill.getSelection(true).index);
+    report(key, 0);
+    try {
+      const blocks = await uploadCanvasBlocks(files, options.newId, (done) => report(key, done));
+      const from = target.index();
+      const { end } = insertBlocks(quill, from, blocks);
+      if (quill.getSelection()?.index === from) quill.setSelection(end, 0, "silent");
+    } catch (error) {
+      feedback.caught(options.fileId, error, "Couldn't upload the file");
+    } finally {
+      target.stop();
+      report(key);
+    }
+  }
+
+  return { progress, upload };
+}
+
+function dropTarget(target: Element) {
+  for (
+    let container = target.closest(".ql-container");
+    container;
+    container = container.parentElement?.closest(".ql-container") ?? null
+  ) {
+    const quill = Quill.find(container);
+    if (!(quill instanceof Quill && quill.scroll.query(IMAGE_EMBED))) continue;
+    const line = [...quill.root.children].find((child) => child.contains(target));
+    const blot = line && Quill.find(line);
+    const index = blot && !(blot instanceof Quill) ? quill.getIndex(blot) : quill.getLength() - 1;
+    return { index, quill };
+  }
+  return null;
+}
+
+export function bindFileDrops(
+  element: HTMLElement,
+  fallback: () => Quill | undefined,
+  upload: (quill: Quill, files: File[], index: number) => void,
+) {
+  const carriesFiles = (event: DragEvent) => event.dataTransfer?.types.includes("Files");
+  element.addEventListener("dragover", (event) => {
+    if (carriesFiles(event)) event.preventDefault();
+  });
+  element.addEventListener(
+    "drop",
+    (event) => {
+      if (!(carriesFiles(event) && event.target instanceof Element)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const root = fallback();
+      const found =
+        dropTarget(event.target) ?? (root && { index: root.getLength() - 1, quill: root });
+      if (found) upload(found.quill, [...(event.dataTransfer?.files ?? [])], found.index);
+    },
+    true,
+  );
 }

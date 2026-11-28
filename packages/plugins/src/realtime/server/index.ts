@@ -1,5 +1,5 @@
 import type { Setup } from "@slock/core";
-import { UPGRADED } from "@slock/server/http";
+import { UPGRADED } from "@slock/core/http";
 import { createGateway } from "./gateway";
 
 const setup: Setup = (ctx) => {

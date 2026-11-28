@@ -12,11 +12,12 @@ import { callSlack, callSlackEdge } from "@slock/plugins/slack/server/api/slackC
 import type {
   ChannelInfoReply,
   ChannelReply,
-  EdgeChannelsInfoReply,
   EdgeChannelsReply,
+  EntityIndex,
 } from "@slock/plugins/slack/server/api/slackReplies";
 import { isHostedChannel, trimChannel } from "@slock/plugins/slack/server/api/trim/slackChannels";
 import { isChannelId } from "@slock/slack";
+import type { RawChannel } from "@slock/types";
 import type { ChannelResolver } from "./api";
 
 async function mutateChannel(
@@ -125,7 +126,7 @@ const list: Route[] = [
 
   route("PATCH", "channels/:id", async (ctx) => {
     const { name } = await ctx.body.json<{ name?: string }>();
-    if (!name) return errorResponse("invalid_name", 400);
+    if (name === undefined) return errorResponse("invalid_name", 400);
     const data = await callSlack<ChannelReply>(
       "conversations.rename",
       {
@@ -154,3 +155,9 @@ const setup: Setup = (ctx) => {
 };
 
 export default setup;
+
+type EdgeChannelsInfoReply = {
+  channel?: RawChannel;
+  channels?: EntityIndex<RawChannel>;
+  results?: EntityIndex<RawChannel>;
+};

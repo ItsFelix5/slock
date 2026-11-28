@@ -23,13 +23,6 @@
   color: var(--text-primary);
   resize: vertical;
   outline: none;
-  background: var(--main-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
-.connect-account-input:focus-visible {
-  border-color: var(--accent);
-  outline: none;
 }
 
 .connect-account-input:disabled {

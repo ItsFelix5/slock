@@ -8,7 +8,6 @@ import {
 import type { Route } from "@slock/plugins/slack/server/api/router";
 import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
 import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
-import type { DndReply } from "@slock/plugins/slack/server/api/slackReplies";
 
 function pausedUntil(info: DndReply, now: number): number | null {
   if (info.snooze_enabled && info.snooze_endtime && info.snooze_endtime > now)
@@ -48,3 +47,11 @@ const setup: Setup = (ctx) => {
 };
 
 export default setup;
+
+type DndReply = {
+  dnd_enabled?: boolean;
+  next_dnd_end_ts?: number;
+  next_dnd_start_ts?: number;
+  snooze_enabled?: boolean;
+  snooze_endtime?: number;
+};

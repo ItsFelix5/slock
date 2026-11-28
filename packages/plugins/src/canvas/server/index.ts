@@ -1,5 +1,6 @@
-import type { HttpHandler, Setup } from "@slock/core";
+import type { Setup } from "@slock/core";
 import { isRecord } from "@slock/core";
+import type { HttpHandler } from "@slock/core/http";
 import {
   errorResponse,
   jsonResponse,
@@ -10,9 +11,9 @@ import { route, routes } from "@slock/plugins/slack/server/api/router";
 import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
 import type { FileInfoReply } from "@slock/plugins/slack/server/api/slackReplies";
 import { trimFile } from "@slock/plugins/slack/server/api/trim/slackMessages";
-import { canEditCanvas, lookupThread, notConfigured } from "./api";
+import { canvasAccess, notConfigured, openCanvas } from "./api";
 import { commentRoutes } from "./comments";
-import { applyCanvasEdit } from "./edit";
+import { applyCanvasEdit, controlContext } from "./edit";
 import { historyRoutes } from "./history";
 import { parseCanvasEdit } from "./parseEdit";
 import { type CanvasWire, createCanvasWire } from "./wire";
@@ -29,27 +30,29 @@ const listRoutes = (wire: CanvasWire): Route[] => [
 
   route("GET", "canvases/:id/raw", async (ctx) => {
     if (!ctx.creds) return notConfigured();
-    const lookup = await lookupThread(ctx.params.id, ctx.creds);
-    if ("response" in lookup) return lookup.response;
-    const raw = await wire.fetchRaw(lookup.threadId, ctx.creds);
-    if (!raw.ok) {
-      return jsonResponse({ error: raw.error }, 502);
-    }
-    return jsonResponse({
-      editable: lookup.editable,
-      ok: true,
-      raw: Buffer.from(raw.bytes).toString("base64"),
-    });
+    const hint = ctx.searchParams.get("thread");
+    const canvas = await openCanvas(wire, ctx.params.id, hint, ctx.creds);
+    if ("response" in canvas) return canvas.response;
+    const { access, raw } = canvas;
+    if (!raw.ok) return jsonResponse({ error: raw.error }, 502);
+    return jsonResponse({ access, ok: true, raw: Buffer.from(raw.bytes).toString("base64") });
   }),
 
   route("POST", "canvases/:id/edit", async (ctx) => {
     if (!ctx.creds) return notConfigured();
     const edit = parseCanvasEdit(await ctx.body.json<unknown>());
     if (!edit) return errorResponse("invalid_edit", 400);
-    const lookup = await lookupThread(ctx.params.id, ctx.creds);
-    if ("response" in lookup) return lookup.response;
-    if (!lookup.editable) return errorResponse("not_editable", 403);
-    const result = await applyCanvasEdit(wire, lookup.threadId, edit, ctx.creds);
+    const hint = ctx.searchParams.get("thread");
+    const [canvas, context] = await Promise.all([
+      openCanvas(wire, ctx.params.id, hint, ctx.creds),
+      controlContext(edit, ctx.creds),
+    ]);
+    if ("response" in canvas) return canvas.response;
+    const { access, raw } = canvas;
+    if (access === "view") return errorResponse("not_editable", 403);
+    if (!raw.ok) return errorResponse(raw.error, 502);
+    const target = { access, context, raw: raw.bytes };
+    const result = await applyCanvasEdit(wire, target, edit, ctx.creds);
     if (!result.ok) return errorResponse(result.error, result.status);
     return jsonResponse({ ok: true });
   }),
@@ -65,14 +68,18 @@ const renameCanvas =
     const info = await callSlack<FileInfoReply>("files.info", { file: fileId }, c.creds);
     const threadId = info.ok ? info.file.quip_thread_id : undefined;
     if (!threadId) return next();
-    if (info.ok && !canEditCanvas(info.file)) return errorResponse("not_editable", 403);
+    if (info.ok && canvasAccess(info.file) !== "edit") return errorResponse("not_editable", 403);
     const body: unknown = await c.req.json();
     const name = isRecord(body) && typeof body.title === "string" ? body.title.trim() : "";
     if (!name) return errorResponse("invalid_title", 400);
+    const raw = await wire.fetchRaw(threadId, c.creds);
+    if (!raw.ok) return errorResponse(raw.error, 502);
+    const edit = { controls: [], deleted: [], title: name, upserts: [] };
+    const context = await controlContext(edit, c.creds);
     const result = await applyCanvasEdit(
       wire,
-      threadId,
-      { controls: [], deleted: [], title: name, upserts: [] },
+      { access: "edit", context, raw: raw.bytes },
+      edit,
       c.creds,
     );
     return result.ok ? jsonResponse({ ok: true }) : errorResponse(result.error, result.status);
@@ -80,7 +87,7 @@ const renameCanvas =
 
 const setup: Setup = (ctx) => {
   const wire = createCanvasWire(ctx.get("env"));
-  ctx.add("http", routes([...listRoutes(wire), ...historyRoutes(wire), ...commentRoutes]));
+  ctx.add("http", routes([...listRoutes(wire), ...historyRoutes(wire), ...commentRoutes(wire)]));
   ctx.add("http", renameCanvas(wire));
 };
 

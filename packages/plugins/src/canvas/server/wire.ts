@@ -41,7 +41,7 @@ function encodeLoadDataRequest(threadId: string, page = 1): string {
   return Buffer.from(bytes).toString("base64");
 }
 
-export type CanvasVersionRef = { documentId: string; sequence: number; versionId: string };
+type CanvasVersionRef = { documentId: string; sequence: number; versionId: string };
 
 function encodeVersionRequest(version: CanvasVersionRef, threadId: string): string {
   const bytes = [
@@ -53,11 +53,9 @@ function encodeVersionRequest(version: CanvasVersionRef, threadId: string): stri
   return Buffer.from(bytes).toString("base64");
 }
 
-export type CanvasResponse<T> =
-  | { ok: true; value: T }
-  | { error: string; ok: false; status: number };
+type CanvasResponse<T> = { ok: true; value: T } | { error: string; ok: false; status: number };
 
-export type CanvasBytes = { bytes: Uint8Array; ok: true } | { error: string; ok: false };
+type CanvasBytes = { bytes: Uint8Array; ok: true } | { error: string; ok: false };
 
 async function canvasErrorDescription(res: Response): Promise<string | null> {
   try {

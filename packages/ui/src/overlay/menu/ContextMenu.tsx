@@ -9,7 +9,7 @@ import "./ContextMenu.css";
 import "./Menu.css";
 import { createMenuRovingFocus, useMenuShortcuts } from "./rovingMenuFocus";
 
-export interface ContextMenuProps {
+interface ContextMenuProps {
   children: JSX.Element;
   class?: string;
   onClose: () => void;
@@ -42,6 +42,13 @@ export default function ContextMenu(props: ContextMenuProps) {
   );
 }
 
+const EDGE_GAP = 8;
+
+function placeAxis(point: number, size: number, viewport: number) {
+  const start = point + size + EDGE_GAP > viewport ? point - size : point;
+  return clamp(start, EDGE_GAP, viewport - size - EDGE_GAP);
+}
+
 function ContextMenuPanel(props: {
   x: number;
   y: number;
@@ -55,13 +62,18 @@ function ContextMenuPanel(props: {
 
   onSettled(() => {
     if (!ref) return;
-    ref.dataset.menuPanel = "";
-    const rect = ref.getBoundingClientRect();
-    const left = clamp(props.x, 8, window.innerWidth - rect.width - 8);
-    const top = clamp(props.y, 8, window.innerHeight - rect.height - 8);
-    ref.style.left = `${left}px`;
-    ref.style.top = `${top}px`;
+    const panel = ref;
+    panel.dataset.menuPanel = "";
+    const place = () => {
+      const rect = panel.getBoundingClientRect();
+      panel.style.left = `${placeAxis(props.x, rect.width, window.innerWidth)}px`;
+      panel.style.top = `${placeAxis(props.y, rect.height, window.innerHeight)}px`;
+    };
+    place();
     roving.focusMenuItem(0);
+    const observer = new ResizeObserver(place);
+    observer.observe(panel);
+    return () => observer.disconnect();
   });
 
   useMenuShortcuts(roving, () => ref);

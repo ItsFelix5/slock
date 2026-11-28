@@ -1,6 +1,7 @@
 {
   "id": "channel-details",
+  "category": "Core",
   "name": "Channel details",
-  "requires": ["channels", "query", "realtime", "shell", "users"],
+  "requires": ["channels", "dms", "query", "realtime", "shell", "users"],
   "boot": true
 }

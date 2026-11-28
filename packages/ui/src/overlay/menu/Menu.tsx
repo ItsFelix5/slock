@@ -1,15 +1,12 @@
-import { service } from "@slock/core/solid";
-import type { TimerHandle } from "@slock/core/types";
+import { useDebouncer } from "@slock/core/solid";
 import type { JSX } from "@solidjs/web";
-import { createEffect, onCleanup, Show } from "solid-js";
+import { createEffect, Show } from "solid-js";
 import FloatingPanel, { type FloatingAlign, type Placement } from "../floating/FloatingPanel";
 import "./Menu.css";
 import MenuOpenBehavior from "./MenuOpenBehavior";
 import { createMenuRovingFocus } from "./rovingMenuFocus";
 
-const env = service("env");
-
-export interface MenuProps {
+interface MenuProps {
   align?: FloatingAlign;
   children: JSX.Element;
   class?: string;
@@ -26,23 +23,17 @@ export default function Menu(props: MenuProps) {
   let rootRef: HTMLDivElement | undefined;
   let panelRef: HTMLDivElement | undefined;
   let restoreAfterKeyboardAction = false;
-  let hoverCloseTimer: TimerHandle | undefined;
+  const hoverClose = useDebouncer(() => props.onClose(), 120);
 
-  const cancelHoverClose = () => {
-    env.clearTimeout(hoverCloseTimer);
-    hoverCloseTimer = undefined;
-  };
   const openFromHover = () => {
     if (!props.openOnHover) return;
-    cancelHoverClose();
+    hoverClose.cancel();
     props.onOpen?.();
   };
   const closeFromHover = () => {
     if (!props.openOnHover) return;
-    cancelHoverClose();
-    hoverCloseTimer = env.setTimeout(props.onClose, 120);
+    hoverClose.schedule();
   };
-  onCleanup(cancelHoverClose);
 
   const trigger = () =>
     rootRef?.querySelector<HTMLElement>(

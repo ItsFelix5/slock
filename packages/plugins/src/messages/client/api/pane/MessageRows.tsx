@@ -9,7 +9,7 @@ import type { OpenThreadHandler } from "../messageFocus";
 
 const prefsStore = service("prefs");
 
-export type MessageRowsProps = {
+type MessageRowsProps = {
   messages: Message[];
   channelId: ChannelId;
   threadTs?: Ts;
@@ -38,21 +38,18 @@ export default function MessageRows(props: MessageRowsProps) {
     return map;
   });
 
-  const previousVisible = createMemo(() => {
-    const result: (Message | undefined)[] = [];
-    let last: Message | undefined;
-    for (const message of props.messages) {
-      result.push(last);
-      if (!message.deleted || retainsDeleted(message)) last = message;
-    }
-    return result;
-  });
+  const previousVisible = (index: number): Message | undefined => {
+    let i = index - 1;
+    let candidate = props.messages[i];
+    while (candidate?.deleted && !retainsDeleted(candidate)) candidate = props.messages[--i];
+    return candidate;
+  };
 
   return (
     <HighlightWordsContext value={prefsStore.highlightWords}>
       <For each={props.messages}>
         {(message, index) => {
-          const prev = createMemo(() => previousVisible()[index()]);
+          const prev = createMemo(() => previousVisible(index()));
           return (
             <>
               <MessageRow

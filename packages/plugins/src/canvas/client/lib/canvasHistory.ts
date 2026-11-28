@@ -1,9 +1,9 @@
 import { service } from "@slock/core/solid";
-import { defineQuery } from "@slock/plugins/query/client/api";
+import { defineMutation, defineQuery } from "@slock/plugins/query/client/api";
 import type { CanvasVersion, FileId } from "@slock/types";
 import { createResetSignal } from "@slock/ui";
-import { createMemo, createSignal } from "solid-js";
-import { type CanvasMeta, diffNodes } from "../../protocol/api";
+import { untrack } from "solid-js";
+import { type CanvasMeta, type DiffEntry, diffNodes } from "../../protocol/api";
 import type { CanvasDocModel } from "./canvasDelta";
 import {
   fetchCanvasVersion,
@@ -23,22 +23,34 @@ interface ViewingRef {
 }
 
 const canvasVersions = defineQuery<FileId, CanvasVersion[]>({
-  load: fetchCanvasVersions,
+  load: (fileId, { signal }) => fetchCanvasVersions(fileId, signal),
   name: "canvasVersions",
 });
 
+// One object, so a view can never pair one version's document with another's changes.
 const canvasVersionView = defineQuery<
   ViewingRef,
-  { doc: CanvasDocModel; previous: CanvasDocModel | null } | null
+  { diff: DiffEntry[]; doc: CanvasDocModel } | null
 >({
-  load: async ({ fileId, meta, older, version }) => {
+  load: async ({ fileId, meta, older, version }, { signal }) => {
     const [doc, previous] = await Promise.all([
-      fetchCanvasVersion(fileId, version, meta),
-      older ? fetchCanvasVersion(fileId, older, meta) : null,
+      fetchCanvasVersion(fileId, version, meta, signal),
+      older ? fetchCanvasVersion(fileId, older, meta, signal) : null,
     ]);
-    return doc ? { doc, previous } : null;
+    if (!doc || (older && !previous)) return null;
+    // The diff also shows what was removed, so it needs the references of both versions.
+    const embeds = new Map([...(previous?.embeds ?? []), ...doc.embeds]);
+    return { diff: diffNodes(previous?.nodes ?? [], doc.nodes), doc: { ...doc, embeds } };
   },
   name: "canvasVersion",
+  revalidates: false,
+});
+
+const versionRestore = defineMutation<{ fileId: FileId; version: CanvasVersion }>({
+  key: ({ fileId }) => fileId,
+  mode: "single",
+  onError: (error, { fileId }) => feedback.caught(fileId, error, "Couldn't restore this version"),
+  run: ({ fileId, version }) => restoreCanvasVersion(fileId, version),
 });
 
 export function createCanvasHistory(
@@ -48,9 +60,8 @@ export function createCanvasHistory(
 ) {
   const [open, setOpen] = createResetSignal(fileId, false);
   const [selected, setSelected] = createResetSignal<CanvasVersion | null>(fileId, null);
-  const [restoring, setRestoring] = createSignal(false);
   const versions = canvasVersions.state(() => (open() || selected() ? fileId() : undefined));
-  const viewing = canvasVersionView.state(() => {
+  function viewingRef(): ViewingRef | undefined {
     const version = selected();
     const meta = content()?.doc?.meta;
     if (!(version && meta)) return;
@@ -60,11 +71,8 @@ export function createCanvasHistory(
       older: olderVersion(versions().data ?? [], version),
       version,
     };
-  });
-  const diff = createMemo(() => {
-    const view = viewing().data;
-    return view ? diffNodes(view.previous?.nodes ?? [], view.doc.nodes) : undefined;
-  });
+  }
+  const viewing = canvasVersionView.state(viewingRef);
 
   function close() {
     setOpen(false);
@@ -72,24 +80,23 @@ export function createCanvasHistory(
   }
 
   async function restore(version: CanvasVersion) {
-    setRestoring(true);
-    try {
-      await restoreCanvasVersion(fileId(), version);
-      close();
-      await reload();
-    } catch (error) {
-      feedback.caught(fileId(), error, "Couldn't restore this version");
-    } finally {
-      setRestoring(false);
-    }
+    if (!(await versionRestore.run({ fileId: fileId(), version }))) return;
+    close();
+    await reload();
+  }
+
+  function retry() {
+    const ref = untrack(viewingRef);
+    if (ref) void canvasVersionView.refresh(ref).catch(() => {});
   }
 
   return {
     close,
-    diff,
+    failed: () => viewing().status === "error" || viewing().data === null,
     open,
     restore,
-    restoring,
+    retry,
+    restoring: () => versionRestore.pending(fileId()),
     selected,
     setOpen,
     setSelected,

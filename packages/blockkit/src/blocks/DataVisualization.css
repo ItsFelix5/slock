@@ -58,8 +58,3 @@
   height: 96px;
   border-radius: var(--radius-circle);
 }
-
-.bk-chart-empty {
-  font-size: var(--font-size-control);
-  color: var(--text-secondary);
-}

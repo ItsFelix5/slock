@@ -4,6 +4,7 @@ import { openConversationInSplit } from "@slock/plugins/conversations/client/api
 import type { ChannelMenuProps } from "@slock/plugins/messages/client/api";
 import { gatewayHandler } from "@slock/plugins/realtime/client/api";
 import { SplitNavigation } from "@slock/plugins/shell/client/api/SplitNavigation";
+import { invalidateConversationView } from "@slock/plugins/slack/client/api";
 import { ifPresent, isChannelId, parseChannelId } from "@slock/slack";
 import { MenuItem } from "@slock/ui";
 import { Show } from "solid-js";
@@ -14,10 +15,12 @@ import ChannelMentionCard from "./views/ChannelMentionCard";
 const ChannelDetails = lazyChunk(() => import("./views/ChannelDetails"));
 const TOPIC_OR_PURPOSE = /^(channel|group)_(topic|purpose)$/;
 const channelDetails = service("channel-details");
+const dms = service("dms");
 
 function OpenDetailsItem(props: ChannelMenuProps) {
+  const groupChat = () => dms.isGroupDm(props.channelId);
   return (
-    <Show when={!props.isDm}>
+    <Show when={!props.isDm || groupChat()}>
       <MenuItem
         icon="channel-section"
         onClick={() => {
@@ -25,7 +28,7 @@ function OpenDetailsItem(props: ChannelMenuProps) {
           channelDetails.openChannelDetails(props.channelId);
         }}
       >
-        Open channel details
+        {groupChat() ? "Open group chat details" : "Open channel details"}
       </MenuItem>
     </Show>
   );
@@ -37,15 +40,14 @@ const setup: Setup = (ctx) => {
   ctx.add(
     "realtime.handler",
     gatewayHandler(["channel_updated"], (event) => {
-      for (const id of event.channels)
-        channelDetails.invalidateChannelDetails(parseChannelId(id), event.updates.postingChanged);
+      for (const id of event.channels) invalidateConversationView(parseChannelId(id));
     }),
   );
   ctx.add(
     "realtime.handler",
     gatewayHandler(["member_joined_channel", "member_left_channel"], (event) => {
       const id = ifPresent(parseChannelId, event.channel);
-      if (id) channelDetails.invalidateChannelDetails(id);
+      if (id) invalidateConversationView(id);
     }),
   );
   ctx.add(
@@ -53,13 +55,14 @@ const setup: Setup = (ctx) => {
     gatewayHandler(["message"], (event) => {
       if (!TOPIC_OR_PURPOSE.test(event.subtype ?? "")) return;
       const id = ifPresent(parseChannelId, event.channel);
-      if (id) channelDetails.invalidateChannelDetails(id);
+      if (id) invalidateConversationView(id);
     }),
   );
   ctx.add("shell.overlay", ChannelDetails);
   ctx.add("composer.mentionCard", ChannelMentionCard);
   ctx.add("messages.titleOpen", (view) => {
-    if (view.kind === "channel") channelDetails.openChannelDetails(view.id);
+    if (view.kind === "channel" || dms.isGroupDm(view.id))
+      channelDetails.openChannelDetails(view.id);
   });
   ctx.add("messages.blockKit", {
     wrapChannelMention: (id, trigger) =>

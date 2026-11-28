@@ -1,0 +1,33 @@
+import type { Attachment, ChannelId, Message } from "@slock/types";
+import { For, Show } from "solid-js";
+import AttachmentCard from "../views/AttachmentCard";
+
+export default function MessageAttachmentList(props: {
+  attachments?: Attachment[];
+  channelId: ChannelId;
+  msg: Message;
+}) {
+  return (
+    <Show when={props.attachments?.length}>
+      <For each={props.attachments}>
+        {(a) => (
+          <AttachmentCard
+            attachment={a}
+            context={{
+              botId: props.msg.botId,
+              botTeamId: props.msg.botTeamId,
+              botUserId: props.msg.userId,
+              channelId: props.channelId,
+              isEphemeral: props.msg.isEphemeral,
+              messageTs: props.msg.ts,
+              threadTs: props.msg.threadTs,
+            }}
+            showPermalink={
+              !!a.fromUrl && !props.msg.text.includes(a.fromUrl) && !a.pretext?.includes(a.fromUrl)
+            }
+          />
+        )}
+      </For>
+    </Show>
+  );
+}

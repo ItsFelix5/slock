@@ -1,1 +1,1 @@
-{ "id": "realtime", "name": "Realtime", "requires": [], "boot": true }
+{ "id": "realtime", "category": "Core", "name": "Realtime", "requires": [], "boot": true }

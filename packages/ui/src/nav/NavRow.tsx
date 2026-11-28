@@ -3,8 +3,7 @@ import { omit } from "solid-js";
 
 const NESTED_INTERACTIVE = "a[href], button, input, select, textarea, summary, [role='button']";
 
-export interface NavRowProps
-  extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "onClick" | "onKeyDown"> {
+interface NavRowProps extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "onClick" | "onKeyDown"> {
   onActivate: () => void;
   tabindex: number;
 }

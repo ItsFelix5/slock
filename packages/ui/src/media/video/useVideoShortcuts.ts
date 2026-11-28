@@ -1,5 +1,6 @@
 import { useSeekShortcuts } from "../../hooks/useNavShortcuts";
 import { inside, useShortcut } from "../../hooks/useShortcut";
+import { VIDEO_SHORTCUTS } from "../mediaShortcuts";
 
 const ACTIVATES_ON_SPACE = "button, a, input";
 
@@ -14,33 +15,22 @@ export function useVideoShortcuts(deps: {
   togglePlayback: () => void;
 }) {
   const inPlayer = inside(deps.root);
-  const playerShortcut = {
-    allowInInputs: false,
-    scope: "general",
-    group: "Media",
-    target: inPlayer,
-  } as const;
+  const playerShortcut = { allowInInputs: false, target: inPlayer };
   useShortcut({
     ...playerShortcut,
-    combo: { key: [" ", "k"] },
+    ...VIDEO_SHORTCUTS.playPause,
     handler: deps.togglePlayback,
-    id: "video.playPause",
-    label: "Play or pause the video",
     target: (element) => inPlayer(element) && !element.closest(ACTIVATES_ON_SPACE),
   });
   useShortcut({
     ...playerShortcut,
-    combo: { key: "m" },
+    ...VIDEO_SHORTCUTS.mute,
     handler: deps.toggleMute,
-    id: "video.mute",
-    label: "Mute or unmute the video",
   });
   useShortcut({
     ...playerShortcut,
-    combo: { key: "f" },
+    ...VIDEO_SHORTCUTS.fullscreen,
     handler: deps.toggleFullscreen,
-    id: "video.fullscreen",
-    label: "Toggle video fullscreen",
   });
   useSeekShortcuts({
     currentTime: deps.currentTime,

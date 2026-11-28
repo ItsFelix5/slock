@@ -1,1 +1,6 @@
-{ "id": "installed-apps", "name": "Installed apps", "requires": ["profile", "query", "users"] }
+{
+  "id": "installed-apps",
+  "category": "People and channels",
+  "name": "Installed apps",
+  "requires": ["profile", "query", "users"]
+}

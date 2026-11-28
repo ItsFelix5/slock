@@ -21,7 +21,7 @@ const panes = service("shell.panes");
 
 type Ref = { entity: string; id: string };
 
-export type Entity = {
+type Entity = {
   label: string;
   title(id: string): string;
   load(id: string): unknown;
@@ -77,9 +77,9 @@ export const entities: Record<string, Entity> = {
   channel: {
     chip: (id) =>
       dmOf(id) ? (
-        <Icon name="direct-messages" size={12} />
+        <Icon name="direct-messages" size={14} />
       ) : channelOf(id)?.private ? (
-        <Icon name="lock" size={12} />
+        <Icon name="lock" size={14} />
       ) : (
         <span>#</span>
       ),
@@ -116,7 +116,7 @@ export const entities: Record<string, Entity> = {
       isUserId(id) ? resolver.wrapUserMention?.(id, trigger) : undefined,
   },
   usergroup: {
-    chip: () => <Icon name="user-groups" size={12} />,
+    chip: () => <Icon name="user-groups" size={14} />,
     label: "Pinggroup",
     load: (id) => {
       const usergroup = usergroups.usergroupById(id);

@@ -1,9 +1,10 @@
-import type { HttpHandler, Setup } from "@slock/core";
+import type { Setup } from "@slock/core";
+import type { HttpHandler } from "@slock/core/http";
 import type { ClientBuild } from "@slock/installer/dev";
 import { jsonResponse } from "@slock/plugins/slack/server/api/jsonResponse";
 import { route, routes } from "@slock/plugins/slack/server/api/router";
 import { preloadLinkHeader } from "./indexHtml";
-import { serveFile } from "./staticFiles";
+import { cacheControlFor, serveFile } from "./staticFiles";
 
 const IMPORT_MAP_TAG = /<script type="importmap">([\s\S]*?)<\/script>/;
 
@@ -39,7 +40,12 @@ const setup: Setup = async (ctx) => {
     if (pathname.startsWith("/assets/")) {
       if (!dev) return serveFile(`${instance.clientDir}${pathname}`, pathname, requestHeaders);
       const file = built?.files.get(pathname);
-      return file && new Response(file.contents, { headers: { "content-type": file.contentType } });
+      return (
+        file &&
+        new Response(file.contents, {
+          headers: { "cache-control": cacheControlFor(pathname), "content-type": file.contentType },
+        })
+      );
     }
     const link = c.creds
       ? preloadLinkHeader(preloads().flatMap((hrefs) => hrefs(pathname)))

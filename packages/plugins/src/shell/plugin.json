@@ -1,1 +1,1 @@
-{ "id": "shell", "name": "App shell", "requires": [], "boot": true }
+{ "id": "shell", "category": "Core", "name": "App shell", "requires": [], "boot": true }

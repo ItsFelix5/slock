@@ -1,11 +1,13 @@
 import { service } from "@slock/core/solid";
 import { isWaiting } from "@slock/resource";
+import { isSlackError } from "@slock/slack";
 import type { ChannelId } from "@slock/types";
 import { Button } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import ChannelDangerZone from "./ChannelDangerZone";
 import "@slock/plugins/channel-details/client/api/ChannelDetails.css";
 import ChannelPostingPermissions from "./ChannelPostingPermissions";
+import "@slock/plugins/settings/client/api/SettingsForm.css";
 import "./SettingsTab.css";
 import {
   type AppliedRetentionChoice,
@@ -15,9 +17,13 @@ import {
   type PermissionChoice,
   retentionValue,
 } from "../settings/channelPolicy";
+import {
+  memberPermissions,
+  retention as retentionQuery,
+  savingPermissions,
+  savingRetention,
+} from "../store";
 import SettingsLoadError from "./SettingsLoadError";
-
-const channelDetails = service("channel-details");
 
 const feedback = service("feedback");
 
@@ -32,7 +38,7 @@ function asPermissionChoice(value: string): PermissionChoice {
 }
 
 function asRetentionChoice(value: string): RetentionChoice {
-  return value === "keep" || value === "delete" ? value : "";
+  return value === "default" || value === "delete" ? value : "";
 }
 
 const PERMISSION_FIELDS: { key: MemberPermissionKey; label: string }[] = [
@@ -47,11 +53,10 @@ export default function SettingsTab(props: {
   onChanged?: () => void;
   private: boolean;
 }) {
-  const permissionsQuery = channelDetails.createMemberPermissionsQuery(() => props.channelId);
-  const [committedPermissions, setCommittedPermissions] = createSignal<
-    Record<MemberPermissionKey, PermissionChoice>
-  >(() => {
-    const loaded = permissionsQuery().data;
+  const loadedPermissions = memberPermissions.state(() => props.channelId);
+  const retryPermissions = () => void memberPermissions.refresh(props.channelId).catch(() => {});
+  const committedPermissions = createMemo<Record<MemberPermissionKey, PermissionChoice>>(() => {
+    const loaded = loadedPermissions().data;
     const choice = (allowed: boolean | undefined): PermissionChoice => {
       if (allowed === undefined) return "";
       return allowed ? "allow" : "restrict";
@@ -71,20 +76,21 @@ export default function SettingsTab(props: {
   });
   const permissionsDirty = () => memberPermissionsDirty(permissionDrafts());
 
-  const retentionQuery = channelDetails.createChannelRetentionQuery(() => props.channelId);
-  const retention = () => retentionQuery().data;
-  const retryRetention = () =>
-    void channelDetails.queries.retention.refresh(props.channelId).catch(() => {});
+  const policy = retentionQuery.state(() => props.channelId);
+  const retention = () => policy().data;
+  const retryRetention = () => void retentionQuery.refresh(props.channelId).catch(() => {});
+  const retentionForbidden = () => {
+    const { error } = policy();
+    return isSlackError(error) && error.code === "no_perms";
+  };
 
-  const [savedRetention, setSavedRetention] = createSignal<SavedRetention | null>(
-    (): SavedRetention | null => {
-      const days = retention();
-      if (days === undefined) return null;
-      return days === null
-        ? { choice: "keep", days: DEFAULT_RETENTION_DAYS }
-        : { choice: "delete", days };
-    },
-  );
+  const savedRetention = createMemo((): SavedRetention | null => {
+    const days = retention();
+    if (days === undefined) return null;
+    return days === null
+      ? { choice: "default", days: DEFAULT_RETENTION_DAYS }
+      : { choice: "delete", days };
+  });
   const [retentionChoice, setRetentionChoice] = createSignal<RetentionChoice>(
     () => savedRetention()?.choice ?? "",
   );
@@ -92,7 +98,8 @@ export default function SettingsTab(props: {
     () => savedRetention()?.days ?? DEFAULT_RETENTION_DAYS,
   );
 
-  const [saving, setSaving] = createSignal(false);
+  const saving = () =>
+    savingPermissions.pending(props.channelId) || savingRetention.pending(props.channelId);
 
   const retentionDaysValid = () => Number.isInteger(retentionDays()) && retentionDays() >= 1;
 
@@ -119,42 +126,13 @@ export default function SettingsTab(props: {
 
   const saveChanges = async () => {
     if (saving()) return;
-    setSaving(true);
-    let ok = true;
-
-    if (permissionsDirty()) {
-      const drafts = permissionDrafts();
-      if (
-        await channelDetails.updateMemberPermissions(
-          props.channelId,
-          memberPermissionsPatch(drafts),
-        )
-      ) {
-        setCommittedPermissions({
-          invite: drafts.invite.current,
-          purpose: drafts.purpose.current,
-          topic: drafts.topic.current,
-        });
-      } else {
-        ok = false;
-      }
-    }
-
-    if (retentionDirty()) {
-      const choice = retentionChoice();
-      const days = retentionDays();
-      if (
-        choice &&
-        (await channelDetails.updateChannelRetention(props.channelId, retentionValue(choice, days)))
-      ) {
-        setSavedRetention({ choice, days });
-      } else {
-        ok = false;
-      }
-    }
-
-    setSaving(false);
-    if (ok) feedback.flash(props.channelId, "Settings updated.");
+    const { channelId } = props;
+    const patch = permissionsDirty() ? memberPermissionsPatch(permissionDrafts()) : undefined;
+    const choice = retentionDirty() ? retentionChoice() : "";
+    const days = choice ? retentionValue(choice, retentionDays()) : null;
+    const permissionsSaved = !patch || (await savingPermissions.run({ channelId, patch }));
+    const retentionSaved = !choice || (await savingRetention.run({ channelId, days }));
+    if (permissionsSaved && retentionSaved) feedback.flash(channelId, "Settings updated.");
   };
 
   return (
@@ -163,6 +141,13 @@ export default function SettingsTab(props: {
 
       <div class="settings-section">
         <div class="settings-section-title">Member permissions</div>
+        <Show when={loadedPermissions().error}>
+          <SettingsLoadError
+            error={loadedPermissions().error}
+            message="Member permissions couldn't be loaded."
+            onRetry={retryPermissions}
+          />
+        </Show>
         <For each={PERMISSION_FIELDS}>
           {(field) => (
             <div class="settings-row flex-between">
@@ -192,51 +177,55 @@ export default function SettingsTab(props: {
         </For>
       </div>
 
-      <div class="settings-section">
-        <div class="settings-section-title">Message retention</div>
-        <Show when={retentionQuery().error}>
-          <SettingsLoadError
-            error={retentionQuery().error}
-            message="Retention policy couldn't be loaded."
-            onRetry={retryRetention}
-          />
-        </Show>
-        <div class="settings-row flex-between">
-          <label class="settings-row-label" for="channel-retention-policy">
-            Retention policy
-          </label>
-          <div class="channel-details-retention-row flex-align-center">
-            <select
-              class="text-field select-field channel-details-setting-select"
-              disabled={retention() === undefined || saving()}
-              id="channel-retention-policy"
-              onChange={(event) => setRetentionChoice(asRetentionChoice(event.currentTarget.value))}
-              value={retentionChoice()}
-            >
-              <option disabled value="">
-                {isWaiting(retentionQuery()) ? "Loading…" : "Choose a policy…"}
-              </option>
-              <option value="keep">Keep all messages</option>
-              <option value="delete">Delete after…</option>
-            </select>
-            <input
-              class="text-field channel-details-retention-input"
-              disabled={retentionChoice() !== "delete" || saving()}
-              min="1"
-              onInput={(e) => setRetentionDays(Math.trunc(Number(e.currentTarget.value)))}
-              data-commit-on-enter
-              type="number"
-              value={Number.isNaN(retentionDays()) ? "" : retentionDays()}
+      <Show when={!retentionForbidden()}>
+        <div class="settings-section">
+          <div class="settings-section-title">Message retention</div>
+          <Show when={policy().error}>
+            <SettingsLoadError
+              error={policy().error}
+              message="Retention policy couldn't be loaded."
+              onRetry={retryRetention}
             />
-            <span class="channel-details-meta">days</span>
+          </Show>
+          <div class="settings-row flex-between">
+            <label class="settings-row-label" for="channel-retention-policy">
+              Retention policy
+            </label>
+            <div class="channel-details-retention-row flex-align-center">
+              <select
+                class="text-field select-field channel-details-setting-select"
+                disabled={retention() === undefined || saving()}
+                id="channel-retention-policy"
+                onChange={(event) =>
+                  setRetentionChoice(asRetentionChoice(event.currentTarget.value))
+                }
+                value={retentionChoice()}
+              >
+                <option disabled value="">
+                  {isWaiting(policy()) ? "Loading…" : "Choose a policy…"}
+                </option>
+                <option value="default">Workspace default</option>
+                <option value="delete">Delete after…</option>
+              </select>
+              <input
+                class="text-field channel-details-retention-input"
+                disabled={retentionChoice() !== "delete" || saving()}
+                min="1"
+                onInput={(e) => setRetentionDays(Math.trunc(Number(e.currentTarget.value)))}
+                data-commit-on-enter
+                type="number"
+                value={Number.isNaN(retentionDays()) ? "" : retentionDays()}
+              />
+              <span class="channel-details-meta">days</span>
+            </div>
           </div>
+          <Show when={retentionChoice() === "delete" && !retentionDaysValid()}>
+            <p class="channel-details-meta channel-details-retention-invalid">
+              Enter a whole number of days, 1 or greater.
+            </p>
+          </Show>
         </div>
-        <Show when={retentionChoice() === "delete" && !retentionDaysValid()}>
-          <p class="channel-details-meta channel-details-retention-invalid">
-            Enter a whole number of days, 1 or greater.
-          </p>
-        </Show>
-      </div>
+      </Show>
 
       <Show when={anyDirty()}>
         <div class="channel-details-save-bar flex-align-center">

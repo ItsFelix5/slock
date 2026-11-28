@@ -1,9 +1,9 @@
-export type PerfStats = {
+type PerfStats = {
   frames: number;
   interactions: number;
 };
 
-export type PerfService = {
+type PerfService = {
   stats(): PerfStats;
   report(): string;
   clear(): void;

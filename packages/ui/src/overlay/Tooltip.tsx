@@ -4,7 +4,7 @@ import { useHoverIntent } from "../hooks/useHoverIntent";
 import FloatingPanel, { type VerticalPlacement } from "./floating/FloatingPanel";
 import "./Tooltip.css";
 
-export interface TooltipProps {
+interface TooltipProps {
   align?: "start" | "center" | "end";
   children: JSX.Element;
   class?: string;
@@ -38,7 +38,7 @@ function TooltipBubble(
 
 export default function Tooltip(props: TooltipProps) {
   let anchorRef: HTMLSpanElement | undefined;
-  const { close, open, scheduleClose, scheduleOpen } = useHoverIntent();
+  const { close, closeOnPress, open, scheduleClose, scheduleOpen } = useHoverIntent();
 
   return (
     <span
@@ -47,8 +47,10 @@ export default function Tooltip(props: TooltipProps) {
         !props.disabled && event.target.matches(":focus-visible") && scheduleOpen()
       }
       onFocusOut={scheduleClose}
+      onKeyDown={closeOnPress}
       onMouseEnter={() => !props.disabled && scheduleOpen()}
       onMouseLeave={scheduleClose}
+      onPointerDown={closeOnPress}
       ref={anchorRef}
     >
       {props.children}

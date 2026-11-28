@@ -10,6 +10,15 @@ export function fileKindLabel(file: SlackFile): string | undefined {
   return isCanvasFile(file) ? "Canvas" : file.filetype?.toUpperCase();
 }
 
+export function formatFileDate(seconds: number | undefined): string {
+  if (!seconds) return "";
+  return new Date(seconds * 1000).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export function fileIconName(file: SlackFile): IconName {
   if (isCanvasFile(file)) return "canvas";
   if (file.isPdf) return "pdf-file";

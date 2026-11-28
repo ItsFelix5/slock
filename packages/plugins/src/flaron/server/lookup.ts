@@ -2,7 +2,7 @@ import { isRecord } from "@slock/core";
 
 const CHANNEL_ID_RE = /^[A-Z][A-Z0-9]{1,31}$/;
 
-export type ChannelLookup = {
+type ChannelLookup = {
   id: string;
   name: string;
   private: boolean;

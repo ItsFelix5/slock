@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import { fetchBrowsableChannels } from "@slock/plugins/slack/client/api";
+import { channelMatches } from "@slock/plugins/slack/client/api";
 import type { ChannelId, User } from "@slock/types";
 import { fuzzySearch } from "@slock/ui";
 import type { Setter } from "solid-js";
@@ -114,7 +114,7 @@ export function updateUserSuggestions(
   requestId: number,
   currentRequestId: () => number,
 ) {
-  const me = usersStore.currentUser()?.id;
+  const me = usersStore.currentUserId();
   const channelId = trigger.kind === "user" ? opts.channelId?.() : undefined;
   const roster = channelId ? channelsStore.channelRosterIds(channelId) : undefined;
   const managerIds = channelId ? channelsStore.channelManagerIds(channelId) : undefined;
@@ -231,7 +231,8 @@ export function updateChannelSuggestions(
     start,
   });
   if (!query) return;
-  fetchBrowsableChannels(query)
+  channelMatches
+    .ensure(query)
     .then((found) => {
       if (requestId !== currentRequestId()) return;
       const merged = new Map<string, ChannelCandidate>(localChannels.map((c) => [c.id, c]));

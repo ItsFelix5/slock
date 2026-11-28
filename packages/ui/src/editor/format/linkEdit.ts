@@ -1,7 +1,7 @@
 import { createSignal, untrack } from "solid-js";
 import Quill from "../quill";
 
-export interface LinkEditState {
+interface LinkEditState {
   anchorEl: HTMLElement;
   index: number;
   length: number;
@@ -22,6 +22,27 @@ function readLink(
   return typeof format.link === "string" ? { index, length, url: format.link } : undefined;
 }
 
+// Links in nested editors also sit inside the outer one, which must leave them alone.
+function ownLink(quill: Quill, target: EventTarget | Node | null) {
+  const element =
+    target instanceof Element ? target : target instanceof Node ? target.parentElement : null;
+  const link = element?.closest("a");
+  return link?.closest(".ql-editor") === quill.root && link.getAttribute("href") ? link : undefined;
+}
+
+function openTab(link: HTMLAnchorElement) {
+  window.open(link.href, "_blank", "noopener,noreferrer");
+}
+
+export function caretLink(quill: Quill) {
+  return ownLink(quill, window.getSelection()?.focusNode ?? null);
+}
+
+export function followLink(quill: Quill, link: HTMLAnchorElement) {
+  if (quill.isEnabled()) openTab(link);
+  else link.click();
+}
+
 export function createLinkEditController(getQuill: () => Quill | undefined) {
   const [state, setState] = createSignal<LinkEditState | undefined>(undefined);
 
@@ -34,21 +55,29 @@ export function createLinkEditController(getQuill: () => Quill | undefined) {
     setState({ anchorEl: node, ...link, text: node.textContent ?? "" });
   };
 
+  const clicked = (event: MouseEvent) => {
+    const quill = getQuill();
+    const link = quill && ownLink(quill, event.target);
+    return link ? { link, quill } : undefined;
+  };
+
   const handleClick = (event: MouseEvent) => {
-    if (!(event.target instanceof Element)) return;
-    const link = event.target.closest("a");
-    if (!link) return;
-    event.preventDefault();
-    openFromNode(link);
+    const found = clicked(event);
+    if (!found) return;
+    if (found.quill.isEnabled()) {
+      event.preventDefault();
+      openFromNode(found.link);
+    } else if (found.link.isContentEditable && window.getSelection()?.isCollapsed) {
+      // Browsers do not follow links inside editable content.
+      openTab(found.link);
+    }
   };
 
   const handleDoubleClick = (event: MouseEvent) => {
-    if (!(event.target instanceof Element)) return;
-    const link = event.target.closest("a");
-    const href = link?.getAttribute("href");
-    if (!href) return;
+    const found = clicked(event);
+    if (!found?.quill.isEnabled()) return;
     event.preventDefault();
-    window.open(href, "_blank", "noopener,noreferrer");
+    openTab(found.link);
   };
 
   const revalidate = () => {
@@ -78,7 +107,7 @@ export function createLinkEditController(getQuill: () => Quill | undefined) {
     const attrs = quill.getFormat(link.index, link.length);
     attrs.link = cleanUrl || undefined;
     if (cleanText === current.text) {
-      quill.formatText(link.index, link.length, "link", attrs.link, "api");
+      quill.formatText(link.index, link.length, "link", cleanUrl, "api");
       return;
     }
     const Delta = Quill.import("delta");

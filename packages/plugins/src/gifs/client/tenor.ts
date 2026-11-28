@@ -11,14 +11,18 @@ type TenorResponse = {
   results: { itemurl: string; media: { gif: { url: string }; tinygif: { url: string } }[] }[];
 };
 
-async function fetchTenor(path: string, params: Record<string, string>): Promise<Gif[]> {
+async function fetchTenor(
+  path: string,
+  params: Record<string, string>,
+  signal?: AbortSignal,
+): Promise<Gif[]> {
   const query = new URLSearchParams({
     ...params,
     key: TENOR_KEY,
     limit: String(LIMIT),
     media_filter: "minimal",
   });
-  const response = await env.fetch(`${TENOR_URL}/${path}?${query}`);
+  const response = await env.fetch(`${TENOR_URL}/${path}?${query}`, { signal });
   if (!response.ok) throw new Error(`Tenor returned ${response.status}`);
   const data: TenorResponse = await response.json();
   return data.results.flatMap((result) => {
@@ -27,6 +31,6 @@ async function fetchTenor(path: string, params: Record<string, string>): Promise
   });
 }
 
-export function loadGifs(query: string): Promise<Gif[]> {
-  return query ? fetchTenor("search", { q: query }) : fetchTenor("trending", {});
+export function loadGifs(query: string, signal?: AbortSignal): Promise<Gif[]> {
+  return query ? fetchTenor("search", { q: query }, signal) : fetchTenor("trending", {}, signal);
 }

@@ -1,6 +1,6 @@
 import { TRAILING_PUNCTUATION_RE } from "../textHighlight";
 import type Quill from "./quill";
-import { indexAlignedText } from "./quillText";
+import { textBefore } from "./quillText";
 
 const URL_TAIL_RE = /https?:\/\/[^\s<>]+$/;
 const TOKEN_TAIL_RE = /[^\s<>]+$/;
@@ -51,7 +51,7 @@ function urlBefore(
 }
 
 function linkifyUrlEndingAt(quill: Quill, end: number): void {
-  const found = urlBefore(indexAlignedText(quill), end);
+  const found = urlBefore(textBefore(quill, end), end);
   if (!found) return;
   const format = quill.getFormat(found.start, found.end - found.start);
   if (format.link || format.code || format["code-block"]) return;
@@ -63,7 +63,7 @@ export function wireLinkAutoconvert(quill: Quill): void {
     if (source !== "user") return;
     const cursor = insertEndIndex(delta);
     if (insertedLength(delta) <= 1) {
-      const justTyped = indexAlignedText(quill)[cursor - 1];
+      const justTyped = textBefore(quill, cursor).at(-1);
       if (!(justTyped && BOUNDARY_RE.test(justTyped))) return;
       linkifyUrlEndingAt(quill, cursor);
       return;

@@ -6,7 +6,7 @@ import type { RelativeColor } from "../RelativeChannelRows";
 import OklchColorPicker from "./OklchColorPicker";
 import "./ColorField.css";
 
-export interface ColorFieldProps {
+interface ColorFieldProps {
   displayValue?: string;
   isCustom: boolean;
   label: string;

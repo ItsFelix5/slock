@@ -1,1 +1,1 @@
-{ "id": "emoji", "name": "Emoji", "requires": ["prefs"], "boot": true }
+{ "id": "emoji", "category": "Core", "name": "Emoji", "requires": ["prefs"], "boot": true }

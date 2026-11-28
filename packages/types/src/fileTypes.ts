@@ -27,6 +27,7 @@ export interface SlackFile {
   transcriptionPreview?: string;
   urlPrivate: string;
   urlPrivateDownload?: string;
+  userId?: UserId;
 
   vtt?: string;
   waveform?: number[];
@@ -53,19 +54,22 @@ export interface SlackFileShare {
   ts: Ts;
 }
 
-export interface SlackFileAccess {
-  orgId: string | null;
+interface SlackFileAccess {
+  canManage: boolean;
+  channels: { access: string; channelId: ChannelId; name?: string; private?: boolean }[];
+  hiddenChannelCount: number;
+  orgId: string;
   orgLevel: string;
-  users: { access: string; userId: UserId }[];
+  orgName?: string;
+  users: { access: string; editHeldBy?: "channel" | "org"; userId: UserId }[];
 }
 
 export interface SlackFileDetail {
-  access: SlackFileAccess;
+  access: SlackFileAccess | null;
   content: string | null;
   contentTruncated: boolean;
   editable: boolean;
   file: SlackFile;
-  ownerId: UserId | null;
   shares: SlackFileShare[];
   starred: boolean;
   viewerCount: number | null;
@@ -75,14 +79,18 @@ export interface Attachment {
   actions?: AttachmentAction[];
   authorIcon?: string;
   authorId?: UserId;
+  authorLink?: string;
   authorName?: string;
   authorSubname?: string;
 
   blocks?: Block[];
+  botId?: string;
+  botTeamId?: string;
   callbackId?: string;
 
   channelId?: ChannelId;
   color?: string;
+  embedUrl?: string;
 
   fallback?: string;
   fields?: { title: string; value: string; short?: boolean }[];

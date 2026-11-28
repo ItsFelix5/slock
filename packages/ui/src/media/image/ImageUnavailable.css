@@ -1,0 +1,11 @@
+.image-unavailable {
+  align-items: center;
+  justify-content: center;
+  width: min(240px, 100%);
+  padding: var(--space-lg);
+  font-size: var(--font-size-meta);
+  color: var(--text-secondary);
+  background: var(--composer-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+}

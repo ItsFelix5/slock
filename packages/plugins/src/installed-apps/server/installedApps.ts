@@ -12,7 +12,7 @@ type RawApp = {
 
 type Page = { apps: RawApp[]; response_metadata?: { next_cursor?: string } };
 
-export type InstalledApp = { id: string; name: string; icon?: string; official: boolean };
+type InstalledApp = { id: string; name: string; icon?: string; official: boolean };
 
 function toInstalledApp(app: RawApp): InstalledApp {
   return {

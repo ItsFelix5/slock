@@ -1,6 +1,7 @@
-import { createFlags, service } from "@slock/core/solid";
+import { service } from "@slock/core/solid";
+import { defineMutation } from "@slock/plugins/query/client/api";
 import type { ProfileFieldDef, User, UserId } from "@slock/types";
-import { createEffect, createMemo, createSignal, createStore, untrack } from "solid-js";
+import { createEffect, createMemo, createStore, untrack } from "solid-js";
 import { selfInputSeed } from "./selfInputSeed";
 import { mergeMissingProfileFieldValues } from "./userProfileFieldValues";
 
@@ -32,27 +33,16 @@ const REQUIRED_SELF_FIELDS: ReadonlySet<keyof typeof SELF_FIELD_UPDATES> = new S
   "fullName",
 ]);
 
+const fieldSave = defineMutation<{ field: string; update: ProfileUpdate }, boolean>({
+  key: ({ field }) => field,
+  mode: "single",
+  run: ({ update }) => usersStore.updateMyProfile(update),
+});
+
 function currentValue(user: User | undefined, key: keyof typeof SELF_FIELD_UPDATES): string {
   if (key === "fullName") return user?.realName ?? user?.name ?? "";
   if (key === "name") return user?.name ?? "";
   return user?.[key] ?? "";
-}
-
-function createGuardedFlag() {
-  const [pending, setPending] = createSignal(false);
-  let running = false;
-  async function run<T>(task: () => Promise<T>): Promise<T | undefined> {
-    if (running) return;
-    running = true;
-    setPending(true);
-    try {
-      return await task();
-    } finally {
-      running = false;
-      setPending(false);
-    }
-  }
-  return { pending, run };
 }
 
 export function createProfileForm(deps: {
@@ -70,10 +60,6 @@ export function createProfileForm(deps: {
     title: "",
   });
   const [customValues, setCustomValues] = createStore<Record<string, string>>({});
-  const savingFields = createFlags<string>();
-  const status = createGuardedFlag();
-  const presence = createGuardedFlag();
-  const photo = createGuardedFlag();
 
   const setInput = (key: ProfileInputKey, value: string) =>
     setInputs((draft) => {
@@ -84,7 +70,7 @@ export function createProfileForm(deps: {
       draft[id] = value;
     });
 
-  const meId = createMemo(() => usersStore.currentUser()?.id);
+  const meId = createMemo(() => usersStore.currentUserId());
   createEffect(
     () => {
       meId();
@@ -105,7 +91,7 @@ export function createProfileForm(deps: {
     () => {
       const defs = deps.fieldDefs();
       const id = deps.user()?.id;
-      if (!(defs && id && id === usersStore.currentUser()?.id)) return;
+      if (!(defs && id && id === usersStore.currentUserId())) return;
       const fields = usersStore.customFieldsFor(id);
       return fields && { defs, fields };
     },
@@ -120,21 +106,11 @@ export function createProfileForm(deps: {
     },
   );
 
-  async function saveField(key: string, save: () => Promise<boolean>) {
-    if (savingFields.has(key)) return;
-    savingFields.set(key, true);
-    try {
-      await save();
-    } finally {
-      savingFields.set(key, false);
-    }
-  }
-
   function commitSelfField(key: keyof typeof SELF_FIELD_UPDATES) {
     const value = inputs[key].trim();
     if (!value && REQUIRED_SELF_FIELDS.has(key)) return;
     if (value === currentValue(deps.user(), key)) return;
-    return saveField(key, () => usersStore.updateMyProfile(SELF_FIELD_UPDATES[key](value)));
+    return fieldSave.run({ field: key, update: SELF_FIELD_UPDATES[key](value) });
   }
 
   function commitNickname() {
@@ -152,31 +128,24 @@ export function createProfileForm(deps: {
     const current =
       (userId && usersStore.customFieldsFor(userId)?.find((f) => f.id === id)?.value) ?? "";
     if (value === current) return;
-    return saveField(`custom:${id}`, () =>
-      usersStore.updateMyProfile({ customFields: { [id]: value } }),
-    );
+    return fieldSave.run({
+      field: `custom:${id}`,
+      update: { customFields: { [id]: value } },
+    });
   }
 
-  const saveStatus = () =>
-    status.run(() => usersStore.updateMyStatus(inputs.statusText, inputs.statusEmoji, 0));
+  const saveStatus = () => usersStore.updateMyStatus(inputs.statusText, inputs.statusEmoji, 0);
 
-  const clearStatus = () =>
-    status.run(async () => {
-      if (await usersStore.clearMyStatus()) {
-        setInputs((draft) => {
-          draft.statusText = "";
-          draft.statusEmoji = "";
-        });
-      }
+  const clearStatus = async () => {
+    if (!(await usersStore.clearMyStatus())) return;
+    setInputs((draft) => {
+      draft.statusText = "";
+      draft.statusEmoji = "";
     });
+  };
 
   const togglePresence = () =>
-    presence.run(() =>
-      usersStore.updateMyPresence(deps.user()?.presence === "away" ? "auto" : "away"),
-    );
-
-  const updatePhoto = async (file: File) =>
-    (await photo.run(() => usersStore.updateMyProfilePhoto(file))) ?? false;
+    usersStore.updateMyPresence(deps.user()?.presence === "away" ? "auto" : "away");
 
   return {
     clearStatus,
@@ -185,15 +154,11 @@ export function createProfileForm(deps: {
     commitSelfField,
     customValues,
     inputs,
-    isSavingField: savingFields.has,
-    isSavingPhoto: photo.pending,
-    isSavingPresence: presence.pending,
-    isSavingStatus: status.pending,
+    isSavingField: (field: string) => fieldSave.pending(field),
     saveStatus,
     setCustomValue,
     setInput,
     togglePresence,
-    updatePhoto,
   };
 }
 

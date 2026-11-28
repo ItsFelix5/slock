@@ -1,7 +1,13 @@
 import { defined } from "@slock/core";
 import { type Accessor, createSignal } from "solid-js";
 import type { KeybindOverrides } from "../keybindOverrides";
-import { comboLabel, combosOverlap, matchesCombo, type ShortcutCombo } from "../shortcutCombo";
+import {
+  comboLabel,
+  combosOverlap,
+  matchesCombo,
+  type ShortcutCombo,
+  typesText,
+} from "../shortcutCombo";
 
 export const SHORTCUT_GROUPS = [
   "Channels and search",
@@ -15,9 +21,9 @@ export const SHORTCUT_GROUPS = [
   "Message actions",
 ] as const;
 
-export type ShortcutGroup = (typeof SHORTCUT_GROUPS)[number];
+type ShortcutGroup = (typeof SHORTCUT_GROUPS)[number];
 
-export type ShortcutScope = "general" | "composer" | "lists" | "messages";
+type ShortcutScope = "general" | "composer" | "lists" | "messages";
 
 export interface ShortcutDef {
   id: string;
@@ -37,6 +43,8 @@ export interface ShortcutDef {
   group: ShortcutGroup;
 }
 
+export type ShortcutSpec = Pick<ShortcutDef, "combo" | "group" | "id" | "label" | "scope">;
+
 export type ShortcutOptions = Pick<ShortcutDef, "allowInInputs" | "enabled" | "manual" | "target">;
 
 export interface ShortcutInfo {
@@ -54,7 +62,7 @@ interface RegisteredShortcut extends ShortcutDef {
   enabled: Accessor<boolean>;
 }
 
-function isTypingTarget(target: EventTarget | null) {
+export function isTypingTarget(target: EventTarget | null) {
   return (
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
@@ -67,13 +75,26 @@ function scopesOverlap(a: ShortcutScope, b: ShortcutScope): boolean {
   return a === b || a === "general" || b === "general";
 }
 
-export function createShortcutRegistry(overrides: Accessor<KeybindOverrides>) {
+function actsOnPage(shortcut: ShortcutDef): boolean {
+  return shortcut.scope === "messages" || shortcut.group === "Channels and search";
+}
+
+export function createShortcutRegistry(
+  overrides: Accessor<KeybindOverrides>,
+  dialogOpen: () => boolean,
+) {
   const shortcuts: RegisteredShortcut[] = [];
-  const [version, bumpVersion] = createSignal(0, { equals: false });
+  const declared: ShortcutSpec[] = [];
+  const [version, bumpVersion] = createSignal(0, { equals: false, ownedWrite: true });
 
   function effectiveCombo(shortcut: RegisteredShortcut): ShortcutCombo | null {
     const current = overrides();
     return Object.hasOwn(current, shortcut.id) ? (current[shortcut.id] ?? null) : shortcut.combo;
+  }
+
+  function repeats(shortcut: RegisteredShortcut): boolean {
+    const combo = effectiveCombo(shortcut);
+    return shortcut.allowRepeat ?? !(combo && typesText(combo));
   }
 
   function run(event: KeyboardEvent, manual: boolean): boolean {
@@ -83,30 +104,32 @@ export function createShortcutRegistry(overrides: Accessor<KeybindOverrides>) {
     for (let index = shortcuts.length - 1; index >= 0; index -= 1) {
       const shortcut = defined(shortcuts[index]);
       if (Boolean(shortcut.manual) !== manual || !shortcut.enabled()) continue;
+      if (actsOnPage(shortcut) && dialogOpen()) continue;
       if (typing && !(shortcut.allowInInputs ?? shortcut.target !== undefined)) continue;
-      if (event.repeat && shortcut.allowRepeat === false) continue;
       if (shortcut.target && !(event.target instanceof Element && shortcut.target(event.target)))
         continue;
       const combo = effectiveCombo(shortcut);
       if (!(combo && matchesCombo(event, combo, shortcut.splitModifier))) continue;
+      if (typing && typesText(combo)) continue;
       if (winner?.target && !shortcut.target) continue;
       winner = shortcut;
       if (shortcut.target) break;
     }
     if (!winner) return false;
     if (!winner.passthrough) event.preventDefault();
-    winner.handler(event);
+    if (!event.repeat || repeats(winner)) winner.handler(event);
     return !winner.passthrough;
   }
 
-  function onKeyDown(event: KeyboardEvent) {
+  function dispatch(event: KeyboardEvent) {
     if (!event.defaultPrevented) run(event, false);
   }
 
   function list(): ShortcutInfo[] {
     version();
     const current = overrides();
-    const latestById = new Map(shortcuts.map((shortcut) => [shortcut.id, shortcut]));
+    const known = [...declared, ...shortcuts];
+    const latestById = new Map(known.map((shortcut) => [shortcut.id, shortcut]));
     return [...latestById.values()].map((shortcut) => {
       const isCustom = Object.hasOwn(current, shortcut.id);
       const combo = isCustom ? (current[shortcut.id] ?? null) : shortcut.combo;
@@ -135,21 +158,34 @@ export function createShortcutRegistry(overrides: Accessor<KeybindOverrides>) {
           (!own || scopesOverlap(own.scope, s.scope)),
       );
     },
+    declare(specs: readonly ShortcutSpec[]): () => void {
+      declared.push(...specs);
+      bumpVersion((v) => v + 1);
+      return () => {
+        for (const spec of specs) {
+          const index = declared.indexOf(spec);
+          if (index >= 0) declared.splice(index, 1);
+        }
+        bumpVersion((v) => v + 1);
+      };
+    },
+    dispatch,
     dispatchManual: (event: KeyboardEvent) => run(event, true),
     dispose() {
       shortcuts.length = 0;
-      document.removeEventListener("keydown", onKeyDown);
+      declared.length = 0;
+      document.removeEventListener("keydown", dispatch);
     },
     list,
     register(def: ShortcutDef): () => void {
       const shortcut: RegisteredShortcut = { ...def, enabled: def.enabled ?? (() => true) };
-      if (shortcuts.length === 0) document.addEventListener("keydown", onKeyDown);
+      if (shortcuts.length === 0) document.addEventListener("keydown", dispatch);
       shortcuts.push(shortcut);
       bumpVersion((v) => v + 1);
       return () => {
         const index = shortcuts.indexOf(shortcut);
         if (index >= 0) shortcuts.splice(index, 1);
-        if (shortcuts.length === 0) document.removeEventListener("keydown", onKeyDown);
+        if (shortcuts.length === 0) document.removeEventListener("keydown", dispatch);
         bumpVersion((v) => v + 1);
       };
     },

@@ -72,10 +72,14 @@ export default function CategorySection(props: { id: string; sections: ChannelSe
           "sidebar-section-dragging": dragging(),
           "sidebar-section-drop-after": dropping(false),
           "sidebar-section-drop-before": dropping(true),
+          "sidebar-section-drop-into": sections().channelDrop.isOver(props.id),
         },
       ]}
       data-reorderable={cat()?.reorderable ? "true" : undefined}
       data-section-id={props.id}
+      onDragLeave={sections().channelDrop.leave}
+      onDragOver={(e) => sections().channelDrop.over(e, cat())}
+      onDrop={(e) => sections().channelDrop.drop(e, cat())}
       ref={sectionRef}
     >
       <div
@@ -104,7 +108,7 @@ export default function CategorySection(props: { id: string; sections: ChannelSe
             <input
               aria-busy={ariaBoolean(sections().sectionStructurePending())}
               autofocus
-              class="sidebar-section-rename-input"
+              class="sidebar-section-rename-input field-surface"
               onBlur={() => void sections().commitRename()}
               onInput={(e) => sections().setRenameValue(e.currentTarget.value)}
               readonly={sections().sectionStructurePending()}

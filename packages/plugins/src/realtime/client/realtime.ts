@@ -1,5 +1,5 @@
 import type { Env } from "@slock/core";
-import type { GatewayEvent } from "@slock/types";
+import type { FileId, GatewayEvent } from "@slock/types";
 import type { RealtimeHandler } from "./api";
 import { createRealtimeConnection } from "./connection/realtimeConnection";
 
@@ -24,7 +24,7 @@ export function createRealtime(points: {
   env: Env;
   handlers: () => RealtimeHandler[];
   onOpen: () => (() => void)[];
-  onReconnect: () => ((info: { downMs: number }) => void)[];
+  onReconnect: () => (() => void)[];
 }) {
   let indexedFrom: RealtimeHandler[] | undefined;
   let byType = new Map<string, RealtimeHandler[]>();
@@ -36,6 +36,17 @@ export function createRealtime(points: {
     }
     return byType.get(type) ?? [];
   };
+
+  const watchedFiles = new Map<FileId, number>();
+  const sendWatchedFiles = () =>
+    connection.send({ ids: [...watchedFiles.keys()], type: "watch_files" });
+
+  function countWatchers(fileId: FileId, change: 1 | -1) {
+    const count = (watchedFiles.get(fileId) ?? 0) + change;
+    if (count) watchedFiles.set(fileId, count);
+    else watchedFiles.delete(fileId);
+    sendWatchedFiles();
+  }
 
   function dispatch(raw: string) {
     const event: GatewayEvent = JSON.parse(raw);
@@ -53,10 +64,11 @@ export function createRealtime(points: {
     env: points.env,
     onMessage: dispatch,
     onOpen: () => {
+      sendWatchedFiles();
       for (const run of points.onOpen()) run();
     },
-    onReconnect: (downMs) => {
-      for (const run of points.onReconnect()) run({ downMs });
+    onReconnect: () => {
+      for (const run of points.onReconnect()) run();
     },
     url: wsUrl,
   });
@@ -67,5 +79,9 @@ export function createRealtime(points: {
     isSelfOnline: connection.isSelfOnline,
     retryConnection: connection.retry,
     send: connection.send,
+    watchFile(fileId: FileId) {
+      countWatchers(fileId, 1);
+      return () => countWatchers(fileId, -1);
+    },
   };
 }

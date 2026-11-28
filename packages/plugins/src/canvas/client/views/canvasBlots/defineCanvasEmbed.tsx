@@ -1,3 +1,4 @@
+import { Providers } from "@slock/plugins/shell/client/api/Providers";
 import Quill from "@slock/ui/editor/quill";
 import { asElement } from "@slock/ui/editor/quillText";
 import type { JSX } from "@solidjs/web";
@@ -33,14 +34,17 @@ export function defineCanvasEmbed<Value>(config: {
       const state: EmbedState<Value> = { dispose: () => undefined, read: () => value };
       states.set(node, state);
       state.dispose = render(
-        () =>
-          config.view({
-            bind: (read) => {
-              state.read = read;
-            },
-            node,
-            value,
-          }),
+        () => (
+          <Providers>
+            <config.view
+              bind={(read) => {
+                state.read = read;
+              }}
+              node={node}
+              value={value}
+            />
+          </Providers>
+        ),
         node,
       );
       return node;

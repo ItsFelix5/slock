@@ -6,6 +6,7 @@ import { decodeTextEntities, isChannelId, isUserId } from "@slock/slack";
 import type { Block } from "@slock/types";
 import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
 import type Quill from "@slock/ui/editor/quill";
+import { DELTA_CLIPBOARD_TYPE } from "@slock/ui/editor/quill";
 import { linkMentionValue, stripLeadingAt } from "../../lib/quillMentions";
 import { insertRichTextAt } from "../../lib/richTextLoad";
 import { suggestionText } from "./suggestionController";
@@ -179,6 +180,8 @@ const BARE_URL_RE = /^https?:\/\/\S+$/;
 
 function pasteUrl(quill: Quill, event: ClipboardEvent): boolean {
   const pasted = event.clipboardData?.getData("text/plain").trim() ?? "";
+  // Editor copies carry exact contents, which a copied link mention must keep.
+  if (event.clipboardData?.types.includes(DELTA_CLIPBOARD_TYPE)) return false;
   if (!BARE_URL_RE.test(pasted)) return false;
   const cleaned = stripTrackingParams(pasted);
   const selection = quill.getSelection(true) ?? { index: quill.getLength(), length: 0 };
@@ -239,7 +242,5 @@ export function insertSuggestionAt(
     quill.insertText(start + 1, " ");
     return start + 2;
   }
-  const text = suggestionText(item);
-  quill.insertText(start, text);
-  return start + text.length;
+  return insertMrkdwnAt(quill, start, suggestionText(item));
 }

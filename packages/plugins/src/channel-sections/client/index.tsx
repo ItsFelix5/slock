@@ -5,7 +5,7 @@ import ChannelMoveMenu from "./views/ChannelMoveMenu";
 
 function MoveToItem(props: ChannelMenuProps) {
   return (
-    <Show when={!props.isDm && props.showMoveTo}>
+    <Show when={props.showMoveTo}>
       <ChannelMoveMenu channelId={props.channelId} onComplete={props.close} variant="menu-item" />
     </Show>
   );

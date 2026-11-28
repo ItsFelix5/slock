@@ -20,7 +20,7 @@ export default function UserHoverCard(props: {
 }) {
   const [cardOpen, setCardOpen] = createSignal(false);
   const user = createMemo(() => usersStore.userById(props.userId));
-  const isSelf = createMemo(() => props.userId === usersStore.currentUser()?.id);
+  const isSelf = createMemo(() => props.userId === usersStore.currentUserId());
   const botBio = createMemo(() =>
     cardOpen() && user()?.isBot ? usersStore.botBio(user()?.appId, user()?.botId) : undefined,
   );

@@ -8,6 +8,7 @@ import { inside, useShortcut } from "../../hooks/useShortcut";
 import Overlay from "../../overlay/Overlay";
 import { createResetSignal } from "../../resetSignal";
 import Icon from "../Icon";
+import { LENS_SHORTCUTS } from "../mediaShortcuts";
 import { imageSrc } from "../mediaSrc";
 import "./ImageLightbox.css";
 import { defined } from "@slock/core";
@@ -108,26 +109,16 @@ export function ImageLightbox(props: {
     root: () => lensAreaRef,
   });
   const zoomLensBy = (delta: number) => setLensZoom((z) => Math.max(LENS_ZOOM_STEP, z + delta));
-  const lensZoomShortcut = {
-    allowRepeat: true,
-    scope: "general",
-    group: "Media",
-    splitModifier: true,
-    target: lensTarget,
-  } as const;
+  const lensZoomShortcut = { allowRepeat: true, splitModifier: true, target: lensTarget };
   useShortcut({
     ...lensZoomShortcut,
-    combo: { key: ["=", "+"] },
+    ...LENS_SHORTCUTS.zoomIn,
     handler: () => zoomLensBy(LENS_ZOOM_STEP),
-    id: "lens.zoomIn",
-    label: "Zoom the magnifier in",
   });
   useShortcut({
     ...lensZoomShortcut,
-    combo: { key: "-" },
+    ...LENS_SHORTCUTS.zoomOut,
     handler: () => zoomLensBy(-LENS_ZOOM_STEP),
-    id: "lens.zoomOut",
-    label: "Zoom the magnifier out",
   });
 
   return (
@@ -223,7 +214,7 @@ export function ImageLightbox(props: {
           <img
             alt={image().alt}
             class={["zoomable-image-full", { "zoomable-image-full-loading": loading() }]}
-            draggable={false}
+            draggable="false"
             onError={() => {
               setFailed(true);
               setLoading(false);

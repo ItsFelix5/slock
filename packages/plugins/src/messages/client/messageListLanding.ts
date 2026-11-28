@@ -1,8 +1,8 @@
 import type { TimerHandle } from "@slock/core";
 import { service } from "@slock/core/solid";
 import type { ChannelMessageTarget, View } from "@slock/plugins/conversations/client/api/types";
-import type { ChannelId, Message } from "@slock/types";
-import { createEffect, onCleanup, untrack } from "solid-js";
+import type { ChannelId, Message, Ts } from "@slock/types";
+import { createEffect, createSignal, onCleanup, untrack } from "solid-js";
 import type { FeedScroll } from "./api/pane/scroll/feedScroll";
 import { initialLandingState, type LandingStep, planLanding } from "./lib/landingPlan";
 import { tsFromMs, tsToMs } from "./lib/tsTime";
@@ -27,7 +27,17 @@ export function createMessageListLanding(deps: {
   let state = initialLandingState;
   let dividerWait: TimerHandle | undefined;
 
-  const landOnBottom = () => feed.land({ at: "bottom" });
+  const [landedTs, setLandedTs] = createSignal<Ts>();
+
+  const landOnBottom = () => {
+    feed.land({ at: "bottom" });
+    setLandedTs(deps.messages().at(-1)?.ts);
+  };
+
+  const landOnRow = (ts: Ts) => {
+    feed.land({ at: "row", ts, align: "start" });
+    setLandedTs(ts);
+  };
 
   function landOnDivider(view: View, anchor: number, windowLoaded: boolean) {
     const msgs = deps.messages();
@@ -38,7 +48,7 @@ export function createMessageListLanding(deps: {
       return;
     }
     const dividerTs = msgs[findUnreadDividerIndex(msgs, anchor)]?.ts;
-    if (dividerTs) feed.land({ at: "row", ts: dividerTs, align: "start" });
+    if (dividerTs) landOnRow(dividerTs);
     else landOnBottom();
   }
 
@@ -82,7 +92,7 @@ export function createMessageListLanding(deps: {
       deps.clearMessageTarget();
       if (step.reloaded || !untrack(feed.ready))
         feed.land({ at: "row", ts: step.target.ts, align: "center", flash: true });
-      else feed.glideTo(step.target.ts);
+      else feed.jumpTo(step.target.ts);
     } else if (step.kind === "request-target") {
       void messagesStore
         .ensureChannelMessage(step.target.channelId, step.target.ts)
@@ -116,33 +126,57 @@ export function createMessageListLanding(deps: {
       };
     },
     ({ anchor, hasElement, hasMessages, hasNewer, target, targetLoaded, view, viewId }) => {
-      const {
-        state: next,
-        step,
-        viewSwitched,
-      } = planLanding(state, {
-        anchor,
-        hasElement,
-        hasMessages,
-        hasNewer,
-        target,
-        targetLoaded,
-        viewId,
+      untrack(() => {
+        const {
+          state: next,
+          step,
+          viewSwitched,
+        } = planLanding(state, {
+          anchor,
+          hasElement,
+          hasMessages,
+          hasNewer,
+          target,
+          targetLoaded,
+          viewId,
+        });
+        state = next;
+        if (viewSwitched) {
+          env.clearTimeout(dividerWait);
+          dividerWait = undefined;
+          deps.onViewSwitch();
+        }
+        if (view) run(view, step);
       });
-      state = next;
-      if (viewSwitched) {
-        env.clearTimeout(dividerWait);
-        dividerWait = undefined;
-        deps.onViewSwitch();
-      }
-      if (view) untrack(() => run(view, step));
     },
   );
 
+  const unreadAnchor = () => {
+    const view = deps.paneView();
+    return view ? unreadStore.unreadDividerTsForChannel(view.id) : undefined;
+  };
+
+  async function jumpToLatest() {
+    const view = deps.paneView();
+    if (!view) return;
+    if (messagesStore.hasNewerHistory(view.id)) await messagesStore.loadRecentHistory(view.id);
+    if (deps.paneView()?.id === view.id) landOnBottom();
+  }
+
+  function jumpToUnread() {
+    const view = deps.paneView();
+    const anchor = unreadAnchor();
+    if (view && anchor !== undefined) landOnDivider(view, anchor, false);
+  }
+
   return {
+    hasUnread: () => unreadAnchor() !== undefined,
+    jumpToLatest,
+    jumpToUnread,
     jumpToBeginning: () => landOnFirstMessage(messagesStore.jumpToBeginning),
     jumpToDate: (dateMs: number) =>
       landOnFirstMessage((viewId) => messagesStore.jumpToDate(viewId, dateMs)),
-    jumpToMessage: feed.glideTo,
+    jumpToMessage: feed.jumpTo,
+    landedTs,
   };
 }

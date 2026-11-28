@@ -1,10 +1,13 @@
-import type { TimerHandle } from "@slock/core";
+import { createDebouncer } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { loadFileDetail } from "@slock/plugins/files/client/api/fileDetailQuery";
-import { fetchMessagesByIds, searchChannelFilesAndLinks } from "@slock/plugins/slack/client/api";
+import { definePagedQuery } from "@slock/plugins/query/client/api";
+import { fetchMessagesByIds } from "@slock/plugins/slack/client/api";
+import { isWaiting } from "@slock/resource";
 import type { ChannelId, FileId, Ts } from "@slock/types";
-import { createSignal } from "solid-js";
-import { appendEntries, type FilesLinksEntry, mergeEntries } from "./entries";
+import { createMemo, createSignal } from "solid-js";
+import { searchChannelFilesAndLinks } from "../requests";
+import { entryKey, type FilesLinksEntry, newestFirst, toEntries } from "./entries";
 
 export type { FilesLinksEntry } from "./entries";
 
@@ -22,25 +25,11 @@ type PanelDeps = {
   title: (channelId: ChannelId) => string;
 };
 
-interface PanelState {
-  channelId: ChannelId | null;
-  entries: FilesLinksEntry[];
-  error: boolean;
-  hasMore: boolean;
-  loading: boolean;
-  page: number;
-  query: string;
-}
+type Search = { channelId: ChannelId; opened: number; query: string; run: number };
 
-const CLOSED: PanelState = {
-  channelId: null,
-  entries: [],
-  error: false,
-  hasMore: false,
-  loading: false,
-  page: 1,
-  query: "",
-};
+type Shown = { entries: FilesLinksEntry[]; opened?: number };
+
+const NOTHING: Shown = { entries: [] };
 
 const liveDeps: PanelDeps = {
   openMessage: (channelId, ts, threadTs) =>
@@ -50,50 +39,64 @@ const liveDeps: PanelDeps = {
 };
 
 export function createFilesLinksPanel(deps: PanelDeps = liveDeps) {
-  let state = CLOSED;
-  const [view, setView] = createSignal(state);
-  let loadEpoch = 0;
-  let debounceTimer: TimerHandle | undefined;
+  const results = definePagedQuery<Search, FilesLinksEntry, number>({
+    gcMs: 0,
+    itemKey: entryKey,
+    load: async ({ channelId, query }, cursor: number | undefined, { signal }) => {
+      const page = cursor ?? 1;
+      const title = deps.title(channelId);
+      const { files, hasMore, links } = await deps.search(channelId, title, query, page, signal);
+      return { items: toEntries(files, links), next: hasMore ? page + 1 : undefined };
+    },
+    name: "filesLinks",
+  });
+  let current: Search | undefined;
+  let runs = 0;
+  const [search, setSearch] = createSignal<Search>();
+  const [typed, setTyped] = createSignal("");
+  const state = results.state(search);
+  const data = createMemo(() => state().data);
+  const shown = createMemo<Shown>((previous) => {
+    const request = search();
+    if (!request) return previous ?? NOTHING;
+    const loaded = data();
+    if (loaded) return { entries: loaded.items.toSorted(newestFirst), opened: request.opened };
+    return previous?.opened === request.opened ? previous : NOTHING;
+  });
 
-  function commit(patch: Partial<PanelState>) {
-    state = { ...state, ...patch };
-    setView(state);
+  const loading = () => {
+    const request = search();
+    return !!request && (isWaiting(state()) || state().refreshing || results.loadingMore(request));
+  };
+  const failed = () => {
+    const request = search();
+    if (!request) return false;
+    return (state().status === "error" && !state().refreshing) || results.moreFailed(request);
+  };
+
+  function show(next: Search | undefined) {
+    current = next;
+    setSearch(next);
   }
 
-  async function load(channelId: ChannelId, query: string, page = 1) {
-    const epoch = ++loadEpoch;
-    commit({ error: false, loading: true });
-    try {
-      const { files, hasMore, links } = await deps.search(
-        channelId,
-        deps.title(channelId),
-        query,
-        page,
-      );
-      if (epoch !== loadEpoch) return;
-      commit({
-        entries:
-          page === 1 ? mergeEntries(files, links) : appendEntries(state.entries, files, links),
-        hasMore,
-        page,
-      });
-    } catch {
-      if (epoch === loadEpoch) commit({ error: true });
-    } finally {
-      if (epoch === loadEpoch) commit({ loading: false });
-    }
-  }
+  const queryChange = createDebouncer(
+    env,
+    (query: string) => {
+      if (current) show({ ...current, query, run: ++runs });
+    },
+    QUERY_DEBOUNCE_MS,
+  );
 
   function openFilesLinksPanel(channelId: ChannelId) {
-    env.clearTimeout(debounceTimer);
-    commit({ channelId, entries: [], hasMore: false, page: 1, query: "" });
-    void load(channelId, "");
+    queryChange.cancel();
+    setTyped("");
+    const run = ++runs;
+    show({ channelId, opened: run, query: "", run });
   }
 
   function closeFilesLinksPanel() {
-    loadEpoch++;
-    env.clearTimeout(debounceTimer);
-    commit({ channelId: null, error: false, hasMore: false, loading: false, page: 1 });
+    queryChange.cancel();
+    show(undefined);
   }
 
   function jumpToFilesLinksMessage(channelId: ChannelId, ts: Ts, threadTs?: Ts) {
@@ -113,34 +116,30 @@ export function createFilesLinksPanel(deps: PanelDeps = liveDeps) {
   }
 
   function setFilesLinksQuery(query: string) {
-    commit({ query });
-    const { channelId } = state;
-    if (!channelId) return;
-    env.clearTimeout(debounceTimer);
-    debounceTimer = env.setTimeout(() => void load(channelId, query), QUERY_DEBOUNCE_MS);
+    setTyped(query);
+    if (current) queryChange.schedule(query);
   }
 
   function retryFilesLinks() {
-    const { channelId, query } = state;
-    if (!channelId) return;
-    env.clearTimeout(debounceTimer);
-    void load(channelId, query);
+    if (!current) return;
+    if (queryChange.pending()) queryChange.flush();
+    else if (results.moreFailed(current)) void results.more(current);
+    else void results.refresh(current).catch(() => {});
   }
 
   function loadMoreFilesLinks() {
-    const { channelId, error, hasMore, loading, page, query } = state;
-    if (!channelId || loading || error || !hasMore) return;
-    void load(channelId, query, page + 1);
+    if (!current || loading() || failed() || data()?.next === undefined) return;
+    void results.more(current);
   }
 
   return {
     closeFilesLinksPanel,
-    filesLinksChannelId: () => view().channelId,
-    filesLinksEntries: () => view().entries,
-    filesLinksHasMore: () => view().hasMore,
-    filesLinksLoadError: () => view().error,
-    filesLinksLoading: () => view().loading,
-    filesLinksQuery: () => view().query,
+    filesLinksChannelId: () => search()?.channelId ?? null,
+    filesLinksEntries: () => shown().entries,
+    filesLinksHasMore: () => !!search() && data()?.next !== undefined,
+    filesLinksLoadError: failed,
+    filesLinksLoading: loading,
+    filesLinksQuery: typed,
     jumpToFilesLinksMessage,
     loadMoreFilesLinks,
     openFileMessage,

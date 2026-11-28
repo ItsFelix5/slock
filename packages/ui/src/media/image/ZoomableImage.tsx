@@ -1,9 +1,9 @@
 import { clamp } from "@slock/core";
 import type { JSX } from "@solidjs/web";
 import { createSignal, Show } from "solid-js";
-import Icon from "../Icon";
 import { imageSrc } from "../mediaSrc";
 import { ImageLightbox } from "./ImageLightbox";
+import ImageUnavailable from "./ImageUnavailable";
 import { mediaBoxStyle } from "./mediaDimensions";
 import "./ZoomableImage.css";
 
@@ -13,7 +13,7 @@ export interface ZoomableImageItem {
   src: string;
 }
 
-export interface ZoomableImageProps {
+interface ZoomableImageProps {
   alt?: string;
   class?: string;
   fullSrc?: string;
@@ -57,19 +57,12 @@ export default function ZoomableImage(props: ZoomableImageProps) {
           }}
           type="button"
         >
-          <Show
-            fallback={
-              <span class="zoomable-image-unavailable flex-col gap-sm zoomable-image-unavailable-framed fill">
-                <Icon name="image-broken" size={22} />
-                <span>Preview unavailable</span>
-              </span>
-            }
-            when={!previewFailed()}
-          >
+          <Show fallback={<ImageUnavailable />} when={!previewFailed()}>
             <img
               alt={props.alt}
               class={["zoomable-image zoomable-image-framed fill", props.class]}
               decoding="async"
+              draggable="false"
               loading="lazy"
               onError={() => setFailedSrc(props.src)}
               src={imageSrc(props.src)}

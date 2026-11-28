@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
 import { channelDisplayName, channelIconName } from "@slock/plugins/channels/client/api";
-import { fetchBrowsableChannels } from "@slock/plugins/slack/client/api";
+import { channelMatches } from "@slock/plugins/slack/client/api";
 import type { ChannelId } from "@slock/types";
 import { Icon } from "@slock/ui";
 import { createMemo } from "solid-js";
@@ -36,14 +36,7 @@ export default function ComposeChannelPicker(props: {
       onClose={props.onClose}
       onSelect={props.onSelect}
       placeholder="Find a channel…"
-      remoteSearch={async (query) => {
-        const results = await fetchBrowsableChannels(query);
-        return results.map((c) => ({
-          id: c.id,
-          name: c.name,
-          private: c.private,
-        }));
-      }}
+      matches={channelMatches}
       renderItem={(channel) => (
         <>
           <Icon name={channelIconName(channel.private)} size={12} />

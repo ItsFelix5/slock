@@ -12,7 +12,10 @@ export default function AppHomeTakeover(props: MessageHeaderProps) {
   createEffect(
     () => ({ appId: appId(), channelId: props.id }),
     ({ appId, channelId }) => {
-      if (appId) void dispatchHomeOpen(channelId, appId);
+      if (appId)
+        dispatchHomeOpen(channelId, appId).catch((error) =>
+          console.error("Failed to open App Home", error),
+        );
     },
   );
   return (
@@ -30,7 +33,6 @@ export default function AppHomeTakeover(props: MessageHeaderProps) {
           <BlockKit
             blocks={view.blocks}
             context={{
-              appId: view.app_id,
               botId: view.bot_id,
               view: {
                 blocks: () => view.blocks,

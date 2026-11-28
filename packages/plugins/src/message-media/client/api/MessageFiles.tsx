@@ -1,4 +1,4 @@
-import { safeBase64, safeMediaUrl } from "@slock/blockkit";
+import { safeMediaUrl } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import { fileSummaryLabel, isCanvasFile } from "@slock/plugins/files/client/api/fileSummary";
 import type { SlackFile } from "@slock/types";
@@ -197,3 +197,9 @@ export default function MessageFiles(props: { files: SlackFile[] }) {
     </div>
   );
 }
+
+export function safeBase64(value: string | undefined): string | undefined {
+  return value && BASE64_RE.test(value) ? value : undefined;
+}
+
+const BASE64_RE = /^[A-Za-z0-9+/]+={0,2}$/;

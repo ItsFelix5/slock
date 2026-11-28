@@ -1,45 +1,29 @@
-import { saveSearchHistory } from "@slock/plugins/slack/client/api";
-import { createLocalPref } from "@slock/plugins/slack/client/api/localPref";
+import type { ChannelId } from "@slock/types";
 import { createSignal } from "solid-js";
-import { buildSearchQuery, EMPTY_FILTERS, type SearchFilters } from "./searchQuery";
-
-const MAX_ENTRIES = 15;
+import { buildSearchQuery, DEFAULT_INPUTS, type SearchInputs } from "./searchQuery";
 
 export function createSearchStore(deps: { showScreen: () => void }) {
-  const [searchHistory, persist] = createLocalPref<string[]>("search-history", []);
-  const [screenQuery, setScreenQuery] = createSignal("");
+  let saved: SearchInputs = { ...DEFAULT_INPUTS, scope: "messages" };
+  const [opened, setOpened] = createSignal(0);
 
-  function recordSearch(query: string) {
-    const trimmed = query.trim();
-    if (!trimmed) return;
-    const deduped = [
-      trimmed,
-      ...searchHistory().filter((q) => q.toLowerCase() !== trimmed.toLowerCase()),
-    ];
-    persist(deduped.slice(0, MAX_ENTRIES));
-    saveSearchHistory(trimmed);
-  }
-
-  function removeSearchHistoryEntry(query: string) {
-    persist(searchHistory().filter((q) => q !== query));
-  }
-
-  function clearSearchHistory() {
-    persist([]);
-  }
-
-  function openSearch(query: string, filters: SearchFilters = EMPTY_FILTERS) {
-    setScreenQuery(buildSearchQuery(query, filters));
+  function show(next: SearchInputs) {
+    if (next.query) saved = next;
+    setOpened((count) => count + 1);
     deps.showScreen();
   }
 
+  function openSearch(query: string, options: { inChannelId?: ChannelId } = {}) {
+    const built = buildSearchQuery(query, options.inChannelId);
+    show({ ...saved, query: built, scope: "messages" });
+  }
+
   return {
-    clearSearchHistory,
+    opened,
     openSearch,
-    recordSearch,
-    removeSearchHistoryEntry,
-    screenQuery,
-    searchHistory,
-    setScreenQuery: (query: string) => setScreenQuery(query),
+    show,
+    save(next: SearchInputs) {
+      saved = next;
+    },
+    saved: () => saved,
   };
 }

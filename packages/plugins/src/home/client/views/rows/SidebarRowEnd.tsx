@@ -20,7 +20,7 @@ export default function SidebarRowEnd(props: {
 }) {
   const unreadTooltip = createMemo(() =>
     unreadSummary({
-      currentUserId: usersStore.currentUser()?.id,
+      currentUserId: usersStore.currentUserId(),
       lastRead: unreadStore.lastReadFor(props.id),
       loadedMessages: messagesStore.messagesInChannel(props.id),
       mentions: props.mentions,

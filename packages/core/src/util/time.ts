@@ -44,10 +44,22 @@ const monthDayFormat = perTimezone(
 
 export const formatMonthDayFromMs = (ms: number) => monthDayFormat(ms).format(ms);
 
+const monthDayYearFormat = perTimezone(
+  () => new Intl.DateTimeFormat([], { day: "numeric", month: "short", year: "numeric" }),
+);
+
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
   a.getMonth() === b.getMonth() &&
   a.getDate() === b.getDate();
+
+export function formatShortWhenFromMs(ms: number, now: number) {
+  const date = new Date(ms);
+  const today = new Date(now);
+  if (sameDay(date, today)) return formatTimeFromMs(ms);
+  const format = date.getFullYear() === today.getFullYear() ? monthDayFormat : monthDayYearFormat;
+  return format(ms).format(date);
+}
 
 export function formatDayFromMs(ms: number, now: number) {
   const date = new Date(ms);

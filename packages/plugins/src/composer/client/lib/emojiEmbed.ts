@@ -20,6 +20,7 @@ class EmojiBlot extends getEmbedBlot() {
     node.dataset.name = value.name;
     node.title = `:${value.name}:`;
     const unicode = standardEmojiUnicode(value.name);
+    node.dataset.copy = unicode ?? `:${value.name}:`;
     if (unicode) {
       node.classList.add("emoji");
       node.textContent = unicode;

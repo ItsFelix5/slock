@@ -5,6 +5,7 @@ import {
   createMediaVolume,
   Icon,
   IconButton,
+  isThirdParty,
   MenuItem,
   useContextMenu,
   useSeekShortcuts,
@@ -153,7 +154,7 @@ export default function AudioFile(props: { file: SlackFile }) {
         onPause={() => setPlaying(false)}
         onPlay={() => setPlaying(true)}
         onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-        preload="metadata"
+        preload={isThirdParty(props.file.urlPrivate) ? "none" : "metadata"}
         ref={(audio) => {
           audioRef = audio;
           setAudioElement(audio);

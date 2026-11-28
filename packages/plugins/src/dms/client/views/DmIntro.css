@@ -4,6 +4,10 @@
   padding: var(--space-3xl) var(--message-row-inline-end) var(--space-2xl);
 }
 
+.dm-intro-avatar {
+  border-radius: var(--radius-lg);
+}
+
 .dm-intro-name {
   margin: var(--space-xs) 0 0;
   font-size: 26px;

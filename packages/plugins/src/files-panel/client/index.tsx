@@ -10,7 +10,6 @@ const setup: Setup = (ctx) => {
   const panel = createFilesLinksPanel();
   ctx.provide("files-panel", panel);
   ctx.onCleanup(panel.closeFilesLinksPanel);
-  ctx.add("realtime.reconnect", panel.retryFilesLinks);
   ctx.add("conversations.opened", panel.closeFilesLinksPanel);
   ctx.add("composer.editor", (quill, editor) => {
     const closeOnTyping = (_delta: unknown, _old: unknown, source: string) => {

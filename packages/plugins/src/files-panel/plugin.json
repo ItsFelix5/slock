@@ -1,5 +1,7 @@
 {
   "id": "files-panel",
+  "category": "Search and files",
   "name": "Files panel",
-  "requires": ["composer", "files", "message-links", "search", "shell"]
+  "requires": ["composer", "files", "message-links", "query", "search", "shell"],
+  "boot": true
 }

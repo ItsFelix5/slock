@@ -43,7 +43,7 @@ function fuzzyMatch(text: string, query: string): FuzzyMatch | null {
   return { score, tier: 4 };
 }
 
-export interface FuzzySearchOptions<T> {
+interface FuzzySearchOptions<T> {
   altText?: (item: T) => string;
 
   frequency?: (item: T) => number;

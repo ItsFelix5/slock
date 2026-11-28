@@ -1,25 +1,26 @@
 import { decodeTextEntities } from "@slock/slack";
-import type { CanvasLine, CanvasNode, LayoutFrame } from "@slock/types";
+import type { CanvasLine, CanvasNode, CanvasTable, LayoutFrame } from "@slock/types";
 import type { Op } from "@slock/ui/editor/quill";
 import { type CanvasDocument, isLineNode, layoutAttribute } from "../../protocol/api";
 import { type CanvasNames, embedText, embedToValue } from "./canvasEmbeds";
-import {
-  COLUMNS_EMBED,
-  DIVIDER_EMBED,
-  FILE_EMBED,
-  IMAGE_EMBED,
-  TABLE_EMBED,
-} from "./canvasEmbedValues";
+import { ATOM_EMBEDS, COLUMNS_EMBED, DIVIDER_EMBED, TABLE_EMBED } from "./canvasEmbedValues";
 import { htmlToOps } from "./canvasHtml";
 
 export type CanvasDocModel = CanvasDocument;
 
 export interface OpsView {
   attributes?(node: CanvasNode): Record<string, unknown>;
+  cell?(table: CanvasTable, contentId: string, ops: Op[]): Op[];
   inline?(node: CanvasLine, ops: Op[]): Op[];
 }
 
 type OpsSource = Pick<CanvasDocModel, "embeds">;
+
+interface Context {
+  doc: OpsSource;
+  names: CanvasNames;
+  view: OpsView;
+}
 
 function splitOnSoftBreaks(inline: Op[]): Op[][] {
   const lines: Op[][] = [[]];
@@ -51,6 +52,16 @@ function framesOf(node: CanvasNode, depth: number): LayoutFrame[] {
   return node.frames.slice(depth);
 }
 
+export function lineOps(node: CanvasLine, doc: OpsSource, names: CanvasNames): Op[] {
+  const code = node.kind === "code";
+  // Code lines only hold canvas blots, so references there keep their id behind a label.
+  const resolve = (id: string) =>
+    code
+      ? { canvasControl: { id, label: embedText(doc.embeds.get(id), names) } }
+      : embedToValue(doc.embeds.get(id), id, names);
+  return htmlToOps(node.html, resolve, code);
+}
+
 export function nodesToOps(
   nodes: CanvasNode[],
   depth: number,
@@ -59,7 +70,6 @@ export function nodesToOps(
   view: OpsView = {},
 ): Op[] {
   const ops: Op[] = [];
-  const resolve = (controlId: string) => embedToValue(doc.embeds.get(controlId), controlId, names);
   let index = 0;
   while (index < nodes.length) {
     const node = nodes[index];
@@ -85,14 +95,14 @@ export function nodesToOps(
       ...(layout ? { layout } : {}),
     });
     if (!isLineNode(node)) {
-      ops.push(atomOp(node, withLayout, resolve));
+      ops.push(atomOp(node, withLayout, { doc, names, view }));
       continue;
     }
     if (node.kind === "divider") {
       ops.push({ attributes: withLayout({ sid: node.id }), insert: { [DIVIDER_EMBED]: true } });
       continue;
     }
-    const parsed = htmlToOps(node.html, resolve, node.kind === "code");
+    const parsed = lineOps(node, doc, names);
     const inline = view.inline?.(node, parsed) ?? parsed;
     if (node.kind === "code") {
       for (const part of splitOnSoftBreaks(inline))
@@ -117,7 +127,7 @@ function columnsOp(
   weights: number[],
   run: CanvasNode[],
   depth: number,
-  context: { doc: OpsSource; names: CanvasNames; view: OpsView },
+  context: Context,
 ): Op {
   const { doc, names, view } = context;
   const byIndex = new Map<number, CanvasNode[]>();
@@ -138,19 +148,15 @@ function columnsOp(
 function atomOp(
   node: Exclude<CanvasNode, CanvasLine>,
   withLayout: (attributes: Record<string, unknown>) => Record<string, unknown>,
-  resolve: (controlId: string) => Record<string, unknown>,
+  { doc, names, view }: Context,
 ): Op {
+  const resolve = (id: string) => embedToValue(doc.embeds.get(id), id, names);
+  const cellOps = (table: CanvasTable, contentId: string, html: string) => {
+    const parsed = htmlToOps(html, resolve, false);
+    return [...(view.cell?.(table, contentId, parsed) ?? parsed), { insert: "\n" }];
+  };
   const attributes = withLayout({ sid: node.id });
-  if (node.kind === "image")
-    return {
-      attributes,
-      insert: { [IMAGE_EMBED]: { node } },
-    };
-  if (node.kind === "file")
-    return {
-      attributes,
-      insert: { [FILE_EMBED]: { node } },
-    };
+  if (node.kind !== "table") return { attributes, insert: { [ATOM_EMBEDS[node.kind]]: { node } } };
   return {
     attributes,
     insert: {
@@ -160,7 +166,7 @@ function atomOp(
         rows: node.rows.map((row) => ({
           cells: row.cells.map((cell) => ({
             contentId: cell.contentId,
-            ops: [...htmlToOps(cell.html, resolve, false), { insert: "\n" }],
+            ops: cellOps(node, cell.contentId, cell.html),
           })),
           id: row.id,
         })),

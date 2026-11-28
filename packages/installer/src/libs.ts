@@ -1,26 +1,31 @@
-import { join } from "node:path";
 import type { BunPlugin } from "bun";
 import { runBuildResult } from "./outputs";
-import { APP_DIR, RESOLVE_FROM } from "./paths";
+import { RESOLVE_FROM } from "./paths";
 import { solidPlugin } from "./solid";
 import { virtualModule } from "./virtual";
 
 const LIB_SLUGS: Record<string, string> = {
-  "@slock/app": "lib-app",
   "@slock/blockkit": "lib-blockkit",
   "@slock/core": "lib-core",
+  "@slock/core/boot": "lib-core-boot",
   "@slock/core/services": "lib-core-services",
   "@slock/core/solid": "lib-core-solid",
   "@slock/resource": "lib-resource",
   "@slock/resource/solid": "lib-resource-solid",
   "@slock/slack": "lib-slack",
+  "@slock/slack/client": "lib-slack-client",
   "@slock/ui": "lib-ui",
   "@slock/ui/editor/QuillEditor": "lib-ui-quill-editor",
+  "@slock/ui/editor/inlineFormats": "lib-ui-inline-formats",
   "@slock/ui/editor/markdownAutoformat": "lib-ui-markdown-autoformat",
   "@slock/ui/editor/quill": "lib-ui-quill",
   "@slock/ui/editor/quillText": "lib-ui-quill-text",
+  "@slock/ui/linkClick": "lib-ui-link-click",
+  "@slock/ui/tag/tagColors": "lib-ui-tag-colors",
   "@solidjs/web": "lib-solidjs-web",
   "quill/blots/block": "lib-quill-block",
+  "quill/blots/inline": "lib-quill-inline",
+  "quill/formats/code": "lib-quill-code",
   "solid-js": "lib-solid-js",
 };
 
@@ -35,7 +40,6 @@ export const LIBS_ID = "slock-libs";
 
 function libTarget(specifier: string): string {
   if (PINNED_RUNTIMES.has(specifier)) return specifier;
-  if (specifier === "@slock/app") return join(APP_DIR, "src/index.tsx");
   return Bun.resolveSync(specifier, RESOLVE_FROM);
 }
 
@@ -63,7 +67,8 @@ export function libsModule(): string {
   }));
   const imports = specifiers.map(({ index, target }) => `import * as lib${index} from ${target};`);
   const entries = specifiers.map(({ index, specifier }) => `  ${specifier}: lib${index},`);
-  return `${imports.join("\n")}\nexport const libs = {\n${entries.join("\n")}\n};\n`;
+  const styles = `import ${JSON.stringify(libTarget("@slock/ui/global.css"))};`;
+  return `${styles}\n${imports.join("\n")}\nexport const libs = {\n${entries.join("\n")}\n};\n`;
 }
 
 export type LibExports = Record<string, string[]>;
@@ -98,7 +103,7 @@ export async function probeLibExports(): Promise<LibExports> {
   return exports;
 }
 
-export function shimSource(specifier: string, names: string[], libsUrl: string): string {
+function shimSource(specifier: string, names: string[], libsUrl: string): string {
   const named = names.filter((name) => name !== "default");
   const lines = [
     `import { libs as __libs } from ${JSON.stringify(libsUrl)};`,

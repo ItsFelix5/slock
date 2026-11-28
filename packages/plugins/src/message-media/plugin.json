@@ -1,5 +1,7 @@
 {
   "id": "message-media",
+  "category": "Read and catch up",
   "name": "Message media",
-  "requires": ["channels", "conversations", "dms", "files", "shell", "users"]
+  "requires": ["channels", "conversations", "dms", "files", "shell", "users"],
+  "boot": true
 }

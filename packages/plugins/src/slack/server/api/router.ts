@@ -1,11 +1,11 @@
-import type { HttpHandler } from "@slock/core";
+import type { HttpHandler } from "@slock/core/http";
 import { isChannelId, isFileId, isTs, isUserId } from "@slock/slack";
 import type { ChannelId, FileId, Ts, UserId } from "@slock/types";
 import type { Credentials } from "./auth.ts";
 import { errorResponse, okResponse, slackErrorResponse } from "./jsonResponse.ts";
 import { callSlack } from "./slackClient.ts";
 
-export type BodyReader = {
+type BodyReader = {
   json<T>(): Promise<T>;
   buffer(): Promise<Uint8Array>;
 };

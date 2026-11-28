@@ -1,7 +1,7 @@
 import type { ChannelId, Ts } from "@slock/types";
 import { type Accessor, createEffect, createSignal, createStore, onCleanup } from "solid-js";
 
-export type ViewKey = ChannelId | Ts;
+type ViewKey = ChannelId | Ts;
 
 const isWindowActive = () => document.hasFocus() && document.visibilityState === "visible";
 

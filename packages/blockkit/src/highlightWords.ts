@@ -14,7 +14,7 @@ function buildHighlightWordsPattern(words: string[]): RegExp | undefined {
   return pattern;
 }
 
-export type HighlightSegment = { highlighted: boolean; text: string };
+type HighlightSegment = { highlighted: boolean; text: string };
 
 export function splitHighlightWords(text: string, words: string[]): HighlightSegment[] {
   const pattern = buildHighlightWordsPattern(words);

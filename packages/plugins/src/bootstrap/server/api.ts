@@ -8,11 +8,11 @@ declare module "@slock/core/types" {
   }
 }
 
-export type PartResult =
+type PartResult =
   | { ok: true; payload: BootstrapPayload }
   | { ok: false; error: string; retryAfter?: string };
 
-export type BootstrapPart = {
+type BootstrapPart = {
   name: string;
   optional?: boolean;
   required?: boolean;

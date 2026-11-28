@@ -3,7 +3,7 @@ import { halvesOf, type Unit } from "./units";
 
 type ClientUnit = { unit: Unit; entry?: string };
 
-export function clientUnits(units: Unit[]): ClientUnit[] {
+function clientUnits(units: Unit[]): ClientUnit[] {
   return units.flatMap((unit) => {
     const { clientDir, clientEntry } = halvesOf(unit.dir);
     return clientDir || clientEntry ? [{ entry: clientEntry, unit }] : [];
@@ -38,5 +38,5 @@ export function bootModule(units: Unit[]): string {
       defs.push(`{ ...${meta}, setup: setup${index} }`);
     } else defs.push(`{ ...${meta}, load: () => import(${path}) }`);
   }
-  return `import { boot } from "@slock/app";\n${statics.join("\n")}\nboot([\n${defs.join(",\n")}\n]);\n`;
+  return `import { boot } from "@slock/core/boot";\n${statics.join("\n")}\nboot([\n${defs.join(",\n")}\n]);\n`;
 }

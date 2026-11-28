@@ -1,5 +1,7 @@
 {
   "id": "sidebar-create",
+  "category": "Looks and layout",
   "name": "Add in sidebar",
-  "requires": ["channels", "conversations", "dms", "home", "usergroup-details", "users"]
+  "requires": ["channels", "conversations", "dms", "home", "query", "usergroup-details", "users"],
+  "boot": true
 }

@@ -1,13 +1,14 @@
 import { service } from "@slock/core/solid";
 import { defineQuery } from "@slock/plugins/query/client/api";
-import { forceReauth, isAuthError, isConfigured, slackErrorOf } from "@slock/slack";
+import { isAuthError, slackErrorOf } from "@slock/slack";
+import { forceReauth, isConfigured } from "@slock/slack/client";
 import type { BootstrapPayload } from "@slock/types";
 
 const env = service("env");
 
 const initialData = defineQuery<null, BootstrapPayload>({
-  load: async () => {
-    const response = await env.fetch("/api/bootstrap");
+  load: async (_, { signal }) => {
+    const response = await env.fetch("/api/bootstrap", { signal });
     if (!response.ok) {
       throw slackErrorOf({
         fallback: `Bootstrap failed (${response.status})`,

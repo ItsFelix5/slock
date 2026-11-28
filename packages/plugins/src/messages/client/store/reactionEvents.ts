@@ -1,6 +1,6 @@
+import { withReaction } from "@slock/slack";
 import type { ChannelId, Message, Ts, UserId } from "@slock/types";
 import type { LocatedMessages } from "../lib/messageLocations";
-import { addReactionUser, removeReactionUser } from "../lib/reactionList";
 import type { LiveChange } from "./history/liveChanges";
 
 export function createReactionEvents(deps: {
@@ -19,9 +19,7 @@ export function createReactionEvents(deps: {
     const msg = deps.findAllMessageLocations(channel, ts)[0]?.list.find((m) => m.ts === ts);
     if (!msg) return;
     const reactions = msg.reactions ?? [];
-    const next = added
-      ? addReactionUser(reactions, name, userId)
-      : removeReactionUser(reactions, name, userId);
+    const next = withReaction(reactions, name, userId, added);
     if (next !== reactions) deps.patchMessage(channel, ts, { reactions: next });
   }
 

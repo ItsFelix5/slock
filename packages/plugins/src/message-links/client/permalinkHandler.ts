@@ -1,12 +1,18 @@
 import { getHost, service } from "@slock/core/solid";
+import {
+  openConversation,
+  openConversationInSplit,
+} from "@slock/plugins/conversations/client/api/nav";
 import { fetchPermalinkMessage } from "@slock/plugins/slack/client/api";
 import type { ChannelId, Ts } from "@slock/types";
+import { onLinkClick } from "@slock/ui/linkClick";
 import { onSettled } from "solid-js";
 import { consumeSharedProtocolLink } from "./api/incomingLinks";
 import {
   createSlackPermalinkOpener,
   navigateToSlackPermalink,
   openSlackPermalinkInSplit,
+  parseSlackChannelLink,
   parseSlackPermalink,
 } from "./api/slackPermalink";
 import { handleMessageCopy } from "./messageCopy";
@@ -16,7 +22,7 @@ const feedback = service("feedback");
 const messageLinks = service("message-links");
 
 export function installPermalinkHandler(
-  loadedChecks: () => ((channelId: ChannelId, ts: Ts) => boolean)[],
+  loaders: () => ((channelId: ChannelId, ts: Ts, threadTs: Ts) => Promise<boolean>)[],
 ): void {
   const permalinkOpener = createSlackPermalinkOpener({
     navigate: (target, options) => {
@@ -31,47 +37,45 @@ export function installPermalinkHandler(
       feedback.flash("navigation", "Couldn't open that message. Try again.", "error");
     },
     onUnavailable: () => feedback.flash("navigation", "That message is unavailable.", "error"),
-    probe: async (target) =>
-      loadedChecks().some((isLoaded) => isLoaded(target.channelId, target.messageTs)) ||
-      !!(await fetchPermalinkMessage(target.channelId, target.messageTs, target.threadTs)),
+    probe: async (target) => {
+      const { channelId, messageTs, threadTs } = target;
+      const loads = await Promise.all(
+        loaders().map((load) => load(channelId, messageTs, threadTs)),
+      );
+      if (loads.some(Boolean)) return true;
+      const isReply = threadTs !== messageTs;
+      return isReply && !!(await fetchPermalinkMessage(channelId, messageTs, threadTs));
+    },
   });
 
-  const openSlackPermalink = (event: MouseEvent) => {
-    if (
-      event.defaultPrevented ||
-      event.button !== 0 ||
-      event.metaKey ||
-      event.ctrlKey ||
-      event.altKey
-    )
-      return;
-
-    const split = event.shiftKey;
-
+  const openSlackLink = (anchor: HTMLAnchorElement, event: MouseEvent) => {
     permalinkOpener.invalidate();
 
-    const element = event.target instanceof Element ? event.target : null;
-    const anchor = element?.closest<HTMLAnchorElement>("a[href]") ?? null;
-    if (!anchor) return;
+    const channelId = parseSlackChannelLink(anchor.href);
+    if (channelId) {
+      feedback.clear("navigation");
+      if (event.shiftKey) openConversationInSplit(channelId);
+      else openConversation(channelId);
+      return true;
+    }
 
     const target = parseSlackPermalink(anchor.href);
-    if (!target) return;
+    if (!target) return false;
 
-    event.preventDefault();
     feedback.clear("navigation");
-
-    void permalinkOpener.open(target, { split });
+    void permalinkOpener.open(target, { split: event.shiftKey });
+    return true;
   };
 
   onSettled(() => {
-    document.addEventListener("click", openSlackPermalink);
+    const stopLinkClicks = onLinkClick(openSlackLink);
     document.addEventListener("copy", handleMessageCopy);
     void getHost()
       .idle()
       .then(() => consumeSharedProtocolLink(permalinkOpener));
     return () => {
       permalinkOpener.invalidate();
-      document.removeEventListener("click", openSlackPermalink);
+      stopLinkClicks();
       document.removeEventListener("copy", handleMessageCopy);
     };
   });

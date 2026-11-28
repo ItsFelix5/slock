@@ -1,22 +1,16 @@
 import type { Env } from "./types";
-import { isRecord } from "./util/guards";
 
 export type PrefCodec<T> = {
   encode(value: T): string;
   decode(raw: string): unknown;
 };
 
-export const jsonCodec: PrefCodec<unknown> = {
+const jsonCodec: PrefCodec<unknown> = {
   decode: (raw) => JSON.parse(raw),
   encode: (value) => JSON.stringify(value),
 };
 
-export const textCodec: PrefCodec<string> = {
-  decode: (raw) => raw,
-  encode: (value) => value,
-};
-
-export type PrefSpec<T> = {
+type PrefSpec<T> = {
   key: string;
   fallback: T;
   parse(value: unknown): T | undefined;
@@ -87,38 +81,4 @@ export function createPref<T>(storage: Env["storage"], spec: PrefSpec<T>): Pref<
       }
     },
   };
-}
-
-export function parseString(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
-}
-
-export function parseRecordOf<V>(
-  parseValue: (value: unknown) => V | undefined,
-): (value: unknown) => Record<string, V> | undefined {
-  return (value) => {
-    if (!isRecord(value)) return;
-    const out: Record<string, V> = {};
-    for (const [key, entry] of Object.entries(value)) {
-      const parsed = parseValue(entry);
-      if (parsed !== undefined) out[key] = parsed;
-    }
-    return out;
-  };
-}
-
-function isPrimitive(value: unknown): value is string | number | boolean | null {
-  return value === null || ["boolean", "number", "string"].includes(typeof value);
-}
-
-function isLike<T>(sample: T): (value: unknown) => value is T {
-  if (sample === null) return (value): value is T => isPrimitive(value);
-  if (Array.isArray(sample)) return (value): value is T => Array.isArray(value);
-  if (typeof sample === "object") return (value): value is T => isRecord(value);
-  return (value): value is T => typeof value === typeof sample;
-}
-
-export function parseLike<T>(sample: T): (value: unknown) => T | undefined {
-  const matches = isLike(sample);
-  return (value) => (matches(value) ? value : undefined);
 }

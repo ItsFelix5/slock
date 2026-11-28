@@ -4,16 +4,17 @@
   "references": [
     { "path": "./packages/types" },
     { "path": "./packages/core" },
+    { "path": "./packages/core/src/client" },
+    { "path": "./packages/core/src/server" },
     { "path": "./packages/slack" },
+    { "path": "./packages/slack/src/client" },
     { "path": "./packages/resource" },
     { "path": "./packages/ui" },
     { "path": "./packages/blockkit" },
     { "path": "./packages/installer" },
-    { "path": "./packages/server" },
     { "path": "./packages/plugins/tsconfig.server.json" },
     { "path": "./packages/plugins/tsconfig.client.json" },
-    { "path": "./tsconfig.test.json" },
-    { "path": "./packages/app" },
+    { "path": "./test" },
     { "path": "./packages/relay" }
   ]
 }

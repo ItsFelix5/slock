@@ -10,6 +10,7 @@ import { narrowPaneContent, type Pane } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
 import { liveOnly } from "./api/deletedMessages";
 import { createMessageFocusRegistry } from "./api/messageFocus";
+import { PREVIOUS_MATCH_SHORTCUT } from "./api/pane/InPaneSearchBar";
 import { createScrollAnchors } from "./api/pane/scroll/rememberedAnchors";
 import { createBlockKitResolver } from "./blockKitResolver";
 import { installDocumentTitle } from "./documentTitle";
@@ -45,6 +46,7 @@ const setup: Setup = (ctx) => {
   const panes = service("shell.panes");
   const dialogs = service("shell.dialogs");
   const conversations = service("conversations");
+  ctx.onCleanup(ctx.get("ui").shortcuts.declare([PREVIOUS_MATCH_SHORTCUT]));
   const threadsIn = (list: ReturnType<typeof panes.panes>) =>
     list.flatMap(({ content }) =>
       content?.kind === "thread"
@@ -57,6 +59,7 @@ const setup: Setup = (ctx) => {
   const deletedHooks = ctx.use("messages.deleted");
   const patchHooks = ctx.use("messages.patch");
   const retainHooks = ctx.use("messages.retain");
+  const loadedHooks = ctx.use("messages.loaded");
   const messages = createMessagesStore({
     clearChannelUnread: unread.clearChannelUnread,
     currentUser: users.currentUser,
@@ -64,8 +67,12 @@ const setup: Setup = (ctx) => {
       Object.assign({}, ...patchHooks().map((hook) => hook(current, patch))),
     lastReadFor: unread.lastReadFor,
     onConversationView: (view) => {
+      channels.seedChannel(view.channel);
       channels.patchChannel(view.channel.id, view.channel);
       users.cacheUsers(view.users);
+    },
+    onHistoryLoaded: (channelId, pinCount) => {
+      for (const hook of loadedHooks()) hook(channelId, pinCount);
     },
     onMessageDeleted: (channelId, ts) => {
       for (const hook of deletedHooks()) hook(channelId, ts);
@@ -84,7 +91,6 @@ const setup: Setup = (ctx) => {
     visibleViews: conversations.mountedViews,
   });
   ctx.provide("messages", messages);
-  ctx.add("messages.prefetch", messages.prefetchHistory);
   ctx.provide("messages.anchors", createScrollAnchors());
   ctx.provide("messages.focus", createMessageFocusRegistry());
   installDocumentTitle();
@@ -133,7 +139,12 @@ const setup: Setup = (ctx) => {
   );
   const loadedMessage = (channelId: ChannelId, ts: Ts) =>
     messages.findAllMessageLocations(channelId, ts)[0]?.list.find((m) => m.ts === ts);
-  ctx.add("message-links.loaded", (channelId, ts) => !!loadedMessage(channelId, ts));
+  ctx.add(
+    "message-links.load",
+    async (channelId, ts, threadTs) =>
+      !!loadedMessage(channelId, ts) ||
+      (threadTs === ts && (await messages.ensureChannelMessage(channelId, ts))),
+  );
   const blockKitResolver = createBlockKitResolver(ctx.use("messages.blockKit"));
   ctx.add("shell.provider", (props) => (
     <BlockKitResolverContext value={blockKitResolver}>

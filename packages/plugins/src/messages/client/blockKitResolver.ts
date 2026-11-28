@@ -29,7 +29,7 @@ const dataResolver = {
   },
   resolveUser: (id: UserId) => {
     const user = usersStore.userById(id);
-    return user ? { isSelf: id === usersStore.currentUser()?.id, name: user.name } : undefined;
+    return user ? { isSelf: id === usersStore.currentUserId(), name: user.name } : undefined;
   },
 };
 

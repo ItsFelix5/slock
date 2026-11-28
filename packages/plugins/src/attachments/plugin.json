@@ -1,1 +1,1 @@
-{ "id": "attachments", "name": "Attachments", "requires": [] }
+{ "id": "attachments", "category": "Write", "name": "Attachments", "requires": [], "boot": true }

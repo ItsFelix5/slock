@@ -1,0 +1,291 @@
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { slackErrorOf } from "@slock/slack";
+import type { Message, SavedItem, Ts } from "@slock/types";
+import { createEffect, flush } from "solid-js";
+import {
+  createLaterSlice,
+  type LaterApi,
+} from "../../../../packages/plugins/src/later/client/store";
+import { inRoot } from "../../../support/core";
+import { startQueryHost } from "../../../support/queryHost";
+import { ch, stamp, uid } from "../../../support/slack";
+
+const C1 = ch("C1");
+
+type Call = [string, ...unknown[]];
+
+const roots: (() => void)[] = [];
+
+const refused = () => slackErrorOf({ code: "not_allowed", fallback: "" });
+
+function harness(initial: SavedItem[] = []) {
+  const calls: Call[] = [];
+  const flashes: string[] = [];
+  let failing = false;
+  const failingTs = new Set<string>();
+  let loadFailing = false;
+  let server = initial;
+  let fetches = 0;
+  const record =
+    <A extends unknown[]>(name: string) =>
+    (...args: A) => {
+      calls.push([name, ...args]);
+      const broken = failing || failingTs.has(String(args[1]));
+      return broken ? Promise.reject(refused()) : Promise.resolve();
+    };
+  const api: LaterApi = {
+    fetchMessagesByIds: (entries) =>
+      Promise.resolve(
+        new Map(entries.map((entry) => [`${entry.channelId}:${entry.ts}`, savedMessage(entry.ts)])),
+      ),
+    fetchSaved: () => {
+      fetches++;
+      return loadFailing
+        ? Promise.reject(refused())
+        : Promise.resolve(server.map((item) => ({ ...item })));
+    },
+    saveWithReminder: async (channelId, ts, dateDue) => {
+      await record("saveWithReminder")(channelId, ts, dateDue);
+      server = [...server, { channelId, dateDue, ts }];
+      return { ok: true };
+    },
+    toggleSaved: async (channelId, ts, currentlySaved) => {
+      await record("toggleSaved")(channelId, ts, currentlySaved);
+      server = currentlySaved
+        ? server.filter((entry) => !(entry.channelId === channelId && entry.ts === ts))
+        : [...server, { channelId, ts }];
+      return { ok: true };
+    },
+    updateSaved: async (channelId, ts, patch) => {
+      await record("updateSaved")(channelId, ts, patch);
+      server = server.map((entry) =>
+        entry.channelId === channelId && entry.ts === ts
+          ? { ...entry, dateDue: patch.dateDue || undefined }
+          : entry,
+      );
+      return { ok: true };
+    },
+  };
+  const root = inRoot(() => createLaterSlice(api, (_key, message) => flashes.push(message)));
+  roots.push(root.dispose);
+  const later = root.value;
+  return {
+    calls,
+    fetches: () => fetches,
+    fail: (value: boolean) => {
+      failing = value;
+    },
+    failFor: (ts: Ts) => failingTs.add(ts),
+    failLoad: (value: boolean) => {
+      loadFailing = value;
+    },
+    flashes,
+    later,
+    setServer: (items: SavedItem[]) => {
+      server = items;
+    },
+  };
+}
+
+const settle = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  flush();
+};
+
+function observe<T>(read: () => T) {
+  const values: T[] = [];
+  const root = inRoot(() =>
+    createEffect(read, (value) => {
+      if (values.at(-1) !== value) values.push(value);
+    }),
+  );
+  roots.push(root.dispose);
+  return values;
+}
+
+const savedMessage = (ts: string): Message => ({
+  day: "",
+  id: ts,
+  kind: "normal",
+  text: ts,
+  time: "",
+  ts: stamp(ts),
+  userId: uid("U1"),
+});
+
+const item = (ts: Ts, dateDue?: number): SavedItem => ({ channelId: C1, dateDue, ts });
+
+async function loaded(initial: SavedItem[]) {
+  const h = harness(initial);
+  await h.later.ensureLaterLoaded();
+  flush();
+  return h;
+}
+
+let errors: ReturnType<typeof spyOn>;
+beforeEach(async () => {
+  errors = spyOn(console, "error").mockImplementation(() => undefined);
+  await startQueryHost();
+});
+afterEach(() => {
+  errors.mockRestore();
+  for (const dispose of roots.splice(0)) dispose();
+});
+
+describe("createLaterSlice", () => {
+  test("loads saved items", async () => {
+    const { later } = await loaded([item(stamp("1.1")), item(stamp("2.2"))]);
+    expect(later.laterItems().map((i) => i.ts)).toEqual([stamp("1.1"), stamp("2.2")]);
+  });
+
+  test("resolves a saved message through the api", async () => {
+    const { later } = await loaded([item(stamp("1.1"))]);
+    const message = inRoot(() => later.createLaterMessage(() => item(stamp("1.1"))));
+    roots.push(message.dispose);
+    await settle();
+    expect(message.value.state().data?.ts).toBe(stamp("1.1"));
+  });
+
+  test("toggle saves an unsaved message and unsaves a saved one", async () => {
+    const { calls, later } = await loaded([item(stamp("1.1"))]);
+    expect(await later.toggleSaveForLater(C1, stamp("2.2"))).toBe(true);
+    expect(later.isSavedForLater(C1, stamp("2.2"))).toBe(true);
+    expect(await later.toggleSaveForLater(C1, stamp("1.1"))).toBe(true);
+    expect(later.isSavedForLater(C1, stamp("1.1"))).toBe(false);
+    expect(calls).toEqual([
+      ["toggleSaved", C1, stamp("2.2"), false],
+      ["toggleSaved", C1, stamp("1.1"), true],
+    ]);
+  });
+
+  test("a failed change rolls back and flashes", async () => {
+    const h = await loaded([item(stamp("1.1"), 100), item(stamp("2.2"))]);
+    h.fail(true);
+    expect(await h.later.setReminder(C1, stamp("2.2"), 500)).toBe(false);
+    expect(await h.later.toggleSaveForLater(C1, stamp("3.3"))).toBe(false);
+    expect(h.later.laterItems().map((i) => [String(i.ts), i.dateDue])).toEqual([
+      ["1.1", 100],
+      ["2.2", undefined],
+    ]);
+    expect(h.flashes).toHaveLength(2);
+    expect(h.later.isSaveForLaterPending(C1, stamp("2.2"))).toBe(false);
+  });
+
+  test("a failure shows the change, then reverts once, and a retry works", async () => {
+    const h = await loaded([item(stamp("1.1"))]);
+    const seen = observe(() =>
+      h.later
+        .laterItems()
+        .map((i) => i.ts)
+        .join(","),
+    );
+    flush();
+    h.failFor(stamp("2.2"));
+    const rejected = h.later.toggleSaveForLater(C1, stamp("2.2"));
+    flush();
+    expect(await rejected).toBe(false);
+    await settle();
+    expect(seen).toEqual(["1.1", "1.1,2.2", "1.1"]);
+    expect(h.later.isSaveForLaterPending(C1, stamp("2.2"))).toBe(false);
+    h.fail(false);
+    expect(h.later.toggleSaveForLater(C1, stamp("3.3"))).resolves.toBe(true);
+    await settle();
+    expect(seen.at(-1)).toBe("1.1,3.3");
+  });
+
+  test("a failed change does not undo another one in flight", async () => {
+    const h = await loaded([item(stamp("1.1"))]);
+    h.failFor(stamp("2.2"));
+    const results = await Promise.all([
+      h.later.toggleSaveForLater(C1, stamp("2.2")),
+      h.later.toggleSaveForLater(C1, stamp("3.3")),
+      h.later.setReminder(C1, stamp("1.1"), 900),
+    ]);
+    await settle();
+    expect(results).toEqual([false, true, true]);
+    expect(h.later.laterItems().map((i) => [String(i.ts), i.dateDue])).toEqual([
+      ["1.1", 900],
+      ["3.3", undefined],
+    ]);
+    expect(h.flashes).toHaveLength(1);
+  });
+
+  test("a reminder change is optimistic and reverts on failure", async () => {
+    const h = await loaded([item(stamp("1.1"), 100)]);
+    const seen = observe(() => h.later.reminderDue(C1, stamp("1.1")));
+    flush();
+    h.failFor(stamp("1.1"));
+    const rejected = h.later.clearReminder(C1, stamp("1.1"));
+    flush();
+    expect(await rejected).toBe(false);
+    await settle();
+    expect(seen).toEqual([100, undefined, 100]);
+  });
+
+  test("a reminder on an unsaved message saves it with the due date", async () => {
+    const { calls, later } = await loaded([]);
+    await later.setReminder(C1, stamp("1.1"), 700);
+    expect(later.reminderDue(C1, stamp("1.1"))).toBe(700);
+    expect(calls).toEqual([["saveWithReminder", C1, stamp("1.1"), 700]]);
+  });
+
+  test("a reminder on a saved message updates it and can be cleared", async () => {
+    const { calls, later } = await loaded([item(stamp("1.1"))]);
+    await later.setReminder(C1, stamp("1.1"), 700);
+    await later.clearReminder(C1, stamp("1.1"));
+    expect(later.reminderDue(C1, stamp("1.1"))).toBeUndefined();
+    expect(calls).toEqual([
+      ["updateSaved", C1, stamp("1.1"), { dateDue: 700 }],
+      ["updateSaved", C1, stamp("1.1"), { dateDue: 0 }],
+    ]);
+  });
+
+  test("a second change for the same message is rejected while one is pending", async () => {
+    const { calls, later } = await loaded([item(stamp("1.1"))]);
+    const first = later.toggleSaveForLater(C1, stamp("1.1"));
+    const second = later.toggleSaveForLater(C1, stamp("1.1"));
+    expect(await second).toBe(false);
+    expect(await first).toBe(true);
+    expect(calls).toHaveLength(1);
+  });
+
+  test("changes are ignored while the list is loading", async () => {
+    const h = harness([item(stamp("1.1"))]);
+    const loading = h.later.ensureLaterLoaded();
+    flush();
+    expect(h.later.laterLoading()).toBe(true);
+    expect(await h.later.toggleSaveForLater(C1, stamp("2.2"))).toBe(false);
+    await loading;
+    expect(h.later.laterLoading()).toBe(false);
+    expect(h.calls).toHaveLength(0);
+  });
+
+  test("reloads on realtime events only after the list was requested", async () => {
+    const h = harness([item(stamp("1.1"))]);
+    h.later.reloadIfRequested();
+    await settle();
+    expect(h.fetches()).toBe(0);
+    await h.later.ensureLaterLoaded();
+    h.setServer([item(stamp("1.1")), item(stamp("5.5"))]);
+    h.later.reloadIfRequested();
+    await settle();
+    expect(h.later.laterItems().map((i) => i.ts)).toEqual([stamp("1.1"), stamp("5.5")]);
+    h.setServer([]);
+    h.later.reloadIfRequested();
+    await settle();
+    expect(h.later.laterItems()).toHaveLength(0);
+  });
+
+  test("a failed load surfaces as an error and a retry recovers", async () => {
+    const h = harness([item(stamp("1.1"))]);
+    h.failLoad(true);
+    await h.later.ensureLaterLoaded();
+    expect(h.later.laterLoadFailed()).toBe(true);
+    expect(h.later.laterLoading()).toBe(false);
+    h.failLoad(false);
+    await h.later.ensureLaterLoaded();
+    await settle();
+    expect(h.later.laterLoadFailed()).toBe(false);
+    expect(h.later.laterItems()).toHaveLength(1);
+  });
+});

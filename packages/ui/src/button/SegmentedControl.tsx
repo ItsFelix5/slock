@@ -4,7 +4,7 @@ import "./SegmentedControl.css";
 
 const SEGMENT_SELECTOR = "button:not(:disabled)";
 
-export interface SegmentedControlProps {
+interface SegmentedControlProps {
   children: JSX.Element;
   class?: string;
 }

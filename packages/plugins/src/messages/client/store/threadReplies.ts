@@ -1,16 +1,15 @@
-import {
-  fetchReplies,
-  fetchRepliesBefore,
-  fetchRepliesFrom,
-  fetchThreadRoot,
-} from "@slock/plugins/slack/client/api";
+import { createQueue } from "@slock/core";
+import { fetchRepliesFrom } from "@slock/plugins/slack/client/api";
 import { isTs } from "@slock/slack";
 import type { ChannelId, Message, Ts } from "@slock/types";
-import { createConcurrencyQueue, createRecencyEviction } from "@slock/ui";
 import { createEffect, createStore, untrack } from "solid-js";
 import type { ThreadRef } from "../api";
 import { mergeMessages } from "../api/messageMerge";
+import { createRecencyEviction } from "../lib/recencyEviction";
+import { fetchReplies, fetchRepliesBefore } from "../requests/replies";
 import { planThreadLoad } from "./history/loadPlan";
+import { createRequestEpochs } from "./history/requestEpoch";
+import { createThreadFetches, type ThreadApi } from "./history/threadFetches";
 import {
   coversAnchor,
   forwardPatch,
@@ -23,24 +22,17 @@ import { ensureMessageList, replaceMessageList, updateMessageList } from "./stor
 const KEEP_RECENT_THREADS = 8;
 const THREAD_FETCH_CONCURRENCY = 4;
 
-type ThreadLoad = { error: boolean; loading: boolean };
-
-type ThreadApi = {
-  fetchReplies: typeof fetchReplies;
-  fetchRepliesBefore: typeof fetchRepliesBefore;
-  fetchRepliesFrom: typeof fetchRepliesFrom;
-  fetchThreadRoot: typeof fetchThreadRoot;
-};
+type ThreadLoad = { error: boolean; loading: boolean; stale?: boolean };
 
 export function createThreadReplies(
   deps: { visibleThreads: () => ThreadRef[] },
-  api: ThreadApi = { fetchReplies, fetchRepliesBefore, fetchRepliesFrom, fetchThreadRoot },
+  api: ThreadApi = { fetchReplies, fetchRepliesBefore, fetchRepliesFrom },
 ) {
   const channelForThread = new Map<Ts, ChannelId>();
   const anchorForThread = new Map<Ts, Ts>();
   const anchorAttempted = new Map<Ts, Ts>();
   const inFlight = new Map<Ts, Promise<void>>();
-  const queue = createConcurrencyQueue(THREAD_FETCH_CONCURRENCY);
+  const queue = createQueue(THREAD_FETCH_CONCURRENCY);
   const [threadMessages, setThreadMessages] = createStore<Record<Ts, Message[]>>({});
   const editThreadList = (ts: Ts, edit: (list: Message[]) => void) =>
     setThreadMessages((s) => edit(ensureMessageList(s, ts)));
@@ -53,13 +45,8 @@ export function createThreadReplies(
   const [paging, setPaging] = createStore<Record<Ts, ThreadPaging>>({});
   const [loads, setLoads] = createStore<Record<Ts, ThreadLoad>>({});
 
-  let lastRun = 0;
-  const runs = new Map<Ts, number>();
-  const startRun = (ts: Ts) => {
-    runs.set(ts, ++lastRun);
-    return lastRun;
-  };
-  const isRun = (ts: Ts, run: number | undefined) => run !== undefined && runs.get(ts) === run;
+  const runs = createRequestEpochs<Ts>();
+  const isRun = runs.isCurrent;
 
   const patchPaging = (ts: Ts, patch: Partial<ThreadPaging>) =>
     setPaging((s) => {
@@ -68,64 +55,25 @@ export function createThreadReplies(
       else s[ts] = { ...idle, hasEarlier: false, hasMore: false, ...patch };
     });
 
-  async function loadAnchored(channelId: ChannelId, ts: Ts, anchor: Ts): Promise<Message[]> {
-    anchorAttempted.set(ts, anchor);
-    const run = startRun(ts);
-    const [root, forward, earlier] = await Promise.all([
-      api.fetchThreadRoot(channelId, ts),
-      api.fetchRepliesFrom(channelId, ts, anchor),
-      api.fetchRepliesBefore(channelId, ts, anchor),
-    ]);
-    const current = threadMessages[ts] ?? [];
-    if (!isRun(ts, run)) return current;
-    const live = forward.hasMore
-      ? []
-      : current.filter((m) => Number(m.ts) > Number(forward.edge ?? anchor));
-    patchPaging(ts, {
-      ...idle,
-      after: forward.edge,
-      before: earlier.before,
-      hasEarlier: earlier.hasEarlier,
-      hasMore: forward.hasMore,
-      span: earlier.span,
-    });
-    return mergeMessages(live, [...(root ? [root] : []), ...earlier.messages, ...forward.messages]);
-  }
-
-  async function loadFirst(channelId: ChannelId, ts: Ts) {
-    const run = startRun(ts);
-    const page = await api.fetchRepliesFrom(channelId, ts, ts);
-    const current = threadMessages[ts] ?? [];
-    if (!isRun(ts, run)) return current;
-    patchPaging(ts, {
-      ...idle,
-      after: page.edge,
-      before: undefined,
-      hasEarlier: false,
-      hasMore: page.hasMore,
-    });
-    return mergeMessages(current, page.messages);
-  }
-
-  async function catchUp(channelId: ChannelId, ts: Ts, after: Ts) {
-    const run = runs.get(ts);
-    const page = await api.fetchRepliesFrom(channelId, ts, after);
-    const current = threadMessages[ts] ?? [];
-    if (!isRun(ts, run)) return current;
-    patchPaging(ts, forwardPatch(paging[ts]?.after, page));
-    return mergeMessages(current, page.messages);
-  }
-
-  const missing = (ts: Ts) => missingReplyCount(threadMessages[ts], ts, paging[ts]);
+  const { loadAnchored, loadFirst, reloadWindow } = createThreadFetches({
+    api,
+    paging,
+    patchPaging,
+    runs,
+    threadMessages,
+  });
 
   function fetchThread(ts: Ts): Promise<Message[]> {
     const channelId = channelForThread.get(ts);
     if (!channelId) return Promise.resolve([]);
     const anchor = anchorForThread.get(ts);
     anchorForThread.delete(ts);
-    if (anchor) return loadAnchored(channelId, ts, anchor);
-    const after = paging[ts]?.after;
-    return after && missing(ts) === 0 ? catchUp(channelId, ts, after) : loadFirst(channelId, ts);
+    if (anchor) {
+      anchorAttempted.set(ts, anchor);
+      return loadAnchored(channelId, ts, anchor);
+    }
+    const state = paging[ts];
+    return state?.after ? reloadWindow(channelId, ts, state) : loadFirst(channelId, ts);
   }
 
   function refreshThread(ts: Ts): Promise<void> {
@@ -161,39 +109,51 @@ export function createThreadReplies(
 
   const isLoadingThread = (ts: Ts) => !!loads[ts]?.loading;
   const hasThreadError = (ts: Ts) => !!loads[ts]?.error;
+  const isThreadStale = (ts: Ts) => !!loads[ts]?.stale;
 
   function settledMissing(ts: Ts): number {
     const state = paging[ts];
-    return state?.loading || state?.earlierLoading || isLoadingThread(ts) ? 0 : missing(ts);
+    return state?.loading || state?.earlierLoading || isLoadingThread(ts)
+      ? 0
+      : missingReplyCount(threadMessages[ts], ts, state);
+  }
+
+  async function loadAround(ts: Ts, anchor: Ts) {
+    anchorForThread.set(ts, anchor);
+    await refreshThread(ts);
+    if (anchorForThread.has(ts)) await refreshThread(ts);
+  }
+
+  function loadLatestReplies(ts: Ts) {
+    const latest = threadMessages[ts]?.find((m) => m.ts === ts)?.latestReply;
+    return latest && paging[ts]?.hasMore ? loadAround(ts, latest) : undefined;
   }
 
   function ensureThreadRepliesLoaded(channelId: ChannelId, ts: Ts, anchor?: Ts): boolean {
-    channelForThread.set(ts, channelId);
-    const plan = planThreadLoad({
-      anchor,
-      anchorAttempted: anchorAttempted.get(ts),
-      anchorCovered: !!anchor && coversAnchor(paging[ts], ts, anchor),
-      hasError: hasThreadError(ts),
-      hasPaging: !!paging[ts],
-      ts,
-    });
-    if (plan.kind === "none") return false;
-    if (plan.kind === "anchored") {
-      anchorForThread.set(ts, plan.anchor);
-      void refreshThread(ts).then(() => {
-        if (anchorForThread.has(ts)) void refreshThread(ts);
+    return untrack(() => {
+      channelForThread.set(ts, channelId);
+      const stale = isThreadStale(ts);
+      const plan = planThreadLoad({
+        anchor,
+        anchorAttempted: anchorAttempted.get(ts),
+        anchorCovered: !!anchor && coversAnchor(paging[ts], ts, anchor),
+        hasError: !stale && hasThreadError(ts),
+        hasPaging: !stale && !!paging[ts],
+        ts,
       });
+      if (plan.kind === "none") return false;
+      void (plan.kind === "anchored" ? loadAround(ts, plan.anchor) : refreshThread(ts));
       return true;
-    }
-    void refreshThread(ts);
-    return true;
+    });
   }
 
   createEffect(
     () => deps.visibleThreads(),
     (threads) => {
-      for (const thread of threads)
-        untrack(() => ensureThreadRepliesLoaded(thread.channelId, thread.ts, thread.highlightTs));
+      untrack(() => {
+        for (const thread of threads)
+          ensureThreadRepliesLoaded(thread.channelId, thread.ts, thread.highlightTs);
+      });
     },
   );
 
@@ -201,7 +161,7 @@ export function createThreadReplies(
     const channelId = channelForThread.get(ts);
     const state = paging[ts];
     if (!(channelId && state?.hasMore && state.after) || state.loading) return;
-    const run = runs.get(ts);
+    const run = runs.current(ts);
     patchPaging(ts, { error: false, loading: true });
     try {
       const page = await api.fetchReplies(channelId, ts, state.after);
@@ -220,7 +180,7 @@ export function createThreadReplies(
     const channelId = channelForThread.get(ts);
     const state = paging[ts];
     if (!(channelId && state?.hasEarlier && state.before) || state.earlierLoading) return;
-    const run = runs.get(ts);
+    const run = runs.current(ts);
     patchPaging(ts, { earlierError: false, earlierLoading: true });
     try {
       const page = await api.fetchRepliesBefore(channelId, ts, state.before, state.span);
@@ -240,10 +200,20 @@ export function createThreadReplies(
     }
   }
 
+  function resyncThreads() {
+    const visible = new Set(deps.visibleThreads().map((thread) => thread.ts));
+    for (const ts of channelForThread.keys()) {
+      inFlight.delete(ts);
+      setLoads((s) => {
+        s[ts] = { error: false, loading: false, stale: true };
+      });
+      if (visible.has(ts)) void refreshThread(ts);
+    }
+  }
+
   function evictThread(ts: Ts) {
-    if (threadMessages[ts]?.some((m) => m.deleted)) return;
     inFlight.delete(ts);
-    runs.delete(ts);
+    runs.drop(ts);
     channelForThread.delete(ts);
     anchorForThread.delete(ts);
     anchorAttempted.delete(ts);
@@ -276,12 +246,15 @@ export function createThreadReplies(
     isLoadingEarlierReplies: (ts: Ts) => paging[ts]?.earlierLoading ?? false,
     isLoadingMoreReplies: (ts: Ts) => paging[ts]?.loading ?? false,
     isLoadingThread,
+    isThreadStale,
     loadEarlierReplies,
+    loadLatestReplies,
     loadMoreReplies,
     missingReplies: settledMissing,
     dropThreadMessages,
     editThreadList,
     refreshThreadReplies: refreshThread,
+    resyncThreads,
     threadMessages,
     updateThreadMessages,
   };

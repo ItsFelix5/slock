@@ -1,6 +1,6 @@
 import { IconButton } from "@slock/ui";
 
-export interface RemoveRowButtonProps {
+interface RemoveRowButtonProps {
   disabled?: boolean;
   label: string;
   onClick: () => void;

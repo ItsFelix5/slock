@@ -97,7 +97,7 @@
 
 .channel-details-copy-row {
   gap: 10px;
-  padding: calc(10px + var(--row-padding-offset)) 12px;
+  padding: calc(10px + var(--row-padding-offset)) var(--space-md);
   font-size: var(--font-size-control);
   color: var(--text-primary);
   text-align: left;

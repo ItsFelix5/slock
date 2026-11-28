@@ -1,11 +1,13 @@
 import { EmojiText } from "@slock/blockkit";
-import { lazyChunk } from "@slock/core/solid";
+import { lazyChunk, service } from "@slock/core/solid";
 import { Icon, IconButton, Popover } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
 import type { ProfileForm } from "./profileForm";
 import "./UserProfileStatus.css";
 
 const EmojiPicker = lazyChunk(() => import("@slock/plugins/emoji/client/api/EmojiPicker"));
+
+const usersStore = service("users");
 
 interface UserProfileStatusProps {
   form: ProfileForm;
@@ -17,7 +19,7 @@ interface UserProfileStatusProps {
 export default function UserProfileStatus(props: UserProfileStatusProps) {
   const [emojiOpen, setEmojiOpen] = createSignal(false);
   const hasStatus = () => !!(props.statusText || props.statusEmoji);
-  const saving = () => props.form.isSavingStatus();
+  const saving = () => usersStore.isSavingStatus();
 
   return (
     <Show

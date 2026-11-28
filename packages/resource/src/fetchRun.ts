@@ -1,19 +1,23 @@
-import type { Cooldown } from "./cooldown";
-import { delay, type ResourceEnv } from "./delay";
 import type { Entry, Inflight } from "./entry";
-import { planRetry, type RetryPolicy } from "./retry";
+import { type RetryDeps, withRetry } from "./retry";
 
 export interface FetchContext {
   signal: AbortSignal;
 }
 
-export interface FetchDeps<K, T> {
-  cooldown: Cooldown;
-  env: ResourceEnv;
+export interface FetchDeps<K, T> extends RetryDeps {
   load: (key: K, context: FetchContext) => Promise<T>;
-  onFailure: (entry: Entry<K, T>, error: unknown) => void;
+  onFailure: (entry: Entry<K, T>, error: unknown, permanent: boolean) => void;
   onSuccess: (entry: Entry<K, T>, data: T) => void;
-  retry: RetryPolicy;
+}
+
+function contextOf(inflight: Inflight): FetchContext {
+  return {
+    get signal() {
+      inflight.consumed = true;
+      return inflight.controller.signal;
+    },
+  };
 }
 
 export async function runFetch<K, T>(
@@ -21,21 +25,29 @@ export async function runFetch<K, T>(
   entry: Entry<K, T>,
   inflight: Inflight,
 ): Promise<void> {
-  const { signal } = inflight.controller;
-  const isCurrent = () => entry.inflight === inflight;
-  for (let attempt = 0; ; attempt++) {
-    if (deps.cooldown.active()) await deps.cooldown.wait(signal);
-    if (!isCurrent()) return;
-    try {
-      const data = await deps.load(entry.key, { signal });
-      if (isCurrent()) deps.onSuccess(entry, data);
-      return;
-    } catch (error) {
-      if (!isCurrent()) return;
-      const plan = planRetry(deps.env, deps.retry, error, attempt);
-      if (plan.kind === "stop") return deps.onFailure(entry, error);
-      if (plan.kind === "cooldown") deps.cooldown.pause(plan.ms);
-      else await delay(deps.env, plan.ms, signal);
-    }
-  }
+  const outcome = await withRetry(
+    deps,
+    () => deps.load(entry.key, contextOf(inflight)),
+    inflight.controller.signal,
+  );
+  if (!outcome || entry.inflight !== inflight) return;
+  if ("data" in outcome) deps.onSuccess(entry, outcome.data);
+  else deps.onFailure(entry, outcome.error, outcome.permanent);
+}
+
+export function createRequests(deps: RetryDeps) {
+  let session = new AbortController();
+
+  return {
+    abort: () => {
+      session.abort();
+      session = new AbortController();
+    },
+    run: async <R>(load: (context: FetchContext) => Promise<R>): Promise<R | undefined> => {
+      const { signal } = session;
+      const outcome = await withRetry(deps, () => load({ signal }), signal);
+      if (outcome && "error" in outcome) throw outcome.error;
+      return outcome?.data;
+    },
+  };
 }

@@ -1,1 +1,6 @@
-{ "id": "layout-scrolling", "name": "Scrolling layout", "requires": ["shell"] }
+{
+  "id": "layout-scrolling",
+  "category": "Looks and layout",
+  "name": "Scrolling layout (beta)",
+  "requires": ["shell"]
+}

@@ -1,16 +1,9 @@
 import type { Block } from "../blocks/blocks";
 import type { ActivityItem } from "../contentTypes";
-import type { SlackFile, SlackLink } from "../fileTypes";
+import type { Attachment, SlackFile, SlackLink } from "../fileTypes";
 import type { ChannelId, TeamId, Ts, UserId } from "../ids";
-import type {
-  BrowsableChannel,
-  CanvasListItem,
-  Channel,
-  ChannelDetails,
-  DirectMessage,
-  Message,
-} from "../types";
-import type { User } from "../userTypes";
+import type { CanvasListItem, Channel, ChannelDetails, DirectMessage, Message } from "../types";
+import type { User, UsergroupDetails } from "../userTypes";
 
 export type FeedEntry = Omit<ActivityItem, "text"> & { text?: string };
 
@@ -67,6 +60,7 @@ export type HistoryPage = {
   messages: Message[];
   hasMore: boolean;
   nextCursor?: string;
+  pinCount?: number;
 };
 
 export interface FileUploadInput {
@@ -89,12 +83,15 @@ export interface PinnedMessage {
 }
 
 export interface SearchResult {
+  attachments?: Attachment[];
   blocks?: Block[];
   botIcon?: string;
   botId?: string;
   botName?: string;
+  botTeamId?: TeamId;
   channelId: ChannelId;
   channelName: string;
+  files?: SlackFile[];
   highlights?: string[];
   text: string;
   threadTs?: Ts;
@@ -127,11 +124,19 @@ export type UserPrefs = {
   };
 };
 
-export interface GlobalSearchResults {
-  channels: BrowsableChannel[];
-  files: SlackFile[];
-  users: User[];
+export interface SearchPage<Item> {
+  items: Item[];
+  page: number;
+  pages: number;
+  total: number;
 }
+
+export interface SearchHistoryEntry {
+  hash: string;
+  text: string;
+}
+
+export type UsergroupMatch = Pick<UsergroupDetails, "handle" | "id" | "memberCount" | "title">;
 
 export type ApiFailure = { details?: unknown; error?: string; ok: false; retry_after?: string };
 export type ApiReply<T extends object = object> = (T & { ok: true }) | ApiFailure;

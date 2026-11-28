@@ -31,12 +31,14 @@ interface CanvasCommand {
 const heading = (level: number, icon: IconName): CanvasCommand => ({
   icon,
   name: `Heading ${level}`,
+  requires: "header",
   run: (quill) => toggleBlock(quill, "header", level),
 });
 
 const list = (value: string, icon: IconName, name: string): CanvasCommand => ({
   icon,
   name,
+  requires: "list",
   run: (quill) => toggleBlock(quill, "list", value),
 });
 
@@ -48,17 +50,18 @@ const callout = (name: string, color: number): CanvasCommand => ({
 });
 
 const COMMANDS: CanvasCommand[] = [
-  { icon: "paragraph", name: "Text", run: setParagraph },
+  { icon: "paragraph", name: "Text", requires: "header", run: setParagraph },
   heading(1, "heading-1"),
   heading(2, "heading-2"),
   heading(3, "heading-3"),
   list("bullet", "bulleted-list", "Bulleted list"),
   list("ordered", "numbered-list", "Numbered list"),
   list("unchecked", "check-list", "Checklist"),
-  { icon: "quote", name: "Quote", run: toggleQuote },
+  { icon: "quote", name: "Quote", requires: "layout", run: toggleQuote },
   {
     icon: "code-block",
     name: "Code block",
+    requires: "code-block",
     run: (quill) => toggleBlock(quill, "code-block", true),
   },
   callout("Callout", DEFAULT_CALLOUT_COLOR),
@@ -100,8 +103,24 @@ const COMMANDS: CanvasCommand[] = [
   { icon: "add-reaction", name: "React", run: (_quill, { react }) => react() },
 ];
 
-const available = (quill: Quill) =>
-  COMMANDS.filter(({ requires }) => !requires || quill.scroll.query(requires));
+interface BlockCommand {
+  icon: IconName;
+  name: string;
+  run: () => void;
+}
+
+const blockCommands = new WeakMap<Quill, BlockCommand[]>();
+
+// Tables and columns offer their actions in the menu of the editors they hold.
+export function setBlockCommands(quill: Quill, commands: BlockCommand[]) {
+  blockCommands.set(quill, commands);
+}
+
+// A registry only answers for the formats its editor allows.
+const available = (quill: Quill): (BlockCommand | CanvasCommand)[] => [
+  ...(blockCommands.get(quill) ?? []),
+  ...COMMANDS.filter(({ requires }) => !requires || quill.scroll.query(requires)),
+];
 
 export function canvasCommandItems(quill: Quill | undefined): CommandSuggestItem[] {
   if (!quill) return [];

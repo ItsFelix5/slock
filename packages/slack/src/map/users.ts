@@ -1,4 +1,4 @@
-import type { RawBot, RawUser, RawUserProfile, User, UserCustomField } from "@slock/types";
+import type { RawUser, RawUserProfile, User, UserCustomField } from "@slock/types";
 import { parseUserId } from "../ids";
 
 export const SLACK_USER_ID = parseUserId("USLACK");
@@ -46,8 +46,6 @@ export function profileName(profile: RawUserProfile | undefined): string {
   return profile?.display_name || profile?.real_name || "";
 }
 
-export const SLACK_SYSTEM_USER: User = mapUser({ id: SLACK_USER_ID, name: "Slack" });
-
 export function mapUser(raw: RawUser): User {
   const isSlack = raw.id === SLACK_USER_ID;
   const realName = raw.profile?.real_name || raw.real_name;
@@ -84,18 +82,5 @@ export function mapUser(raw: RawUser): User {
     title: raw.profile?.title || undefined,
     tz: raw.tz,
     tzLabel: raw.tz_label || tzLabelFromOffset(raw.tz_offset),
-  };
-}
-
-export function mapBot(raw: RawBot): User {
-  const rawIcon = raw.icons?.image_72 ?? raw.icons?.image_48 ?? raw.icons?.image_36;
-  return {
-    appId: raw.app_id || undefined,
-    avatarColor: "#616061",
-    avatarUrl: rawIcon || undefined,
-    botId: raw.id,
-    id: parseUserId(raw.id),
-    isBot: true,
-    name: raw.name ?? "",
   };
 }

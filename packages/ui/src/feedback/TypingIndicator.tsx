@@ -3,7 +3,7 @@ import type { AvatarUser } from "../avatar/Avatar";
 import AvatarStack from "../avatar/AvatarStack";
 import "./TypingIndicator.css";
 
-export interface TypingIndicatorProps {
+interface TypingIndicatorProps {
   avatars?: boolean;
   dotsOnly?: boolean;
   inline?: boolean;

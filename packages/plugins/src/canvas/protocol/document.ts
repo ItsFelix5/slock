@@ -4,10 +4,10 @@ import { titleText } from "./flow.ts";
 import { buildFlow } from "./read.ts";
 import {
   type CanvasMeta,
+  CONTROL_CLASS,
   type DecodedCanvas,
   decodeLoadData,
   decodeRecords,
-  ORPHANED_EMBED_RECORDS_ANCHOR,
 } from "./sections.ts";
 
 export interface CanvasDocument {
@@ -22,11 +22,11 @@ function documentFrom(decoded: DecodedCanvas): CanvasDocument | null {
   if (!decoded.meta) return null;
   const embeds = new Map<string, CanvasEmbed>();
   for (const record of decoded.records) {
-    if (record.anchor === ORPHANED_EMBED_RECORDS_ANCHOR && record.id)
+    if (record.sectionClass === CONTROL_CLASS && record.id)
       embeds.set(record.id, parseEmbedRecord(record.msg));
   }
   const flow = buildFlow(decoded);
-  const nodes = flow.entries.flatMap((entry) => entry.node ?? []);
+  const nodes = flow.entries.map((entry) => entry.node);
   const fileIds = new Set<FileId>();
   for (const embed of embeds.values()) if (embed.type === "file") fileIds.add(embed.fileId);
   for (const node of nodes)

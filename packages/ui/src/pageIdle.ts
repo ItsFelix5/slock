@@ -1,4 +1,4 @@
-import type { Env, TimerHandle } from "@slock/core";
+import { createDebouncer, type Env } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { createSignal } from "solid-js";
 
@@ -12,16 +12,17 @@ interface VisibilitySource {
 
 export function trackPageIdle(env: Env, source: VisibilitySource) {
   const [idle, setIdle] = createSignal(false);
-  let idleTimer: TimerHandle | undefined;
+  const goIdle = createDebouncer(env, () => setIdle(true), IDLE_AFTER_HIDDEN_MS);
   const onChange = () => {
-    env.clearTimeout(idleTimer);
-    if (source.visibilityState === "visible") setIdle(false);
-    else idleTimer = env.setTimeout(() => setIdle(true), IDLE_AFTER_HIDDEN_MS);
+    if (source.visibilityState === "visible") {
+      goIdle.cancel();
+      setIdle(false);
+    } else goIdle.schedule();
   };
   source.addEventListener("visibilitychange", onChange);
   return {
     dispose() {
-      env.clearTimeout(idleTimer);
+      goIdle.cancel();
       source.removeEventListener("visibilitychange", onChange);
     },
     idle,

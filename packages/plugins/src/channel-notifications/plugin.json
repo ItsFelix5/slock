@@ -1,1 +1,7 @@
-{ "id": "channel-notifications", "name": "Channel notifications", "requires": ["prefs"] }
+{
+  "id": "channel-notifications",
+  "category": "Notifications",
+  "name": "Channel notifications",
+  "requires": ["prefs"],
+  "boot": true
+}

@@ -1,6 +1,6 @@
 import "./Skeleton.css";
 
-export interface SkeletonProps {
+interface SkeletonProps {
   circle?: boolean;
   height?: string | number;
   radius?: string | number;

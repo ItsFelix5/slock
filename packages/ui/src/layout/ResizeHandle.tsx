@@ -14,13 +14,6 @@ function resizeWidth(
   return Math.min(max, Math.max(min, width + pointerDelta * direction));
 }
 
-export function createWindowWidth() {
-  const [width, setWidth] = createSignal(window.innerWidth);
-  const onResize = () => setWidth(window.innerWidth);
-  window.addEventListener("resize", onResize);
-  return { dispose: () => window.removeEventListener("resize", onResize), width };
-}
-
 export default function ResizeHandle(props: {
   width: () => number;
   setWidth: (w: number) => void;

@@ -3,6 +3,7 @@ export function createLayerStack<T extends object>() {
   const top = () => layers.at(-1);
   return {
     findLast: (match: (layer: T) => boolean) => layers.findLast(match),
+    isEmpty: () => layers.length === 0,
     isTop: (layer: T | undefined) => top() === layer,
     pop(layer: T) {
       const wasTop = top() === layer;
@@ -16,5 +17,3 @@ export function createLayerStack<T extends object>() {
     },
   };
 }
-
-export type LayerStack<T extends object> = ReturnType<typeof createLayerStack<T>>;

@@ -5,14 +5,19 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./boot": "./src/client/boot.tsx",
+    "./serve": "./src/server/serve.ts",
     "./types": "./src/types.ts",
-    "./http": "./src/http.ts",
-    "./services": "./src/solidHost.ts",
-    "./solid": "./src/solid.tsx",
-    "./testing": "./src/testing.ts"
+    "./http": "./src/server/http.ts",
+    "./services": "./src/services.ts",
+    "./solid": "./src/client/solid.tsx"
   },
   "dependencies": {
     "@solidjs/web": "2.0.3",
     "solid-js": "2.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.2",
+    "bun-types": "^1.3.14"
   }
 }

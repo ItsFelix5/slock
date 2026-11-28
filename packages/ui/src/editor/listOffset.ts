@@ -28,7 +28,7 @@ function listValue(marker: string) {
   return marker.endsWith(".") ? "ordered" : "bullet";
 }
 
-export const listAutofillBinding = (checklists: boolean) => ({
+export const listAutofillBinding = (checklists: boolean, offsets: boolean) => ({
   key: " ",
   collapsed: true,
   format: { "code-block": false, blockquote: false, table: false },
@@ -38,9 +38,10 @@ export const listAutofillBinding = (checklists: boolean) => ({
     if (offset > context.prefix.length) return true;
     const lineStart = range.index - offset;
     const marker = context.prefix.trim();
+    const start = Number.parseInt(marker, 10);
+    if (start > 1 && !offsets) return true;
     this.quill.deleteText(lineStart, context.prefix.length, "user");
     this.quill.formatLine(lineStart, 1, "list", listValue(marker), "user");
-    const start = Number.parseInt(marker, 10);
     if (marker.endsWith(".") && start > 1)
       this.quill.formatLine(lineStart, 1, "listOffset", start - 1, "user");
     return false;
@@ -75,9 +76,10 @@ export function wireListOffsetCleanup(quill: Quill) {
   quill.on("text-change", (_delta, _old, source) => {
     if (source !== "user") return;
     for (const line of quill.getLines()) {
-      const index = quill.getIndex(line);
-      const { list, listOffset } = quill.getFormat(index, 1);
-      if (listOffset && !list) quill.formatLine(index, 1, "listOffset", false, "api");
+      // Block embeds return undefined here, whatever the types say.
+      const { list, listOffset } = line.formats() ?? {};
+      if (listOffset && !list)
+        quill.formatLine(quill.getIndex(line), 1, "listOffset", false, "api");
     }
   });
 }

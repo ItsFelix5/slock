@@ -10,12 +10,12 @@ export interface ThreadFocusInput {
   ts: Ts;
 }
 
-export type ThreadLanding =
+type ThreadLanding =
   | { at: "first"; ts: Ts }
   | { at: "highlight"; ts: Ts }
   | { at: "remembered"; offset: number; ts: Ts };
 
-export type ThreadFocusStep =
+type ThreadFocusStep =
   | { kind: "skip" }
   | { kind: "load-replies" }
   | { kind: "land"; key: string; landing: ThreadLanding; missingHighlight: boolean };

@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
-import { createChannel } from "@slock/plugins/slack/client/api";
+import { normalizeChannelName } from "@slock/plugins/channels/client/api/channelName";
 import { createSignal } from "solid-js";
-import { normalizeChannelName } from "../channelName";
+import { createChannel } from "../requests";
 import CreateDialog from "./CreateDialog";
 
 const channels = service("channels");

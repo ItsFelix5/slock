@@ -1,4 +1,4 @@
-import type { RawBot, RawIcons, RawUser, RawUserProfile } from "@slock/types";
+import type { RawIcons, RawUser, RawUserProfile } from "@slock/types";
 
 export function trimIcons(icons: RawIcons | undefined): RawIcons | undefined {
   if (!icons) return icons;
@@ -52,18 +52,4 @@ export function trimUser(user: RawUser): RawUser {
     tz_label: user.tz_label,
     tz_offset: user.tz_offset,
   };
-}
-
-export function trimBot(bot: RawBot): RawBot {
-  return {
-    app_id: bot.app_id,
-    icons: trimIcons(bot.icons),
-    id: bot.id,
-    name: bot.name,
-    user_id: bot.user_id,
-  };
-}
-
-export function displayName(user: RawUser) {
-  return user?.profile?.display_name || user?.profile?.real_name || user?.real_name || user?.name;
 }

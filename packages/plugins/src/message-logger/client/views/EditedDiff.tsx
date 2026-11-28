@@ -40,9 +40,7 @@ export default function EditedDiff(props: MessageEditedProps) {
             class="btn-reset message-edited edited-button"
             onClick={() => setOpen(!open())}
             type="button"
-          >
-            (edited)
-          </button>
+          />
         }
       >
         <div class="edit-diff-list">

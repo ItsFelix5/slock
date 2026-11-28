@@ -1,0 +1,40 @@
+.bk-tag {
+  --tag-color: var(--text-secondary);
+  padding: 0 var(--space-xs);
+  color: var(--tag-color);
+  background: rgb(from var(--tag-color) r g b / 18%);
+  border-radius: var(--radius-sm);
+  box-decoration-break: clone;
+}
+
+.bk-tag-brown {
+  --tag-color: var(--palette-brown-500);
+}
+
+.bk-tag-purple {
+  --tag-color: var(--palette-purple-500);
+}
+
+.bk-tag-indigo {
+  --tag-color: var(--palette-indigo-500);
+}
+
+.bk-tag-blue {
+  --tag-color: var(--palette-blue-500);
+}
+
+.bk-tag-green {
+  --tag-color: var(--palette-green-500);
+}
+
+.bk-tag-yellow {
+  --tag-color: var(--palette-yellow-500);
+}
+
+.bk-tag-orange {
+  --tag-color: var(--palette-orange-500);
+}
+
+.bk-tag-red {
+  --tag-color: var(--palette-red-500);
+}

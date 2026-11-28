@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
-import { createUsergroup } from "@slock/plugins/slack/client/api";
 import { createSignal } from "solid-js";
+import { createUsergroup } from "../requests";
 import CreateDialog from "./CreateDialog";
 
 const details = service("usergroup-details");

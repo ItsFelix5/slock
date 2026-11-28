@@ -1,7 +1,7 @@
 import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
 import type { MessageAuthorFields } from "@slock/plugins/messages/client/api/messageAuthor";
-import type { ActivityItem, Block, Message, SlackFile, Ts, UserId } from "@slock/types";
+import type { ActivityItem, Attachment, Block, Message, SlackFile, Ts, UserId } from "@slock/types";
 import { createEffect, createMemo, untrack } from "solid-js";
 
 const messagesStore = service("messages");
@@ -27,7 +27,11 @@ export function createActivityTimeline(deps: {
   createEffect(
     () =>
       deps.isThreadGroup()
-        ? { channelId: deps.latest().channelId, threadTs: deps.threadTs() }
+        ? {
+            channelId: deps.latest().channelId,
+            stale: messagesStore.isThreadStale(deps.threadTs()),
+            threadTs: deps.threadTs(),
+          }
         : undefined,
     (thread) => {
       if (thread) messagesStore.ensureThreadRepliesLoaded(thread.channelId, thread.threadTs);
@@ -98,6 +102,10 @@ export function createActivityTimeline(deps: {
     return entry.message?.text || entry.item?.text || "";
   }
 
+  function entryAttachments(entry: TimelineEntry): Attachment[] | undefined {
+    return entry.message?.attachments ?? entry.item?.attachments;
+  }
+
   function entryBlocks(entry: TimelineEntry): Block[] | undefined {
     return entry.message?.blocks ?? entry.item?.blocks;
   }
@@ -111,6 +119,7 @@ export function createActivityTimeline(deps: {
       botIcon: entry.message?.botIcon ?? entry.item?.botIcon,
       botId: entry.message?.botId ?? entry.item?.botId,
       botName: entry.message?.botName ?? entry.item?.botName,
+      botTeamId: entry.message?.botTeamId ?? entry.item?.botTeamId,
       userId: entryUserId(entry),
     };
   }
@@ -141,6 +150,7 @@ export function createActivityTimeline(deps: {
 
   return {
     earlierMessageCount,
+    entryAttachments,
     entryAuthor,
     entryBlocks,
     entryFiles,

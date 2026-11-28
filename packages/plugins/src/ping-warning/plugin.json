@@ -1,1 +1,7 @@
-{ "id": "ping-warning", "name": "Thread pinggroup warning", "requires": ["messages", "usergroups"] }
+{
+  "id": "ping-warning",
+  "category": "Write",
+  "name": "Thread pinggroup warning",
+  "requires": ["messages", "usergroups"],
+  "boot": true
+}

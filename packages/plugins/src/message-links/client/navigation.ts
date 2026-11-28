@@ -9,8 +9,16 @@ export function createMessageNavigation(deps: {
   openInNewPane: Services["shell.panes"]["openInNewPane"];
   setActiveView: Services["conversations"]["setActiveView"];
 }) {
-  function openThread(channelId: ChannelId, ts: Ts, highlightTs?: Ts, opts?: { pinned?: boolean }) {
-    deps.openInNewPane({ channelId, highlightTs, kind: "thread", pinned: opts?.pinned, ts });
+  function openThread(
+    channelId: ChannelId,
+    ts: Ts,
+    highlightTs?: Ts,
+    opts?: { compose?: boolean; pinned?: boolean },
+  ) {
+    deps.openInNewPane(
+      { channelId, highlightTs, kind: "thread", pinned: opts?.pinned, ts },
+      opts?.compose ? "composer" : undefined,
+    );
   }
 
   function openChannelPeek(channelId: ChannelId, ts: Ts, highlightTs?: Ts) {

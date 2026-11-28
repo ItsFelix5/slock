@@ -1,1 +1,7 @@
-{ "id": "appearance", "name": "Appearance", "requires": [] }
+{
+  "id": "appearance",
+  "category": "Looks and layout",
+  "name": "Appearance",
+  "requires": [],
+  "boot": true
+}

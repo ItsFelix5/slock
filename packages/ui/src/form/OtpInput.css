@@ -15,15 +15,11 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   outline: none;
-  transition:
-    border-color 0.12s,
-    background 0.12s;
 }
 
 .otp-input-slot.filled {
   background: var(--active-bg);
   border-color: var(--border-strong);
-  animation: otp-pop 0.12s ease-out;
 }
 
 .otp-input-slot:focus-visible {
@@ -43,15 +39,6 @@
   border-color: var(--danger);
 }
 
-@keyframes otp-pop {
-  from {
-    transform: scale(0.85);
-  }
-  to {
-    transform: scale(1);
-  }
-}
-
 @keyframes otp-shake {
   0%,
   100% {
@@ -66,7 +53,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .otp-input-slot,
   .otp-input.shake {
     animation: none;
   }

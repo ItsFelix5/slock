@@ -17,6 +17,15 @@ export function indexElementText(root: Node): TextIndex {
   return { starts, text: text.toLowerCase() };
 }
 
+export function paintHighlight(name: string, ranges: Range[]): () => void {
+  const highlight = CSS.highlights.get(name) ?? new Highlight();
+  CSS.highlights.set(name, highlight);
+  for (const range of ranges) highlight.add(range);
+  return () => {
+    for (const range of ranges) highlight.delete(range);
+  };
+}
+
 function pointAt(starts: TextIndex["starts"], index: number) {
   let point: { node: Node; offset: number } | undefined;
   for (const entry of starts) {

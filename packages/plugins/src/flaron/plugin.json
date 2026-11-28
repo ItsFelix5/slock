@@ -1,1 +1,6 @@
-{ "id": "flaron", "name": "Flaron private channel lookup", "requires": ["channels"] }
+{
+  "id": "flaron",
+  "category": "Extras",
+  "name": "Flaron private channel lookup",
+  "requires": ["channels"]
+}

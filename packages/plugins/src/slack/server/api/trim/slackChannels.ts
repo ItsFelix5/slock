@@ -1,10 +1,6 @@
-import { parseChannelId } from "@slock/slack";
 import type {
-  ChannelId,
-  FileId,
   RawChannel,
   RawChannelProperties,
-  RawChannelSection,
   RawChannelText,
   RawCountGroup,
   RawCounts,
@@ -61,7 +57,6 @@ function trimChannelProperties(properties: RawChannelProperties): RawChannelProp
     channel_email_addresses: properties.channel_email_addresses?.map((entry) => ({
       address: entry.address,
     })),
-    has_custom_mpdm_name: properties.has_custom_mpdm_name,
     tabs: properties.tabs?.map((tab) => ({
       data: tab.data ? { file_id: tab.data.file_id } : undefined,
       label: tab.label,
@@ -77,10 +72,6 @@ type NamedChannel = Pick<RawChannel, "is_file" | "name" | "name_normalized">;
 
 export function isHostedChannel(channel: NamedChannel): boolean {
   return !!channel.is_file || !!channel.name_normalized?.startsWith(HOSTED_NAME_PREFIX);
-}
-
-export function hostedChannelId(fileId: FileId): ChannelId {
-  return parseChannelId(`C${fileId.slice(1)}`);
 }
 
 function publicName(channel: NamedChannel): string | undefined {
@@ -127,25 +118,7 @@ export function trimBootChannel(channel: RawChannel): RawChannel {
     is_private: channel.is_private,
     members: channel.is_mpim ? channel.members : undefined,
     name: publicName(channel),
-    properties: channel.properties
-      ? { has_custom_mpdm_name: channel.properties.has_custom_mpdm_name }
-      : undefined,
     topic: trimChannelText(channel.topic),
     updated: channel.updated,
-  };
-}
-
-export function trimChannelSection(section: RawChannelSection): RawChannelSection {
-  return {
-    channel_ids: section.channel_ids,
-    channel_ids_page: section.channel_ids_page
-      ? { channel_ids: section.channel_ids_page.channel_ids }
-      : undefined,
-    channel_section_id: section.channel_section_id,
-    channels: section.channels,
-    id: section.id,
-    name: section.name,
-    sidebar: section.sidebar,
-    type: section.type,
   };
 }

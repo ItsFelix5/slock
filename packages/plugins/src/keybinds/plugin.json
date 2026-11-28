@@ -1,1 +1,6 @@
-{ "id": "keybinds", "name": "Keybinds", "requires": ["settings", "shell"] }
+{
+  "id": "keybinds",
+  "category": "Looks and layout",
+  "name": "Keybinds",
+  "requires": ["settings", "shell"]
+}

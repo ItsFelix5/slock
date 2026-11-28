@@ -1,4 +1,4 @@
-export interface ColorChannelRowProps {
+interface ColorChannelRowProps {
   digits: number;
   label: string;
   max: number;

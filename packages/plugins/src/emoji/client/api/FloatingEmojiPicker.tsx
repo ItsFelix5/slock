@@ -1,4 +1,5 @@
-import { FloatingPanel, useClickOutside } from "@slock/ui";
+import { captureFocus, FloatingPanel, useClickOutside } from "@slock/ui";
+import { onCleanup } from "solid-js";
 import EmojiPicker from "./EmojiPicker";
 
 export default function FloatingEmojiPicker(props: {
@@ -9,6 +10,8 @@ export default function FloatingEmojiPicker(props: {
   existingReactions?: { name: string; mine: boolean }[];
 }) {
   let panelRef: HTMLDivElement | undefined;
+  const returnFocus = captureFocus();
+  onCleanup(() => returnFocus());
 
   useClickOutside([props.anchor, () => panelRef], () => {
     if (props.open) props.onClose();

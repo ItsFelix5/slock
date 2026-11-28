@@ -1,10 +1,12 @@
+import type { CycleTarget } from "@slock/plugins/sidebar/client/api";
 import type { ChannelId } from "@slock/types";
 import type { Accessor, Component } from "solid-js";
 
 export type HomeSectionProps = { unreadsOnly: Accessor<boolean> };
 
-export type HomeChannelRows = {
+type HomeChannelRows = {
   active: (channelId: ChannelId) => boolean;
+  cycleTargets: (channelId: ChannelId) => CycleTarget[];
   view: Component<{ channelId: ChannelId }>;
 };
 

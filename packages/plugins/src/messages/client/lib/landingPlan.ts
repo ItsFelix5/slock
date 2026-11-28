@@ -24,7 +24,7 @@ export type LandingStep =
   | { kind: "wait-divider" }
   | { kind: "land-initial"; anchor: number | undefined };
 
-export interface LandingPlan {
+interface LandingPlan {
   state: LandingState;
   step: LandingStep;
   viewSwitched: boolean;

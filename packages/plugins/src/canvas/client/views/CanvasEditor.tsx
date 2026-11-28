@@ -1,38 +1,37 @@
-import ComposerSuggestPopover from "@slock/plugins/composer/client/api/editor/ComposerSuggestPopover";
+import { service, useDebouncer } from "@slock/core/solid";
 import { insertSuggestionAt } from "@slock/plugins/composer/client/api/editor/mrkdwnInsert";
 import {
   createSuggestionController,
   syncSuggestionsAfterChange,
 } from "@slock/plugins/composer/client/api/editor/suggestionController";
-import {
-  type SuggestState,
-  suggestOpen,
-} from "@slock/plugins/composer/client/api/editor/suggestTypes";
+import type { SuggestState } from "@slock/plugins/composer/client/api/editor/suggestTypes";
 import { useSuggestShortcuts } from "@slock/plugins/composer/client/api/editor/useSuggestShortcuts";
 import { useSuggestUi } from "@slock/plugins/composer/client/api/editor/useSuggestUi";
-import type { CanvasCommentThread, FileId } from "@slock/types";
-import { FloatingPanel } from "@slock/ui";
+import type { CanvasAccess, FileId } from "@slock/types";
 import type Quill from "@slock/ui/editor/quill";
-import { indexAlignedText } from "@slock/ui/editor/quillText";
-import { createSignal, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show, untrack } from "solid-js";
 import { type DiffEntry, newSectionId } from "../../protocol/api";
-import { createCanvasCommandContext, lineElement } from "../lib/canvasCommandContext";
+import { createCanvasCommandContext } from "../lib/canvasCommandContext";
 import { canvasCommandItems, runCanvasCommand } from "../lib/canvasCommands";
+import type { CanvasCommentsController } from "../lib/canvasComments";
 import { type CanvasDocModel, canvasTitle, canvasToOps } from "../lib/canvasDelta";
 import { diffToOps } from "../lib/canvasDiffView";
-import { applyIdFixes } from "../lib/canvasEditorSetup";
-import { annotateSelection, commentAnchorAt } from "../lib/canvasFormatting";
+import { createEditorPort } from "../lib/canvasEditorPort";
 import { createCanvasNames } from "../lib/canvasNames";
 import type { OutlineSource } from "../lib/canvasOutline";
 import { watchRemoteChanges } from "../lib/canvasRemoteWatch";
 import { type LoadedCanvas, postCanvasEdit } from "../lib/canvasRequests";
 import { createCanvasSync } from "../lib/canvasSync";
+import { bindFileDrops, createCanvasUploads } from "../lib/canvasUpload";
 import CanvasCommandPicker from "./CanvasCommandPicker";
 import CanvasMarginThreads from "./CanvasMarginThreads";
 import CanvasSelectionActions from "./CanvasSelectionActions";
+import CanvasSuggestions from "./CanvasSuggestions";
 import CanvasSurface from "./CanvasSurface";
+import CanvasTitle from "./CanvasTitle";
 import { CANVAS_FORMATS } from "./canvasBlots";
 import { type CanvasServices, provideCanvasServices } from "./canvasBlots/canvasServices";
+import { useCanvasAnnotations } from "./useCanvasAnnotations";
 import { useCanvasOutline } from "./useCanvasOutline";
 import { useCanvasSelectionShortcuts } from "./useCanvasSelectionShortcuts";
 import "./CanvasBlocks.css";
@@ -40,27 +39,30 @@ import "./CanvasEditor.css";
 import "./CanvasLayouts.css";
 import "./CanvasEditorLists.css";
 
+const canvas = service("canvas");
+const feedback = service("feedback");
+
 export default function CanvasEditor(props: {
+  access: CanvasAccess;
+  comments?: CanvasCommentsController;
   diff?: DiffEntry[];
   doc: CanvasDocModel;
-  editable: boolean;
   fileId: FileId;
+  latest?: LoadedCanvas;
   onOutline: (source: OutlineSource | null) => void;
-  fetchLatest: () => Promise<LoadedCanvas | null>;
-  onComment?: (annotationId: string) => void;
-  onOpenThread?: (thread: CanvasCommentThread) => void;
-  onReact?: (annotationId: string, name: string) => void;
-  onReactToThread?: (thread: CanvasCommentThread, name: string) => void;
-  onRemoteChange: (latest: LoadedCanvas) => void;
-  remoteChangeTick?: () => number;
   onTitle?: (title: string) => void;
-  threads?: CanvasCommentThread[];
 }) {
   const [container, setContainer] = createSignal<HTMLElement>();
   const names = createCanvasNames();
-  const [title, setTitle] = createSignal(canvasTitle(props.doc, names));
+  const initial = untrack(() => ({ diff: props.diff, doc: props.doc }));
+  const editable = untrack(() => props.access === "edit");
+  const canComment = untrack(() => props.access !== "view");
+  let titleText = canvasTitle(initial.doc, names);
+  const [title, setTitle] = createSignal(titleText);
   const [suggest, setSuggest] = createSignal<SuggestState | null>(null);
-  const ops = props.diff ? diffToOps(props.diff, props.doc, names) : canvasToOps(props.doc, names);
+  const ops = initial.diff
+    ? diffToOps(initial.diff, initial.doc, names)
+    : canvasToOps(initial.doc, names);
   const [active, setActive] = createSignal<Quill>();
   const surfaces = new Map<Quill, () => string>();
   let root: Quill | undefined;
@@ -73,24 +75,54 @@ export default function CanvasEditor(props: {
     title,
     titleElement: () => titleRef,
   });
-  const newId = () => newSectionId(props.doc.meta.shardChars);
+  const newId = () => newSectionId(initial.doc.meta.shardChars);
 
   function findSurface(scope: string): Quill | undefined {
     return [...surfaces].find(([, scopeOf]) => scopeOf() === scope)?.[0];
   }
 
+  // Signal reads lag behind writes until the next flush, and the sync reads right back.
+  function writeTitle(next: string) {
+    if (next === titleText) return;
+    titleText = next;
+    setTitle(next);
+    props.onTitle?.(next);
+  }
+
+  const fileId = untrack(() => props.fileId);
+  const refresh = () => canvas.refreshCanvasContent(fileId);
   const sync = createCanvasSync({
-    applyFixes: (fixes) => applyIdFixes(findSurface, fixes),
-    embeds: props.doc.embeds,
-    getOps: () => root?.getContents().ops ?? [],
-    getTitle: title,
-    initialNodes: props.doc.nodes,
+    editor: createEditorPort({
+      active: () => untrack(active),
+      find: findSurface,
+      onApply: () => outline.schedule(),
+      root: () => root,
+      title: () => titleText,
+      writeTitle,
+    }),
+    embeds: initial.doc.embeds,
+    initialNodes: initial.doc.nodes,
     initialOps: ops,
-    initialTitle: title(),
+    initialTitle: titleText,
     names,
-    send: (edit) => postCanvasEdit(props.fileId, edit),
-    shardChars: props.doc.meta.shardChars,
+    onError: (error) => feedback.caught(fileId, error, "Couldn't save"),
+    refresh,
+    send: (edit) => postCanvasEdit(fileId, edit),
+    shardChars: initial.doc.meta.shardChars,
   });
+  onCleanup(() => void sync.detach());
+
+  let waiting = false;
+  function pull() {
+    untrack(() => {
+      waiting = !sync.receive(props.latest);
+    });
+  }
+  const retryPull = useDebouncer(pull, 0);
+  const retryWaiting = () => {
+    if (waiting) retryPull.schedule();
+  };
+  createEffect(() => props.latest, pull, { defer: true });
 
   const suggestions = createSuggestionController({
     applyTextSuggestion: (item, state) => {
@@ -116,74 +148,64 @@ export default function CanvasEditor(props: {
     setSuggest,
     suggest,
   });
+  const annotations = useCanvasAnnotations({ comments: () => props.comments, newId, sync });
+  const uploads = createCanvasUploads({ fileId, newId });
   const commands = createCanvasCommandContext({
-    annotate: annotationFor,
+    annotate: annotations.annotationFor,
     newId,
-    onComment: (annotationId) => props.onComment?.(annotationId),
+    onComment: (annotationId) => props.comments?.openAnnotation(annotationId, true),
+    onReact: (annotationId, name) => props.comments?.reactToAnnotation(annotationId, name),
+    upload: uploads.upload,
   });
   const runOnSelection = useCanvasSelectionShortcuts({
     contextFor: commands.contextFor,
-    editable: () => props.editable,
+    canComment: () => canComment,
     quill: active,
   });
   useSuggestUi(() => suggestPopoverRef, suggest, setSuggest);
   useSuggestShortcuts({ setSuggest, suggest, suggestions });
 
   const services: CanvasServices = {
+    access: untrack(() => props.access),
     activate: setActive,
     afterChange(quill) {
+      // A version view shows old content with diff marks, none of which may reach the canvas.
+      if (!canComment) return;
       sync.markDirty();
       outline.schedule();
-      syncSuggestionsAfterChange(quill, indexAlignedText(quill), suggestions, (index) => {
+      syncSuggestionsAfterChange(quill, suggestions, (index) => {
         caretIndex = index;
       });
     },
+    movesAnnotation: (id) =>
+      sync.hasAnnotation(id) && !root?.root.querySelector(`[data-annotation~="${CSS.escape(id)}"]`),
     names,
     newId,
-    readOnly: !props.editable,
     register(scope, quill) {
       surfaces.set(quill, scope);
       return () => surfaces.delete(quill);
     },
+    upload: uploads.upload,
   };
-
-  function resizeTitle() {
-    if (!titleRef) return;
-    titleRef.style.height = "auto";
-    titleRef.style.height = `${titleRef.scrollHeight}px`;
-  }
 
   function ready(quill: Quill) {
     root = quill;
     setActive(quill);
+    sync.adoptLoaded();
     outline.load(quill);
     quill.root.addEventListener("blur", () => void sync.flush());
   }
 
-  watchRemoteChanges({
-    fetchLatest: props.fetchLatest,
-    isEditing: () => !!root?.hasFocus(),
-    names,
-    onRemoteChange: props.onRemoteChange,
-    remoteChangeTick: () => props.remoteChangeTick?.() ?? 0,
-    sync,
-  });
+  if (untrack(() => props.latest))
+    watchRemoteChanges({
+      fileId,
+      refresh,
+      remoteChangeTick: () => canvas.remoteChangeTick(fileId),
+      sync,
+    });
 
-  async function annotationFor(quill: Quill) {
-    const existing = commentAnchorAt(quill);
-    if (existing) return existing;
-    const id = newId();
-    if (!annotateSelection(quill, id)) return null;
-    await sync.flush();
-    return id;
-  }
-
-  function focusEnd(event: MouseEvent) {
-    const mark = event.target instanceof Element ? event.target.closest("[data-annotation]") : null;
-    if (mark instanceof HTMLElement && mark.dataset.annotation) {
-      props.onComment?.(mark.dataset.annotation);
-      return;
-    }
+  function clickEditor(event: MouseEvent) {
+    if (annotations.openClicked(event.target)) return;
     if (event.target !== event.currentTarget || !root) return;
     root.focus();
     root.setSelection(Math.max(root.getLength() - 1, 0), 0);
@@ -192,39 +214,29 @@ export default function CanvasEditor(props: {
   return (
     <div
       class="canvas-editor"
-      onClick={focusEnd}
+      onClick={clickEditor}
+      onCompositionEnd={retryWaiting}
+      onFocusOut={retryWaiting}
       ref={(element) => {
         provideCanvasServices(element, services);
+        bindFileDrops(element, () => root, uploads.upload);
         setContainer(element);
       }}
     >
-      <CanvasCommandPicker
-        onClose={commands.close}
-        onReact={(annotationId, name) => props.onReact?.(annotationId, name)}
-        picker={commands.picker()}
-      />
-      <textarea
-        aria-label="Canvas title"
-        class="canvas-editor-title"
-        onInput={(event) => {
-          setTitle(event.currentTarget.value);
-          props.onTitle?.(event.currentTarget.value);
-          resizeTitle();
-          sync.markDirty();
-        }}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter") return;
-          event.preventDefault();
+      <CanvasCommandPicker onClose={commands.close} picker={commands.picker()} />
+      <CanvasTitle
+        onEnter={() => {
           root?.focus();
           root?.setSelection(0, 0);
         }}
-        placeholder="Untitled"
-        readonly={!props.editable}
-        ref={(el) => {
-          titleRef = el;
-          queueMicrotask(resizeTitle);
+        onInput={(next) => {
+          writeTitle(next);
+          sync.markDirty();
         }}
-        rows={1}
+        readonly={!editable}
+        ref={(element) => {
+          titleRef = element;
+        }}
         value={title()}
       />
       <CanvasSurface
@@ -233,21 +245,29 @@ export default function CanvasEditor(props: {
         id={`canvas-editor-${props.fileId}`}
         initialOps={ops}
         onReady={ready}
-        placeholder={props.editable ? "Write something, or press / for commands" : ""}
+        placeholder={editable ? "Write something, or press / for commands" : ""}
         scope={() => ""}
         services={services}
       />
+      <Show when={uploads.progress() !== undefined}>
+        <output class="canvas-upload text-sm">
+          Uploading {Math.round((uploads.progress() ?? 0) * 100)}%
+        </output>
+      </Show>
       <Show when={container()}>
         {(element) => (
           <>
-            <CanvasMarginThreads
-              container={element()}
-              fileId={props.fileId}
-              onOpen={(thread) => props.onOpenThread?.(thread)}
-              onReact={(thread, name) => props.onReactToThread?.(thread, name)}
-              threads={props.threads ?? []}
-            />
-            <Show when={props.editable}>
+            <Show when={props.comments}>
+              {(comments) => (
+                <CanvasMarginThreads
+                  canReact={canComment}
+                  comments={comments()}
+                  container={element()}
+                  fileId={props.fileId}
+                />
+              )}
+            </Show>
+            <Show when={canComment}>
               <CanvasSelectionActions
                 container={element()}
                 onComment={() => runOnSelection("Comment")}
@@ -257,25 +277,14 @@ export default function CanvasEditor(props: {
           </>
         )}
       </Show>
-      <Show when={suggestOpen(suggest()) ? suggest() : undefined}>
-        {(state) => (
-          <Show when={active()}>
-            {(quill) => (
-              <FloatingPanel anchor={() => lineElement(quill())} open>
-                <ComposerSuggestPopover
-                  floating
-                  onHover={suggestions.setActiveSuggestion}
-                  onPick={suggestions.applySuggestion}
-                  ref={(el) => {
-                    suggestPopoverRef = el;
-                  }}
-                  state={state()}
-                />
-              </FloatingPanel>
-            )}
-          </Show>
-        )}
-      </Show>
+      <CanvasSuggestions
+        controller={suggestions}
+        popoverRef={(element) => {
+          suggestPopoverRef = element;
+        }}
+        quill={active()}
+        state={suggest()}
+      />
     </div>
   );
 }

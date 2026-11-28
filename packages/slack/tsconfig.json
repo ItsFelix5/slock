@@ -10,5 +10,6 @@
   },
   "extends": "../../tsconfig.base.json",
   "include": ["src"],
+  "exclude": ["src/client"],
   "references": [{ "path": "../core" }, { "path": "../types" }]
 }

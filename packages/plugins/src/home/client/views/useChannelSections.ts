@@ -2,9 +2,11 @@ import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { sectionMoveTarget } from "@slock/plugins/channels/client/api/sectionMutations";
 import { conversationTarget } from "@slock/plugins/conversations/client/api/nav";
+import type { ChannelId } from "@slock/types";
 import { type Accessor, createMemo, createSignal } from "solid-js";
 import { buildCategories, type Category } from "./categories";
 import { useChannelRows } from "./channelRows";
+import { useChannelDrop } from "./useChannelDrop";
 
 import { useDmSections } from "./useDmSections";
 import { useOpenViews } from "./useOpenViews";
@@ -31,7 +33,8 @@ export function useChannelSections(unreadsOnly: Accessor<boolean>) {
       hasDms: dmSections.hasDms,
       isChannelLeft: channels.isChannelLeft,
       isChannelMuted: prefs.isChannelMuted,
-      isChannelOpen: (id) => isOpen(id, "channel") || isOpen(id, "dm"),
+      isChannelOpen: (id) =>
+        isOpen(id, "channel") || isOpen(id, "dm") || channels.isChannelJustPlaced(id),
       isChannelStarred: channels.isChannelStarred,
       isChannelUnread: (id) => unread.isChannelUnread(id) || channelRows.hasRows(id),
       sections: channels.sections,
@@ -47,10 +50,13 @@ export function useChannelSections(unreadsOnly: Accessor<boolean>) {
   const isChannelShown = (catId: string, channel: Category["channels"][number]) =>
     !channels.collapsedIds().has(catId) ||
     isOpen(channel.id, "channel") ||
+    channels.isChannelJustPlaced(channel.id) ||
     ((channel.mentions ?? 0) > 0 && !prefs.isChannelMuted(channel.id)) ||
     channelRows.hasRows(channel.id);
-  const isDmShown = (catId: string, dm: { mentions?: number }) =>
-    !channels.collapsedIds().has(catId) || (dm.mentions ?? 0) > 0;
+  const isDmShown = (catId: string, dm: { id: ChannelId; mentions?: number }) =>
+    !channels.collapsedIds().has(catId) ||
+    (dm.mentions ?? 0) > 0 ||
+    channels.isChannelJustPlaced(dm.id);
   const categoryDms = (cat: Category) => {
     if (cat.dm) return dmSections.dmsFor(cat.dm);
     return (cat.dmIds ?? []).map((id) => dms.dmById(id)).filter((dm) => dm !== undefined);
@@ -59,7 +65,10 @@ export function useChannelSections(unreadsOnly: Accessor<boolean>) {
     categories().flatMap((cat) => [
       ...cat.channels
         .filter((channel) => isChannelShown(cat.id, channel))
-        .map((channel) => conversationTarget(channel.id, "channel")),
+        .flatMap((channel) => [
+          conversationTarget(channel.id, "channel"),
+          ...channelRows.cycleTargets(channel.id),
+        ]),
       ...categoryDms(cat)
         .filter((dm) => isDmShown(cat.id, dm))
         .map((dm) => conversationTarget(dm.id, "dm")),
@@ -166,6 +175,7 @@ export function useChannelSections(unreadsOnly: Accessor<boolean>) {
 
   return {
     canMoveSection,
+    channelDrop: useChannelDrop(dmSections.dmKind),
     categories,
     categoryDms,
     channelById,

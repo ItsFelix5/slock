@@ -38,7 +38,7 @@ const HOUR_MS = 60 * MINUTE_MS;
 const DAYS_PER_WEEK = 7;
 const MAX_LEAP_GAP_YEARS = 8;
 
-export interface ParsedDate {
+interface ParsedDate {
   ts: number;
   hasTime: boolean;
 }

@@ -11,10 +11,14 @@ const setup: Setup = (ctx) => {
   const bootstrap = service("bootstrap");
   const view = service("conversations");
   const store = createChannelsStore({
-    activeView: view.activeView,
     bootstrap: () => bootstrap.bootstrap().data,
     decorators: ctx.use("channels.decorate"),
-    mutateUserPrefs: bootstrap.mutateUserPrefs,
+    overlayStarredIds: (change) =>
+      bootstrap.overlayBootstrap((current) => ({
+        ...current,
+        starredChannelIds: change(current.starredChannelIds),
+      })),
+    overlayUserPrefs: bootstrap.overlayUserPrefs,
     setActiveView: view.setActiveView,
     userPrefs: () => bootstrap.userPrefs().data,
   });
@@ -79,7 +83,7 @@ const setup: Setup = (ctx) => {
         "channel_sections_channels_removed",
       ],
       () => {
-        if (!store.sectionStructurePending()) void store.retrySections();
+        if (!store.isSectionStructurePending()) void store.retrySections();
       },
     ),
   );
@@ -88,7 +92,7 @@ const setup: Setup = (ctx) => {
     gatewayHandler(["star_added", "star_removed"], (event) => {
       const id = ifPresent(parseChannelId, event.item.channel);
       if (event.item.type === "channel" && id)
-        store.setStarredChannelIds(id, event.type === "star_added");
+        store.setChannelStarred(id, event.type === "star_added");
     }),
   );
   ctx.add("messages.channelMenu", LeaveItem, { order: 60 });

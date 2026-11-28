@@ -2,7 +2,7 @@ import { defined, errorMessage } from "@slock/core";
 import type { ChannelId, Ts } from "@slock/types";
 import { composerFeedbackKey, SLASH_COMMAND_RE } from "./api";
 
-export interface SlashCommandDeps {
+interface SlashCommandDeps {
   run: (channelId: ChannelId, command: string, text: string) => Promise<string | null>;
   flashError: (key: string, message: string) => void;
 }

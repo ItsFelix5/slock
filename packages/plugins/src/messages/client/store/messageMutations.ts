@@ -1,16 +1,14 @@
+import { createQueue } from "@slock/core";
 import { service } from "@slock/core/solid";
-import {
-  broadcastReply,
-  deleteAttachment,
-  deleteMessage,
-  editMessage,
-} from "@slock/plugins/slack/client/api";
-import { isMyRelayedMessage } from "@slock/slack";
+import { defineMutation } from "@slock/plugins/query/client/api";
 import type { Block, ChannelId, FileId, Message, Ts, User } from "@slock/types";
-import { createConcurrencyQueue } from "@slock/ui";
 import type { LocatedMessages } from "../lib/messageLocations";
+import { isMyRelayedMessage } from "../lib/relayedMessages";
+import { broadcastReply, deleteAttachment, deleteMessage, editMessage } from "../requests/send";
 
 const feedback = service("feedback");
+
+type Target = { channelId: ChannelId; ts: Ts };
 
 export function createMessageMutations(deps: {
   currentUser: () => User | undefined;
@@ -63,35 +61,43 @@ export function createMessageMutations(deps: {
     }
   }
 
-  const edits = createConcurrencyQueue(1);
+  const edits = createQueue(1);
   const editMessageText = (...args: Parameters<typeof performEdit>) =>
     edits.run(() => performEdit(...args));
 
-  async function broadcastThreadReply(channelId: ChannelId, ts: Ts) {
-    const relayed = isRelayed(findMessage(channelId, ts));
-    deps.patchMessage(channelId, ts, { isBroadcast: true });
-    try {
-      await broadcastReply(channelId, ts, relayed);
+  const messageKey = ({ channelId, ts }: Target) => `${channelId}:${ts}`;
+
+  const broadcast = defineMutation<Target, unknown>({
+    key: messageKey,
+    mode: "single",
+    onError: (error, { channelId, ts }) => {
+      console.error("Failed to broadcast reply", error);
+      feedback.error(ts, "Failed to send to channel.");
+      deps.patchMessage(channelId, ts, { isBroadcast: false });
+    },
+    onSuccess: (_result, { channelId, ts }) => {
       const broadcasted = findMessage(channelId, ts);
       if (broadcasted && deps.isChannelLoaded(channelId))
         deps.insertMessageInOrder(channelId, broadcasted);
-    } catch (err) {
-      console.error("Failed to broadcast reply", err);
-      feedback.error(ts, "Failed to send to channel.");
-      deps.patchMessage(channelId, ts, { isBroadcast: false });
-    }
-  }
+    },
+    optimistic: ({ channelId, ts }) => deps.patchMessage(channelId, ts, { isBroadcast: true }),
+    run: ({ channelId, ts }) =>
+      broadcastReply(channelId, ts, isRelayed(findMessage(channelId, ts))),
+  });
 
-  async function deleteMessageAt(channelId: ChannelId, ts: Ts) {
-    const relayed = isRelayed(findMessage(channelId, ts));
-    try {
-      await deleteMessage(channelId, ts, relayed);
-      deps.markDeleted(channelId, ts);
-    } catch (err) {
-      console.error("Failed to delete message", err);
+  const removal = defineMutation<Target, unknown>({
+    key: messageKey,
+    mode: "single",
+    onError: (error, { ts }) => {
+      console.error("Failed to delete message", error);
       feedback.error(ts, "Failed to delete message.");
-    }
-  }
+    },
+    onSuccess: (_result, { channelId, ts }) => deps.markDeleted(channelId, ts),
+    run: ({ channelId, ts }) => deleteMessage(channelId, ts, isRelayed(findMessage(channelId, ts))),
+  });
+
+  const broadcastThreadReply = (channelId: ChannelId, ts: Ts) => broadcast.run({ channelId, ts });
+  const deleteMessageAt = (channelId: ChannelId, ts: Ts) => removal.run({ channelId, ts });
 
   return { broadcastThreadReply, deleteMessageAt, editMessageText };
 }

@@ -1,7 +1,6 @@
 .message-files {
   gap: 6px;
   max-width: min(420px, 100%);
-  margin-top: var(--space-xs);
 }
 
 .message-file-image {

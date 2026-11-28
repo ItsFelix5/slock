@@ -1,1 +1,7 @@
-{ "id": "orpheus", "name": "Haiku detector", "requires": ["query"] }
+{
+  "id": "orpheus",
+  "category": "Extras",
+  "name": "Haiku detector",
+  "requires": ["query"],
+  "boot": true
+}

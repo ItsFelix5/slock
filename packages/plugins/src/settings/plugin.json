@@ -1,1 +1,1 @@
-{ "id": "settings", "name": "Settings", "requires": [] }
+{ "id": "settings", "category": "Core", "name": "Settings", "requires": [], "boot": true }

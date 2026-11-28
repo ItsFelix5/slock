@@ -84,7 +84,6 @@
   background: rgba(0, 0, 0, 0.55);
   border-radius: var(--radius-pill);
   opacity: 1;
-  transition: opacity 0.1s;
 }
 
 .video-player-wrap:hover .video-player-idle,
@@ -97,7 +96,6 @@
 .video-player-controls {
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.12s ease;
 }
 
 .video-player-wrap:hover .video-player-corner,
@@ -173,7 +171,6 @@
   border-radius: var(--radius-circle);
   opacity: 0;
   transform: translate(-50%, -50%);
-  transition: opacity 0.1s;
 }
 
 .video-player-seek:hover .video-player-seek-thumb,

@@ -39,7 +39,13 @@ export function sameFrames(a: LayoutFrame[], b: LayoutFrame[]): boolean {
 }
 
 export function isLineNode(node: CanvasNode): node is CanvasLine {
-  return node.kind !== "file" && node.kind !== "image" && node.kind !== "table";
+  return (
+    node.kind !== "card" &&
+    node.kind !== "file" &&
+    node.kind !== "image" &&
+    node.kind !== "table" &&
+    node.kind !== "unknown"
+  );
 }
 
 export function layoutAttribute(frames: LayoutFrame[]): string | null {

@@ -1,90 +1,69 @@
+import { createFlags } from "@slock/core/solid";
 import type { Services } from "@slock/core/types";
 import { defineQuery, retryPolicy } from "@slock/plugins/query/client/api";
-import { fetchChannelCanvases } from "@slock/plugins/slack/client/api";
+import {
+  fetchConversationView,
+  invalidateConversationView,
+} from "@slock/plugins/slack/client/api/conversationView";
+import { mentionText } from "@slock/plugins/users/client/api";
 import type { CanvasListItem, ChannelId, FileId } from "@slock/types";
-import { createSignal, createStore } from "solid-js";
+import { createStore } from "solid-js";
 import {
   CanvasReadError,
+  canvasFileTitle,
   fetchCanvas,
-  fetchCanvasPermalink,
-  fetchCanvasTitleOrVisibility,
+  findCanvasFile,
   type LoadedCanvas,
 } from "./lib/canvasRequests";
 
 export function createCanvasStore(deps: {
   panes: Pick<Services["shell.panes"], "openInNewPane" | "setPaneContent">;
 }) {
-  const [notVisible, setNotVisible] = createSignal<ReadonlySet<FileId>>(new Set());
-  const [titles, setTitles] = createSignal<Record<FileId, string>>({});
-  const requestedTitles = new Set<FileId>();
+  const notVisible = createFlags<FileId>();
   const [remoteChanges, setRemoteChanges] = createStore<Record<FileId, number>>({});
+
+  const titles = defineQuery<FileId, string>({
+    gcMs: Number.POSITIVE_INFINITY,
+    load: async (fileId) => {
+      const file = await findCanvasFile(fileId);
+      if (!file) notVisible.set(fileId, true);
+      return canvasFileTitle(file) ?? "";
+    },
+    name: "canvasTitle",
+    revalidates: false,
+  });
 
   const canvasesQuery = defineQuery<ChannelId, CanvasListItem[]>({
     load: async (channelId) => {
-      const list = await fetchChannelCanvases(channelId);
-      seedNamedTitles(list);
-      resolvePendingTitles(channelId, list);
-      return list;
+      const { canvases } = await fetchConversationView(channelId);
+      for (const { fileId, title } of canvases)
+        if (title && !titles.read(fileId)) titles.set(fileId, title);
+      return canvases;
     },
     name: "canvases",
   });
 
-  function markNotVisible(fileId: FileId) {
-    setNotVisible((current) => new Set(current).add(fileId));
-  }
-
-  function canvasTitle(fileId: FileId): string | undefined {
-    if (!requestedTitles.has(fileId)) {
-      requestedTitles.add(fileId);
-      void fetchCanvasTitleOrVisibility(fileId).then(({ notVisible: hidden, title }) => {
-        if (hidden) markNotVisible(fileId);
-        if (title) setTitles((current) => ({ ...current, [fileId]: title }));
-      });
-    }
-    return titles()[fileId];
-  }
-
-  function seedNamedTitles(canvases: CanvasListItem[]) {
-    const named = canvases.filter((canvas) => canvas.title && !titles()[canvas.fileId]);
-    for (const { fileId } of named) requestedTitles.add(fileId);
-    if (named.length)
-      setTitles((current) => ({
-        ...Object.fromEntries(named.map((canvas) => [canvas.fileId, canvas.title])),
-        ...current,
-      }));
-  }
-
-  function resolvePendingTitles(channelId: ChannelId, canvases: CanvasListItem[]) {
-    for (const unresolved of canvases.filter((canvas) => !canvas.title)) {
-      void fetchCanvasTitleOrVisibility(unresolved.fileId).then(({ notVisible: hidden, title }) => {
-        if (hidden) return markNotVisible(unresolved.fileId);
-        if (!title) return;
-        canvasesQuery.modify(channelId, (items) =>
-          items.map((item) => (item.fileId === unresolved.fileId ? { ...item, title } : item)),
-        );
-      });
-    }
-  }
-
   const canvasesFor = (channelId: ChannelId): CanvasListItem[] =>
-    (canvasesQuery.peek(channelId) ?? []).filter((canvas) => !notVisible().has(canvas.fileId));
+    (canvasesQuery.peek(channelId) ?? []).filter((canvas) => !notVisible.has(canvas.fileId));
 
   function openCanvasPane(fileId: FileId, title?: string) {
-    deps.panes.openInNewPane({ fileId, kind: "canvas", title: title || titles()[fileId] || "" });
+    deps.panes.openInNewPane({ fileId, kind: "canvas", title: titles.read(fileId) || title || "" });
   }
 
-  async function fetchVisibleCanvas(fileId: FileId): Promise<LoadedCanvas> {
+  async function fetchVisibleCanvas(fileId: FileId, signal?: AbortSignal): Promise<LoadedCanvas> {
     try {
-      return await fetchCanvas(fileId);
+      const canvas = await fetchCanvas(fileId, signal);
+      notVisible.set(fileId, false);
+      return canvas;
     } catch (err) {
-      if (err instanceof Error && err.message === "not_visible") markNotVisible(fileId);
+      if (err instanceof Error && err.message === "not_visible") notVisible.set(fileId, true);
       throw err;
     }
   }
 
   const canvasContent = defineQuery<FileId, LoadedCanvas>({
     gcMs: 0,
-    load: fetchVisibleCanvas,
+    load: (fileId, { signal }) => fetchVisibleCanvas(fileId, signal),
     name: "canvasContent",
     retry: {
       ...retryPolicy,
@@ -95,32 +74,27 @@ export function createCanvasStore(deps: {
     },
   });
 
-  const canvasPermalink = defineQuery<FileId, string | null>({
-    load: fetchCanvasPermalink,
-    name: "canvasPermalink",
-  });
-
-  const createCanvasContentQuery = (fileId: () => FileId) => canvasContent.state(fileId);
-  const createCanvasPermalinkQuery = (fileId: () => FileId) => canvasPermalink.state(fileId);
-
   return {
     canvasesFor,
-    canvasTitle,
-    createCanvasContentQuery,
-    createCanvasPermalinkQuery,
-    invalidateChannel: canvasesQuery.invalidate,
+    canvasTitle: (fileId: FileId): string | undefined =>
+      mentionText(titles.peek(fileId) ?? "") || undefined,
+    rawCanvasTitle: (fileId: FileId): string | undefined => titles.peek(fileId) || undefined,
+    createCanvasContentQuery: (fileId: () => FileId) => canvasContent.state(fileId),
+    peekCanvasContent: (fileId: FileId) => canvasContent.peek(fileId),
+    invalidateChannel(channelId: ChannelId) {
+      invalidateConversationView(channelId);
+      canvasesQuery.invalidate(channelId);
+    },
     refreshCanvasContent: (fileId: FileId) => canvasContent.refresh(fileId).catch(() => undefined),
-    isCanvasNotVisible: (fileId: FileId) => notVisible().has(fileId),
-    loadLatestCanvas: (fileId: FileId) => fetchVisibleCanvas(fileId).catch(() => null),
+    isCanvasNotVisible: (fileId: FileId) => notVisible.has(fileId),
     noteRemoteChange: (fileId: FileId) =>
       setRemoteChanges((draft) => {
         draft[fileId] = (draft[fileId] ?? 0) + 1;
       }),
     openCanvasPane,
     remoteChangeTick: (fileId: FileId) => remoteChanges[fileId] ?? 0,
-    setCanvasContent: (fileId: FileId, content: LoadedCanvas) => canvasContent.set(fileId, content),
     setCanvasTitle(paneId: string, fileId: FileId, title: string) {
-      setTitles((current) => ({ ...current, [fileId]: title }));
+      titles.set(fileId, title);
       deps.panes.setPaneContent(paneId, { fileId, kind: "canvas", title });
     },
   };

@@ -3,6 +3,9 @@ import { findGroup, leadOf } from "./feedDom";
 export const maxScrollTop = (scroller: HTMLElement) =>
   Math.max(0, scroller.scrollHeight - scroller.clientHeight);
 
+export const bottomInset = (scroller: HTMLElement) =>
+  Number.parseFloat(getComputedStyle(scroller).paddingBottom) || 0;
+
 const contentTop = (scroller: HTMLElement, node: HTMLElement) =>
   scroller.scrollTop + node.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
 
@@ -25,8 +28,7 @@ export function revealTop(scroller: HTMLElement, ts: string) {
   if (!group) return;
   const top = contentTop(scroller, group);
   const bottom = top + group.getBoundingClientRect().height;
-  const inset = Number.parseFloat(getComputedStyle(scroller).paddingBottom) || 0;
-  const visibleBottom = scroller.scrollTop + scroller.clientHeight - inset;
+  const visibleBottom = scroller.scrollTop + scroller.clientHeight - bottomInset(scroller);
   const above = top < scroller.scrollTop;
   const below = bottom > visibleBottom;
   if (above && below) return scroller.scrollTop;

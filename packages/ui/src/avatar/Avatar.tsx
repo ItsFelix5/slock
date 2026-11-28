@@ -13,7 +13,7 @@ export interface AvatarUser {
   presence?: "active" | "away";
 }
 
-export interface AvatarProps {
+interface AvatarProps {
   showPresence?: boolean;
   size?: "tiny" | "small" | "medium" | "large" | "message";
   user: AvatarUser;
@@ -34,6 +34,7 @@ export function AvatarImage(props: { alt?: string; avatarUrl: string | undefined
           alt={props.alt ?? ""}
           class="avatar-img fill"
           decoding="async"
+          draggable="false"
           fetchpriority="low"
           loading="lazy"
           onError={() => setImageFailed(true)}

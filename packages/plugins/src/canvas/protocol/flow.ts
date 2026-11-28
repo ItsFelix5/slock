@@ -17,7 +17,7 @@ export interface FlowEntry {
   existing: ExistingEntry | null;
   frames: LayoutFrame[];
   id: string;
-  node: CanvasNode | null;
+  node: CanvasNode;
   touched: boolean;
 }
 

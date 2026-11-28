@@ -3,7 +3,7 @@ import type { Setup } from "@slock/core";
 import { lazyChunk, service } from "@slock/core/solid";
 import { isTs } from "@slock/slack";
 import { Icon } from "@slock/ui";
-import { createEffect, Show } from "solid-js";
+import { createEffect, Show, untrack } from "solid-js";
 import { createActivityStore } from "./store";
 
 const ActivityView = lazyChunk(() => import("./views/ActivityView"));
@@ -66,7 +66,7 @@ const setup: Setup = (ctx) => {
       );
     },
     (added) => {
-      if (added.length) store.markActivityItemsRead(added);
+      if (added.length) untrack(() => store.markActivityItemsRead(added));
     },
   );
   createEffect(
@@ -81,11 +81,9 @@ const setup: Setup = (ctx) => {
   ctx.add("messages.deleted", store.removeActivityForMessage);
   ctx.add("realtime.handler", {
     run: (event) => {
-      if (
-        event.type === "badge_counts_updated" &&
-        store.setGatewayActivityBadgeCounts(event.activity_v2)
-      )
-        store.requestActivityRefresh();
+      if (event.type === "activity") store.applyActivityEvent(event);
+      if (event.type === "badge_counts_updated")
+        store.setGatewayActivityBadgeCounts(event.activity_v2);
       if (
         event.type === "thread_marked" &&
         event.thread_ts &&
@@ -94,11 +92,11 @@ const setup: Setup = (ctx) => {
       )
         store.applyThreadMarked(event.thread_ts, event.unread_count);
     },
-    types: ["badge_counts_updated", "thread_marked"],
+    types: ["activity", "badge_counts_updated", "thread_marked"],
   });
   ctx.add("realtime.handler", {
     run: store.requestActivityRefresh,
-    types: ["activity", "activity_mark_all_read_completed", "activity_views_updated"],
+    types: ["activity_mark_all_read_completed", "activity_views_updated"],
   });
   ctx.add(
     "sidebar.nav",

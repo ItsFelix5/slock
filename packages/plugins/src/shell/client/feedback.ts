@@ -1,5 +1,6 @@
 import { errorMessage } from "@slock/core";
-import { createKeyedFeedback, createUndoStack } from "@slock/ui";
+import { createKeyedFeedback } from "@slock/ui";
+import { createUndoStack } from "./undoStack";
 
 export function createFeedback() {
   const { clear, flash, get } = createKeyedFeedback();

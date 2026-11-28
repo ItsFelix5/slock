@@ -1,19 +1,14 @@
-import { assertNever, narrowByType } from "@slock/core";
-import type {
-  Block,
-  HeaderBlock,
-  RichTextBlock,
-  RichTextInlineElement,
-  RichTextSubBlock,
-} from "@slock/types";
+import { logUnknown } from "@slock/core";
+import type { RichTextBlock, RichTextInlineElement, RichTextSubBlock } from "@slock/types";
+import { messageMentionUrl } from "./messageMention";
 
 export function isRichTextSubBlock(
   el: RichTextInlineElement | RichTextSubBlock,
 ): el is RichTextSubBlock {
-  return "elements" in el;
+  return el.type.startsWith("rich_text_");
 }
 
-function richTextInlineToPlainText(el: RichTextInlineElement): string {
+function richTextInlineToPlainText(el: RichTextInlineElement, domain: string | null): string {
   switch (el.type) {
     case "text":
       return el.text;
@@ -22,6 +17,7 @@ function richTextInlineToPlainText(el: RichTextInlineElement): string {
     case "emoji":
       return `:${el.name}:`;
     case "user":
+    case "canvas_user_mention":
       return `<@${el.user_id}>`;
     case "channel":
       return `<#${el.channel_id}>`;
@@ -30,52 +26,73 @@ function richTextInlineToPlainText(el: RichTextInlineElement): string {
     case "broadcast":
       return `@${el.range}`;
     case "message_mention":
-      return el.text ?? "";
+      return el.text ?? messageMentionUrl(el, domain);
     case "date":
       return el.fallback ?? "";
     case "canvas":
       return el.text || "canvas";
+    case "canvas_message_unfurl":
+      return messageMentionUrl(
+        {
+          channel_id: el.root_message_channel,
+          message_ts: el.root_message_ts,
+          type: "message_mention",
+        },
+        domain,
+      );
+    case "attachment_mention":
+      return el.text || el.url;
+    case "citation":
+    case "work_object_mention":
+    case "workflow_mention":
+      return el.text;
+    case "file":
+    case "list_record":
+      return el.text || el.url || "";
+    case "salesforce_data_field":
+      return el.salesforce_field_label || "";
+    case "tag":
+      return el.text;
     case "color":
+    case "team":
       return "";
     default:
-      return assertNever(el);
+      logUnknown("rich text element", el satisfies never);
+      return "";
   }
 }
 
-function richTextSubBlockToPlainText(sub: RichTextSubBlock): string {
+function richTextSubBlockToPlainText(sub: RichTextSubBlock, domain: string | null): string {
+  const inline = (el: RichTextInlineElement) => richTextInlineToPlainText(el, domain);
   switch (sub.type) {
+    case "rich_text_header":
     case "rich_text_section":
     case "rich_text_preformatted":
-      return sub.elements.map(richTextInlineToPlainText).join("");
+      return sub.elements.map(inline).join("");
+    case "rich_text_divider":
+      return "";
     case "rich_text_list":
-      return sub.elements
-        .map((item) => item.elements.map(richTextInlineToPlainText).join(""))
-        .join(" ");
+      return sub.elements.map((item) => item.elements.map(inline).join("")).join(" ");
     case "rich_text_quote":
       return sub.elements
         .map((el) =>
-          "elements" in el ? richTextSubBlockToPlainText(el) : richTextInlineToPlainText(el),
+          isRichTextSubBlock(el) ? richTextSubBlockToPlainText(el, domain) : inline(el),
         )
         .join("");
     default:
-      return assertNever(sub);
+      logUnknown("rich text block", sub satisfies never);
+      return "";
   }
 }
 
-export function richTextBlocksToPlainText(blocks: readonly RichTextBlock[]): string {
+export function richTextBlocksToPlainText(
+  blocks: readonly RichTextBlock[],
+  domain: string | null,
+): string {
   return blocks
-    .map((block) => block.elements.map(richTextSubBlockToPlainText).join("\n"))
+    .map((block) =>
+      block.elements.map((sub) => richTextSubBlockToPlainText(sub, domain)).join("\n"),
+    )
     .join("\n")
     .trim();
-}
-
-export function blockPreviewText(blocks: readonly Block[] | undefined): string {
-  const parts = (blocks ?? []).flatMap((block) => {
-    const richText = narrowByType<Block, RichTextBlock>(block, "rich_text");
-    if (richText) return [richTextBlocksToPlainText([richText])];
-    const header = narrowByType<Block, HeaderBlock>(block, "header");
-    if (header) return [header.text.text];
-    return [];
-  });
-  return parts.join("\n").trim();
 }

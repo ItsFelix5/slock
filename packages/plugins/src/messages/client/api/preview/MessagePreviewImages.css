@@ -1,0 +1,18 @@
+.message-preview-images {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+.message-preview-image {
+  position: relative;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+}
+
+.message-preview-image img {
+  object-fit: cover;
+}

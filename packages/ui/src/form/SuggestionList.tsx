@@ -2,7 +2,7 @@ import type { JSX } from "@solidjs/web";
 import { For } from "solid-js";
 import "./SuggestionList.css";
 
-export interface SuggestionListProps<T> {
+interface SuggestionListProps<T> {
   activeIndex: number | null;
   class?: string;
   id?: string;

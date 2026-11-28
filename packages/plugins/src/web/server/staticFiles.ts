@@ -9,7 +9,7 @@ const ENCODINGS = [
 const IMMUTABLE = "public, max-age=31536000, immutable";
 const ONE_WEEK = "public, max-age=604800";
 
-function cacheControlFor(pathname: string): string {
+export function cacheControlFor(pathname: string): string {
   if (pathname.startsWith("/assets/")) return IMMUTABLE;
   if (pathname.startsWith("/public/fonts/")) return IMMUTABLE;
   if (pathname.startsWith("/public/")) return ONE_WEEK;

@@ -1,4 +1,5 @@
 import { Slot, service } from "@slock/core/solid";
+import { conversationDragSource } from "@slock/plugins/conversations/client/api/conversationDrag";
 import { openConversationInSplit } from "@slock/plugins/conversations/client/api/nav";
 import { SplitNavigation } from "@slock/plugins/shell/client/api/SplitNavigation";
 import type { DirectMessage } from "@slock/types";
@@ -11,7 +12,6 @@ import {
   useContextMenu,
 } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
-import { useRowPrefetch } from "./rowPrefetch";
 import SidebarRowEnd from "./SidebarRowEnd";
 import "./SidebarRow.css";
 
@@ -41,13 +41,13 @@ export function DmRow(props: { dm: DirectMessage }) {
   );
   const muted = createMemo(() => prefsStore.isChannelMuted(props.dm.id));
   const ctxMenu = useContextMenu();
-  const prefetch = useRowPrefetch(() => props.dm.id);
 
   return (
     <Show when={ready()}>
       <div class="sidebar-row-wrap">
         <SplitNavigation onSplit={() => openConversationInSplit(props.dm.id)}>
           <button
+            {...conversationDragSource(props.dm.id)}
             class={[
               "sidebar-row btn-reset flex-align-center",
               {
@@ -59,7 +59,6 @@ export function DmRow(props: { dm: DirectMessage }) {
             data-channel-id={props.dm.id}
             data-nav-row
             onClick={() => conversationsStore.setActiveView({ id: props.dm.id, kind: "dm" })}
-            {...prefetch}
             onContextMenu={ctxMenu.open}
             tabindex={-1}
             type="button"
@@ -91,7 +90,7 @@ export function DmRow(props: { dm: DirectMessage }) {
           close={ctxMenu.close}
           isDm
           point="messages.channelMenu"
-          showMoveTo={false}
+          showMoveTo
         />
       </ContextMenu>
     </Show>

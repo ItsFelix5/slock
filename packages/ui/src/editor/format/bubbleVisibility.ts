@@ -1,4 +1,4 @@
-export interface BubbleBounds {
+interface BubbleBounds {
   bottom: number;
   top: number;
 }

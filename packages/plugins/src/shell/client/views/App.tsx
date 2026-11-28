@@ -4,12 +4,12 @@ import {
   InlineFeedback,
   useCloseShortcut,
   useFieldCommitShortcut,
-  useGlobalUndoShortcut,
   usePaneNavigation,
 } from "@slock/ui";
-import type { JSX } from "@solidjs/web";
 import { dynamic } from "@solidjs/web";
 import { createMemo, Show } from "solid-js";
+import { Providers } from "../api/Providers";
+import { useGlobalUndoShortcut } from "../undoStack";
 import "./App.css";
 import PaneSwitch, { paneTabLabel } from "./PaneSwitch";
 
@@ -18,15 +18,6 @@ const panesStore = service("shell.panes");
 const viewStore = service("shell.view");
 const layout = service("shell.layout");
 const dialogs = service("shell.dialogs");
-
-function Providers(props: { children: JSX.Element }) {
-  const providers = usePoint("shell.provider");
-  const wrap = (index: number): JSX.Element => {
-    const Provider = providers()[index];
-    return Provider ? <Provider>{wrap(index + 1)}</Provider> : props.children;
-  };
-  return <>{wrap(0)}</>;
-}
 
 export default function App() {
   useCloseShortcut();

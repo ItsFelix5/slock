@@ -1,5 +1,6 @@
 {
   "id": "unread",
+  "category": "Core",
   "name": "Unread",
   "requires": ["bootstrap", "channels", "dms", "shell"],
   "boot": true

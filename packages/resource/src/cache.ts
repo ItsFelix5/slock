@@ -2,42 +2,46 @@ import type { CacheOptions, ResourceCache } from "./cacheTypes";
 import { ResourceCleared } from "./cacheTypes";
 import { createCooldown } from "./cooldown";
 import { deferred } from "./deferred";
-import { createEntry, deriveState, type Entry, isFresh } from "./entry";
-import { type FetchDeps, runFetch } from "./fetchRun";
+import { createEntry, derive, type Entry, isFresh, isInactive } from "./entry";
+import { createEntryTimer } from "./entryTimer";
+import { createRequests, type FetchDeps, runFetch } from "./fetchRun";
 import { stableKey } from "./key";
 import { createPersistence } from "./persistence";
+import { share } from "./share";
 import { type EntryState, IDLE } from "./state";
 
 export function createResourceCache<K, T>(options: CacheOptions<K, T>): ResourceCache<K, T> {
-  const { env } = options;
+  const { env, maxAgeMs: maxAge = Number.POSITIVE_INFINITY } = options;
   const gcMs = options.gcMs ?? 120_000;
-  const defaultMaxAgeMs = options.maxAgeMs ?? Number.POSITIVE_INFINITY;
   const dedupeMs = options.dedupeMs ?? 0;
+  const cooldown = options.cooldown ?? createCooldown(env);
+  const requests = createRequests({ cooldown, env, retry: options.retry ?? {} });
   const maxAutoFailures = options.maxAutoFailures ?? Number.POSITIVE_INFINITY;
   const entries = new Map<string, Entry<K, T>>();
   const observers = new Set<(key: K, state: EntryState<T>) => void>();
 
-  const isFreshFor = (entry: Entry<K, T>, maxAgeMs = defaultMaxAgeMs) =>
+  const maxAgeOf = ({ box }: Entry<K, T>) =>
+    typeof maxAge === "number" ? maxAge : box ? maxAge(box.value) : 0;
+
+  const isFreshFor = (entry: Entry<K, T>, maxAgeMs = maxAgeOf(entry)) =>
     isFresh(entry, env.now(), Math.max(maxAgeMs, dedupeMs));
 
   function discard(entry: Entry<K, T>) {
-    if (entry.gc !== undefined) env.clearTimeout(entry.gc);
-    entry.gc = undefined;
+    timer.stop(entry);
     entries.delete(entry.hash);
   }
 
-  function isInactive(entry: Entry<K, T>) {
-    return entry.listeners.size === 0 && entry.inflight === undefined;
-  }
-
-  function scheduleGc(entry: Entry<K, T>) {
-    if (entry.gc !== undefined) env.clearTimeout(entry.gc);
-    entry.gc = isInactive(entry) ? env.setTimeout(() => discard(entry), gcMs) : undefined;
-  }
+  const timer = createEntryTimer<K, T>({
+    discard,
+    env,
+    gcMs,
+    maxAutoFailures,
+    retry: (entry) => startFetch(entry),
+  });
 
   function publish(entry: Entry<K, T>) {
-    entry.state = deriveState(entry);
-    scheduleGc(entry);
+    derive(entry);
+    timer.schedule(entry);
     for (const listener of entry.listeners) listener(entry.state);
     for (const observer of observers) observer(entry.key, entry.state);
   }
@@ -48,7 +52,7 @@ export function createResourceCache<K, T>(options: CacheOptions<K, T>): Resource
     if (existing) return existing;
     const entry = createEntry<K, T>(key, hash);
     entries.set(hash, entry);
-    scheduleGc(entry);
+    timer.schedule(entry);
     return entry;
   }
 
@@ -59,19 +63,27 @@ export function createResourceCache<K, T>(options: CacheOptions<K, T>): Resource
     entry.idle = undefined;
   }
 
+  function abandon(entry: Entry<K, T>) {
+    const wanted = entry.listeners.size > 0 || entry.waiters > 0;
+    if (wanted || !entry.inflight?.consumed || entries.get(entry.hash) !== entry) return;
+    stopFetch(entry);
+    publish(entry);
+  }
+
   const fetchDeps: FetchDeps<K, T> = {
-    cooldown: options.cooldown ?? createCooldown(env),
+    cooldown,
     env,
     load: options.load,
-    onFailure: (entry, error) => {
+    onFailure: (entry, error, permanent) => {
       stopFetch(entry);
       entry.error = { value: error };
       entry.failures++;
+      entry.permanent = permanent;
       publish(entry);
     },
     onSuccess: (entry, data) => {
       stopFetch(entry);
-      store(entry, { value: data }, env.now());
+      store(entry, { value: entry.box ? share(entry.box.value, data) : data }, env.now());
       entry.stale = false;
       publish(entry);
     },
@@ -102,12 +114,13 @@ export function createResourceCache<K, T>(options: CacheOptions<K, T>): Resource
     entry.dataAt = at;
     entry.error = undefined;
     entry.failures = 0;
+    entry.permanent = false;
     persistence?.schedule();
   }
 
   function startFetch(entry: Entry<K, T>) {
     entry.inflight?.controller.abort();
-    const inflight = { controller: new AbortController() };
+    const inflight = { consumed: false, controller: new AbortController() };
     entry.inflight = inflight;
     entry.idle ??= deferred();
     if (!entry.box) entry.error = undefined;
@@ -116,22 +129,37 @@ export function createResourceCache<K, T>(options: CacheOptions<K, T>): Resource
   }
 
   async function settle(entry: Entry<K, T>): Promise<T> {
-    while (entry.idle) await entry.idle.promise;
+    entry.waiters++;
+    try {
+      while (entry.idle) await entry.idle.promise;
+    } finally {
+      entry.waiters--;
+    }
     if (entry.error) throw entry.error.value;
-    if (entry.box) return entry.box.value;
+    if (entry.view) return entry.view.value;
     throw new ResourceCleared();
   }
 
-  function replace(entry: Entry<K, T>, box: Entry<K, T>["box"], at: number) {
+  function write(entry: Entry<K, T>, value: T, at: number, refetch: boolean) {
+    const interrupted = refetch && entry.inflight !== undefined;
     stopFetch(entry);
-    store(entry, box, at);
+    store(entry, { value }, at);
     publish(entry);
+    if (interrupted) startFetch(entry);
   }
+
+  const amend = (entry: Entry<K, T>, value: T) =>
+    write(entry, value, entry.box ? entry.dataAt : env.now(), true);
 
   function markStale(entry: Entry<K, T>) {
     entry.stale = true;
-    if (isInactive(entry)) publish(entry);
+    if (entry.listeners.size === 0 && !entry.inflight) publish(entry);
     else startFetch(entry);
+  }
+
+  function rewrite(entry: Entry<K, T>, change: (current: T) => T) {
+    if (entry.box) amend(entry, change(entry.box.value));
+    else markStale(entry);
   }
 
   function reset(entry: Entry<K, T>) {
@@ -139,6 +167,8 @@ export function createResourceCache<K, T>(options: CacheOptions<K, T>): Resource
     entry.box = undefined;
     entry.error = undefined;
     entry.failures = 0;
+    entry.layers.clear();
+    entry.permanent = false;
     entry.stale = false;
     publish(entry);
     if (entry.listeners.size === 0) discard(entry);
@@ -146,21 +176,23 @@ export function createResourceCache<K, T>(options: CacheOptions<K, T>): Resource
 
   const cache: ResourceCache<K, T> = {
     clear: () => {
+      requests.abort();
       for (const entry of [...entries.values()]) reset(entry);
     },
     dispose: () => {
       persistence?.stop();
+      requests.abort();
       for (const entry of entries.values()) {
         stopFetch(entry);
-        if (entry.gc !== undefined) env.clearTimeout(entry.gc);
+        timer.stop(entry);
       }
       entries.clear();
       observers.clear();
     },
     ensure: (key, ensureOptions) => {
       const entry = obtain(key);
-      if (entry.box && isFreshFor(entry, ensureOptions?.maxAgeMs))
-        return Promise.resolve(entry.box.value);
+      if (entry.view && isFreshFor(entry, ensureOptions?.maxAgeMs))
+        return Promise.resolve(entry.view.value);
       if (!entry.inflight) startFetch(entry);
       return settle(entry);
     },
@@ -172,8 +204,10 @@ export function createResourceCache<K, T>(options: CacheOptions<K, T>): Resource
         subscribers: listeners.size,
       })),
     evictInactive: () => {
+      if (!Number.isFinite(gcMs)) return;
       for (const entry of [...entries.values()]) if (isInactive(entry)) discard(entry);
     },
+    flush: () => persistence?.flush(),
     invalidate: (key) => {
       const entry = entries.get(stableKey(key));
       if (entry) markStale(entry);
@@ -181,22 +215,37 @@ export function createResourceCache<K, T>(options: CacheOptions<K, T>): Resource
     invalidateWhere: (match) => {
       for (const entry of [...entries.values()]) if (match(entry.key)) markStale(entry);
     },
+    modify: (key, update) => {
+      const entry = entries.get(stableKey(key));
+      if (entry) rewrite(entry, update);
+    },
     onChange: (listener) => {
       observers.add(listener);
       return () => observers.delete(listener);
     },
-    patch: (key, update) => {
+    outdated: (key) => {
+      const entry = entries.get(stableKey(key));
+      return entry !== undefined && maxAgeOf(entry) > 0 && !isFreshFor(entry);
+    },
+    overlay: (key, apply) => {
       const entry = obtain(key);
-      const { box, dataAt } = entry;
-      replace(entry, { value: update(box?.value) }, env.now());
-      let active = true;
-      return () => {
-        if (!active) return;
-        active = false;
-        replace(entry, box, dataAt);
+      const layer = { apply };
+      entry.layers.add(layer);
+      publish(entry);
+      return {
+        commit: () => {
+          if (entry.layers.delete(layer)) rewrite(entry, apply);
+        },
+        discard: () => {
+          if (entry.layers.delete(layer)) publish(entry);
+        },
       };
     },
-    read: (key) => entries.get(stableKey(key))?.box?.value,
+    patch: (key, update) => {
+      const entry = obtain(key);
+      amend(entry, update(entry.box?.value));
+    },
+    read: (key) => entries.get(stableKey(key))?.view?.value,
     refresh: (key) => {
       const entry = obtain(key);
       startFetch(entry);
@@ -204,30 +253,36 @@ export function createResourceCache<K, T>(options: CacheOptions<K, T>): Resource
     },
     remove: (key) => {
       const entry = entries.get(stableKey(key));
-      if (entry) reset(entry);
+      if (!entry) return;
+      reset(entry);
+      persistence?.schedule();
     },
+    request: requests.run,
     restore: async () => {
       await persistence?.restore();
     },
     set: (key, data) => {
       const entry = obtain(key);
       entry.stale = false;
-      replace(entry, { value: data }, env.now());
+      write(entry, data, env.now(), false);
     },
     state: (key) => entries.get(stableKey(key))?.state ?? IDLE,
     subscribe: (key, listener, subscribeOptions) => {
       const entry = obtain(key);
       entry.listeners.add(listener);
-      scheduleGc(entry);
+      timer.schedule(entry);
       const wantsFetch =
         subscribeOptions?.enabled !== false &&
+        !(subscribeOptions?.retryFailed === false && entry.error) &&
         !entry.inflight &&
         !isFreshFor(entry, subscribeOptions?.maxAgeMs) &&
-        entry.failures < maxAutoFailures;
+        entry.failures < maxAutoFailures &&
+        !entry.permanent;
       if (wantsFetch) startFetch(entry);
       return () => {
         entry.listeners.delete(listener);
-        scheduleGc(entry);
+        timer.schedule(entry);
+        if (entry.listeners.size === 0) queueMicrotask(() => abandon(entry));
       };
     },
   };

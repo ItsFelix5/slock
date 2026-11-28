@@ -1,1 +1,7 @@
-{ "id": "presence", "name": "Online status", "requires": ["dms", "realtime", "users"] }
+{
+  "id": "presence",
+  "category": "People and channels",
+  "name": "Online status",
+  "requires": ["dms", "realtime", "users"],
+  "boot": true
+}

@@ -1,4 +1,4 @@
-export type InputPrecision = "date" | "minute" | "second";
+type InputPrecision = "date" | "minute" | "second";
 
 const pad = (value: number) => String(value).padStart(2, "0");
 

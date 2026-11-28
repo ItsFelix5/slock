@@ -6,7 +6,7 @@ import FiltersTab from "./views/FiltersTab";
 
 const setup: Setup = (ctx) => {
   const users = service("users");
-  const filters = createLogFilters(() => users.currentUser()?.id);
+  const filters = createLogFilters(() => users.currentUserId());
   ctx.add(
     "messages.retain",
     (msg) => msg.metadata?.event_type !== "anchor" && !filters.ignores(msg),

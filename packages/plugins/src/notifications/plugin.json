@@ -1,5 +1,6 @@
 {
   "id": "notifications",
+  "category": "Notifications",
   "name": "Notifications",
   "requires": [
     "activity",

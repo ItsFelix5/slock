@@ -1,5 +1,5 @@
 import type Quill from "@slock/ui/editor/quill";
-import { indexAlignedText } from "@slock/ui/editor/quillText";
+import { textBefore } from "@slock/ui/editor/quillText";
 import { matchTypedEmojiShortcode } from "./matchTypedEmojiShortcode";
 import { resolvedEmojiName } from "./resolvedEmojiName";
 
@@ -8,8 +8,7 @@ export function emojiAutoconvert(quill: Quill): () => void {
     if (source !== "user") return;
     const selection = quill.getSelection();
     if (selection?.length !== 0) return;
-    const before = indexAlignedText(quill).slice(0, selection.index);
-    const match = matchTypedEmojiShortcode(before);
+    const match = matchTypedEmojiShortcode(textBefore(quill, selection.index));
     if (!(match && resolvedEmojiName(match.name))) return;
     quill.deleteText(match.start, match.end - match.start, "api");
     quill.insertEmbed(match.start, "emoji", { name: match.name }, "api");

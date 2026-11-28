@@ -3,7 +3,7 @@ import { omit, Show } from "solid-js";
 import Icon, { type IconName } from "../../media/Icon";
 import "./Menu.css";
 
-export interface MenuItemProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
+interface MenuItemProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
   danger?: boolean;
   icon?: IconName;
   iconSize?: number;

@@ -10,6 +10,7 @@ import { createMessageFocus } from "../api/messageFocus";
 import MessageRows from "../api/pane/MessageRows";
 import { createSystemMessageGrouper } from "../lib/groupSystemMessages";
 import { createMessageListScroll } from "../messageListScroll";
+import { useFeedJumpShortcuts } from "../useFeedJumpShortcuts";
 import MessageListDateNav from "./parts/MessageListDateNav";
 
 const bootstrapStore = service("bootstrap");
@@ -28,10 +29,14 @@ export default function MessageList(props: { active: () => boolean; view: View }
 
   const {
     feed,
+    hasUnread,
     isLoadingNewer,
     jumpToBeginning,
     jumpToDate,
+    jumpToLatest,
     jumpToMessage,
+    jumpToUnread,
+    landedTs,
     loadNewerMessages,
     visibleDay,
   } = createMessageListScroll({
@@ -43,10 +48,12 @@ export default function MessageList(props: { active: () => boolean; view: View }
 
   const messageFocus = createMessageFocus(messages, feed, channelId, {
     active: props.active,
+    landedTs,
     paneId,
     onOpenThread: (ts, opts) => messageLinks.openThread(channelId(), ts, ts, opts),
   });
   const inPaneSearch = createInPaneSearch(messages, feed, () => paneId, props.active);
+  useFeedJumpShortcuts({ active: props.active, hasUnread, jumpToLatest, jumpToUnread, paneId });
   const pending = () => !feed.ready() && messages().length > 0;
 
   return (
@@ -56,6 +63,7 @@ export default function MessageList(props: { active: () => boolean; view: View }
       onFocusIn={messageFocus.onContainerFocusIn}
       onFocusOut={messageFocus.onContainerFocusOut}
       ref={feed.attach}
+      tabindex={-1}
     >
       <Show when={inPaneSearch.open()}>
         <InPaneSearchBar

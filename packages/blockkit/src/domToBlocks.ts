@@ -6,6 +6,7 @@ import type {
   RichTextStyle,
   RichTextSubBlock,
 } from "@slock/types";
+import { tagColorOf } from "@slock/ui/tag/tagColors";
 
 export const BLOCKS_CLIPBOARD_TYPE = "application/x-slock-blocks";
 
@@ -13,6 +14,7 @@ const STYLE_SELECTORS: [keyof RichTextStyle, string][] = [
   ["bold", "b, strong, .bk-rt-bold"],
   ["italic", "i, em, .bk-rt-italic"],
   ["strike", "s, del, strike, .bk-rt-strike"],
+  ["underline", "u, ins, .bk-rt-underline"],
   ["code", "code, .bk-inline-code"],
 ];
 
@@ -41,6 +43,14 @@ function isBroadcastRange(value: string): value is BroadcastRange {
 
 function tokenElement(el: HTMLElement, style: RichTextStyle): RichTextInlineElement | undefined {
   const { dataset } = el;
+  if (el.matches(".bk-tag")) {
+    return {
+      color: tagColorOf(el),
+      style: styleOrUndefined(withStyle(el, style)),
+      text: cleanText(el.textContent ?? ""),
+      type: "tag",
+    };
+  }
   if (dataset.linkUrl) {
     const text = el.matches(".bk-mention-message")
       ? dataset.linkUrl

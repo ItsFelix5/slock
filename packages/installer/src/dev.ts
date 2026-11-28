@@ -14,10 +14,10 @@ async function devUnits(): Promise<Unit[]> {
   const session = await openSession();
   try {
     const listed = await resolveSpec({ kind: "id", off: false, value: "core" }, REPO, session);
-    const off = new Set(listed.filter(({ off }) => off).map(({ manifest }) => manifest.id));
+    const on = new Set(listed.filter(({ off }) => !off).map(({ manifest }) => manifest.id));
     return (await readUnits(PLUGINS_SRC)).map((unit) => ({
       ...unit,
-      meta: { ...unit.meta, off: off.has(unit.manifest.id) },
+      meta: { ...unit.meta, off: !(unit.manifest.hidden || on.has(unit.manifest.id)) },
     }));
   } finally {
     await session.cleanup();
@@ -39,7 +39,6 @@ export async function devServerOptions() {
 }
 
 export async function createDevBuild() {
-  const units = await devUnits();
   let base: Promise<Base> | undefined;
   let linked: Promise<ClientBuild> | undefined;
   const reset = (everything: boolean) => {
@@ -56,7 +55,7 @@ export async function createDevBuild() {
     },
     get: (): Promise<ClientBuild> => {
       base ??= buildBase(false);
-      linked ??= base.then((built) => linkClient(units, built, false));
+      linked ??= base.then(async (built) => linkClient(await devUnits(), built, false));
       return linked.catch((error) => {
         reset(true);
         throw error;

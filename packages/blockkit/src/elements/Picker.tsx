@@ -30,7 +30,7 @@ export default function Picker(props: {
 }) {
   return (
     <input
-      class="bk-control"
+      class="bk-control field-surface"
       disabled={!props.ready}
       onChange={(event) => props.dispatch(payload(props.el, event.currentTarget.value))}
       type={INPUT_TYPE[props.el.type]}

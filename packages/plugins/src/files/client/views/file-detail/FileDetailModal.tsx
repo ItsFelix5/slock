@@ -1,15 +1,13 @@
 import { service } from "@slock/core/solid";
-import type { SlackFile, SlackFileShare } from "@slock/types";
+import type { SlackFile } from "@slock/types";
 import { createCopyFeedback, IconButton, Overlay, PanelHeader, useEscapeClose } from "@slock/ui";
 import { Show } from "solid-js";
-import { createFileDetailQuery, refreshFileDetail } from "../../api/fileDetailQuery";
+import { createFileDetailQuery } from "../../api/fileDetailQuery";
 import FileDetailAccess from "./FileDetailAccess";
 import FileDetailFacts from "./FileDetailFacts";
 import FileDetailPreview from "./FileDetailPreview";
 import FileTitle from "./FileTitle";
 import "./FileDetailModal.css";
-
-const messageLinks = service("message-links");
 
 const feedback = service("feedback");
 
@@ -21,21 +19,12 @@ export default function FileDetailModal(props: { file: SlackFile; onClose: () =>
     feedback.flash(props.file.id, "Couldn't copy the link.", "error"),
   );
 
-  const openShare = (share: SlackFileShare) => {
-    props.onClose();
-    messageLinks.openChannelMessage(share.channelId, share.ts, share.threadTs);
-  };
-
   return (
     <Overlay ariaLabel={file().title || file().name} onClose={props.onClose}>
       <div class="file-detail-card">
         <PanelHeader onClose={props.onClose}>
           <div class="file-detail-header flex-align-center">
-            <FileTitle
-              editable={detail().data?.editable ?? false}
-              file={file()}
-              onRenamed={() => void refreshFileDetail(props.file.id)}
-            />
+            <FileTitle editable={detail().data?.editable ?? false} file={file()} />
             <Show when={file().permalink}>
               {(link) => (
                 <IconButton
@@ -58,12 +47,7 @@ export default function FileDetailModal(props: { file: SlackFile; onClose: () =>
           <FileDetailFacts detail={detail().data} file={file()} />
           <Show when={detail().data}>
             {(loaded) => (
-              <FileDetailAccess
-                detail={loaded()}
-                file={file()}
-                onChanged={() => void refreshFileDetail(props.file.id)}
-                onOpenShare={openShare}
-              />
+              <FileDetailAccess detail={loaded()} file={file()} onNavigate={props.onClose} />
             )}
           </Show>
         </div>

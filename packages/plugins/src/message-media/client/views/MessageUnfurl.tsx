@@ -73,7 +73,12 @@ export default function MessageUnfurl(props: { attachment: Attachment }) {
   const blockContext = (): BlockActionContext | undefined => {
     const message = original().data;
     if (!(message?.botId && a.channelId && a.ts)) return;
-    return { botId: message.botId, channelId: a.channelId, messageTs: a.ts };
+    return {
+      botId: message.botId,
+      botTeamId: message.botTeamId,
+      channelId: a.channelId,
+      messageTs: a.ts,
+    };
   };
   const openAuthorProfile = async () => {
     const { channelId, ts } = a;

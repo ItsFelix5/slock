@@ -5,8 +5,12 @@ import type { PersistOptions } from "./persistence";
 import type { RetryPolicy } from "./retry";
 import type { EntryState, StateListener } from "./state";
 
-export type Unsubscribe = () => void;
-export type Undo = () => void;
+type Unsubscribe = () => void;
+
+export interface Overlay {
+  commit(): void;
+  discard(): void;
+}
 
 export interface CacheOptions<K, T> {
   cooldown?: Cooldown;
@@ -14,14 +18,14 @@ export interface CacheOptions<K, T> {
   env: ResourceEnv;
   gcMs?: number;
   load: (key: K, context: FetchContext) => Promise<T>;
-  maxAgeMs?: number;
+  maxAgeMs?: number | ((data: T) => number);
   maxAutoFailures?: number;
   name?: string;
   persist?: PersistOptions<K, T>;
   retry?: RetryPolicy;
 }
 
-export interface EntryInfo<K, T> {
+interface EntryInfo<K, T> {
   dataAt: number;
   key: K;
   state: EntryState<T>;
@@ -34,6 +38,7 @@ export interface EnsureOptions {
 
 export interface SubscribeOptions extends EnsureOptions {
   enabled?: boolean;
+  retryFailed?: boolean;
 }
 
 export interface ResourceCache<K, T> {
@@ -42,13 +47,18 @@ export interface ResourceCache<K, T> {
   ensure(key: K, options?: EnsureOptions): Promise<T>;
   entries(): EntryInfo<K, T>[];
   evictInactive(): void;
+  flush(): void;
   invalidate(key: K): void;
   invalidateWhere(match: (key: K) => boolean): void;
+  modify(key: K, update: (current: T) => T): void;
   onChange(listener: (key: K, state: EntryState<T>) => void): Unsubscribe;
-  patch(key: K, update: (current: T | undefined) => T): Undo;
+  outdated(key: K): boolean;
+  overlay(key: K, apply: (data: T) => T): Overlay;
+  patch(key: K, update: (current: T | undefined) => T): void;
   read(key: K): T | undefined;
   refresh(key: K): Promise<T>;
   remove(key: K): void;
+  request<R>(load: (context: FetchContext) => Promise<R>): Promise<R | undefined>;
   restore(): Promise<void>;
   set(key: K, data: T): void;
   state(key: K): EntryState<T>;

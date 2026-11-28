@@ -42,7 +42,7 @@ function emojiOnlyRichTextCount(block: RichTextBlock): number | undefined {
       if (!subBlock.elements.every(isInlineElement)) return false;
       return addElements(subBlock.elements);
     }
-    return addElements(subBlock.elements);
+    return "elements" in subBlock && addElements(subBlock.elements);
   };
 
   return block.elements.every(addSubBlock) ? count : undefined;

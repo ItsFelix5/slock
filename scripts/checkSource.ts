@@ -1,9 +1,11 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import ts from "typescript";
 import { effectAppliesThatReturn } from "./rules/effectApply.ts";
 import { exportedSetters } from "./rules/exportedSetter.ts";
+import { ownedRuns } from "./rules/ownedRun.ts";
 import { rawLazyImports } from "./rules/rawLazy.ts";
+import { crossSideImports } from "./rules/sideBoundary.ts";
 import { writesInCompute } from "./rules/writeInCompute.ts";
 
 const ROOT = join(import.meta.dir, "..");
@@ -32,13 +34,23 @@ const RAW_ENV_CALLS = new Set([
 const STORAGE_GLOBALS = new Set(["localStorage", "sessionStorage"]);
 const STATE_FACTORIES = new Set(["createRoot", "createSignal", "createStore"]);
 const SUPPRESSION = /biome-ignore|@ts-ignore|@ts-expect-error|@ts-nocheck/;
-const TEST_SUPPORT_IMPORT = /(^|\/)testing$|\/test\//;
-const LAZY_OWNER = "packages/core/src/solid.tsx";
-const ENV_EXEMPT = ["packages/core/src/env.ts", "packages/relay/", "packages/installer/"];
-const MODULE_STATE_EXEMPT = [
-  "packages/core/src/solidHost.ts",
-  "packages/slack/src/session/account.ts",
+const TEST_SUPPORT_IMPORT = /^(\.\.\/)+test\//;
+const TEST_PATH =
+  /(^|\/)(tests?|__tests__|__mocks__|mocks?|fakes?|testing)(\/|\.tsx?$)|(^|\/)(fake|mock)[A-Z.-][^/]*$|Testing\.tsx?$|\.(test|spec)\.tsx?$/;
+const TEST_MODULE = /(from|import)\s*\(?\s*["'](bun:test|happy-dom)["']/;
+const OUTSIDE_TEST = ["examplePlugin", "packages", "scripts"];
+const LAZY_OWNER = "packages/core/src/client/solid.tsx";
+const ENV_EXEMPT = [
+  "packages/core/src/env.ts",
+  "packages/core/src/client/browserEnv.ts",
+  "packages/relay/",
+  "packages/installer/",
 ];
+const MODULE_STATE_EXEMPT = [
+  "packages/core/src/services.ts",
+  "packages/slack/src/client/account.ts",
+];
+const OWNED_RUN_EXEMPT = ["packages/plugins/src/shell/client/store/viewState.ts"];
 const SCRIPT_KINDS = new Set(["ts", "tsx"]);
 
 type Violation = { file: string; line: number; rule: string };
@@ -59,10 +71,8 @@ function packageSources(): string[] {
   });
 }
 
-const TEST_SUPPORT_PATH = /(^|\/)testing(\/|\.tsx?$)/;
-
-function isTestSupport(file: string): boolean {
-  return TEST_SUPPORT_PATH.test(file);
+function isDirectory(path: string): boolean {
+  return statSync(join(ROOT, path), { throwIfNoEntry: false })?.isDirectory() ?? false;
 }
 
 function importedSpecifier(node: ts.Node): string | undefined {
@@ -103,19 +113,21 @@ function check(file: string): Violation[] {
   if (text.split("\n").length - 1 > MAX_LINES)
     found.push({ file: rel, line: 1, rule: "file-size" });
   if (SUPPRESSION.test(text)) found.push({ file: rel, line: 1, rule: "suppression" });
-  if (!(isTestSupport(rel) || MODULE_STATE_EXEMPT.includes(rel))) {
+  if (!MODULE_STATE_EXEMPT.includes(rel)) {
     for (const statement of source.statements) {
       if (topLevelState(statement)) add(statement, "module-state");
     }
   }
 
+  for (const node of crossSideImports(source, rel, isDirectory)) add(node, "cross-side-import");
   for (const node of exportedSetters(source, rel)) add(node, "exported-setter");
   if (rel !== LAZY_OWNER) for (const node of rawLazyImports(source)) add(node, "raw-lazy");
   for (const node of effectAppliesThatReturn(source)) add(node, "effect-apply-returns");
+  if (!OWNED_RUN_EXEMPT.includes(rel)) for (const node of ownedRuns(source)) add(node, "owned-run");
 
   const visit = (node: ts.Node): void => {
     const specifier = importedSpecifier(node);
-    if (specifier && !isTestSupport(rel) && TEST_SUPPORT_IMPORT.test(specifier)) {
+    if (specifier && TEST_SUPPORT_IMPORT.test(specifier)) {
       add(node, "test-support-in-src");
     }
     if (specifier && SOLID_MODULES.has(specifier) && ts.isImportDeclaration(node)) {
@@ -162,23 +174,23 @@ function check(file: string): Violation[] {
   return found;
 }
 
-function packageTests(): string[] {
-  return readdirSync(join(ROOT, "packages")).flatMap((name) => {
-    const tests = join(ROOT, "packages", name, "test");
-    return existsSync(tests) ? sourceFiles(tests) : [];
-  });
-}
-
 function checkTestSize(file: string): Violation[] {
   const lines = readFileSync(file, "utf8").split("\n").length - 1;
   return lines > MAX_LINES ? [{ file: relative(ROOT, file), line: 1, rule: "file-size" }] : [];
+}
+
+function checkPlacement(file: string): Violation[] {
+  const rel = relative(ROOT, file);
+  const misplaced = TEST_PATH.test(rel) || TEST_MODULE.test(readFileSync(file, "utf8"));
+  return misplaced ? [{ file: rel, line: 1, rule: "test-outside-test" }] : [];
 }
 
 const sources = packageSources();
 const violations = [
   ...sources.flatMap(check),
   ...writesInCompute(sources, ROOT).map((finding) => ({ ...finding, rule: "write-in-compute" })),
-  ...packageTests().flatMap(checkTestSize),
+  ...sourceFiles(join(ROOT, "test")).flatMap(checkTestSize),
+  ...OUTSIDE_TEST.flatMap((dir) => sourceFiles(join(ROOT, dir))).flatMap(checkPlacement),
 ];
 const byRule = new Map<string, Violation[]>();
 for (const violation of violations) {

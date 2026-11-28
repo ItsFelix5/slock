@@ -1,5 +1,6 @@
 import { defineQuery } from "@slock/plugins/query/client/api";
-import { apiGet, mapChannel, mapChannelDetails, mapUser, parseFileId } from "@slock/slack";
+import { mapChannel, mapChannelDetails, mapUser, parseFileId, replyError } from "@slock/slack";
+import { apiGet } from "@slock/slack/client";
 import type {
   CanvasListItem,
   ChannelId,
@@ -25,14 +26,17 @@ function mapCanvasTabs(channel: RawChannel): CanvasListItem[] {
   return result;
 }
 
-const DEDUPE_WINDOW_MS = 5_000;
+const FRESH_MS = 60_000;
 
-async function loadConversationView(channelId: ChannelId): Promise<ConversationViewData> {
+async function loadConversationView(
+  channelId: ChannelId,
+  signal: AbortSignal,
+): Promise<ConversationViewData> {
   const data = await apiGet<{
     channel?: RawChannel;
     users?: RawUser[];
-  }>(`/api/channels/${channelId}/view`);
-  if (!data.ok) throw new Error(data.error ?? "conversations.view failed");
+  }>(`/api/channels/${channelId}/view`, signal);
+  if (!data.ok) throw replyError(data, "conversations.view failed");
 
   return {
     canvases: data.channel ? mapCanvasTabs(data.channel) : [],
@@ -61,9 +65,9 @@ async function loadConversationView(channelId: ChannelId): Promise<ConversationV
   };
 }
 
-const conversationView = defineQuery<ChannelId, ConversationViewData>({
-  load: loadConversationView,
-  maxAgeMs: DEDUPE_WINDOW_MS,
+export const conversationView = defineQuery<ChannelId, ConversationViewData>({
+  load: (channelId, { signal }) => loadConversationView(channelId, signal),
+  maxAgeMs: FRESH_MS,
   name: "conversationView",
 });
 
@@ -71,6 +75,6 @@ export function fetchConversationView(channelId: ChannelId): Promise<Conversatio
   return conversationView.ensure(channelId);
 }
 
-export async function fetchChannelCanvases(channelId: ChannelId): Promise<CanvasListItem[]> {
-  return (await fetchConversationView(channelId)).canvases;
+export function invalidateConversationView(channelId: ChannelId): void {
+  conversationView.invalidate(channelId);
 }

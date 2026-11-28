@@ -1,5 +1,11 @@
-import type { ColorRef } from "../theme/themeDerivations";
 import ColorChannelRow from "./color/ColorChannelRow";
+
+export interface ColorRef {
+  alpha?: number;
+  deltaC?: number;
+  deltaL?: number;
+  source: string;
+}
 
 export interface RelativeColor {
   onChange: (ref: ColorRef) => void;
@@ -7,7 +13,7 @@ export interface RelativeColor {
   reference: ColorRef;
 }
 
-export type RelativeChannelRowsProps = Pick<RelativeColor, "onChange" | "reference">;
+type RelativeChannelRowsProps = Pick<RelativeColor, "onChange" | "reference">;
 
 export default function RelativeChannelRows(props: RelativeChannelRowsProps) {
   function update(patch: Partial<ColorRef>) {

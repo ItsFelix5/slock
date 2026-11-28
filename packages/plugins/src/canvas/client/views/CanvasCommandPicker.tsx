@@ -3,7 +3,6 @@ import DatePicker from "@slock/plugins/dates/client/api/DatePicker";
 import { FloatingPanel } from "@slock/ui";
 import { Show } from "solid-js";
 import { type CanvasPicker, insertDate } from "../lib/canvasCommandContext";
-import { removeAnnotation } from "../lib/canvasFormatting";
 
 const FloatingEmojiPicker = lazyChunk(
   () => import("@slock/plugins/emoji/client/api/FloatingEmojiPicker"),
@@ -11,7 +10,6 @@ const FloatingEmojiPicker = lazyChunk(
 
 export default function CanvasCommandPicker(props: {
   onClose: () => void;
-  onReact: (annotationId: string, name: string) => void;
   picker: CanvasPicker | null;
 }) {
   function close(quill: CanvasPicker["quill"]) {
@@ -35,26 +33,19 @@ export default function CanvasCommandPicker(props: {
               />
             </FloatingPanel>
           }
-          when={picker.kind === "react" && picker.annotationId}
+          when={picker.kind === "react" && picker}
         >
-          {(annotationId) => {
-            let chosen = false;
-            return (
-              <FloatingEmojiPicker
-                anchor={() => picker.anchor}
-                onClose={() => {
-                  close(picker.quill);
-                  if (picker.fresh && !chosen) removeAnnotation(picker.quill, annotationId());
-                }}
-                onSelect={(name) => {
-                  chosen = true;
-                  close(picker.quill);
-                  props.onReact(annotationId(), name);
-                }}
-                open
-              />
-            );
-          }}
+          {(react) => (
+            <FloatingEmojiPicker
+              anchor={() => picker.anchor}
+              onClose={() => close(picker.quill)}
+              onSelect={(name) => {
+                close(picker.quill);
+                react().pick(name);
+              }}
+              open
+            />
+          )}
         </Show>
       )}
     </Show>

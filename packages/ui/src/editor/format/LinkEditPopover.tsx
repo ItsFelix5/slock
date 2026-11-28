@@ -5,7 +5,7 @@ import { useEditShortcuts } from "../../hooks/useNavShortcuts";
 import FloatingPanel from "../../overlay/floating/FloatingPanel";
 import "./LinkEditPopover.css";
 
-export interface LinkEditPopoverProps {
+interface LinkEditPopoverProps {
   anchor: () => HTMLElement | undefined;
   onClose: () => void;
   onUpdate: (url: string, text: string) => void;

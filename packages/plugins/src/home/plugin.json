@@ -1,5 +1,6 @@
 {
   "id": "home",
+  "category": "Read and catch up",
   "name": "Home",
   "requires": [
     "bootstrap",
@@ -13,5 +14,6 @@
     "sidebar",
     "unread",
     "users"
-  ]
+  ],
+  "boot": true
 }

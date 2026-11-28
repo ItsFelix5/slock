@@ -19,7 +19,6 @@
   appearance: none;
   background: var(--accent);
   border-radius: var(--radius-circle);
-  transition: transform 0.1s;
 }
 
 .slider-input::-webkit-slider-thumb:hover {
@@ -33,7 +32,6 @@
   background: var(--accent);
   border: none;
   border-radius: var(--radius-circle);
-  transition: transform 0.1s;
 }
 
 .slider-input::-moz-range-thumb:hover {

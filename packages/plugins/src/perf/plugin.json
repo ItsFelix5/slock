@@ -1,1 +1,1 @@
-{ "id": "perf", "name": "Performance recorder", "requires": ["settings"] }
+{ "id": "perf", "category": "Developer", "name": "Performance recorder", "requires": ["settings"] }

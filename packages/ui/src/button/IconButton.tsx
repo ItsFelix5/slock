@@ -1,13 +1,11 @@
 import "./IconButton.css";
 import type { JSX } from "@solidjs/web";
-import { omit, Show } from "solid-js";
+import { omit } from "solid-js";
 import Icon, { type IconName } from "../media/Icon";
-import Tooltip from "../overlay/Tooltip";
 
-export interface IconButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
+interface IconButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
   active?: boolean;
   circular?: boolean;
-  hideTooltip?: boolean;
   icon: IconName;
   iconSize?: number;
   label?: string;
@@ -21,7 +19,6 @@ export default function IconButton(props: IconButtonProps) {
     "active",
     "circular",
     "class",
-    "hideTooltip",
     "icon",
     "iconSize",
     "label",
@@ -29,7 +26,7 @@ export default function IconButton(props: IconButtonProps) {
     "tone",
   );
 
-  const button = (
+  return (
     <button
       aria-label={props.label}
       class={[
@@ -44,11 +41,5 @@ export default function IconButton(props: IconButtonProps) {
     >
       <Icon name={props.icon} size={props.iconSize ?? 16} />
     </button>
-  );
-
-  return (
-    <Show fallback={button} when={props.label && !props.hideTooltip}>
-      {(label) => <Tooltip content={label()}>{button}</Tooltip>}
-    </Show>
   );
 }

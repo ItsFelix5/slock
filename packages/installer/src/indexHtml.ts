@@ -1,4 +1,4 @@
-export type PageParts = {
+type PageParts = {
   entry: string;
   stylesheets: string[];
   preloads: string[];

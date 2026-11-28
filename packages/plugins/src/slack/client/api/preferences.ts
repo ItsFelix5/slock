@@ -1,16 +1,9 @@
-import {
-  apiDelete,
-  apiGet,
-  apiPut,
-  isChannelId,
-  parseChannelId,
-  replyError,
-  slackErrorOf,
-} from "@slock/slack";
-import type { BootstrapPayload, ChannelId, UserPrefs } from "@slock/types";
-import { fetchInitialDataWith, patchInitialData } from "./initialData";
+import { parseChannelId, replyError, slackErrorOf } from "@slock/slack";
+import { apiGet } from "@slock/slack/client";
+import type { BootstrapPayload, UserPrefs } from "@slock/types";
+import { fetchInitialDataWith } from "./initialData";
 
-type FrecencyEntry = { count?: number; id?: string; visits?: number[] };
+type FrecencyEntry = { count: number; id: string; lastVisit: number };
 type NotificationOverride = { desktop?: string; mobile?: string; muted?: boolean };
 type NotificationPrefs = {
   channels?: Record<string, NotificationOverride>;
@@ -36,27 +29,15 @@ function parsePref<T>(raw: string | undefined): T | null {
   }
 }
 
-const SYNCED_PREFS = ["channel_sections", "emoji_use", "muted_channels", "notification_prefs"];
-
-function fetchPrefsPayload(): Promise<BootstrapPayload> {
+export function fetchPrefsPayload(signal?: AbortSignal): Promise<BootstrapPayload> {
   return fetchInitialDataWith("notification_prefs", async () => {
-    const data = await apiGet<BootstrapPayload>("/api/bootstrap/notification_prefs");
+    const data = await apiGet<BootstrapPayload>("/api/bootstrap/notification_prefs", signal);
     if (!data.ok) throw replyError(data, "users.prefs.get failed");
     return data;
   });
 }
 
-export async function applyPrefChange(name: string, value: string): Promise<UserPrefs | undefined> {
-  if (!SYNCED_PREFS.includes(name)) return;
-  patchInitialData({ [name]: value });
-  return mapUserPrefs(await fetchPrefsPayload());
-}
-
-export async function fetchUserPrefs(): Promise<UserPrefs> {
-  return mapUserPrefs(await fetchPrefsPayload());
-}
-
-function mapUserPrefs(data: BootstrapPayload): UserPrefs {
+export function mapUserPrefs(data: BootstrapPayload): UserPrefs {
   if (data.error?.notification_prefs) {
     throw slackErrorOf({
       code: data.error.notification_prefs,
@@ -66,19 +47,11 @@ function mapUserPrefs(data: BootstrapPayload): UserPrefs {
   }
   const emojiUse = parsePref<Record<string, number>>(data.emoji_use) ?? {};
 
-  const jumper =
-    parsePref<Record<string, FrecencyEntry>>(data.frecency_ent_jumper) ??
-    parsePref<Record<string, FrecencyEntry>>(data.frecency_jumper) ??
-    parsePref<Record<string, FrecencyEntry>>(data.frecency) ??
-    {};
   const channelFrecency: UserPrefs["channelFrecency"] = {};
-  for (const entry of Object.values(jumper)) {
-    const { id } = entry;
-    const count = entry.count ?? 0;
-    const lastVisit = entry.visits ? Math.max(...entry.visits) : 0;
-    if (!(id && isChannelId(id))) continue;
-    const existing = channelFrecency[id];
-    if (!existing || count > existing.count) channelFrecency[id] = { count, lastVisit };
+  for (const { count, id, lastVisit } of Object.values(
+    parsePref<Record<string, FrecencyEntry>>(data.frecency) ?? {},
+  )) {
+    channelFrecency[parseChannelId(id)] = { count, lastVisit };
   }
 
   const mutedChannelsList = (data.muted_channels ?? "")
@@ -151,37 +124,4 @@ function mapUserPrefs(data: BootstrapPayload): UserPrefs {
     sectionCollapsed,
     channelSections,
   };
-}
-
-export async function setChannelSectionsPreference(
-  sections: Record<string, Record<string, unknown>>,
-): Promise<boolean> {
-  const data = await apiPut("/api/preferences/channel-sections", { sections });
-  return !!data.ok;
-}
-
-export async function setMutedChannels(channelIds: ChannelId[]): Promise<void> {
-  const data = await apiPut("/api/preferences/muted-channels", { channelIds });
-  if (!data.ok) throw new Error(data.error ?? "users.prefs.set failed");
-}
-
-export async function setHighlightWords(words: string[]): Promise<void> {
-  const data = await apiPut("/api/preferences/highlight-words", { words });
-  if (!data.ok) throw new Error(data.error ?? "users.prefs.set failed");
-}
-
-export async function fetchDndStatus(): Promise<number | null> {
-  const data = await apiGet<{ endtime: number | null }>("/api/dnd/snooze");
-  if (!data.ok) throw new Error(data.error ?? "dnd.info failed");
-  return data.endtime ? data.endtime * 1000 : null;
-}
-
-export async function setDndSnooze(minutes: number): Promise<void> {
-  const data = await apiPut("/api/dnd/snooze", { minutes });
-  if (!data.ok) throw new Error(data.error ?? "dnd.setSnooze failed");
-}
-
-export async function endDndSnooze(): Promise<void> {
-  const data = await apiDelete("/api/dnd/snooze");
-  if (!data.ok) throw new Error(data.error ?? "dnd.endSnooze failed");
 }

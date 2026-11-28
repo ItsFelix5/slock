@@ -1,5 +1,7 @@
 {
   "id": "canvas",
+  "category": "Search and files",
   "name": "Canvas",
-  "requires": ["files", "message-links", "query", "shell", "users"]
+  "requires": ["emoji", "files", "message-links", "query", "realtime", "shell", "users"],
+  "boot": true
 }

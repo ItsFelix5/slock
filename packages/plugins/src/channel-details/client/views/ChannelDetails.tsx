@@ -1,6 +1,8 @@
-import { service, usePoint } from "@slock/core/solid";
+import { Slot, service, usePoint } from "@slock/core/solid";
 import { channelIconName } from "@slock/plugins/channels/client/api";
+import { conversationView } from "@slock/plugins/slack/client/api";
 import { isWaiting } from "@slock/resource";
+import type { ChannelId, ChannelDetails as Details } from "@slock/types";
 import {
   ariaBoolean,
   Button,
@@ -12,7 +14,7 @@ import {
   useTabStripShortcuts,
 } from "@slock/ui";
 import { dynamic } from "@solidjs/web";
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
 import type { ChannelDetailsTabItem } from "../api";
 import type { ChannelDetailsTab } from "../channelDetails";
 import ChannelAboutFields from "./ChannelAboutFields";
@@ -26,6 +28,8 @@ const feedback = service("feedback");
 
 const channelsStore = service("channels");
 const usersStore = service("users");
+const dmsStore = service("dms");
+const titles = service("titles");
 
 type TabEntry = {
   key: ChannelDetailsTab;
@@ -35,6 +39,19 @@ type TabEntry = {
 
 const ABOUT_TAB: TabEntry = { key: "about", label: "About" };
 
+const refresh = (id: ChannelId) =>
+  Promise.all([
+    channelsStore.refreshChannelTopic(id),
+    conversationView.refresh(id).catch(() => undefined),
+  ]);
+
+function flashFailure(error: () => unknown, message: string) {
+  createEffect(error, (failure) => {
+    const id = untrack(channelDetails.channelDetailsId);
+    if (failure && id) feedback.caught(id, failure, message);
+  });
+}
+
 export default function ChannelDetails() {
   const tabButtonRefs: (HTMLButtonElement | undefined)[] = [];
   let tabListRef: HTMLDivElement | undefined;
@@ -43,46 +60,49 @@ export default function ChannelDetails() {
     return channelDetails.channelDetailsTab();
   });
 
+  const groupChat = createMemo(() => {
+    const id = channelDetails.channelDetailsId();
+    return !!id && dmsStore.isGroupDm(id);
+  });
+  const heading = () => (groupChat() ? "Group chat details" : "Channel details");
+
   useEscapeClose(channelDetails.closeChannelDetails, () => !!channelDetails.channelDetailsId());
 
-  const detailsQuery = channelDetails.createChannelDetailsQuery(channelDetails.channelDetailsId);
-  const details = () => detailsQuery().data;
-  const refetch = () => {
-    const id = channelDetails.channelDetailsId();
-    if (id) void channelDetails.queries.details.refresh(id).catch(() => {});
-  };
+  const view = conversationView.state(() => channelDetails.channelDetailsId() ?? undefined);
+  const details = () => view().data?.details;
+  flashFailure(() => view().error, "Failed to load channel details.");
 
-  const currentDetails = createMemo(() => {
-    const d = details();
-    const id = channelDetails.channelDetailsId();
-    return d && id && d.id === id ? d : undefined;
-  });
-
-  const managerIds = channelDetails.createChannelManagerIdsQuery(channelDetails.channelDetailsId);
+  const managers = channelsStore.channelManagersState(() =>
+    groupChat() ? undefined : (channelDetails.channelDetailsId() ?? undefined),
+  );
+  flashFailure(() => managers().error, "Failed to load channel managers.");
   const isManager = createMemo(() => {
     const me = usersStore.currentUser();
     if (!me) return false;
     if (me.isWorkspaceAdmin) return true;
-    const creatorId = currentDetails()?.creatorId;
+    const creatorId = details()?.creatorId;
     if (creatorId && me.id === creatorId) return true;
-    if (managerIds().error) return false;
-    return (managerIds().data ?? []).includes(me.id);
+    return !!managers().data?.has(me.id);
   });
   const tabItems = usePoint("channel-details.tab");
   const visibleTabs = createMemo<TabEntry[]>(() => [
     ABOUT_TAB,
     ...tabItems()
-      .filter((item) => !item.managerOnly || isManager())
+      .filter((item) => {
+        if (item.audience === "groupChat") return groupChat();
+        return item.audience !== "channelManagers" || (!groupChat() && isManager());
+      })
       .map((item) => ({ item, key: item.id, label: item.label })),
   ]);
-  const draft = createChannelDetailsDraft(details, refetch);
+  const draft = createChannelDetailsDraft(details, refresh, groupChat);
   const tab = createMemo<ChannelDetailsTab>(() => {
     const wanted = requestedTab();
-    const lockedOut =
-      tabItems().find((item) => item.id === wanted)?.managerOnly &&
-      !isWaiting(managerIds()) &&
-      !isManager();
-    return lockedOut ? "about" : wanted;
+    if (visibleTabs().some((entry) => entry.key === wanted)) return wanted;
+    const awaitingManagers =
+      !groupChat() &&
+      isWaiting(managers()) &&
+      tabItems().find((item) => item.id === wanted)?.audience === "channelManagers";
+    return awaitingManagers ? wanted : "about";
   });
   const ActiveTabView = dynamic(() => activeTab()?.item?.view);
   const activeTab = () => visibleTabs().find((entry) => entry.key === tab());
@@ -95,38 +115,50 @@ export default function ChannelDetails() {
     root: () => tabListRef,
   });
 
+  const nameOf = (d: Details) => (groupChat() ? titles.title(d.id) : d.name);
+  const memberCount = (d: Details) => {
+    const others = dmsStore.dmById(d.id)?.memberIds;
+    return others ? others.length + 1 : channelsStore.channelById(d.id)?.memberCount;
+  };
+  const openChannelId = createMemo(() => {
+    const id = channelDetails.channelDetailsId();
+    return id && !dmsStore.dmById(id) ? id : undefined;
+  });
+  createEffect(openChannelId, (id) => {
+    if (id) void channelsStore.refreshChannelTopic(id);
+  });
+  const label = () => {
+    const name = details()?.name;
+    return !groupChat() && name ? `Details for #${name}` : heading();
+  };
+
   return (
     <Show when={channelDetails.channelDetailsId()}>
       {(id) => (
-        <Overlay
-          ariaLabel={
-            currentDetails()?.name ? `Details for #${currentDetails()?.name}` : "Channel details"
-          }
-          onClose={channelDetails.closeChannelDetails}
-        >
+        <Overlay ariaLabel={label()} onClose={channelDetails.closeChannelDetails}>
           <Show
             fallback={
               <div class="channel-details-card modal-card">
-                <PanelHeader onClose={channelDetails.closeChannelDetails} title="Channel details" />
+                <PanelHeader onClose={channelDetails.closeChannelDetails} title={heading()} />
                 <Show
                   fallback={
                     <div class="channel-details-load-error flex-center flex-col">
-                      <span>Couldn't load channel details.</span>
+                      <span>Couldn't load details.</span>
                       <InlineFeedback feedback={feedback.get(id())} priority={2} />
-                      <Button onClick={() => refetch()} size="sm">
+                      <Button onClick={() => void refresh(id())} size="sm">
                         Try again
                       </Button>
                     </div>
                   }
-                  when={isWaiting(detailsQuery())}
+                  when={isWaiting(view())}
                 >
                   <div class="channel-details-loading flex-center text-dim text-sm">
-                    Loading channel details…
+                    Loading details…
                   </div>
                 </Show>
               </div>
             }
-            when={currentDetails()}
+            when={details()}
           >
             {(d) => (
               <div class="channel-details-card modal-card">
@@ -143,14 +175,14 @@ export default function ChannelDetails() {
                             ]}
                             onClick={() => setTab(t.key)}
                             ref={(el) => {
-                              tabButtonRefs[i()] = el;
+                              tabButtonRefs[untrack(i)] = el;
                             }}
                             role="tab"
                             tabindex={tab() === t.key ? 0 : -1}
                             type="button"
                           >
                             {t.label}
-                            <Show when={t.item?.count?.(d())}>
+                            <Show when={t.item?.count?.({ memberCount: memberCount(d()) })}>
                               {(count) => <span class="channel-details-tab-count">{count()}</span>}
                             </Show>
                           </button>
@@ -161,8 +193,15 @@ export default function ChannelDetails() {
                   onClose={channelDetails.closeChannelDetails}
                 >
                   <div class="channel-details-title flex-align-center">
-                    <Icon name={channelIconName(d().private, d().archived)} size={14} />
-                    <span class="truncate">{d().name}</span>
+                    <Show
+                      fallback={
+                        <Icon name={channelIconName(d().private, d().archived)} size={14} />
+                      }
+                      when={groupChat()}
+                    >
+                      <Slot id={d().id} kind="dm" point="messages.titleIcon" />
+                    </Show>
+                    <span class="truncate">{nameOf(d())}</span>
                   </div>
                 </PanelHeader>
 
@@ -176,6 +215,7 @@ export default function ChannelDetails() {
                   <Show when={tab() === "about"}>
                     <ChannelAboutFields
                       details={d()}
+                      groupChat={groupChat()}
                       name={draft.name()}
                       onName={draft.setName}
                       onPurpose={draft.setPurpose}
@@ -184,19 +224,18 @@ export default function ChannelDetails() {
                       saving={draft.saving()}
                       topic={draft.topic()}
                     />
-                    <ChannelCopyRows details={d()} />
+                    <ChannelCopyRows details={d()} groupChat={groupChat()} />
                   </Show>
 
                   <Show when={activeTab()?.item}>
                     <ActiveTabView
                       archived={d().archived}
                       channelId={d().id}
-                      channelName={d().name}
-                      memberCount={
-                        d().memberCount ?? channelsStore.channelById(d().id)?.memberCount
-                      }
+                      channelName={nameOf(d())}
+                      groupChat={groupChat()}
+                      memberCount={memberCount(d())}
                       private={d().private}
-                      refetch={refetch}
+                      refetch={() => void refresh(d().id)}
                     />
                   </Show>
                 </div>

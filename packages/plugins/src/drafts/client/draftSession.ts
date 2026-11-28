@@ -79,7 +79,7 @@ export type SessionEffect =
       threadTs: Ts | undefined;
     };
 
-export type SessionStep = { state: SessionState; effects: SessionEffect[] };
+type SessionStep = { state: SessionState; effects: SessionEffect[] };
 
 export const initialSession: SessionState = {
   clientMsgId: undefined,

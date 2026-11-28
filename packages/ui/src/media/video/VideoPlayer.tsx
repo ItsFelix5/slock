@@ -1,9 +1,9 @@
 import type { JSX } from "@solidjs/web";
-import { Show } from "solid-js";
+import { Show, untrack } from "solid-js";
 import IconButton from "../../button/IconButton";
 import { FloatingMountContext } from "../../overlay/floating/FloatingPanel";
 import { mediaBoxStyle } from "../image/mediaDimensions";
-import { fileSrc, imageSrc } from "../mediaSrc";
+import { fileSrc, imageSrc, isThirdParty } from "../mediaSrc";
 import { createVideoPlayback } from "./createVideoPlayback";
 import "./VideoPlayer.css";
 import VideoPlayerCorner from "./VideoPlayerCorner";
@@ -13,7 +13,7 @@ import VideoUnavailable from "./VideoUnavailable";
 import VolumeControl from "./VolumeControl";
 import { formatDuration } from "./videoTime";
 
-export interface VideoPlayerProps {
+interface VideoPlayerProps {
   ariaLabel: string;
   captionsSrc?: string;
   class?: string;
@@ -67,11 +67,15 @@ export default function VideoPlayer(props: VideoPlayerProps) {
             }}
             {...playback.videoEvents}
             poster={imageSrc(props.poster)}
-            preload={props.poster && props.duration ? "none" : "metadata"}
-            ref={(element) => {
-              playback.setVideoRef(element);
-              props.ref?.(element);
-            }}
+            preload={
+              isThirdParty(props.src) || (props.poster && props.duration) ? "none" : "metadata"
+            }
+            ref={(element) =>
+              untrack(() => {
+                playback.setVideoRef(element);
+                props.ref?.(element);
+              })
+            }
             src={fileSrc(props.src)}
           >
             <Show when={props.captionsSrc}>
@@ -124,10 +128,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
             <div class="video-player-controls-row flex-align-center">
               <IconButton
                 class="video-player-chrome"
-                hideTooltip
                 icon={playback.playing() ? "pause-filled" : "play-filled"}
                 iconSize={15}
-                label={playback.playing() ? "Pause" : "Play"}
                 onClick={playback.togglePlayback}
                 size="sm"
               />
@@ -150,10 +152,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
                   <IconButton
                     active={playback.captionsOn()}
                     class="video-player-chrome"
-                    hideTooltip
                     icon={playback.captionsOn() ? "closed-caption-filled" : "closed-caption"}
                     iconSize={14}
-                    label="Captions"
                     onClick={playback.toggleCaptions}
                     size="sm"
                   />

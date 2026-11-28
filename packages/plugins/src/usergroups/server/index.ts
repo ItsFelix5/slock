@@ -9,10 +9,8 @@ import {
 import type { Route } from "@slock/plugins/slack/server/api/router";
 import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
 import { callSlack, callSlackEdge } from "@slock/plugins/slack/server/api/slackClient";
-import type {
-  EdgeUsergroupsInfoReply,
-  UsergroupMembersReply,
-} from "@slock/plugins/slack/server/api/slackReplies";
+import type { EntityIndex } from "@slock/plugins/slack/server/api/slackReplies";
+
 import type { RawUsergroup } from "@slock/types";
 
 function trimUsergroup(group: RawUsergroup): RawUsergroup {
@@ -115,3 +113,11 @@ const setup: Setup = (ctx) => {
 };
 
 export default setup;
+
+type UsergroupMembersReply = { users?: string[] };
+
+type EdgeUsergroupsInfoReply = {
+  results?: EntityIndex<RawUsergroup>;
+  usergroup?: RawUsergroup;
+  usergroups?: EntityIndex<RawUsergroup>;
+};

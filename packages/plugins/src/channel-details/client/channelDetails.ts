@@ -1,41 +1,20 @@
 import { service } from "@slock/core/solid";
-import { defineQuery, type Query } from "@slock/plugins/query/client/api";
+import { defineMutation } from "@slock/plugins/query/client/api";
+import type { Channel, ChannelId } from "@slock/types";
+import { createSignal } from "solid-js";
 import {
   archiveChannel,
   convertChannelToPrivate,
-  fetchChannelManagerIds,
-  fetchChannelMembers,
-  fetchChannelPostingPrefs,
-  fetchChannelRetention,
-  fetchConversationView,
-  fetchMemberPermissions,
-  inviteToChannel,
-  removeFromChannel,
   renameChannel,
-  setChannelPostingPrefs,
   setChannelPurpose,
-  setChannelRetention,
   setChannelTopic,
-  setMemberPermissions,
   unarchiveChannel,
-} from "@slock/plugins/slack/client/api";
-import type {
-  ChannelDetails,
-  ChannelId,
-  ChannelMembersPage,
-  ChannelPostingPrefs,
-  ChannelPostingPrefsPatch,
-  MemberPermissionsPatch,
-  User,
-  UserId,
-} from "@slock/types";
-import { createSignal } from "solid-js";
-
-const feedback = service("feedback");
+} from "./requests";
 
 const channelsStore = service("channels");
+const dmsStore = service("dms");
+const feedback = service("feedback");
 
-export type MemberFilter = "everyone" | "managers" | "apps";
 export type ChannelDetailsTab = string;
 
 export function createChannelDetailsStore() {
@@ -51,221 +30,68 @@ export function createChannelDetailsStore() {
     setChannelDetailsId(null);
   }
 
-  async function withFeedback<T>(
-    id: ChannelId,
-    fallbackMessage: string,
-    fallback: T,
-    action: () => Promise<T>,
-  ): Promise<T> {
-    try {
-      return await action();
-    } catch (err) {
-      feedback.caught(id, err, fallbackMessage);
-      return fallback;
-    }
+  const kindOf = (id: ChannelId) => (dmsStore.isGroupDm(id) ? "group chat" : "channel");
+
+  async function applyChange(id: ChannelId, patch: Partial<Channel>) {
+    if (dmsStore.isGroupDm(id)) await dmsStore.refreshGroupDm(id);
+    else channelsStore.patchChannel(id, patch);
   }
 
-  async function withFeedbackOrThrow<T>(
-    id: ChannelId,
-    fallbackMessage: string,
-    action: () => Promise<T>,
-  ): Promise<T> {
-    try {
-      return await action();
-    } catch (err) {
-      feedback.caught(id, err, fallbackMessage);
-      throw err;
-    }
-  }
-
-  function invalidateChannelDetails(id: ChannelId, postingChanged = false) {
-    channelDetailsQuery.invalidate(id);
-    if (postingChanged) channelPostingPrefsQuery.invalidate(id);
-  }
-
-  const channelDetailsQuery = defineQuery<ChannelId, ChannelDetails | null>({
-    load: (id) => loadChannelDetails(id),
-    name: "channelDetails",
-  });
-  const channelManagerIdsQuery = defineQuery<ChannelId, UserId[]>({
-    load: (id) => loadChannelManagerIds(id),
-    name: "channelManagerIds",
-  });
-  const channelPostingPrefsQuery = defineQuery<ChannelId, ChannelPostingPrefs>({
-    load: fetchChannelPostingPrefs,
-    name: "channelPostingPrefs",
-  });
-  const channelRetentionQuery = defineQuery<ChannelId, number | null>({
-    load: fetchChannelRetention,
-    name: "channelRetention",
-  });
-  const memberPermissionsQuery = defineQuery<
-    ChannelId,
-    Awaited<ReturnType<typeof fetchMemberPermissions>>
-  >({
-    load: fetchMemberPermissions,
-    name: "memberPermissions",
+  const editing = defineMutation<{ failure: string; id: ChannelId; save: () => Promise<void> }>({
+    onError: (error, { failure, id }) => feedback.caught(id, error, failure),
+    run: ({ save }) => save(),
   });
 
-  function loadChannelDetails(id: ChannelId): Promise<ChannelDetails | null> {
-    return withFeedback(
-      id,
-      "Failed to load channel details.",
-      null,
-      async () => (await fetchConversationView(id)).details,
-    );
-  }
+  const archiving = defineMutation<{ archived: boolean; id: ChannelId }>({
+    key: ({ id }) => id,
+    mode: "single",
+    onError: (error, { archived, id }) =>
+      feedback.caught(id, error, `Failed to ${archived ? "archive" : "unarchive"} channel.`),
+    onSuccess: (_, { archived, id }) => channelsStore.patchChannel(id, { archived }),
+    run: ({ archived, id }) => (archived ? archiveChannel(id) : unarchiveChannel(id)),
+  });
 
-  function loadChannelMembersPage(
-    id: ChannelId,
-    filter: "everyone" | "apps",
-    cursor?: string,
-  ): Promise<ChannelMembersPage> {
-    return withFeedbackOrThrow(id, "Failed to load members.", () =>
-      fetchChannelMembers(id, filter, cursor),
-    );
-  }
-
-  function searchChannelMembers(id: ChannelId, search: string): Promise<User[]> {
-    return withFeedbackOrThrow(
-      id,
-      "Failed to search members.",
-      async () => (await fetchChannelMembers(id, "everyone", undefined, search)).members,
-    );
-  }
-
-  function loadChannelManagerIds(id: ChannelId): Promise<UserId[]> {
-    return withFeedbackOrThrow(
-      id,
-      "Failed to load channel managers.",
-      async () => await fetchChannelManagerIds(id),
-    );
-  }
-
-  const stateOf =
-    <T>(query: Query<ChannelId, T>) =>
-    (id: () => ChannelId | null | undefined) =>
-      query.state(() => id() ?? undefined);
-
-  const createChannelDetailsQuery = stateOf(channelDetailsQuery);
-  const createChannelManagerIdsQuery = stateOf(channelManagerIdsQuery);
-  const createChannelPostingPrefsQuery = stateOf(channelPostingPrefsQuery);
-  const createChannelRetentionQuery = stateOf(channelRetentionQuery);
-  const createMemberPermissionsQuery = stateOf(memberPermissionsQuery);
-
-  function renameChannelById(id: ChannelId, name: string): Promise<boolean> {
-    return withFeedback(id, "Failed to rename channel.", false, async () => {
-      const finalName = await renameChannel(id, name);
-      channelsStore.patchChannel(id, { name: finalName });
-      return true;
-    });
-  }
-
-  function updateChannelTopic(id: ChannelId, topic: string): Promise<boolean> {
-    return withFeedback(id, "Failed to set topic.", false, async () => {
-      await setChannelTopic(id, topic);
-      channelsStore.patchChannel(id, { topic });
-      return true;
-    });
-  }
-
-  function updateChannelPurpose(id: ChannelId, purpose: string): Promise<boolean> {
-    return withFeedback(id, "Failed to set description.", false, async () => {
-      await setChannelPurpose(id, purpose);
-      return true;
-    });
-  }
-
-  function inviteUsersToChannel(id: ChannelId, userIds: UserId[]): Promise<boolean> {
-    return withFeedback(id, "Failed to add to channel.", false, async () => {
-      await inviteToChannel(id, userIds);
-      return true;
-    });
-  }
-
-  function removeUserFromChannel(id: ChannelId, userId: UserId): Promise<boolean> {
-    return withFeedback(id, "Failed to remove from channel.", false, async () => {
-      await removeFromChannel(id, userId);
-      return true;
-    });
-  }
-
-  function updateChannelPostingPrefs(
-    id: ChannelId,
-    patch: ChannelPostingPrefsPatch,
-  ): Promise<void> {
-    return setChannelPostingPrefs(id, patch);
-  }
-
-  function updateChannelRetention(id: ChannelId, days: number | null): Promise<boolean> {
-    return withFeedback(id, "Failed to update message retention.", false, async () => {
-      await setChannelRetention(id, days);
-      return true;
-    });
-  }
-
-  function updateMemberPermissions(id: ChannelId, patch: MemberPermissionsPatch): Promise<boolean> {
-    return withFeedback(id, "Failed to update member permissions.", false, async () => {
-      await setMemberPermissions(id, patch);
-      return true;
-    });
-  }
-
-  function archiveChannelById(id: ChannelId): Promise<boolean> {
-    return withFeedback(id, "Failed to archive channel.", false, async () => {
-      await archiveChannel(id);
-      channelsStore.patchChannel(id, { archived: true });
-      return true;
-    });
-  }
-
-  function unarchiveChannelById(id: ChannelId): Promise<boolean> {
-    return withFeedback(id, "Failed to unarchive channel.", false, async () => {
-      await unarchiveChannel(id);
-      channelsStore.patchChannel(id, { archived: false });
-      return true;
-    });
-  }
-
-  function convertChannelToPrivateById(id: ChannelId): Promise<boolean> {
-    return withFeedback(id, "Failed to convert channel to private.", false, async () => {
-      await convertChannelToPrivate(id);
-      channelsStore.patchChannel(id, { private: true });
-      return true;
-    });
-  }
+  const converting = defineMutation<{ groupDmName?: string; id: ChannelId }>({
+    key: ({ id }) => id,
+    mode: "single",
+    onError: (error, { id }) => feedback.caught(id, error, `Failed to make ${kindOf(id)} private.`),
+    run: async ({ groupDmName, id }) => {
+      await convertChannelToPrivate(id, groupDmName);
+      await applyChange(id, { private: true });
+    },
+  });
 
   return {
-    archiveChannelById,
+    archiveChannelById: (id: ChannelId) => archiving.run({ archived: true, id }),
     channelDetailsId,
     channelDetailsTab,
     closeChannelDetails,
-    convertChannelToPrivateById,
-    invalidateChannelDetails,
-    inviteUsersToChannel,
-    createChannelDetailsQuery,
-    createChannelManagerIdsQuery,
-    createChannelPostingPrefsQuery,
-    createChannelRetentionQuery,
-    createMemberPermissionsQuery,
-    queries: {
-      details: channelDetailsQuery,
-      managerIds: channelManagerIdsQuery,
-      memberPermissions: memberPermissionsQuery,
-      postingPrefs: channelPostingPrefsQuery,
-      retention: channelRetentionQuery,
-    },
-    loadChannelManagerIds,
-    loadChannelMembersPage,
-    searchChannelMembers,
+    convertToPrivateById: (id: ChannelId, groupDmName?: string) =>
+      converting.run({ groupDmName, id }),
+    isArchivePending: (id: ChannelId) => archiving.pending(id),
+    isConvertPending: (id: ChannelId) => converting.pending(id),
     openChannelDetails,
-    removeUserFromChannel,
-    renameChannelById,
-    unarchiveChannelById,
-    updateChannelPostingPrefs,
-    updateChannelPurpose,
-    updateChannelRetention,
-    updateChannelTopic,
-    updateMemberPermissions,
+    renameChannelById: (id: ChannelId, name: string) =>
+      editing.run({
+        failure: `Failed to rename ${kindOf(id)}.`,
+        id,
+        save: async () => applyChange(id, { name: await renameChannel(id, name) }),
+      }),
+    unarchiveChannelById: (id: ChannelId) => archiving.run({ archived: false, id }),
+    updateChannelPurpose: (id: ChannelId, purpose: string) =>
+      editing.run({
+        failure: "Failed to set description.",
+        id,
+        save: () => setChannelPurpose(id, purpose),
+      }),
+    updateChannelTopic: (id: ChannelId, topic: string) =>
+      editing.run({
+        failure: "Failed to set topic.",
+        id,
+        save: async () => {
+          await setChannelTopic(id, topic);
+          await applyChange(id, { topic });
+        },
+      }),
   };
 }

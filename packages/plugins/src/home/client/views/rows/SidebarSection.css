@@ -1,8 +1,12 @@
 .sidebar-section {
-  margin-top: 10px;
-  margin-bottom: 6px;
+  padding-block: 5px;
   border-top: 2px solid transparent;
   border-bottom: 2px solid transparent;
+}
+
+.sidebar-section-drop-into {
+  background: var(--accent-muted);
+  border-radius: var(--radius-control);
 }
 
 .sidebar-section-dragging {
@@ -28,7 +32,8 @@
 .sidebar-section-header {
   width: 100%;
   height: calc(22px + var(--row-padding-offset));
-  padding: calc(6px + var(--row-padding-offset)) 10px calc(6px + var(--row-padding-offset)) 16px;
+  padding: calc(6px + var(--row-padding-offset)) 10px calc(6px + var(--row-padding-offset))
+    var(--space-lg);
 }
 
 .sidebar-section-header-btn {
@@ -69,9 +74,6 @@
   font-size: var(--font-size-control);
   font-weight: 700;
   color: var(--text-primary);
-  background: var(--main-bg);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
 }
 
 .sidebar-section-menu-wrap {

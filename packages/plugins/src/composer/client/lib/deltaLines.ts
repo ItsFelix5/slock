@@ -1,5 +1,7 @@
 import { defined } from "@slock/core";
 import { encodeTextEntities } from "@slock/slack";
+import { wrapDelimited } from "@slock/ui";
+import { INLINE_STYLE_FORMATS } from "@slock/ui/editor/inlineFormats";
 import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
 import { describeEmbed, type EmbedInsert, embedText } from "./embedValues";
 
@@ -23,8 +25,8 @@ function sameInlineAttrs(
   a: Record<string, unknown> | undefined,
   b: Record<string, unknown> | undefined,
 ) {
-  for (const [, key] of INLINE_MARKS) if (!!a?.[key] !== !!b?.[key]) return false;
-  return a?.link === b?.link;
+  for (const key of INLINE_STYLE_FORMATS) if (!!a?.[key] !== !!b?.[key]) return false;
+  return a?.link === b?.link && a?.tag === b?.tag;
 }
 
 function pushSegment(
@@ -71,14 +73,6 @@ export function deltaLines(ops: readonly DeltaOp[]): DeltaLine[] {
 
 function rawLineText(line: DeltaLine): string {
   return line.segments.map((s) => (s.embed ? s.text : encodeTextEntities(s.text))).join("");
-}
-
-function wrapDelimited(text: string, delimiter: string): string {
-  const core = text.trim();
-  if (!core) return text;
-  const lead = text.slice(0, text.length - text.trimStart().length);
-  const trail = text.slice(lead.length + core.length);
-  return `${lead}${delimiter}${core}${delimiter}${trail}`;
 }
 
 function inlineFormattedLineText(line: DeltaLine): string {

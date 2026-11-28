@@ -4,12 +4,13 @@ import { type ScrollDirection, scrollDirection } from "../../../lib/scrollMath";
 import { observeComposerOverlay } from "../composerOverlay";
 import { anchorDrift, captureAnchors, type FeedAnchor, shiftAnchors } from "./feedAnchors";
 import { findGroup, flashGroup, groupTs } from "./feedDom";
-import { createGlide, glideSnap, glideStep, prefersReducedMotion } from "./feedGlide";
 import { observeFeed } from "./feedObserver";
-import { alignedTop, maxScrollTop, offsetTop, revealTop } from "./feedPosition";
+import { alignedTop, bottomInset, maxScrollTop, offsetTop, revealTop } from "./feedPosition";
 
 export type LandTarget =
   | { at: "bottom" }
+  | { at: "top" }
+  | { at: "reveal"; ts: Ts }
   | { at: "row"; ts: Ts; align: "start" | "center"; flash?: boolean }
   | { at: "offset"; ts: Ts; offset: number };
 
@@ -17,10 +18,12 @@ const BOTTOM_SLACK_PX = 2;
 const SUBPIXEL_PX = 0.5;
 
 const nearBottom = (scroller: HTMLElement) =>
-  scroller.scrollTop >= maxScrollTop(scroller) - BOTTOM_SLACK_PX;
+  scroller.scrollTop >= maxScrollTop(scroller) - bottomInset(scroller) - BOTTOM_SLACK_PX;
 
 function targetTop(scroller: HTMLElement, target: LandTarget) {
   if (target.at === "bottom") return maxScrollTop(scroller);
+  if (target.at === "top") return 0;
+  if (target.at === "reveal") return revealTop(scroller, target.ts);
   if (target.at === "offset") return offsetTop(scroller, target.ts, target.offset);
   return alignedTop(scroller, target.ts, target.align);
 }
@@ -34,10 +37,13 @@ export function createFeedScroll(options: {
   const [atTop, setAtTop] = createSignal(true);
   const [topTs, setTopTs] = createSignal<Ts>();
 
+  // `scroller` is the synchronous truth; the signal publishes it to effects once flushed.
   let scroller: HTMLElement | undefined;
+  const [element, setElement] = createSignal<HTMLElement | undefined>(undefined, {
+    ownedWrite: true,
+  });
   let following = true;
   let target: LandTarget | undefined;
-  let destination: ((scroller: HTMLElement) => number | undefined) | undefined;
   let anchors: FeedAnchor[] = [];
   let lastTop = 0;
   let seenMaxTop = 0;
@@ -50,50 +56,29 @@ export function createFeedScroll(options: {
     lastTop = el.scrollTop;
   }
 
-  const glide = createGlide((elapsedMs) => {
-    const el = scroller;
-    const goal = el && destination?.(el);
-    if (!el || goal === undefined) return true;
-    const distance = Math.min(Math.max(goal, 0), maxScrollTop(el)) - el.scrollTop;
-    const jump = glideSnap(distance, el.clientHeight);
-    const remaining = distance - jump;
-    const before = el.scrollTop;
-    write(
-      el,
-      before + jump + (prefersReducedMotion() ? remaining : glideStep(remaining, elapsedMs)),
-    );
-    const moved = el.scrollTop - before;
-    pendingMove += moved;
-    const arrived = Math.abs(distance - moved) <= SUBPIXEL_PX || moved === 0;
-    if (arrived) {
-      destination = undefined;
-      following = options.isLive() && nearBottom(el);
-    }
-    return arrived;
-  });
-
   function absorb(el: HTMLElement) {
     const moved = el.scrollTop - lastTop;
     const currentMax = maxScrollTop(el);
     const clampedByShrink =
       moved < 0 && currentMax < seenMaxTop && el.scrollTop >= currentMax - SUBPIXEL_PX;
-    if (moved === 0 || clampedByShrink) return;
+    if (moved === 0 || clampedByShrink) return false;
     shiftAnchors(anchors, moved);
     pendingMove += moved;
     target = undefined;
-    destination = undefined;
-    glide.stop();
     following =
       options.isLive() && el.scrollTop >= Math.min(seenMaxTop, currentMax) - BOTTOM_SLACK_PX;
+    return currentMax === seenMaxTop;
   }
 
-  function apply(el: HTMLElement) {
+  function apply(el: HTMLElement, onlyUserMoved: boolean) {
     const top = target && targetTop(el, target);
     if (top !== undefined) write(el, top);
-    else if (following && options.isLive()) write(el, maxScrollTop(el));
-    else write(el, el.scrollTop + anchorDrift(el, anchors));
-    if (target && nearBottom(el) && options.isLive()) {
-      following = true;
+    else if (following && options.isLive()) {
+      if (!onlyUserMoved) write(el, maxScrollTop(el));
+    } else write(el, el.scrollTop + anchorDrift(el, anchors));
+    const live = options.isLive();
+    if (target && nearBottom(el) && (live || target.at === "bottom")) {
+      following = live;
       target = undefined;
     }
   }
@@ -105,9 +90,9 @@ export function createFeedScroll(options: {
       hidden = true;
       return;
     }
-    if (hidden) hidden = false;
-    else absorb(el);
-    if (!glide.active()) apply(el);
+    const onlyUserMoved = !hidden && absorb(el);
+    hidden = false;
+    apply(el, onlyUserMoved);
     lastTop = el.scrollTop;
     anchors = captureAnchors(el);
     seenMaxTop = maxScrollTop(el);
@@ -124,15 +109,16 @@ export function createFeedScroll(options: {
   function attach(el: HTMLElement) {
     detach?.();
     scroller = el;
+    setElement(el);
     el.style.overflowAnchor = "none";
     lastTop = el.scrollTop;
     el.addEventListener("scroll", settle, { passive: true });
     const stopObserving = observeFeed(el, settle);
     detach = () => {
-      glide.stop();
       el.removeEventListener("scroll", settle);
       stopObserving();
       scroller = undefined;
+      setElement(undefined);
       detach = undefined;
     };
   }
@@ -142,8 +128,6 @@ export function createFeedScroll(options: {
 
   function reset() {
     landRun += 1;
-    glide.stop();
-    destination = undefined;
     target = undefined;
     anchors = [];
     following = true;
@@ -156,10 +140,7 @@ export function createFeedScroll(options: {
     queueMicrotask(() => {
       const el = scroller;
       if (!el || run !== landRun) return;
-      glide.stop();
-      destination = undefined;
-      const missing = next.at !== "bottom" && !findGroup(el, next.ts);
-      target = missing ? { at: "bottom" } : next;
+      target = next;
       following = false;
       lastTop = el.scrollTop;
       settle();
@@ -171,32 +152,35 @@ export function createFeedScroll(options: {
     });
   }
 
-  function moveTo(next: (el: HTMLElement) => number | undefined) {
-    target = undefined;
+  function moveTo(next: LandTarget) {
+    const el = scroller;
+    if (!el) return;
+    target = next;
     following = false;
-    destination = next;
-    glide.start();
+    lastTop = el.scrollTop;
+    settle();
   }
 
-  function glideTo(ts: Ts) {
-    const group = scroller && findGroup(scroller, ts);
-    if (!group) return;
+  function jumpTo(ts: Ts) {
+    const el = scroller;
+    const group = el && findGroup(el, ts);
+    if (!(el && group)) return;
     flashGroup(group);
-    moveTo((el) => alignedTop(el, ts, "center"));
+    moveTo({ align: "center", at: "row", ts });
   }
 
   return {
     atBottom,
     atTop,
     attach,
-    element: () => scroller,
-    glideTo,
+    element,
+    jumpTo,
     land,
     ready,
     reset,
-    reveal: (ts: Ts) => moveTo((el) => revealTop(el, ts)),
+    reveal: (ts: Ts) => moveTo({ at: "reveal", ts }),
     scrollEdge: (edge: "start" | "end") =>
-      moveTo((el) => (edge === "start" ? 0 : maxScrollTop(el))),
+      moveTo(edge === "start" ? { at: "top" } : { at: "bottom" }),
     settle,
     topAnchor: () => {
       const [first] = anchors;

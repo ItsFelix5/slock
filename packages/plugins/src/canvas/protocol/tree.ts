@@ -21,7 +21,7 @@ export interface PlannedContainer {
   weights: number[];
 }
 
-export interface Tree {
+interface Tree {
   claimed: Set<string>;
   containers: PlannedContainer[];
   root: PlannedChild[];
@@ -40,7 +40,8 @@ function levelsFor(entry: FlowEntry, containers: Map<string, ExistingContainer>)
     const compatible = id !== null && containers.get(id)?.kind === frame.kind;
     return { candidate: compatible ? id : null, frame, spec: frameSpec(frame) };
   });
-  const listStyle = node && isLineNode(node) ? listStyleForKind(node.kind) : null;
+  const keptList = node.kind === "unknown" ? containers.get(existing?.listId ?? "") : undefined;
+  const listStyle = isLineNode(node) ? listStyleForKind(node.kind) : (keptList?.style ?? null);
   if (listStyle !== null) {
     const listId = existing?.listId ?? null;
     levels.push({
@@ -49,7 +50,7 @@ function levelsFor(entry: FlowEntry, containers: Map<string, ExistingContainer>)
       spec: { kind: "list", style: listStyle },
     });
   }
-  if (node?.kind === "image")
+  if (node.kind === "image")
     levels.push({ candidate: existing?.wrapperId ?? null, frame: null, spec: { kind: "wrap" } });
   return levels;
 }

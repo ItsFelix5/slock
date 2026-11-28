@@ -2,20 +2,14 @@ import type { Setup, TimerHandle } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { isDmId } from "@slock/plugins/dms/client/api";
 import { gatewayHandler } from "@slock/plugins/realtime/client/api";
-import {
-  fetchLatestCounts,
-  markChannelRead,
-  markThreadRead,
-} from "@slock/plugins/slack/client/api";
 import { buildUnreadMap, isChannelId, isTs, parseBadgeCounts, parseCountGroup } from "@slock/slack";
 import type { ChannelId } from "@slock/types";
+import { fetchLatestCounts, markChannelRead, markThreadRead } from "./requests";
 import { createUnreadStore } from "./store";
 
 const feedback = service("feedback");
 
-const REFRESH_AFTER_MS = 5000;
 const DELETION_REFRESH_MS = 500;
-const READ_REFRESH_MS = 300;
 
 const setup: Setup = (ctx) => {
   const env = ctx.get("env");
@@ -32,13 +26,11 @@ const setup: Setup = (ctx) => {
     api: { markChannelRead, markThreadRead },
     bootstrap: () => bootstrap.bootstrap().data,
     flash: (...args) => feedback.flash(...args),
-    onReadSynced: () => refreshSoon(READ_REFRESH_MS),
     patchChannel: channels.patchChannel,
     patchDm: dms.patchDm,
   });
   ctx.provide("unread", store);
   const onCounts = ctx.use("unread.counts");
-  let lastRefreshAt = 0;
   let refreshSeq = 0;
   let eventClock = 0;
   const eventAt = new Map<ChannelId, number>();
@@ -48,7 +40,6 @@ const setup: Setup = (ctx) => {
     disposed = true;
   });
   const refreshCounts = async () => {
-    lastRefreshAt = env.now();
     const seq = ++refreshSeq;
     const requestedAt = eventClock;
     const data = await fetchLatestCounts().catch(() => undefined);
@@ -77,19 +68,10 @@ const setup: Setup = (ctx) => {
       refreshSoon(DELETION_REFRESH_MS);
     }),
   );
-  const refreshWhenBack = () => {
-    if (document.visibilityState === "visible" && env.now() - lastRefreshAt > REFRESH_AFTER_MS)
-      void refreshCounts();
-  };
-  window.addEventListener("focus", refreshWhenBack);
-  document.addEventListener("visibilitychange", refreshWhenBack);
-  ctx.onCleanup(() => {
-    window.removeEventListener("focus", refreshWhenBack);
-    document.removeEventListener("visibilitychange", refreshWhenBack);
-  });
   ctx.add(
     "realtime.handler",
     gatewayHandler(["badge_counts_updated"], (event) => {
+      console.log("DEBUG-BADGE", JSON.stringify(parseBadgeCounts(event)));
       for (const [id, { unread, mentions }] of Object.entries(parseBadgeCounts(event))) {
         if (!isChannelId(id)) continue;
         touched(id);
@@ -103,6 +85,11 @@ const setup: Setup = (ctx) => {
     "realtime.handler",
     gatewayHandler(["channel_marked", "group_marked", "im_marked", "mpim_marked"], (event) => {
       if (!(event.channel && event.ts && isChannelId(event.channel) && isTs(event.ts))) return;
+      console.log(
+        "DEBUG-MARKED",
+        JSON.stringify(event),
+        store.isStaleReadEcho(event.channel, event.ts),
+      );
       if (store.isStaleReadEcho(event.channel, event.ts)) return;
       touched(event.channel);
       const isDm = isDmId(event.channel, (dmId) => !!dms.dmById(dmId));

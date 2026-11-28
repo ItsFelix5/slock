@@ -2,7 +2,7 @@ import { defined, escapeRegExp } from "@slock/core";
 import { WHITESPACE_RE } from "../textHighlight";
 import type Quill from "./quill";
 import type { Op, Range } from "./quill";
-import { indexAlignedText } from "./quillText";
+import { textBefore } from "./quillText";
 
 export const INLINE_MARKS: [char: string, format: "bold" | "italic" | "strike" | "code"][] = [
   ["*", "bold"],
@@ -39,7 +39,7 @@ export function wireMarkdownAutoformat(quill: Quill, blockFormats: boolean) {
     if (at === undefined) return;
     const [, offset] = quill.getLine(at);
     const lineStart = at - offset;
-    const before = indexAlignedText(quill).slice(lineStart, at);
+    const before = textBefore(quill, at).slice(lineStart);
     const format = quill.getFormat(at);
     if (format.code || format["code-block"]) return;
 
@@ -62,12 +62,11 @@ export function wireMarkdownAutoformat(quill: Quill, blockFormats: boolean) {
   });
 }
 
-const BLOCK_FORMATS = ["blockquote", "context", "header", "list", "code-block"];
+const BLOCK_FORMATS = ["blockquote", "context", "header", "code-block"];
 
 export function wireArrowDownExit(quill: Quill) {
   quill.keyboard.addBinding({ key: "ArrowDown", collapsed: true }, (range: Range) => {
-    const [line, offset] = quill.getLine(range.index);
-    if (!line || offset !== line.length() - 1 || line.next) return true;
+    if (range.index !== quill.getLength() - 1) return true;
     const formats = quill.getFormat(range.index);
     const blocks = BLOCK_FORMATS.filter((name) => formats[name]);
     if (blocks.length > 0) {

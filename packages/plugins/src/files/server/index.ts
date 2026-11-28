@@ -1,24 +1,22 @@
 import type { Setup } from "@slock/core";
 import { slackUploadResponse } from "@slock/plugins/slack/server/api/assets";
+
 import {
   errorResponse,
   jsonResponse,
   slackErrorResponse,
 } from "@slock/plugins/slack/server/api/jsonResponse";
 import type { Route } from "@slock/plugins/slack/server/api/router";
-import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
+import { route, routes } from "@slock/plugins/slack/server/api/router";
 import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
-import type {
-  FileInfoReply,
-  FileSharesReply,
-  FilesCompleteReply,
-  UploadReservationReply,
-} from "@slock/plugins/slack/server/api/slackReplies";
-import { hostedChannelId } from "@slock/plugins/slack/server/api/trim/slackChannels";
+import type { FileInfoReply } from "@slock/plugins/slack/server/api/slackReplies";
 import { trimFile } from "@slock/plugins/slack/server/api/trim/slackMessages";
+import { hostedChannelId } from "@slock/slack";
+import type { RawFile, RawFileShare } from "@slock/types";
+import { accessRoutes, fileAccess } from "./access";
 
-function flattenShares(sharesRoot: unknown): Record<string, unknown>[] {
-  const out: Record<string, unknown>[] = [];
+function flattenShares(sharesRoot: unknown): RawFileShare[] {
+  const out: RawFileShare[] = [];
   if (!sharesRoot || typeof sharesRoot !== "object") return out;
   for (const byChannel of Object.values(sharesRoot)) {
     if (!byChannel || typeof byChannel !== "object") continue;
@@ -28,14 +26,6 @@ function flattenShares(sharesRoot: unknown): Record<string, unknown>[] {
     }
   }
   return out;
-}
-
-type AccessTarget = { channelId?: string; userId?: string };
-
-function accessTarget({ channelId, userId }: AccessTarget): Record<string, string> | null {
-  if (userId) return { user_ids: JSON.stringify([userId]) };
-  if (channelId) return { channel_ids: JSON.stringify([channelId]) };
-  return null;
 }
 
 const list: Route[] = [
@@ -55,23 +45,17 @@ const list: Route[] = [
       return slackErrorResponse(sharesData, "files.getShares");
     }
     const { file } = infoData;
+    const shares = flattenShares(sharesData.conversation_shares?.shares).filter(
+      (share) => share.channel_id !== hostedChannelId(ctx.params.id),
+    );
     return jsonResponse({
-      access: {
-        org_id: file.user_team ?? null,
-        org_level: file.org_or_workspace_access ?? "none",
-        users: (file.dm_mpdm_users_with_file_access ?? []).flatMap((entry) =>
-          entry.user_id ? [{ access: entry.access ?? "read", user_id: entry.user_id }] : [],
-        ),
-      },
+      access: await fileAccess(file, shares, ctx.creds),
       content: infoData.content ?? null,
       contentTruncated: !!infoData.is_truncated,
       editable: file.editable === true,
       file: trimFile(file),
       ok: true,
-      owner: file.canvas_creator_id ?? file.user ?? null,
-      shares: flattenShares(sharesData.conversation_shares?.shares).filter(
-        (share) => share.channel_id !== hostedChannelId(ctx.params.id),
-      ),
+      shares,
       starred: !!file.is_starred,
       viewer_count: sharesData.viewer_count ?? null,
     });
@@ -87,46 +71,7 @@ const list: Route[] = [
     return jsonResponse({ ok: true });
   }),
 
-  route("POST", "files/:id/access", async (ctx) => {
-    const { channelId, level, orgId, userId } = await ctx.body.json<
-      AccessTarget & { level?: string; orgId?: string }
-    >();
-    if (!level) return errorResponse("invalid_access", 400);
-    if (channelId && orgId) {
-      return mutate(
-        "files.updatePermission",
-        {
-          channel_id_access_level_map: JSON.stringify([
-            { access_level: level, channel_id: channelId },
-          ]),
-          file_id: ctx.params.id,
-          team_id: orgId,
-        },
-        ctx,
-      );
-    }
-    if (!userId) return errorResponse("invalid_access", 400);
-    return mutate(
-      "canvases.access.set",
-      { access_level: level, canvas_id: ctx.params.id, user_ids: JSON.stringify([userId]) },
-      ctx,
-    );
-  }),
-
-  route("POST", "files/:id/access/remove", async (ctx) => {
-    const target = accessTarget(await ctx.body.json<AccessTarget>());
-    if (!target) return errorResponse("invalid_access", 400);
-    return mutate("canvases.access.delete", { canvas_id: ctx.params.id, ...target }, ctx);
-  }),
-
-  route("POST", "files/:id/org-access", async (ctx) => {
-    const { level, orgId } = await ctx.body.json<{ level?: string; orgId?: string }>();
-    if (!(level && orgId)) return errorResponse("invalid_access", 400);
-    const entity = { entity_id: orgId, entity_type: "org", file_id: ctx.params.id };
-    return level === "none"
-      ? mutate("files.disableCrossWorkspaceLinkSharing", entity, ctx)
-      : mutate("files.enableCrossWorkspaceLinkSharing", { ...entity, access_level: level }, ctx);
-  }),
+  ...accessRoutes,
 
   route("POST", "files/reserve", async (ctx) => {
     const params = await ctx.body.json<Record<string, string>>();
@@ -169,3 +114,12 @@ const setup: Setup = (ctx) => {
 };
 
 export default setup;
+
+type UploadReservationReply = { file_id?: string; upload_url?: string };
+
+type FilesCompleteReply = { files?: RawFile[] };
+
+type FileSharesReply = {
+  conversation_shares?: { shares?: unknown };
+  viewer_count?: number;
+};

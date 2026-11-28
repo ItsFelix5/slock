@@ -12,7 +12,9 @@
   "include": ["src/**/*", "src/**/*.json", "../../types/css.d.ts"],
   "references": [
     { "path": "../core" },
+    { "path": "../core/src/client" },
     { "path": "../slack" },
+    { "path": "../slack/src/client" },
     { "path": "../ui" },
     { "path": "../types" }
   ]

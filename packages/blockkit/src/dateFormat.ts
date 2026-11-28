@@ -248,7 +248,7 @@ export function zonedWallTimeToMs(
   return zonedDateTimeToMs(anchor.year, anchor.month, anchor.day, hour, minute, 0, zone);
 }
 
-export function startOfDayMs(ts: number): number {
+function startOfDayMs(ts: number): number {
   const d = new Date(ts);
   d.setHours(0, 0, 0, 0);
   return d.getTime();

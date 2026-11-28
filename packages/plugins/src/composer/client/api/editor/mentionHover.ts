@@ -38,9 +38,11 @@ export function createMentionHoverController() {
   const bind = (quill: Quill) => {
     quill.root.addEventListener("mouseover", handleMouseOver);
     quill.root.addEventListener("mouseout", handleMouseOut);
+    quill.root.addEventListener("pointerdown", hoverIntent.close);
     return () => {
       quill.root.removeEventListener("mouseover", handleMouseOver);
       quill.root.removeEventListener("mouseout", handleMouseOut);
+      quill.root.removeEventListener("pointerdown", hoverIntent.close);
       hoverEl = undefined;
       hoverIntent.close();
     };

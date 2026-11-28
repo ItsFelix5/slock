@@ -1,5 +1,7 @@
 {
   "id": "usergroup-details",
+  "category": "People and channels",
   "name": "Pinggroup details",
-  "requires": ["channels", "conversations", "shell", "usergroups", "users"]
+  "requires": ["channels", "conversations", "query", "shell", "usergroups", "users"],
+  "boot": true
 }

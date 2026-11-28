@@ -3,14 +3,12 @@ import type { Op } from "@slock/ui/editor/quill";
 import { escapeCanvasHtml, framesFromAttribute } from "../../protocol/api";
 import { valueKey, valueToControl } from "./canvasEmbeds";
 import {
+  atomValue,
   COLUMNS_EMBED,
   DIVIDER_EMBED,
   embedValue,
-  FILE_EMBED,
-  IMAGE_EMBED,
+  isBlockEmbed,
   isColumnsValue,
-  isFileValue,
-  isImageValue,
   isTableValue,
   TABLE_EMBED,
   type TableEmbedValue,
@@ -46,6 +44,8 @@ function lineShape(
   return { checked: false, indent: 0, kind: "paragraph", level: 0 };
 }
 
+const controlRef = (id: string) => `<control id="${id}"></control>`;
+
 function isStringValue(value: unknown): value is string {
   return typeof value === "string";
 }
@@ -56,26 +56,24 @@ export function opsToLines(ops: Op[], ctx: LineContext): ParsedLines {
   function serialize(lineId: string, embed: EmbedValue): string | null {
     if ("softbreak" in embed) return "<br>";
     const { canvasControl, emoji, mention } = embed;
+    if (typeof canvasControl === "object" && canvasControl && "id" in canvasControl)
+      return controlRef(String(canvasControl.id));
+    const key = valueKey(embed);
+    if (!key) return null;
+    const existing = ctx.pool.take(lineId, key);
+    if (existing) return controlRef(existing);
     if (typeof emoji === "object" && emoji && "name" in emoji && isStringValue(emoji.name)) {
       const text = ctx.names.emojiText(emoji.name);
       if (text) return escapeCanvasHtml(text);
     }
-    if (typeof canvasControl === "object" && canvasControl && "id" in canvasControl)
-      return `<control id="${String(canvasControl.id)}"></control>`;
-    const key = valueKey(embed);
-    if (!key) return null;
-    const existing = ctx.pool.take(lineId, key);
-    const controlId = existing ?? ctx.newId();
-    if (!existing) {
-      const control = valueToControl(embed, controlId, ctx.names);
-      if (!control) {
-        const name =
-          typeof mention === "object" && mention && "name" in mention ? mention.name : "";
-        return escapeCanvasHtml(`@${String(name)}`);
-      }
-      ctx.controls.push(control);
+    const controlId = ctx.newId();
+    const control = valueToControl(embed, controlId);
+    if (!control) {
+      const name = typeof mention === "object" && mention && "name" in mention ? mention.name : "";
+      return escapeCanvasHtml(`@${String(name)}`);
     }
-    return `<control id="${controlId}"></control>`;
+    ctx.controls.push(control);
+    return controlRef(controlId);
   }
 
   function registerAnnotations(html: string) {
@@ -90,10 +88,14 @@ export function opsToLines(ops: Op[], ctx: LineContext): ParsedLines {
     const inline: Op[] = [];
     for (const op of cellOps) {
       if (typeof op.insert === "string") {
-        const text = op.insert.replaceAll("\n", "");
-        if (text) inline.push({ attributes: inlineAttributes(op.attributes), insert: text });
+        op.insert.split("\n").forEach((text, index) => {
+          if (index > 0) inline.push({ insert: { softbreak: true } });
+          if (text) inline.push({ attributes: inlineAttributes(op.attributes), insert: text });
+        });
       } else if (op.insert) inline.push(op);
     }
+    // The newline every cell ends with is not a break the user typed.
+    inline.pop();
     const html = opsToHtml(inline, (embed) => serialize(contentId, embed), false);
     registerAnnotations(html);
     return html;
@@ -176,7 +178,7 @@ export function opsToLines(ops: Op[], ctx: LineContext): ParsedLines {
         continue;
       }
       if (!op.insert) continue;
-      if (typeof op.insert !== "object" || !blockEmbedName(op.insert)) {
+      if (typeof op.insert !== "object" || !isBlockEmbed(op.insert)) {
         inline.push(op);
         index += 1;
         continue;
@@ -184,8 +186,7 @@ export function opsToLines(ops: Op[], ctx: LineContext): ParsedLines {
       const frames = [...prefix, ...framesFromAttribute(op.attributes?.layout)];
       const id = isStringValue(op.attributes?.sid) ? op.attributes.sid : "";
       const columns = embedValue(op.insert, COLUMNS_EMBED);
-      const image = embedValue(op.insert, IMAGE_EMBED);
-      const file = embedValue(op.insert, FILE_EMBED);
+      const atom = atomValue(op.insert);
       const table = embedValue(op.insert, TABLE_EMBED);
       if (isColumnsValue(columns)) {
         columns.columns.forEach((columnOps, columnIndex) => {
@@ -194,8 +195,7 @@ export function opsToLines(ops: Op[], ctx: LineContext): ParsedLines {
             { id, index: columnIndex, kind: "columns", weights: columns.weights },
           ]);
         });
-      } else if (isImageValue(image)) pushAtom({ ...image.node, frames, id }, op, index);
-      else if (isFileValue(file)) pushAtom({ ...file.node, frames, id }, op, index);
+      } else if (atom) pushAtom({ ...atom, frames, id }, op, index);
       else if (isTableValue(table)) pushAtom(tableNode(table, id, frames), op, index);
       else if (DIVIDER_EMBED in op.insert)
         pushAtom(
@@ -209,10 +209,4 @@ export function opsToLines(ops: Op[], ctx: LineContext): ParsedLines {
 
   collect(ops, "", []);
   return resolveIds(drafts, ctx);
-}
-
-function blockEmbedName(insert: object): boolean {
-  return [COLUMNS_EMBED, DIVIDER_EMBED, FILE_EMBED, IMAGE_EMBED, TABLE_EMBED].some(
-    (name) => name in insert,
-  );
 }

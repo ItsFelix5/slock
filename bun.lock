@@ -6,23 +6,23 @@
       "name": "slock",
       "devDependencies": {
         "@biomejs/biome": "2.5.2",
+        "@slock/blockkit": "workspace:*",
         "@slock/core": "workspace:*",
+        "@slock/installer": "workspace:*",
+        "@slock/plugins": "workspace:*",
+        "@slock/slack": "workspace:*",
+        "@slock/types": "workspace:*",
+        "@slock/ui": "workspace:*",
+        "@solidjs/web": "2.0.3",
+        "@types/node": "^24.13.2",
+        "bun-types": "^1.3.14",
         "happy-dom": "^21.0.4",
+        "solid-js": "2.0.3",
         "typescript": "~6.0.2",
       },
     },
     "examplePlugin": {
       "name": "slock-plugin-example",
-      "version": "0.0.0",
-      "dependencies": {
-        "@slock/core": "workspace:*",
-        "@slock/ui": "workspace:*",
-        "@solidjs/web": "2.0.3",
-        "solid-js": "2.0.3",
-      },
-    },
-    "packages/app": {
-      "name": "@slock/app",
       "version": "0.0.0",
       "dependencies": {
         "@slock/core": "workspace:*",
@@ -50,6 +50,10 @@
         "@solidjs/web": "2.0.3",
         "solid-js": "2.0.3",
       },
+      "devDependencies": {
+        "@types/node": "^24.13.2",
+        "bun-types": "^1.3.14",
+      },
     },
     "packages/installer": {
       "name": "@slock/installer",
@@ -71,7 +75,6 @@
         "@slock/core": "workspace:*",
         "@slock/installer": "workspace:*",
         "@slock/resource": "workspace:*",
-        "@slock/server": "workspace:*",
         "@slock/slack": "workspace:*",
         "@slock/types": "workspace:*",
         "@slock/ui": "workspace:*",
@@ -97,18 +100,6 @@
       "dependencies": {
         "@slock/core": "workspace:*",
         "solid-js": "2.0.3",
-      },
-    },
-    "packages/server": {
-      "name": "@slock/server",
-      "version": "0.0.0",
-      "dependencies": {
-        "@slock/core": "workspace:*",
-        "@slock/installer": "workspace:*",
-      },
-      "devDependencies": {
-        "@types/node": "^24.13.2",
-        "bun-types": "^1.3.14",
       },
     },
     "packages/slack": {
@@ -161,8 +152,6 @@
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.2.7", "", { "dependencies": { "@tybys/wasm-util": "^0.10.3" }, "peerDependencies": { "@emnapi/core": "^1.7.1 || 2.0.0-beta.2 || 2.0.0-beta.3", "@emnapi/runtime": "^1.7.1 || 2.0.0-beta.2 || 2.0.0-beta.3" } }, "sha512-zJccwplOAbgfZju95IUHazLnx9RAPtPN2YGJXI6UbrgeaR9QfPjGrQL6ERkSAtnVCA4Q+83ApGyaX5zdpCaKkQ=="],
 
-    "@slock/app": ["@slock/app@workspace:packages/app"],
-
     "@slock/blockkit": ["@slock/blockkit@workspace:packages/blockkit"],
 
     "@slock/core": ["@slock/core@workspace:packages/core"],
@@ -174,8 +163,6 @@
     "@slock/relay": ["@slock/relay@workspace:packages/relay"],
 
     "@slock/resource": ["@slock/resource@workspace:packages/resource"],
-
-    "@slock/server": ["@slock/server@workspace:packages/server"],
 
     "@slock/slack": ["@slock/slack@workspace:packages/slack"],
 

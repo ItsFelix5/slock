@@ -2,7 +2,8 @@ import { formatLastSeen } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import type { ProfileMetaProps } from "@slock/plugins/profile/client/api";
 import { defineQuery } from "@slock/plugins/query/client/api";
-import { apiGet } from "@slock/slack";
+import { replyError } from "@slock/slack";
+import { apiGet } from "@slock/slack/client";
 import type { UserId } from "@slock/types";
 import { createClock } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
@@ -11,13 +12,16 @@ const messages = service("messages");
 
 const CLOCK_MS = 60_000;
 
-async function fetchLastSeen(userId: UserId): Promise<number | null> {
-  const data = await apiGet<{ lastSeen: number | null }>(`/api/users/${userId}/last-seen`);
-  if (!data.ok) throw new Error(data.error ?? "last seen lookup failed");
+async function fetchLastSeen(userId: UserId, signal: AbortSignal): Promise<number | null> {
+  const data = await apiGet<{ lastSeen: number | null }>(`/api/users/${userId}/last-seen`, signal);
+  if (!data.ok) throw replyError(data, "last seen lookup failed");
   return data.lastSeen;
 }
 
-const lastSeen = defineQuery<UserId, number | null>({ load: fetchLastSeen, name: "lastSeen" });
+const lastSeen = defineQuery<UserId, number | null>({
+  load: (userId, { signal }) => fetchLastSeen(userId, signal),
+  name: "lastSeen",
+});
 
 export default function LastSeen(props: ProfileMetaProps) {
   const now = createClock(CLOCK_MS);

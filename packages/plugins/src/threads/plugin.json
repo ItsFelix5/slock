@@ -1,5 +1,16 @@
 {
   "id": "threads",
+  "category": "Read and catch up",
   "name": "Threads",
-  "requires": ["channels", "dms", "message-links", "messages", "shell", "typing", "unread", "users"]
+  "requires": [
+    "channels",
+    "dms",
+    "message-links",
+    "messages",
+    "shell",
+    "typing",
+    "unread",
+    "users"
+  ],
+  "boot": true
 }

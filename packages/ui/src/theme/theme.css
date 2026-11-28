@@ -101,6 +101,11 @@
   --palette-amber-400: oklch(0.78 0.12 82);
   --palette-red-500: oklch(0.66 0.17 25);
   --palette-red-400: oklch(0.74 0.13 25);
+  --palette-orange-500: oklch(0.72 0.15 55);
+  --palette-yellow-500: oklch(0.85 0.14 100);
+  --palette-brown-500: oklch(0.65 0.08 55);
+  --palette-purple-500: oklch(0.7 0.14 305);
+  --palette-indigo-500: oklch(0.68 0.14 275);
 
   --rail-bg: var(--palette-charcoal-900);
   --sidebar-bg: var(--palette-charcoal-950);

@@ -1,55 +1,42 @@
-import { defined } from "@slock/core";
-import { service } from "@slock/core/solid";
-import { isChannelId, isUserId } from "@slock/slack";
-import { listNavigationIndex, useEditShortcuts, useListShortcuts } from "@slock/ui";
+import {
+  type ListDirection,
+  listNavigationIndex,
+  useEditShortcuts,
+  useListShortcuts,
+} from "@slock/ui";
 import Quill from "@slock/ui/editor/quill";
 import { indexAlignedText } from "@slock/ui/editor/quillText";
-import { type QuerySuggestion, queryToken } from "../querySuggestions";
-import {
-  FilterPillBlot,
-  loadQueryIntoQuill,
-  serializeQuery,
-  suggestionToPill,
-} from "./searchFilterPill";
-import { stripNegation } from "./tokenEntitySearch";
+import type { QuerySuggestion } from "../querySuggestions";
+import { tokenAt } from "./queryToken";
+import { loadQueryIntoQuill, pillOf, serializeQuery, wholeTokenPill } from "./searchFilterPill";
 
-const channelsStore = service("channels");
-const usersStore = service("users");
+const NEGATION_RE = /^-/;
 
-const USER_TOKEN_RE = /^(from|with):<@([A-Z0-9]+)>$/;
-const ENTITY_TOKEN_RE = /-?(?:from|with|in):<[@#][A-Z0-9]+>/g;
-const CHANNEL_TOKEN_RE = /^in:<#([A-Z0-9]+)>$/;
-
-function resolveTokenLabel(token: string): string {
-  const userMatch = token.match(USER_TOKEN_RE);
-  if (userMatch) {
-    const [, modifier, id] = userMatch;
-    const userId = defined(id);
-    return `${modifier}:@${(isUserId(userId) ? usersStore.userById(userId)?.name : undefined) ?? id}`;
-  }
-  const channelMatch = token.match(CHANNEL_TOKEN_RE);
-  if (channelMatch) {
-    const id = defined(channelMatch[1]);
-    const channel = isChannelId(id) ? channelsStore.channelById(id) : undefined;
-    return `in:#${channel?.name ?? id}`;
-  }
-  return token;
+interface QueryChange {
+  aligned: string;
+  cursor: number;
+  query: string;
+  typed: boolean;
 }
 
 export interface SearchQueryEditorDeps {
-  getSuggestions: () => QuerySuggestion[];
+  canEscape: () => boolean;
   getActiveSuggestion: () => number | null;
-  setActiveSuggestion: (index: number) => void;
-  onQueryChange: (query: string, cursor: number, typed: boolean) => void;
-  onSubmit: () => void;
+  getSuggestions: () => QuerySuggestion[];
+  list: { enabled: () => boolean; move: (direction: ListDirection) => void };
+  onEscape: () => void;
+  onQueryChange: (change: QueryChange) => void;
+  onRemove: () => boolean;
+  onSubmit: (split: boolean) => void;
   onSuggestionsShouldClose: () => void;
-  onEscapeWithNoSuggestions: () => void;
   placeholder: string;
+  setActiveSuggestion: (index: number) => void;
   suggestionsOpen: () => boolean;
 }
 
 export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
   let quill: Quill | undefined;
+  const root = () => quill?.root;
 
   useListShortcuts({
     edges: false,
@@ -62,136 +49,137 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
       );
       if (next !== undefined) deps.setActiveSuggestion(next);
     },
-    root: () => quill?.root,
+    root,
+  });
+  useListShortcuts({
+    edges: false,
+    enabled: () => !deps.suggestionsOpen() && deps.list.enabled(),
+    move: deps.list.move,
+    root,
   });
   useEditShortcuts({
     cancel: () => {
       if (deps.suggestionsOpen()) deps.onSuggestionsShouldClose();
-      else deps.onEscapeWithNoSuggestions();
+      else deps.onEscape();
     },
-    root: () => quill?.root,
+    enabled: () => deps.suggestionsOpen() || deps.canEscape(),
+    root,
   });
 
-  function applySuggestion(suggestion: QuerySuggestion) {
+  function replaceWithPill(start: number, length: number, value: string, label?: string) {
+    const pill = wholeTokenPill(value);
+    if (!(quill && pill)) return;
+    quill.deleteText(start, length);
+    quill.insertEmbed(start, "filter", label ? { ...pill, label } : pill);
+    return start + 1;
+  }
+
+  function applySuggestion({ label, value }: QuerySuggestion) {
     if (!quill) return;
-    if (!suggestion.replaceToken) {
-      setQueryText(suggestion.value);
-      deps.onSuggestionsShouldClose();
-      return;
+    const cursor = quill.getSelection(true).index;
+    const { end, start } = tokenAt(indexAlignedText(quill), cursor);
+    const after = replaceWithPill(start, end - start, value, label.replace(NEGATION_RE, ""));
+    if (after === undefined) return;
+    quill.insertText(after, " ");
+    quill.setSelection(after + 1, 0);
+  }
+
+  function pillifyTokenBeforeCursor() {
+    const cursor = quill?.getSelection()?.index;
+    if (!quill || cursor === undefined) return;
+    const text = indexAlignedText(quill);
+    if (text[cursor - 1] !== " ") return;
+    const { start, value } = tokenAt(text, cursor - 1);
+    if (replaceWithPill(start, value.length, value) !== undefined) {
+      quill.setSelection(start + 2, "silent");
     }
-    const token = queryToken(indexAlignedText(quill), quill.getSelection()?.index ?? 0);
-    quill.deleteText(token.start, token.end - token.start);
-    const pill = suggestionToPill(suggestion.value, suggestion.label);
-    if (pill) {
-      quill.insertEmbed(token.start, "filter", pill.pill);
-      quill.insertText(token.start + 1, " ");
-      quill.setSelection(token.start + 2, 0);
-    } else {
-      quill.insertText(token.start, suggestion.value);
-      quill.setSelection(token.start + suggestion.value.length, 0);
-    }
-    deps.onSuggestionsShouldClose();
   }
 
-  function setQueryText(text: string) {
-    if (!quill) return;
-    loadQueryIntoQuill(quill, text, resolveTokenLabel);
-    quill.setSelection(quill.getLength() - 1, 0);
-  }
-
-  function editPillAt(node: HTMLElement) {
-    if (!quill) return;
-    const blot = Quill.find(node);
-    if (!(blot && "offset" in blot)) return;
-    const index = blot.offset(quill.scroll);
-    const value = FilterPillBlot.value(node);
-    if (!value) return;
-    const [modifier] = stripNegation(value.token).split(":");
-    const text = `${value.negated ? "-" : ""}${modifier}:`;
-    quill.deleteText(index, 1, "user");
-    quill.insertText(index, text, "user");
-    quill.setSelection(index + text.length, 0);
-    quill.focus();
-  }
-
-  function alignedText(): string {
-    return quill ? indexAlignedText(quill) : "";
-  }
-
-  function activeSuggestion(): QuerySuggestion | undefined {
-    if (!deps.suggestionsOpen()) return;
-    const selected = deps.getActiveSuggestion();
-    return selected === null ? undefined : deps.getSuggestions()[selected];
-  }
-
-  function submit() {
-    deps.onSubmit();
-    return false;
+  function editPillBefore(index: number): boolean {
+    if (!quill || index === 0) return false;
+    const pill = pillOf(quill.getContents(index - 1, 1).ops[0]?.insert);
+    if (!pill) return false;
+    const [modifier] = pill.token.split(":");
+    const text = `${pill.negated ? "-" : ""}${modifier}:`;
+    quill.deleteText(index - 1, 1, "user");
+    quill.insertText(index - 1, text, "user");
+    quill.setSelection(index - 1 + text.length, 0);
+    return true;
   }
 
   function acceptActiveSuggestion(): boolean {
-    const suggestion = activeSuggestion();
+    if (!deps.suggestionsOpen()) return false;
+    const selected = deps.getActiveSuggestion();
+    const suggestion = selected === null ? undefined : deps.getSuggestions()[selected];
     if (!suggestion) return false;
     applySuggestion(suggestion);
     return true;
   }
 
-  function pillifyTokenBeforeCursor() {
+  function submit(split: boolean) {
+    if (!acceptActiveSuggestion()) {
+      deps.onSuggestionsShouldClose();
+      deps.onSubmit(split);
+    }
+    return false;
+  }
+
+  function setQueryText(text: string) {
     if (!quill) return;
-    const cursor = quill.getSelection()?.index;
-    if (cursor === undefined) return;
-    const text = indexAlignedText(quill);
-    if (text[cursor - 1] !== " ") return;
-    const token = queryToken(text, cursor - 1);
-    const pill = suggestionToPill(token.value, token.value);
-    if (!pill) return;
-    quill.deleteText(token.start, cursor - 1 - token.start, "silent");
-    quill.insertEmbed(token.start, "filter", pill.pill, "silent");
-    quill.setSelection(token.start + 2, "silent");
+    loadQueryIntoQuill(quill, text);
+    quill.setSelection(quill.getLength() - 1, 0);
+  }
+
+  function insert(text: string) {
+    if (!quill) return;
+    const { index } = quill.getSelection(true);
+    const before = indexAlignedText(quill).charAt(index - 1);
+    const added = before.trim() && before !== "\uFFFC" ? ` ${text}` : text;
+    quill.insertText(index, added, "user");
+    quill.setSelection(index + added.length, 0);
   }
 
   function mount(container: HTMLDivElement): Quill {
-    quill = new Quill(container, {
+    const q = new Quill(container, {
       formats: ["filter"],
       modules: {
         clipboard: true,
         history: true,
         keyboard: {
           bindings: {
-            submit: {
-              altKey: null,
-              ctrlKey: null,
-              handler: submit,
-              key: "Enter",
-              metaKey: null,
-              shiftKey: null,
-            },
-            tab: {
-              handler: () => {
-                acceptActiveSuggestion();
-                return false;
-              },
-              key: "Tab",
+            remove: { handler: () => !deps.onRemove(), key: "Delete" },
+            submit: { handler: () => submit(false), key: "Enter" },
+            submitSplit: { handler: () => submit(true), key: "Enter", shiftKey: true },
+            tab: { handler: () => !acceptActiveSuggestion(), key: "Tab" },
+            unpill: {
+              collapsed: true,
+              handler: ({ index }: { index: number }) => !editPillBefore(index),
+              key: "Backspace",
             },
           },
         },
       },
       placeholder: deps.placeholder,
     });
-    const q = quill;
+    quill = q;
 
+    const report = (cursor: number, typed: boolean) => {
+      const aligned = indexAlignedText(q);
+      deps.onQueryChange({ aligned, cursor, query: serializeQuery(q), typed });
+    };
     q.on("text-change", (_delta, _old, source) => {
       if (source === "user") pillifyTokenBeforeCursor();
-      const cursor = q.getSelection()?.index ?? indexAlignedText(q).length;
-      deps.onQueryChange(serializeQuery(q), cursor, source === "user");
+      report(q.getSelection()?.index ?? q.getLength() - 1, source === "user");
     });
     q.on("selection-change", (range) => {
-      if (range) deps.onQueryChange(serializeQuery(q), range.index, false);
+      if (range) report(range.index, false);
+      else deps.onSuggestionsShouldClose();
     });
     q.root.addEventListener("click", (event) => {
       const target = event.target instanceof Element ? event.target : null;
-      const pill = target?.closest<HTMLElement>(".search-filter-pill");
-      if (pill) editPillAt(pill);
+      const node = target?.closest<HTMLElement>(".search-filter-pill");
+      const blot = node ? Quill.find(node) : null;
+      if (blot && "offset" in blot) editPillBefore(blot.offset(q.scroll) + 1);
     });
     q.root.addEventListener(
       "paste",
@@ -211,11 +199,5 @@ export function createSearchQueryEditor(deps: SearchQueryEditorDeps) {
     return q;
   }
 
-  return { alignedText, applySuggestion, mount, setQueryText };
-}
-
-export function readableQuery(query: string): string {
-  return query.replace(ENTITY_TOKEN_RE, (token) =>
-    token.startsWith("-") ? `-${resolveTokenLabel(token.slice(1))}` : resolveTokenLabel(token),
-  );
+  return { applySuggestion, insert, mount, setQueryText };
 }

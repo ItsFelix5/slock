@@ -1,6 +1,6 @@
 import { clamp, defined } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { createEffect, createSignal, For } from "solid-js";
+import { createEffect, createSignal, For, untrack } from "solid-js";
 import "./OtpInput.css";
 import { useNavigationShortcuts } from "../hooks/useNavShortcuts";
 import { inside, useShortcut } from "../hooks/useShortcut";
@@ -8,7 +8,7 @@ import { backspaceSlots, fillSlots, toSlots, typedDigits } from "./otpSlots";
 
 const env = service("env");
 
-export interface OtpInputProps {
+interface OtpInputProps {
   length?: number;
   value: string;
   onChange: (value: string) => void;
@@ -34,7 +34,7 @@ export default function OtpInput(props: OtpInputProps) {
     (error) => {
       if (!error) return;
       setShake(true);
-      focusAt(0);
+      untrack(() => focusAt(0));
       const timer = env.setTimeout(() => setShake(false), 320);
       return () => env.clearTimeout(timer);
     },
@@ -101,7 +101,7 @@ export default function OtpInput(props: OtpInputProps) {
       <For each={slots()}>
         {(slot, index) => {
           const setInputRef = (el: HTMLInputElement) => {
-            inputs[index()] = el;
+            inputs[untrack(index)] = el;
           };
           const onInput = (event: InputEvent & { currentTarget: HTMLInputElement }) =>
             handleInput(index(), event);

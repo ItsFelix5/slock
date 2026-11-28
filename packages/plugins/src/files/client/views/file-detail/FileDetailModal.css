@@ -121,6 +121,10 @@
   font-size: var(--font-size-control);
 }
 
+.file-detail-access-general {
+  grid-template-columns: auto minmax(0, 1fr) 24px;
+}
+
 .file-detail-access-subject {
   display: flex;
   gap: var(--space-sm);

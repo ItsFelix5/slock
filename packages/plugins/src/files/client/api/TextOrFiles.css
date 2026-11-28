@@ -1,6 +1,0 @@
-.text-or-files {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  color: var(--text-dim);
-}

@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
+import { createTypeahead, type Query } from "@slock/plugins/query/client/api";
 import {
-  createDebouncedSearch,
   createListboxActiveIndex,
   fuzzySearch,
   listNavigationIndex,
@@ -9,7 +9,7 @@ import {
   useListShortcuts,
 } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
-import { createMemo, createSignal, createUniqueId, For, Show } from "solid-js";
+import { createMemo, createSignal, createUniqueId, For, Show, untrack } from "solid-js";
 import "../../api/pickers/ComposeUserPicker.css";
 
 const prefsStore = service("prefs");
@@ -29,7 +29,7 @@ export default function ComposePicker<T extends PickerItem>(props: {
   onClose: () => void;
   onSelect: (id: T["id"]) => void;
   placeholder: string;
-  remoteSearch: (query: string) => Promise<T[]>;
+  matches: Query<string, T[]>;
   renderItem: (item: T, isActive: boolean, optionId: string) => JSX.Element;
   searchingMessage: string;
 }) {
@@ -47,11 +47,14 @@ export default function ComposePicker<T extends PickerItem>(props: {
   useClickOutside(".compose-picker", props.onClose);
 
   const excludedIds = () => new Set(props.excludeIds ?? []);
-  const remote = createDebouncedSearch<T[]>({
-    delay: REMOTE_SEARCH_DELAY_MS,
-    empty: [],
-    search: (q) => props.remoteSearch(q),
-  });
+  const remote = createTypeahead<string, T[]>(
+    untrack(() => props.matches),
+    {
+      arg: (term) => term,
+      delay: REMOTE_SEARCH_DELAY_MS,
+      empty: [],
+    },
+  );
   const localFiltered = () => props.localItems().filter((item) => !excludedIds().has(item.id));
 
   const onInput = (value: string) => {

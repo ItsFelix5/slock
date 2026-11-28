@@ -21,15 +21,20 @@
   color: var(--text-secondary);
 }
 
+.debug-cache-table td {
+  white-space: nowrap;
+}
+
 .debug-cache-key {
   max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .debug-cache-error {
   max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--text-danger);
 }
 

@@ -1,5 +1,5 @@
 import { type Setup, Unavailable } from "@slock/core";
-import { isConfigured } from "@slock/slack";
+import { isConfigured } from "@slock/slack/client";
 import { createBootstrapStore } from "./store";
 import BootstrapError from "./views/BootstrapError";
 

@@ -1,16 +1,13 @@
-import Quill, { getEmbedBlot } from "@slock/ui/editor/quill";
+import { isRecord } from "@slock/core";
+import Quill, { Delta, getEmbedBlot } from "@slock/ui/editor/quill";
+import { parseTokens } from "../../searchQuery";
+import { type FilterPill, tokenPill } from "./pillLabels";
 
-export interface FilterPillValue {
-  token: string;
-  label: string;
-  negated: boolean;
-}
-
-export class FilterPillBlot extends getEmbedBlot() {
+class FilterPillBlot extends getEmbedBlot() {
   static override blotName = "filter";
   static override tagName = "span";
 
-  static override create(value: FilterPillValue) {
+  static override create(value: FilterPill) {
     const node = document.createElement("span");
     node.className = "bk-mention search-filter-pill";
     node.classList.toggle("negated", value.negated);
@@ -18,12 +15,12 @@ export class FilterPillBlot extends getEmbedBlot() {
     node.dataset.label = value.label;
     node.dataset.negated = String(value.negated);
     node.textContent = value.negated ? `-${value.label}` : value.label;
-    node.title = "Click to change";
+    node.dataset.copy = node.textContent;
     node.contentEditable = "false";
     return node;
   }
 
-  static override value(node: HTMLElement): FilterPillValue | undefined {
+  static override value(node: HTMLElement): FilterPill | undefined {
     const { token, label, negated } = node.dataset;
     return token && label ? { label, negated: negated === "true", token } : undefined;
   }
@@ -31,50 +28,29 @@ export class FilterPillBlot extends getEmbedBlot() {
 
 Quill.register(FilterPillBlot);
 
-function isPillShaped(
-  value: unknown,
-): value is { token?: unknown; label?: unknown; negated?: unknown } {
-  return !!value && typeof value === "object";
-}
-
-function filterPillValue(value: unknown): FilterPillValue | undefined {
-  if (!isPillShaped(value)) return;
-  const { token, label, negated } = value;
+export function pillOf(insert: unknown): FilterPill | undefined {
+  if (!(isRecord(insert) && isRecord(insert.filter))) return;
+  const { label, negated, token } = insert.filter;
   return typeof token === "string" && typeof label === "string"
     ? { label, negated: !!negated, token }
     : undefined;
 }
 
-function isFilterOp(value: unknown): value is { filter?: unknown } {
-  return !!value && typeof value === "object";
-}
-
-function filterPillFromOpInsert(insert: unknown): FilterPillValue | undefined {
-  return isFilterOp(insert) ? filterPillValue(insert.filter) : undefined;
+export function wholeTokenPill(text: string): FilterPill | undefined {
+  const [token] = parseTokens(text);
+  if (token?.start !== 0 || token.end !== text.length) return;
+  return tokenPill(token);
 }
 
 const REPEATED_SPACE_RE = / {2,}/g;
 const LEADING_SPACE_RE = /^ /;
-const MODIFIER_RE = /(-)?(from|with|in|has|hasmy|is|during|after|before|type):(<[^>]+>|\S+)/;
-
-export function suggestionToPill(
-  value: string,
-  label: string,
-): { pill: FilterPillValue } | undefined {
-  const match = value.match(MODIFIER_RE);
-  if (!match || match[0] !== value) return;
-  const negated = !!match[1];
-  const token = negated ? value.slice(1) : value;
-  const cleanLabel = negated ? label.slice(1) : label;
-  return { pill: { label: cleanLabel, negated, token } };
-}
 
 export function serializeQuery(quill: Quill): string {
   const serialized = quill
     .getContents()
     .ops.map((op) => {
       if (typeof op.insert === "string") return op.insert;
-      const pill = filterPillFromOpInsert(op.insert);
+      const pill = pillOf(op.insert);
       return pill ? ` ${pill.negated ? "-" : ""}${pill.token} ` : "";
     })
     .join("")
@@ -83,30 +59,14 @@ export function serializeQuery(quill: Quill): string {
   return serialized.endsWith("\n") ? serialized.slice(0, -1) : serialized;
 }
 
-export function loadQueryIntoQuill(
-  quill: Quill,
-  text: string,
-  resolveLabel: (token: string) => string,
-): void {
-  quill.setText("\n");
-  if (!text) return;
-  const re = new RegExp(MODIFIER_RE, "g");
-  let cursor = 0;
-  let lastIndex = 0;
-  for (const match of text.matchAll(re)) {
-    const [whole, negatedFlag] = match;
-    const index = match.index ?? 0;
-    const before = text.slice(lastIndex, index);
-    if (before) {
-      quill.insertText(cursor, before);
-      cursor += before.length;
-    }
-    const negated = !!negatedFlag;
-    const token = negated ? whole.slice(1) : whole;
-    quill.insertEmbed(cursor, "filter", { label: resolveLabel(token), negated, token });
-    cursor += 1;
-    lastIndex = index + whole.length;
+export function loadQueryIntoQuill(quill: Quill, text: string): void {
+  const delta = new Delta();
+  let copied = 0;
+  for (const token of parseTokens(text)) {
+    const pill = tokenPill(token);
+    if (!pill) continue;
+    delta.insert(text.slice(copied, token.start)).insert({ filter: pill });
+    copied = token.end;
   }
-  const rest = text.slice(lastIndex);
-  if (rest) quill.insertText(cursor, rest);
+  quill.setContents(delta.insert(`${text.slice(copied)}\n`));
 }

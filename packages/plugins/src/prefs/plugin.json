@@ -1,5 +1,6 @@
 {
   "id": "prefs",
+  "category": "Core",
   "name": "Slack preferences",
   "requires": ["bootstrap", "query", "shell"],
   "boot": true

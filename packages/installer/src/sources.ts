@@ -7,7 +7,7 @@ import { type Download, downloadRepo, parseGithub } from "./github";
 import { PLUGINS_SRC, REPO } from "./paths";
 import { parseLine, type Spec } from "./spec";
 
-export const SLOCK_SOURCE = "github.com/itsfelix5/slock";
+const SLOCK_SOURCE = "github.com/itsfelix5/slock";
 
 export type Candidate = {
   manifest: Manifest;
@@ -32,7 +32,7 @@ type Located = {
   from(dir: string): string;
 };
 
-export async function gitCommit(dir: string): Promise<string> {
+async function gitCommit(dir: string): Promise<string> {
   const run = (...args: string[]) =>
     Bun.spawn(["git", "-C", dir, ...args], { stderr: "ignore", stdout: "pipe" });
   const head = run("rev-parse", "--short", "HEAD");

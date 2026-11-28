@@ -9,5 +9,6 @@
     "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo"
   },
   "extends": "../../tsconfig.base.json",
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/client", "src/server"]
 }

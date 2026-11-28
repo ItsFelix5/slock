@@ -1,5 +1,4 @@
 import { type Deferred, deferred } from "./deferred";
-import type { ResourceEnv } from "./delay";
 
 export class BatchMissingId extends Error {
   constructor(id: string) {
@@ -8,70 +7,42 @@ export class BatchMissingId extends Error {
   }
 }
 
-type BatchResult<T> = ReadonlyMap<string, T> | Readonly<Record<string, T>>;
-
-export interface BatchLoaderOptions<T> {
-  delayMs?: number;
-  env: Pick<ResourceEnv, "setTimeout">;
-  load: (ids: string[]) => Promise<BatchResult<T>>;
-  maxBatch?: number;
+interface BatchLoaderOptions<T, K extends string> {
+  load: (ids: K[]) => Promise<ReadonlyMap<K, T>>;
+  maxBatch: number;
 }
 
-export interface BatchLoader<T> {
-  get(id: string): Promise<T>;
-}
+export function createBatchLoader<T, K extends string = string>({
+  load,
+  maxBatch,
+}: BatchLoaderOptions<T, K>): (id: K) => Promise<T> {
+  let queue = new Map<K, Deferred<T>>();
 
-function isMap<T>(result: BatchResult<T>): result is ReadonlyMap<string, T> {
-  return result instanceof Map;
-}
-
-export function createBatchLoader<T>(options: BatchLoaderOptions<T>): BatchLoader<T> {
-  const maxBatch = options.maxBatch ?? Number.POSITIVE_INFINITY;
-  const delayMs = options.delayMs ?? 0;
-  const waiting = new Map<string, Deferred<T>>();
-  let queue: string[] = [];
-  let scheduled = false;
-
-  const settle = (id: string, action: (waiter: Deferred<T>) => void) => {
-    const waiter = waiting.get(id);
-    waiting.delete(id);
-    if (waiter) action(waiter);
-  };
-
-  async function runBatch(ids: string[]) {
-    const unresolved = new Set(ids);
+  async function runBatch(batch: Map<K, Deferred<T>>) {
     try {
-      const result = await options.load(ids);
-      const values = isMap(result) ? result : new Map(Object.entries(result));
-      for (const [id, value] of values)
-        if (unresolved.delete(id)) settle(id, (waiter) => waiter.resolve(value));
-      for (const id of unresolved) settle(id, (waiter) => waiter.reject(new BatchMissingId(id)));
+      for (const [id, value] of await load([...batch.keys()])) {
+        batch.get(id)?.resolve(value);
+        batch.delete(id);
+      }
+      for (const [id, waiter] of batch) waiter.reject(new BatchMissingId(id));
     } catch (error) {
-      for (const id of ids) settle(id, (waiter) => waiter.reject(error));
+      for (const waiter of batch.values()) waiter.reject(error);
     }
   }
 
   function flush() {
-    scheduled = false;
-    const ids = queue;
-    queue = [];
-    for (let start = 0; start < ids.length; start += maxBatch)
-      void runBatch(ids.slice(start, start + maxBatch));
+    const waiting = [...queue];
+    queue = new Map();
+    for (let start = 0; start < waiting.length; start += maxBatch)
+      void runBatch(new Map(waiting.slice(start, start + maxBatch)));
   }
 
-  return {
-    get: (id) => {
-      const existing = waiting.get(id);
-      if (existing) return existing.promise;
-      const waiter = deferred<T>();
-      waiting.set(id, waiter);
-      queue.push(id);
-      if (!scheduled) {
-        scheduled = true;
-        if (delayMs === 0) queueMicrotask(flush);
-        else options.env.setTimeout(flush, delayMs);
-      }
-      return waiter.promise;
-    },
+  return (id) => {
+    const queued = queue.get(id);
+    if (queued) return queued.promise;
+    const waiter = deferred<T>();
+    if (queue.size === 0) queueMicrotask(flush);
+    queue.set(id, waiter);
+    return waiter.promise;
   };
 }

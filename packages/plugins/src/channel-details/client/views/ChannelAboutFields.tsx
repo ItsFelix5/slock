@@ -9,6 +9,7 @@ const usersStore = service("users");
 
 export default function ChannelAboutFields(props: {
   details: ChannelDetails;
+  groupChat: boolean;
   name: string;
   onName: (value: string) => void;
   onPurpose: (value: string) => void;
@@ -33,18 +34,21 @@ export default function ChannelAboutFields(props: {
     <>
       <div class="channel-details-field flex-col">
         <label class="field-label" for="channel-details-name">
-          Channel name
+          {props.groupChat ? "Group chat name" : "Channel name"}
         </label>
         <div class="channel-details-name-wrap flex-align-center">
-          <span class="channel-details-name-prefix flex-align-center">
-            <Icon name={channelIconName(d().private, d().archived)} size={13} />
-          </span>
+          <Show when={!props.groupChat}>
+            <span class="channel-details-name-prefix flex-align-center">
+              <Icon name={channelIconName(d().private, d().archived)} size={13} />
+            </span>
+          </Show>
           <input
-            class="text-field"
+            class="text-field grow"
             disabled={props.saving}
             id="channel-details-name"
             onInput={(e) => props.onName(e.currentTarget.value)}
             data-commit-on-enter
+            placeholder={props.groupChat ? "Add a name" : undefined}
             type="text"
             value={props.name}
           />
@@ -65,22 +69,24 @@ export default function ChannelAboutFields(props: {
           value={props.topic}
         />
       </div>
-      <div class="channel-details-field flex-col">
-        <label class="field-label" for="channel-details-purpose">
-          Description
-        </label>
-        <MrkdwnComposer
-          ariaLabel="Description"
-          ariaBusy={props.saving}
-          channelId={d().id}
-          disabled={props.saving}
-          id="channel-details-purpose"
-          multiline
-          onInput={props.onPurpose}
-          placeholder="Add a description"
-          value={props.purpose}
-        />
-      </div>
+      <Show when={!props.groupChat}>
+        <div class="channel-details-field flex-col">
+          <label class="field-label" for="channel-details-purpose">
+            Description
+          </label>
+          <MrkdwnComposer
+            ariaLabel="Description"
+            ariaBusy={props.saving}
+            channelId={d().id}
+            disabled={props.saving}
+            id="channel-details-purpose"
+            multiline
+            onInput={props.onPurpose}
+            placeholder="Add a description"
+            value={props.purpose}
+          />
+        </div>
+      </Show>
       <Show when={createdLine()}>
         <p class="channel-details-meta">{createdLine()}</p>
       </Show>

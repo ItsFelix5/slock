@@ -1,25 +1,20 @@
 import { defined } from "@slock/core";
+import { focusPaneById, type Pane, type PaneEntry } from "@slock/ui";
+import { createEffect, createSignal, createStore, reconcile } from "solid-js";
+import type { PaneKind } from "../api";
+import type { PaneContent } from "../api/types";
 import {
   closePane as closePaneInList,
   createPaneId,
   findPane,
   findPaneByContent,
-  focusPaneById,
   insertPane,
   isPaneRightAfter,
-  type Pane,
   replacePaneContent,
   resizePanes,
-} from "@slock/ui";
-import { createEffect, createSignal, createStore, reconcile } from "solid-js";
-import type { PaneKind } from "../api";
-import type { PaneContent } from "../api/types";
+} from "./paneList";
 
 type ShellPane = Pane<PaneContent | null>;
-
-function focusPaneSoon(id: string) {
-  queueMicrotask(() => focusPaneById(id));
-}
 
 function focusedIdIn(
   panes: ShellPane[],
@@ -80,19 +75,19 @@ export function createPanesSlice(paneKinds: () => PaneKind[], focusedPaneId: () 
     setActivePaneId(id);
   }
 
-  createEffect(
-    () => {
-      const id = focusedPaneId();
-      return id && findPane(state.panes, id) ? id : null;
-    },
-    (id) => {
-      if (id) setActive(id);
-    },
-  );
+  let focusPending = false;
 
-  function activateId(id: string) {
+  createEffect(focusedPaneId, (id) => {
+    if (!focusPending && id && findPane(latest, id)) setActive(id);
+  });
+
+  function activateId(id: string, entry?: PaneEntry) {
     setActive(id);
-    focusPaneSoon(id);
+    focusPending = true;
+    queueMicrotask(() => {
+      focusPaneById(id, entry);
+      focusPending = false;
+    });
   }
 
   function commit(next: ShellPane[]) {
@@ -125,33 +120,37 @@ export function createPanesSlice(paneKinds: () => PaneKind[], focusedPaneId: () 
     );
   }
 
-  function insertContentPane(content: PaneContent, afterId: string | null): string {
+  function insertContentPane(
+    content: PaneContent,
+    afterId: string | null,
+    entry?: PaneEntry,
+  ): string {
     const id = createPaneId();
     const fraction = kindOf(content)?.size ?? 0.32;
     commit(insertPane(latest, afterId, content, id, fraction));
-    activateId(id);
+    activateId(id, entry);
     return id;
   }
 
-  function openInNewPane(content: PaneContent): string {
+  function openInNewPane(content: PaneContent, entry?: PaneEntry): string {
     const focusedId = focusedIdIn(latest, active, focusedPaneId);
     const existing = isSingletonKind(content)
       ? findPaneByContent(latest, (c) => !!c && c.kind === content.kind && isSingletonKind(c))
       : undefined;
-    if (!existing) return insertContentPane(content, focusedId);
+    if (!existing) return insertContentPane(content, focusedId, entry);
     const staysInPlace =
       !kindOf(content)?.followsFocus ||
       existing.id === focusedId ||
       isPaneRightAfter(latest, focusedId, existing.id);
     if (staysInPlace) {
       commit(replacePaneContent(latest, existing.id, content));
-      activateId(existing.id);
+      activateId(existing.id, entry);
       return existing.id;
     }
     const id = createPaneId();
     const withoutExisting = closePaneInList(latest, existing.id);
     commit(insertPane(withoutExisting, focusedId, content, id, kindOf(content)?.size ?? 0.32));
-    activateId(id);
+    activateId(id, entry);
     return id;
   }
 

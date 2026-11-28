@@ -11,10 +11,6 @@
   display: none;
 }
 
-.bk-disclosure-caret {
-  transition: transform 0.15s ease;
-}
-
 .bk-disclosure:not([open]) > .bk-disclosure-summary .bk-disclosure-caret {
   transform: rotate(-90deg);
 }

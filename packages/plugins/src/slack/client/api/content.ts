@@ -1,78 +1,9 @@
 import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { apiGet, apiPost, ifPresent, mapFile, mapFileShare, parseUserId } from "@slock/slack";
-import type {
-  ChannelId,
-  FileId,
-  FileUploadInput,
-  RawFile,
-  RawFileShare,
-  SavedItem,
-  SlackFile,
-  SlackFileDetail,
-  Ts,
-  UserId,
-} from "@slock/types";
+import { mapFile, replyError } from "@slock/slack";
+import type { ChannelId, FileUploadInput, RawFile, SlackFile, Ts } from "@slock/types";
 
 const env = service("env");
-
-export async function fetchSaved(): Promise<SavedItem[]> {
-  const data = await apiGet<{ items?: SavedItem[] }>("/api/saved");
-  if (!data.ok) throw new Error(data.error ?? "saved.list failed");
-  return data.items ?? [];
-}
-
-export async function fetchFileDetail(fileId: FileId): Promise<SlackFileDetail> {
-  const data = await apiGet<{
-    access: {
-      org_id: string | null;
-      org_level: string;
-      users: { access: string; user_id: string }[];
-    };
-    content?: string | null;
-    contentTruncated?: boolean;
-    editable?: boolean;
-    file: RawFile;
-    owner?: string | null;
-    shares?: RawFileShare[];
-    starred?: boolean;
-    viewer_count?: number | null;
-  }>(`/api/files/${fileId}/detail`);
-  if (!data.ok) throw new Error(data.error ?? "files.info failed");
-  return {
-    access: {
-      orgId: data.access.org_id,
-      orgLevel: data.access.org_level,
-      users: data.access.users.map((entry) => ({
-        access: entry.access,
-        userId: parseUserId(entry.user_id),
-      })),
-    },
-    content: data.content ?? null,
-    contentTruncated: !!data.contentTruncated,
-    editable: data.editable === true,
-    file: mapFile(data.file),
-    ownerId: ifPresent(parseUserId, data.owner) ?? null,
-    shares: (data.shares ?? []).map(mapFileShare),
-    starred: !!data.starred,
-    viewerCount: data.viewer_count ?? null,
-  };
-}
-
-export async function renameFile(fileId: FileId, title: string): Promise<void> {
-  const data = await apiPost(`/api/files/${fileId}/rename`, { title });
-  if (!data.ok) throw new Error(data.error ?? "Couldn't rename the file");
-}
-
-export async function runSlashCommand(
-  channelId: ChannelId,
-  command: string,
-  text: string,
-): Promise<string | null> {
-  const data = await apiPost("/api/commands/run", { channelId, command, text });
-  if (!data.ok) return data.error ?? "Command not supported by this client.";
-  return null;
-}
 
 function uploadFileWithProgress(url: string, file: File, onProgress?: (fraction: number) => void) {
   return new Promise<void>((resolve, reject) => {
@@ -104,7 +35,7 @@ async function reserveAndUploadFiles(
     });
     const reservation = await reserve.json();
     if (!(reserve.ok && reservation.file_id && reservation.upload_url)) {
-      throw new Error(reservation.error ?? "File reservation failed");
+      throw replyError(reservation, "File reservation failed");
     }
 
     const uploadUrl = `/api/files/upload?url=${encodeURIComponent(reservation.upload_url)}&filename=${encodeURIComponent(file.name)}`;
@@ -124,9 +55,18 @@ async function completeUpload(
     method: "POST",
   });
   const complete = await completeRes.json();
-  if (!completeRes.ok) throw new Error(complete.error ?? "files.completeUploadExternal failed");
+  if (!completeRes.ok) throw replyError(complete, "files.completeUploadExternal failed");
   const files: RawFile[] = complete.files ?? [];
   return files.map(mapFile);
+}
+
+export async function uploadFilesForEdit(
+  files: FileUploadInput[],
+  onProgress?: (fileIndex: number, fraction: number) => void,
+): Promise<SlackFile[]> {
+  if (files.length === 0) return [];
+  const uploaded = await reserveAndUploadFiles(files, onProgress);
+  return completeUpload(uploaded);
 }
 
 export async function uploadFiles(
@@ -142,46 +82,4 @@ export async function uploadFiles(
   if (threadTs) extra.thread_ts = threadTs;
   if (comment) extra.initial_comment = comment;
   await completeUpload(uploaded, extra);
-}
-
-export async function uploadFilesForEdit(
-  files: FileUploadInput[],
-  onProgress?: (fileIndex: number, fraction: number) => void,
-): Promise<SlackFile[]> {
-  if (files.length === 0) return [];
-  const uploaded = await reserveAndUploadFiles(files, onProgress);
-  return completeUpload(uploaded);
-}
-
-export function uploadFile(
-  channelId: ChannelId,
-  file: File,
-  threadTs?: Ts,
-  comment?: string,
-): Promise<void> {
-  return uploadFiles(channelId, [{ file }], threadTs, comment);
-}
-
-export type FileAccessTarget = { channelId: ChannelId } | { userId: UserId };
-
-async function postFileAccess(fileId: FileId, path: string, body: object) {
-  const data = await apiPost(`/api/files/${fileId}/${path}`, body);
-  if (!data.ok) throw new Error(data.error ?? "Couldn't update access");
-}
-
-export function setFileAccess(
-  fileId: FileId,
-  orgId: string,
-  target: FileAccessTarget,
-  level: string,
-) {
-  return postFileAccess(fileId, "access", { ...target, level, orgId });
-}
-
-export function removeFileAccess(fileId: FileId, target: FileAccessTarget) {
-  return postFileAccess(fileId, "access/remove", target);
-}
-
-export function setFileOrgAccess(fileId: FileId, orgId: string, level: string) {
-  return postFileAccess(fileId, "org-access", { level, orgId });
 }

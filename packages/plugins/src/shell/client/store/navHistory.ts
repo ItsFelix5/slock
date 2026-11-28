@@ -20,12 +20,16 @@ function serializePaneSegment(content: PaneContent, kinds: PaneKind[]): string {
   return kinds.find((kind) => kind.kind === content.kind)?.url?.serialize(content) ?? "";
 }
 
+const pathSegments = (url: URL) => url.pathname.split("/").filter(Boolean);
+
 export function parseNavPath(url: URL, kinds: PaneKind[]): PaneContent[] {
-  return url.pathname
-    .split("/")
-    .filter(Boolean)
+  return pathSegments(url)
     .map((segment) => parsePaneSegment(segment, kinds))
     .filter((c): c is PaneContent => c !== null);
+}
+
+export function parsesCompletely(url: URL, kinds: PaneKind[]): boolean {
+  return parseNavPath(url, kinds).length === pathSegments(url).length;
 }
 
 export function navSnapshotToPath(snap: NavSnapshot, kinds: PaneKind[]): string {

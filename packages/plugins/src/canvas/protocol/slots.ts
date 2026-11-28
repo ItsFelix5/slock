@@ -1,3 +1,4 @@
+import { assignPositions } from "./assignPositions.ts";
 import type { LayoutSpec } from "./containerWrites.ts";
 import type { Flow, FlowEntry } from "./flow.ts";
 import {
@@ -6,6 +7,7 @@ import {
   type LayoutColumn,
   type LayoutKind,
 } from "./layoutContent.ts";
+import { positionBetween } from "./positions.ts";
 import type { PlannedChild, PlannedContainer } from "./tree.ts";
 
 export type Slot =
@@ -24,7 +26,29 @@ export function flatten(children: PlannedChild[], parent: PlannedContainer | nul
   }
 }
 
-export function slotPosition(slot: Slot, flow: Flow): string | null {
+function isMember(slot: Slot): boolean {
+  return (slot.kind === "container" ? slot.container.parent : slot.parent) !== null;
+}
+
+export function placeSlots(slots: Slot[], flow: Flow, floor: string | null) {
+  const roots = slots.filter((slot) => !isMember(slot));
+  const rootPositions = assignPositions(
+    roots.map((slot) => slotPosition(slot, flow)),
+    { floor },
+    flow.usedPositions,
+  );
+  const placed = new Map(roots.map((slot, index) => [slot, rootPositions[index]]));
+  let previous = floor;
+  return slots.map((slot) => {
+    previous =
+      placed.get(slot) ??
+      slotPosition(slot, flow) ??
+      positionBetween(previous, null, flow.usedPositions);
+    return { position: previous, slot };
+  });
+}
+
+function slotPosition(slot: Slot, flow: Flow): string | null {
   if (slot.kind === "container")
     return slot.container.isNew ? null : (flow.containers.get(slot.container.id)?.position ?? null);
   const { existing } = slot.entry;
@@ -37,7 +61,7 @@ function idOf(child: PlannedChild): string {
 
 function wrapWeight(container: PlannedContainer): number {
   const child = container.columns[0]?.children[0];
-  return child?.kind === "entry" && child.entry.node?.kind === "image" && child.entry.node.weight
+  return child?.kind === "entry" && child.entry.node.kind === "image" && child.entry.node.weight
     ? child.entry.node.weight
     : FULL_WIDTH_WEIGHT;
 }

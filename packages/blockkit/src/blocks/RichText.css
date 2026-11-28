@@ -33,6 +33,14 @@
   text-decoration: line-through;
 }
 
+.bk-rt-underline {
+  text-decoration: underline;
+}
+
+.bk-rt-strike.bk-rt-underline {
+  text-decoration: line-through underline;
+}
+
 .bk-rt-highlight {
   background: var(--highlight-bg);
   border-radius: 3px;

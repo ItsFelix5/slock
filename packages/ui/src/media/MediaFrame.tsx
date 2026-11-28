@@ -4,7 +4,7 @@ import { ariaBoolean } from "../ariaBoolean";
 import Icon from "./Icon";
 import "./MediaFrame.css";
 
-export interface MediaFrameProps {
+interface MediaFrameProps {
   children: JSX.Element;
   title: string;
   titleUrl?: string;

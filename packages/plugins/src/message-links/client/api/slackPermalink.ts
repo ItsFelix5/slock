@@ -4,6 +4,7 @@ import type { ChannelId, Ts } from "@slock/types";
 
 const SLACK_HOST_RE: RegExp = /(^|\.)slack\.com$/i;
 const ARCHIVE_PATH_RE = /^\/archives\/([A-Z0-9]+)\/p(\d+)\/?$/;
+const CLIENT_CHANNEL_PATH_RE = /^\/client\/([A-Z0-9]+)\/([A-Z0-9]+)\/?$/;
 const SLACK_TS_RE = /^\d+\.\d+$/;
 
 export interface SlackPermalinkTarget {
@@ -13,13 +14,13 @@ export interface SlackPermalinkTarget {
   threadTs: Ts;
 }
 
-export interface SlackPermalinkNavigator {
+interface SlackPermalinkNavigator {
   openChannelMessage: (channelId: ChannelId, ts: Ts) => void;
   openChannelPeek: (channelId: ChannelId, threadTs: Ts, highlightTs?: Ts) => void;
   openMessageInSplit: (channelId: ChannelId, ts: Ts, threadTs?: Ts) => void;
 }
 
-export interface SlackPermalinkOpenerDeps {
+interface SlackPermalinkOpenerDeps {
   navigate: (target: SlackPermalinkTarget, options?: { split?: boolean }) => void;
   onError: (error: unknown) => void;
   onUnavailable: () => void;
@@ -74,15 +75,25 @@ export function openSlackPermalinkInSplit(
   );
 }
 
-export function parseSlackPermalink(href: string): SlackPermalinkTarget | null {
+function slackUrl(href: string): URL | null {
   let url: URL;
   try {
     url = new URL(href);
   } catch {
     return null;
   }
+  return url.protocol === "https:" && SLACK_HOST_RE.test(url.hostname) ? url : null;
+}
 
-  if (url.protocol !== "https:" || !SLACK_HOST_RE.test(url.hostname)) return null;
+export function parseSlackChannelLink(href: string): ChannelId | null {
+  const url = slackUrl(href);
+  const channelId = url && CLIENT_CHANNEL_PATH_RE.exec(url.pathname)?.[2];
+  return channelId && isChannelId(channelId) ? channelId : null;
+}
+
+export function parseSlackPermalink(href: string): SlackPermalinkTarget | null {
+  const url = slackUrl(href);
+  if (!url) return null;
 
   const match = ARCHIVE_PATH_RE.exec(url.pathname);
   if (!match) return null;

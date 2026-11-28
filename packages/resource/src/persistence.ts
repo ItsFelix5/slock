@@ -1,7 +1,7 @@
 import type { TimerHandle } from "@slock/core/types";
 import type { ResourceEnv } from "./delay";
 
-export interface StoredEntry {
+interface StoredEntry {
   at: number;
   data: unknown;
   key: unknown;
@@ -26,14 +26,15 @@ export interface PersistOptions<K, T> {
   version: number;
 }
 
-export interface PersistHost<K, T> {
+interface PersistHost<K, T> {
   env: ResourceEnv;
   hydrate: (key: K, data: T, at: number) => void;
   options: PersistOptions<K, T>;
   ready: () => Iterable<StoredEntry & { data: T; key: K }>;
 }
 
-export interface Persistence {
+interface Persistence {
+  flush(): void;
   restore(): Promise<void>;
   schedule(): void;
   stop(): void;
@@ -55,13 +56,23 @@ export function createPersistence<K, T>(host: PersistHost<K, T>): Persistence {
   const { adapter, delayMs = 1_000, name, onError, version } = host.options;
   let timer: TimerHandle | undefined;
 
-  const flush = () => {
+  const save = () => {
     timer = undefined;
     const entries = [...host.ready()];
     adapter.save(name, { entries, version }).catch((error) => onError?.(error));
   };
 
+  const cancel = () => {
+    if (timer !== undefined) host.env.clearTimeout(timer);
+    timer = undefined;
+  };
+
   return {
+    flush: () => {
+      if (timer === undefined) return;
+      cancel();
+      save();
+    },
     restore: async () => {
       const snapshot = await adapter.load(name);
       if (!snapshot) return;
@@ -71,11 +82,8 @@ export function createPersistence<K, T>(host: PersistHost<K, T>): Persistence {
       }
     },
     schedule: () => {
-      timer ??= host.env.setTimeout(flush, delayMs);
+      timer ??= host.env.setTimeout(save, delayMs);
     },
-    stop: () => {
-      if (timer !== undefined) host.env.clearTimeout(timer);
-      timer = undefined;
-    },
+    stop: cancel,
   };
 }

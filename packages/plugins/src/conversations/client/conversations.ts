@@ -3,7 +3,7 @@ import type { PaneContent } from "@slock/plugins/shell/client/api/types";
 import type { ChannelId } from "@slock/types";
 import { createMemo, createStore } from "solid-js";
 import type { ConversationKindResolver, ConversationOpenHook } from "./api";
-import type { ChannelMessageTarget, View } from "./api/types";
+import type { ChannelMessageTarget, PaneSide, View } from "./api/types";
 
 const shell = service("shell.view");
 const panes = service("shell.panes");
@@ -43,10 +43,27 @@ export function createConversations(deps: {
     });
   }
 
+  function opening(id: ChannelId): View {
+    const view = viewFor(id);
+    for (const hook of deps.opened()) hook(view);
+    return view;
+  }
+
   function setActiveView(view: View, options?: { target?: ChannelMessageTarget }) {
-    const next = viewFor(view.id);
-    for (const hook of deps.opened()) hook(next);
-    writeTarget(shell.open(next), options?.target);
+    writeTarget(shell.open(opening(view.id)), options?.target);
+  }
+
+  function openAtPane(id: ChannelId, paneId: string, side: PaneSide) {
+    const view = opening(id);
+    if (side === "over") {
+      writeTarget(paneId, undefined);
+      panes.setPaneContent(paneId, view);
+      panes.activatePane(paneId);
+      return;
+    }
+    const open = panes.currentPanes();
+    const index = open.findIndex((pane) => pane.id === paneId);
+    panes.insertContentPane(view, side === "after" ? paneId : (open[index - 1]?.id ?? null));
   }
 
   return {
@@ -57,6 +74,7 @@ export function createConversations(deps: {
     kindOf,
     mountedViews,
     messageTarget: (paneId: string) => targets[paneId] ?? null,
+    openAtPane,
     setActiveView,
     setMessageTarget: writeTarget,
     targetPaneIds: () => Object.keys(targets),

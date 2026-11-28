@@ -1,8 +1,9 @@
 import { service } from "@slock/core/solid";
 import {
-  type ChannelPlacementOutcome,
+  type ChannelPlacement,
   isChannelPlacementApplied,
 } from "@slock/plugins/channels/client/api/sectionMutations";
+import { defineMutation } from "@slock/plugins/query/client/api";
 import type { ChannelId } from "@slock/types";
 import { Icon, IconButton, InlineFeedback, Menu, MenuItem, useEditShortcuts } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
@@ -13,12 +14,18 @@ const feedback = service("feedback");
 const channelsStore = service("channels");
 const dmsStore = service("dms");
 
+const creating = defineMutation<{ channelId: ChannelId; create: () => Promise<void> }>({
+  key: ({ channelId }) => channelId,
+  mode: "single",
+  run: ({ create }) => create(),
+});
+
 type Destination =
   | { kind: "stars" }
   | { kind: "home" }
   | { kind: "section"; id: string; name: string };
 
-export interface ChannelMoveMenuProps {
+interface ChannelMoveMenuProps {
   channelId: ChannelId;
   onComplete?: () => void;
   variant?: "header" | "menu-item";
@@ -28,7 +35,6 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
   const [open, setOpen] = createSignal(false);
   const [addingSection, setAddingSection] = createSignal(false);
   const [newSectionName, setNewSectionName] = createSignal("");
-  const [creatingSection, setCreatingSection] = createSignal(false);
 
   let newSectionInputRef: HTMLInputElement | undefined;
   useEditShortcuts({
@@ -42,8 +48,6 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
 
   const isDm = () => !!dmsStore.dmById(props.channelId);
   const homeSectionType = () => (isDm() ? "direct_messages" : "channels");
-  const sections = () =>
-    channelsStore.sections()?.filter((section) => section.type === "standard") ?? [];
   const destinations = () => {
     const ordered: Destination[] = [];
     for (const section of channelsStore.sections() ?? []) {
@@ -57,10 +61,8 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
     if (!ordered.some((destination) => destination.kind === "home")) ordered.push({ kind: "home" });
     return ordered;
   };
-  const currentSectionId = () =>
-    sections().find((section) => section.channelIds.includes(props.channelId))?.id ?? null;
   const isStarred = () => channelsStore.isChannelStarred(props.channelId);
-  const isInHome = () => !(isStarred() || currentSectionId());
+  const creatingSection = () => creating.pending(props.channelId);
   const isPending = createMemo(
     () =>
       creatingSection() ||
@@ -75,64 +77,37 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
     if (complete) props.onComplete?.();
   };
 
-  const finishPlacement = (outcome: ChannelPlacementOutcome) => {
+  const move = async (to: ChannelPlacement) => {
+    const outcome = await channelsStore.placeChannel(props.channelId, to);
     if (isChannelPlacementApplied(outcome)) close(true);
-  };
-
-  const moveToStarred = async () => {
-    if (isStarred()) {
-      close(true);
-      return;
-    }
-    finishPlacement(await channelsStore.toggleChannelStar(props.channelId));
-  };
-
-  const moveToHome = async () => {
-    if (isStarred()) {
-      finishPlacement(await channelsStore.toggleChannelStar(props.channelId));
-      return;
-    }
-    if (!currentSectionId()) {
-      close(true);
-      return;
-    }
-    finishPlacement(await channelsStore.moveChannelToSection(props.channelId, null));
-  };
-
-  const moveToSection = async (sectionId: string) => {
-    if (!isStarred() && currentSectionId() === sectionId) {
-      close(true);
-      return;
-    }
-    finishPlacement(await channelsStore.moveChannelToSection(props.channelId, sectionId));
   };
 
   const submitNewSection = async (event: SubmitEvent) => {
     event.preventDefault();
     const name = newSectionName().trim();
     if (!name || isPending()) return;
-    setCreatingSection(true);
-    try {
-      const created = await channelsStore.createChannelSection(name, props.channelId);
-      if (!created) {
-        queueMicrotask(() => newSectionInputRef?.focus());
-        return;
-      }
-      const outcome = await channelsStore.moveChannelToSection(props.channelId, created.id);
-      if (!isChannelPlacementApplied(outcome)) {
-        feedback.flash(
-          props.channelId,
-          `Created “${created.name}”, but couldn't move this channel into it.`,
-          "error",
-        );
-        setAddingSection(false);
-        setNewSectionName("");
-        return;
-      }
-      close(true);
-    } finally {
-      setCreatingSection(false);
+    const { channelId } = props;
+    await creating.run({ channelId, create: () => createAndMove(channelId, name) });
+  };
+
+  const createAndMove = async (channelId: ChannelId, name: string) => {
+    const created = await channelsStore.createChannelSection(name, channelId);
+    if (!created) {
+      queueMicrotask(() => newSectionInputRef?.focus());
+      return;
     }
+    const outcome = await channelsStore.placeChannel(channelId, {
+      id: created.id,
+      kind: "section",
+    });
+    if (isChannelPlacementApplied(outcome)) return close(true);
+    feedback.flash(
+      channelId,
+      `Created “${created.name}”, but couldn't move this channel into it.`,
+      "error",
+    );
+    setAddingSection(false);
+    setNewSectionName("");
   };
 
   const trigger = () =>
@@ -174,16 +149,7 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
       <div class="channel-move-menu-destinations">
         <For each={destinations()}>
           {(destination) => {
-            const selected = () => {
-              if (destination.kind === "stars") return isStarred();
-              if (destination.kind === "home") return isInHome();
-              return !isStarred() && currentSectionId() === destination.id;
-            };
-            const move = () => {
-              if (destination.kind === "stars") return moveToStarred();
-              if (destination.kind === "home") return moveToHome();
-              return moveToSection(destination.id);
-            };
+            const selected = () => channelsStore.isChannelPlacedAt(props.channelId, destination);
             const icon = () => {
               if (destination.kind === "stars") return isStarred() ? "star-filled" : "star";
               if (destination.kind === "home") return isDm() ? "message" : "channel";
@@ -194,7 +160,7 @@ export default function ChannelMoveMenu(props: ChannelMoveMenuProps) {
                 class={["channel-move-menu-destination", { active: selected() }]}
                 disabled={isPending()}
                 icon={icon()}
-                onClick={() => void move()}
+                onClick={() => void move(destination)}
               >
                 <span class="truncate">
                   {destination.kind === "section"

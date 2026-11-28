@@ -1,4 +1,5 @@
-import { type HttpHandler, isRecord } from "@slock/core";
+import { isRecord } from "@slock/core";
+import type { HttpHandler } from "@slock/core/http";
 import { jsonHeaders } from "@slock/plugins/slack/server/api/auth";
 import { compareTs, isChannelId, isRawMessage, isTs, parseTs } from "@slock/slack";
 import type { ChannelId, RawMessage, Ts } from "@slock/types";

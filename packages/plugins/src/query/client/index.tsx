@@ -1,8 +1,9 @@
 import type { Setup } from "@slock/core";
 import { createResourceHub } from "@slock/resource";
-import { getActiveAccountId, listAccounts } from "@slock/slack";
+import { getActiveAccountId, listAccounts } from "@slock/slack/client";
 import { pageIdle } from "@slock/ui";
 import { createEffect } from "solid-js";
+import { installExitFlush } from "./exitFlush";
 import { createIdbAdapter, noPersistence, pruneSnapshots } from "./persistStore";
 import { toResourceEnv } from "./resourceEnv";
 import { installRevalidateTriggers } from "./revalidateTriggers";
@@ -19,9 +20,9 @@ const setup: Setup = async (ctx) => {
     },
   );
   const env = ctx.get("env");
-  const triggers = installRevalidateTriggers({ now: env.now, onRevalidate: hub.revalidate });
-  ctx.onCleanup(triggers.dispose);
-  ctx.add("realtime.reconnect", triggers.trigger);
+  ctx.onCleanup(installRevalidateTriggers({ now: env.now, onRevalidate: hub.revalidate }));
+  ctx.onCleanup(installExitFlush(hub.flush));
+  ctx.add("realtime.reconnect", hub.revalidate);
   ctx.onCleanup(() => {
     hub.clear();
     hub.dispose();

@@ -1,8 +1,10 @@
 import { errorMessage } from "@slock/core";
 import { getHost, service } from "@slock/core/solid";
 import { encodeReplyLink, withReplyLink } from "@slock/plugins/message-links/client/api/replyLink";
+import type { PostedDraft } from "@slock/plugins/slack/client/api";
 import { SLASH_COMMAND_RE } from "@slock/plugins/slash-commands/client/api";
-import { blockPreviewText, broadcastRangeOf } from "@slock/slack";
+import { broadcastRangeOf } from "@slock/slack";
+import { blockPreviewText } from "@slock/slack/client";
 import type { ChannelId, SlackFile, Ts } from "@slock/types";
 import type { ComposerProps } from "./composerTypes";
 import { uploadAll } from "./lib/attachUpload";
@@ -27,12 +29,18 @@ interface SubmitEditor<Contents extends { ops: DeltaOp[] }> {
 
 export function createComposerSubmitHandler<Contents extends { ops: DeltaOp[] }>(deps: {
   channelId: () => ChannelId | undefined;
-  clearDraftAfterSend: () => Promise<void>;
+  clearDraftAfterSend: (postedDraftId?: string) => Promise<void>;
+  discardDraft: (id: string) => Promise<void>;
+  draft: () => PostedDraft | undefined;
   editing: () => ComposerProps["editing"];
   existingFiles: () => SlackFile[];
   feedbackKey: () => string;
   getQuill: () => SubmitEditor<Contents> | undefined;
-  linkPreviews: { reset: () => unknown; urlsToSend: () => Promise<string[]> };
+  linkPreviews: {
+    hasLinks: () => boolean;
+    reset: () => unknown;
+    urlsToSend: () => Promise<string[]>;
+  };
   onSent: () => void;
   pendingFiles: ReturnType<typeof createPendingFileState>;
   removedAttachmentIds: () => number[];
@@ -114,12 +122,17 @@ export function createComposerSubmitHandler<Contents extends { ops: DeltaOp[] }>
     }
     const previewUrls = await deps.linkPreviews.urlsToSend();
     const unfurl = replyTo ? [...previewUrls, replyTo.permalink] : previewUrls;
+    const uploadFirst = composer.uploadOnAttach() || deps.linkPreviews.hasLinks();
     const reusedFileIds = deps.existingFiles().map((f) => f.id);
     if (filesToSend.length > 0 && reusedFileIds.length > 0) {
       console.warn(
         "[composer] dropping reused template attachments: a freshly attached file was sent in the same message",
       );
     }
+    const postsDraft =
+      !(isSlashAttempt || broadcastRangeOf({ blocks, text })) &&
+      (filesToSend.length === 0 || uploadFirst);
+    const draft = postsDraft ? deps.draft() : undefined;
     const submittedContents = quill.getContents();
     const submittedExisting = deps.existingFiles();
     await submitComposerPayload({
@@ -127,6 +140,7 @@ export function createComposerSubmitHandler<Contents extends { ops: DeltaOp[] }>
       files: filesToSend,
       isSlashAttempt,
       onError: (err) => {
+        if (draft) void deps.discardDraft(draft.id);
         if (!mrkdwnText(quill.getContents().ops).trim()) quill.setContents(submittedContents);
         if (deps.pendingFiles.files().length === 0) {
           deps.pendingFiles.add(filesToSend);
@@ -138,7 +152,7 @@ export function createComposerSubmitHandler<Contents extends { ops: DeltaOp[] }>
         deps.linkPreviews.reset();
         quill.setText("\n");
         deps.setExistingFiles([]);
-        void deps.clearDraftAfterSend();
+        void deps.clearDraftAfterSend(draft?.id);
         deps.onSent();
       },
       runCommand: () => slashCommands.handleSlashCommand(channelId, threadTs, text),
@@ -150,16 +164,18 @@ export function createComposerSubmitHandler<Contents extends { ops: DeltaOp[] }>
           threadTs,
           blocks,
           filesToSend.length === 0 && reusedFileIds.length ? reusedFileIds : undefined,
+          draft,
         ),
-      uploadFiles: composer.uploadOnAttach()
+      uploadFiles: uploadFirst
         ? async () =>
             messagesStore.sendMessage(
               channelId,
               outgoing,
-              [],
+              unfurl,
               threadTs,
               blocks,
               (await uploadAll(filesToSend)).map((file) => file.id),
+              draft,
             )
         : () => messagesStore.sendFiles(channelId, filesToSend, threadTs, outgoing),
     });

@@ -7,7 +7,7 @@ export type SettingsTabItem = {
   visible?: Accessor<boolean>;
 };
 
-export type SettingsService = {
+type SettingsService = {
   isOpen: Accessor<boolean>;
   open(tab?: string): void;
   close(): void;

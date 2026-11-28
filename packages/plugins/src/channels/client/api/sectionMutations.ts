@@ -1,6 +1,11 @@
-import type { ChannelSection, UserPrefs } from "@slock/types";
+import type { ChannelId, ChannelSection, UserPrefs } from "@slock/types";
 
 export type ChannelPlacementOutcome = "failed" | "applied" | "applied-with-warning";
+
+export type ChannelPlacement =
+  | { kind: "stars" }
+  | { kind: "home" }
+  | { kind: "section"; id: string };
 
 export function isChannelPlacementApplied(outcome: ChannelPlacementOutcome): boolean {
   return outcome !== "failed";
@@ -31,6 +36,22 @@ export function reorderSections(
   if (target < 0) return null;
   const next = [...without.slice(0, target), moved, ...without.slice(target)];
   return next.every((section, index) => section.id === sections[index]?.id) ? null : next;
+}
+
+export function moveChannelBetweenSections(
+  sections: ChannelSection[],
+  channelId: ChannelId,
+  targetSectionId: string | null,
+): ChannelSection[] {
+  return sections.map((section) => {
+    if (section.type !== "standard") return section;
+    if (section.id === targetSectionId && section.channelIds.includes(channelId)) return section;
+    const others = section.channelIds.filter((id) => id !== channelId);
+    return {
+      ...section,
+      channelIds: section.id === targetSectionId ? [...others, channelId] : others,
+    };
+  });
 }
 
 export function setSectionSidebarPreference(

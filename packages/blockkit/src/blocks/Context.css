@@ -5,6 +5,10 @@
   color: var(--text-secondary);
 }
 
+.bk-context > * {
+  min-width: 0;
+}
+
 .bk-context-image {
   width: 20px;
   height: 20px;

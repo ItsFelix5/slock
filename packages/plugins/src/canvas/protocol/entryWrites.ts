@@ -1,5 +1,5 @@
-import type { CanvasControl, CanvasFile, CanvasImage, CanvasLine } from "@slock/types";
-import { fileContent, imageContent } from "./fileContent.ts";
+import type { CanvasCard, CanvasFile, CanvasImage, CanvasLine } from "@slock/types";
+import { attachmentContent, imageContent } from "./fileContent.ts";
 import { type FlowEntry, sectionText } from "./flow.ts";
 import {
   lineShapeForStyle,
@@ -35,9 +35,6 @@ export interface Placement {
   path: string;
   position: string;
 }
-
-const CONTROL_CLASS = 1;
-const CONTROL_TYPES = { annotation: 9, channel: 49, date: 68, emoji: 54, user: 50 } as const;
 
 function contentOf(record: SectionRecord): RawMessage | null {
   return asMessage(field(record.msg, 12));
@@ -166,11 +163,14 @@ export function changedLineWrite(
   return changed ? write : null;
 }
 
-export function newFileWrite(node: CanvasFile, placement: Placement): SectionWrite {
+export function newAttachmentWrite(
+  node: CanvasCard | CanvasFile,
+  placement: Placement,
+): SectionWrite {
   const write = blankWrite(node.id);
   write.type = TYPE_FILE;
   write.style = STYLE_FILE;
-  write.content = fileContent(node);
+  write.content = attachmentContent(node);
   write.attrs = encodeRawMessage(new Map([[4, [rawVarint(0)]]]));
   write.parents = "none";
   write.layoutParent = placement.layoutParent;
@@ -207,41 +207,6 @@ export function deleteWrite(record: SectionRecord): SectionWrite {
   write.type = record.type;
   write.style = record.style;
   write.content = encodeRawMessage(contentOf(record) ?? new Map());
-  return write;
-}
-
-function controlContent(control: CanvasControl, secretPath: string): RawMessage {
-  const message = (num: number, fields: Map<number, ReturnType<typeof rawString>[]>) =>
-    new Map([[num, [rawMessage(fields)]]]);
-  if (control.kind === "annotation")
-    return message(
-      7,
-      new Map([
-        [1, [rawMessage(new Map([[9, [rawString(secretPath)]]]))]],
-        [4, [rawVarint(0)]],
-        [5, [rawVarint(0)]],
-        [9, [rawVarint(2)]],
-        [10, [rawMessage(new Map())]],
-        [11, [rawMessage(new Map())]],
-        [13, [rawVarint(0)]],
-      ]),
-    );
-  if (control.kind === "user")
-    return message(44, new Map([[1, [rawString(`su:${control.userId}`)]]]));
-  if (control.kind === "channel")
-    return message(42, new Map([[1, [rawString(`sc:${control.channelId}`)]]]));
-  if (control.kind === "emoji")
-    return message(48, new Map([[3, [rawString(`se:${control.name}/${control.teamId}`)]]]));
-  return message(62, new Map([[1, [rawVarint(control.ms)]]]));
-}
-
-export function controlWrite(control: CanvasControl, secretPath: string): SectionWrite {
-  const write = blankWrite(control.id);
-  write.sectionClass = CONTROL_CLASS;
-  write.type = CONTROL_TYPES[control.kind];
-  write.content = encodeRawMessage(controlContent(control, secretPath));
-  if (control.kind === "date") write.label = control.label;
-  if (control.kind === "annotation") write.label = "";
   return write;
 }
 

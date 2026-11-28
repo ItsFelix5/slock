@@ -1,6 +1,6 @@
 import type { PluginDef } from "../types";
 
-export type PlanInput = {
+type PlanInput = {
   defs: Map<string, PluginDef>;
   failed: Map<string, string>;
   isEnabled: (id: string) => boolean;
@@ -31,7 +31,7 @@ export function planStart({ defs, failed, isEnabled, resolveId }: PlanInput) {
         blocked.set(id, `needs ${name}, which is not installed`);
         ok = false;
       } else if (!visit(required)) {
-        if (!blocked.has(id)) blocked.set(id, `needs ${required}`);
+        if (!blocked.has(id)) blocked.set(id, `needs ${defs.get(required)?.name ?? required}`);
         ok = false;
       }
     }

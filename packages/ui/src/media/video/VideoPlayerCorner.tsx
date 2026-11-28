@@ -15,7 +15,10 @@ export default function VideoPlayerCorner(props: {
 }) {
   const togglePip = async () => {
     if (document.pictureInPictureElement) await document.exitPictureInPicture();
-    else await props.video()?.requestPictureInPicture();
+    else {
+      const video = props.video();
+      if (video && video.readyState > 0) await video.requestPictureInPicture();
+    }
   };
 
   return (
@@ -34,20 +37,16 @@ export default function VideoPlayerCorner(props: {
       <Show when={pipSupported}>
         <IconButton
           class="video-player-chrome"
-          hideTooltip
           icon="open-in-window"
           iconSize={14}
-          label="Picture in picture"
           onClick={togglePip}
           size="sm"
         />
       </Show>
       <IconButton
         class="video-player-chrome"
-        hideTooltip
         icon={props.fullscreen ? "reduce-diagonal" : "expand-diagonal"}
         iconSize={14}
-        label={props.fullscreen ? "Exit fullscreen" : "Fullscreen"}
         onClick={props.onToggleFullscreen}
         size="sm"
       />

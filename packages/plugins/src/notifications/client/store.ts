@@ -10,7 +10,7 @@ type Deps = {
   isChannelNotifyAll: (id: ChannelId) => boolean;
   isDndActive: () => boolean;
   matchingHighlightWord: (text: string) => string | undefined;
-  openChannelPeek: (channelId: ChannelId, ts: Ts) => void;
+  openChannelMessage: (channelId: ChannelId, ts: Ts, threadTs?: Ts) => void;
   resolveChannel: (id: ChannelId) => Promise<Pick<Channel, "canvasFileId" | "name"> | undefined>;
   userPrefs: () => UserPrefs | undefined;
 };
@@ -53,8 +53,8 @@ export function createDesktopNotificationsStore(deps: Deps) {
     if (!(channelId && isChannelId(channelId)) || deps.isChannelMuted(channelId)) return;
     if (deps.activeView()?.id === channelId) return;
 
-    const text = payload.msg ?? payload.content ?? "";
-    const kind = classifyNotification(payload, link, {
+    const text = payload.content ?? "";
+    const kind = classifyNotification(text, link, {
       channelId,
       isNotifyAll: deps.isChannelNotifyAll(channelId),
       matchesPingword: !!deps.matchingHighlightWord(text),
@@ -71,10 +71,13 @@ export function createDesktopNotificationsStore(deps: Deps) {
       icon: payload.avatarImage,
       tag: payload.event_ts ?? channelId,
     });
-    const ts = link.get("message") ?? payload.event_ts;
+    const ts = payload.msg;
+    const threadTs = link.get("thread_ts");
     notification.onclick = () => {
       window.focus();
-      if (ts && isTs(ts)) deps.openChannelPeek(channelId, ts);
+      if (ts && isTs(ts)) {
+        deps.openChannelMessage(channelId, ts, threadTs && isTs(threadTs) ? threadTs : undefined);
+      }
       notification.close();
     };
   }

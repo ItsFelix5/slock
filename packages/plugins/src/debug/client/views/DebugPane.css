@@ -36,11 +36,15 @@
   vertical-align: middle;
   cursor: pointer;
   border-radius: var(--radius-control);
-  transition: background-color 0.1s;
 }
 
 .debug-chip:hover,
 .debug-chip:focus-visible {
   color: var(--text-primary);
   background: var(--hover-bg);
+}
+
+.json-tree .debug-chip {
+  height: 1lh;
+  vertical-align: top;
 }

@@ -1,7 +1,7 @@
 import type { Manifest, PluginDef, Setup } from "@slock/core";
 import { readManifest } from "@slock/core";
 
-export type PluginModule = { default?: unknown; manifest?: unknown; css?: unknown };
+type PluginModule = { default?: unknown; manifest?: unknown; css?: unknown };
 
 function manifestOf(mod: PluginModule): Manifest {
   const manifest = readManifest(mod.manifest, "The plugin manifest");

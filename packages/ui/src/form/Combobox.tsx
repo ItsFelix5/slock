@@ -18,7 +18,7 @@ export interface ComboboxOption<Id extends string = string> {
   label: string;
 }
 
-export interface ComboboxProps<Id extends string = string> {
+interface ComboboxProps<Id extends string = string> {
   ariaLabel?: string;
   disabled?: boolean;
   emptyText?: string;
@@ -101,7 +101,7 @@ export default function Combobox<Id extends string = string>(props: ComboboxProp
 
   return (
     <div
-      class={["combobox flex-align-center", { disabled: props.disabled }]}
+      class={["combobox field-surface flex-align-center", { disabled: props.disabled }]}
       onClick={() => {
         input?.focus();
         show();

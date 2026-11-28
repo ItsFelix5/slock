@@ -5,7 +5,7 @@ import { createContext, createEffect, Show, untrack, useContext } from "solid-js
 
 export const FloatingMountContext = createContext<() => Element | undefined>(() => undefined);
 export type VerticalPlacement = "top" | "bottom";
-export type HorizontalPlacement = "left" | "right";
+type HorizontalPlacement = "left" | "right";
 export type Placement = VerticalPlacement | HorizontalPlacement;
 export type FloatingAlign = "start" | "center" | "end";
 
@@ -49,7 +49,7 @@ function resolveHorizontalPlacement(
       : "left";
 }
 
-export interface FloatingPanelProps {
+interface FloatingPanelProps {
   align?: FloatingAlign;
   anchor: () => HTMLElement | undefined;
   children: JSX.Element;

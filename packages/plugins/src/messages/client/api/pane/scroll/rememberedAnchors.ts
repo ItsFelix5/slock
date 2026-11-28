@@ -1,6 +1,6 @@
 import type { Ts } from "@slock/types";
 
-export interface RememberedScrollAnchor {
+interface RememberedScrollAnchor {
   offset: number;
   ts: Ts;
 }

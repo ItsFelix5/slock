@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import { blockPreviewText } from "@slock/slack";
+import { blockPreviewText } from "@slock/slack/client";
 import { useEditShortcuts } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
 

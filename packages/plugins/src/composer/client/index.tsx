@@ -4,8 +4,9 @@ import { lazyChunk } from "@slock/core/solid";
 import { definePluginSettings } from "@slock/plugins/plugins/client/api";
 import { createPendingFilesStore } from "./lib/pendingFiles";
 import FileInput from "./views/FileInput";
+import { DELETE_DRAFT_SHORTCUT } from "./views/popovers/DraftsMenu";
 
-const Composer = lazyChunk(() => import("./views/Composer"));
+const Composer = lazyChunk(() => import("./views/TargetComposer"));
 const RichTextInput = lazyChunk(() => import("./views/RichTextInput"));
 
 const setup: Setup = (ctx) => {
@@ -17,6 +18,7 @@ const setup: Setup = (ctx) => {
     pendingFiles: createPendingFilesStore(),
     uploadOnAttach: setting("uploadOnAttach"),
   });
+  ctx.onCleanup(ctx.get("ui").shortcuts.declare([DELETE_DRAFT_SHORTCUT]));
   ctx.add("composer.input", Composer);
   ctx.add("blockkit.fileInput", FileInput);
   ctx.add("blockkit.richTextInput", RichTextInput);

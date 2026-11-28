@@ -2,12 +2,12 @@ import { dirname, join } from "node:path";
 import { defined } from "@slock/core";
 import { transformAsync } from "@solidjs/compiler";
 import type { BunPlugin } from "bun";
-import { APP_DIR } from "./paths";
+import { RESOLVE_FROM } from "./paths";
 
 const WORKSPACE_SOURCE =
-  /\/packages\/(app|ui|blockkit|types|core|plugins|resource|slack)\/src\/.*\.[jt]sx?$/;
+  /\/packages\/(ui|blockkit|types|core|plugins|resource|slack)\/src\/.*\.[jt]sx?$/;
 
-const packageDir = (name: string) => dirname(Bun.resolveSync(`${name}/package.json`, APP_DIR));
+const packageDir = (name: string) => dirname(Bun.resolveSync(`${name}/package.json`, RESOLVE_FROM));
 
 const PRODUCTION_ENTRIES: Record<string, string> = {
   "solid-js": join(packageDir("solid-js"), "dist/solid.js"),

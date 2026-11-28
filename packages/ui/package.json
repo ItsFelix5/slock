@@ -5,12 +5,15 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./theme.css": "./src/theme/theme.css",
-    "./utilities.css": "./src/utilities.css",
+    "./global.css": "./src/global.css",
     "./editor/QuillEditor": "./src/editor/QuillEditor.tsx",
     "./editor/quill": "./src/editor/quill.ts",
     "./editor/quillText": "./src/editor/quillText.ts",
-    "./editor/markdownAutoformat": "./src/editor/markdownAutoformat.ts"
+    "./editor/inlineFormats": "./src/editor/inlineFormats.ts",
+    "./tag/tagColors": "./src/tag/tagColors.ts",
+    "./tag/tag.css": "./src/tag/tag.css",
+    "./editor/markdownAutoformat": "./src/editor/markdownAutoformat.ts",
+    "./linkClick": "./src/linkClick.ts"
   },
   "dependencies": {
     "@slock/core": "workspace:*",

@@ -1,7 +1,7 @@
 const DB_NAME = "slock-plugins";
 const STORE = "plugins";
 
-export type StoredPlugin = { id: string; name: string; code: string };
+type StoredPlugin = { id: string; name: string; code: string };
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {

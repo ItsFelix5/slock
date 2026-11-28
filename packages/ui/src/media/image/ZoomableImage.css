@@ -34,20 +34,3 @@
   object-fit: contain;
   object-position: left center;
 }
-
-.zoomable-image-unavailable {
-  align-items: center;
-  justify-content: center;
-  width: min(240px, 100%);
-  min-height: 120px;
-  padding: var(--space-lg);
-  font-size: var(--font-size-meta);
-  color: var(--text-secondary);
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-control);
-}
-
-.zoomable-image-unavailable-framed {
-  min-height: 0;
-}

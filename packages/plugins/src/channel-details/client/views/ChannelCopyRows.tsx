@@ -6,7 +6,7 @@ import { Show } from "solid-js";
 
 const feedback = service("feedback");
 
-export default function ChannelCopyRows(props: { details: ChannelDetails }) {
+export default function ChannelCopyRows(props: { details: ChannelDetails; groupChat: boolean }) {
   const d = () => props.details;
   const [copiedKey, copy] = createCopyFeedback(1200, () => {
     feedback.flash(d().id, "Couldn't copy to the clipboard.", "error");
@@ -36,7 +36,9 @@ export default function ChannelCopyRows(props: { details: ChannelDetails }) {
         type="button"
       >
         <Icon name="link" size={15} />
-        <span class="channel-details-copy-value truncate grow">Copy link to channel</span>
+        <span class="channel-details-copy-value truncate grow">
+          Copy link to {props.groupChat ? "group chat" : "channel"}
+        </span>
         <Icon name={copiedKey() === "link" ? "check" : "copy"} size={14} />
       </button>
       <button

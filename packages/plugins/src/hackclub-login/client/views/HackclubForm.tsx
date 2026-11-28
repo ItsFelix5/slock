@@ -1,12 +1,13 @@
 import { errorMessage } from "@slock/core";
 import type { ConnectMethodProps } from "@slock/plugins/account/client/api";
-import { apiPost, connectWith } from "@slock/slack";
+import { replyError } from "@slock/slack";
+import { apiPost, connectWith } from "@slock/slack/client";
 import { Button, OtpInput } from "@slock/ui";
 import { createSignal, Show } from "solid-js";
 
 async function requestHackclubEmailCode(email: string): Promise<unknown> {
   const data = await apiPost<{ challenge: unknown }>("/api/hackclub-auth/email", { email });
-  if (!data.ok) throw new Error(data.error ?? "Could not send the email code");
+  if (!data.ok) throw replyError(data, "Could not send the email code");
   return data.challenge;
 }
 
@@ -56,7 +57,7 @@ export default function HackclubForm(props: ConnectMethodProps) {
     <form class="connect-account-fields flex-col" onSubmit={submitEmailStep}>
       <input
         autocomplete="email"
-        class="connect-account-input"
+        class="connect-account-input field-surface"
         disabled={busy() || !!challenge()}
         onInput={(event) => setEmail(event.currentTarget.value)}
         placeholder="Hack Club Slack email"

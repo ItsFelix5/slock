@@ -3,7 +3,7 @@ import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { type Manifest, readManifest } from "@slock/core";
 
-export type UnitMeta = {
+type UnitMeta = {
   source: string;
   from: string;
   commit: string;
@@ -14,12 +14,12 @@ export type UnitMeta = {
 
 export type Unit = { manifest: Manifest; meta: UnitMeta; dir: string };
 
-export type Halves = { clientDir: boolean; clientEntry?: string; serverEntry?: string };
+type Halves = { clientDir: boolean; clientEntry?: string; serverEntry?: string };
 
 const ENTRY_NAMES = ["index.js", "index.ts", "index.tsx"];
 const MANIFEST = "plugin.json";
 
-export const SOURCE_META: UnitMeta = {
+const SOURCE_META: UnitMeta = {
   commit: "dev",
   dependencies: {},
   from: "",
@@ -42,7 +42,7 @@ export function halvesOf(dir: string): Halves {
   };
 }
 
-export async function readUnit(dir: string): Promise<Unit> {
+async function readUnit(dir: string): Promise<Unit> {
   const path = join(dir, MANIFEST);
   const raw = await Bun.file(path).json();
   const { install, ...rest } = raw;
@@ -63,8 +63,8 @@ export async function readUnits(root: string): Promise<Unit[]> {
 }
 
 export async function writeUnitManifest(unit: Unit): Promise<void> {
-  const { boot, hidden, id, name, provides, requires } = unit.manifest;
-  const manifest = { boot, hidden, id, install: unit.meta, name, provides, requires };
+  const { boot, category, hidden, id, name, provides, requires } = unit.manifest;
+  const manifest = { boot, category, hidden, id, install: unit.meta, name, provides, requires };
   await Bun.write(join(unit.dir, MANIFEST), `${JSON.stringify(manifest, null, 2)}\n`);
 }
 

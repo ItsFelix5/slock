@@ -74,6 +74,7 @@
         "noConstantBinaryExpressions": "on",
         "noDeprecatedImports": "on",
         "noDuplicatedSpreadProps": "on",
+        "noEmptyInterface": "off",
         "noEmptySource": "on",
         "noEvolvingTypes": "on",
         "noExplicitAny": "on",

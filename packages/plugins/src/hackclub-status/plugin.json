@@ -1,1 +1,7 @@
-{ "id": "hackclub-status", "name": "Hack Club status", "requires": ["appearance"] }
+{
+  "id": "hackclub-status",
+  "category": "Looks and layout",
+  "name": "Hack Club status",
+  "requires": ["appearance", "query"],
+  "boot": true
+}

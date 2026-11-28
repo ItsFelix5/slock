@@ -1,5 +1,6 @@
 import { service } from "@slock/core/solid";
-import type { ChannelDetails } from "@slock/types";
+import { defineMutation } from "@slock/plugins/query/client/api";
+import type { ChannelDetails, ChannelId } from "@slock/types";
 import { createSignal } from "solid-js";
 import {
   type ChannelDetailsDraft,
@@ -15,13 +16,20 @@ type Draft = { fields: ChannelDetailsDraft; seeded: EditableChannelDetails | und
 
 const EMPTY_DRAFT: Draft = { fields: { name: "", purpose: "", topic: "" }, seeded: undefined };
 
+const saves = defineMutation<{ id: ChannelId; save: () => Promise<void> }>({
+  key: ({ id }) => id,
+  mode: "single",
+  run: ({ save }) => save(),
+});
+
 function stripLeadingHash(name: string): string {
   return name.startsWith("#") ? name.slice(1) : name;
 }
 
 export function createChannelDetailsDraft(
   details: () => ChannelDetails | null | undefined,
-  refetch: () => unknown,
+  refetch: (id: ChannelId) => Promise<unknown>,
+  groupChat: () => boolean,
 ) {
   const [draft, setDraft] = createSignal((previous: Draft = EMPTY_DRAFT): Draft => {
     const d = details();
@@ -39,11 +47,15 @@ export function createChannelDetailsDraft(
   const setNameInput = setField("name");
   const setTopicInput = setField("topic");
   const setPurposeInput = setField("purpose");
-  const [saving, setSaving] = createSignal(false);
+  const saving = () => {
+    const id = channelDetails.channelDetailsId();
+    return !!id && saves.pending(id);
+  };
+  const nextName = () => (groupChat() ? nameInput().trim() : stripLeadingHash(nameInput().trim()));
 
   const nameDirty = () => {
     const d = details();
-    return !!d && stripLeadingHash(nameInput().trim()) !== d.name;
+    return !!d && nextName() !== d.name;
   };
   const topicDirty = () => {
     const d = details();
@@ -66,10 +78,11 @@ export function createChannelDetailsDraft(
   const saveChanges = async () => {
     const id = channelDetails.channelDetailsId();
     const d = details();
-    if (!(id && d) || saving()) return;
+    if (!(id && d)) return;
 
-    const nextName = stripLeadingHash(nameInput().trim());
-    if (!nextName) {
+    const name = nextName();
+    const noun = groupChat() ? "Group chat" : "Channel";
+    if (!(name || groupChat())) {
       setNameInput(d.name);
       feedback.flash(id, "Channel name can't be empty.", "error");
       return;
@@ -77,19 +90,22 @@ export function createChannelDetailsDraft(
     const nextTopic = topicInput().trim();
     const nextPurpose = purposeInput().trim();
 
-    setSaving(true);
-    const [nameOk, topicOk, purposeOk] = await Promise.all([
-      nextName === d.name ? true : channelDetails.renameChannelById(id, nextName),
-      nextTopic === d.topic ? true : channelDetails.updateChannelTopic(id, nextTopic),
-      nextPurpose === d.purpose ? true : channelDetails.updateChannelPurpose(id, nextPurpose),
-    ]);
-    await refetch();
-    setSaving(false);
-
-    if (!nameOk) setNameInput(d.name);
-    if (!topicOk) setTopicInput(d.topic);
-    if (!purposeOk) setPurposeInput(d.purpose);
-    if (nameOk && topicOk && purposeOk) feedback.flash(id, "Channel updated.");
+    await saves.run({
+      id,
+      save: async () => {
+        const [nameOk, topicOk, purposeOk] = await Promise.all([
+          name === d.name ? true : channelDetails.renameChannelById(id, name),
+          nextTopic === d.topic ? true : channelDetails.updateChannelTopic(id, nextTopic),
+          nextPurpose === d.purpose ? true : channelDetails.updateChannelPurpose(id, nextPurpose),
+        ]);
+        await refetch(id);
+        if (nameOk && topicOk && purposeOk) feedback.flash(id, `${noun} updated.`);
+        if (channelDetails.channelDetailsId() !== id) return;
+        if (!nameOk) setNameInput(d.name);
+        if (!topicOk) setTopicInput(d.topic);
+        if (!purposeOk) setPurposeInput(d.purpose);
+      },
+    });
   };
 
   return {

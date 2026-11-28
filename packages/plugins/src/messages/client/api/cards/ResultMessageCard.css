@@ -5,9 +5,6 @@
   background: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  transition:
-    background 0.1s ease,
-    border-color 0.1s ease;
 }
 
 .result-message-card:hover,
@@ -47,7 +44,19 @@
   color: var(--text-secondary);
 }
 
+.result-message-card-context .clickable-inline {
+  display: flex;
+  gap: 3px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.result-message-card-context svg {
+  align-self: center;
+}
+
 .result-message-card-time {
+  display: flex;
   flex-shrink: 0;
   margin-left: auto;
   padding-left: var(--space-sm);

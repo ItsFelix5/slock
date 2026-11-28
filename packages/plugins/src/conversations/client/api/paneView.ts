@@ -1,7 +1,7 @@
 import { createContext, useContext } from "solid-js";
 import type { ChannelMessageTarget, View } from "./types";
 
-export interface PaneViewContextValue {
+interface PaneViewContextValue {
   clearMessageTarget: () => void;
   messageTarget: () => ChannelMessageTarget | null;
   paneId: string;

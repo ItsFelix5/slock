@@ -1,5 +1,6 @@
 {
   "id": "pins",
+  "category": "Read and catch up",
   "name": "Pins",
   "requires": [
     "channels",
@@ -10,5 +11,6 @@
     "query",
     "shell",
     "users"
-  ]
+  ],
+  "boot": true
 }

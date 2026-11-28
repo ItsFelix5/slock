@@ -4,7 +4,7 @@ import { parseTs } from "@slock/slack";
 import type { ChannelId, HistoryPage, Message, Ts } from "@slock/types";
 import type { Store } from "solid-js";
 import { mergeMessages } from "../api/messageMerge";
-import { tsFromMs } from "../lib/tsTime";
+import { tsFromMs, tsToMs } from "../lib/tsTime";
 import type { HistoryMeta } from "./history/historyFlags";
 
 const env = service("env");
@@ -18,10 +18,11 @@ export function createHistoryJump(deps: {
   historyCursor: Map<ChannelId, string | undefined>;
   historyMeta: Store<Record<ChannelId, HistoryMeta>>;
   loadedChannels: Set<ChannelId>;
-  loadNewerMessages: (channelId: ChannelId) => Promise<void>;
+  loadConversationMeta: (channelId: ChannelId) => void;
   loadRecentHistory: (channelId: ChannelId) => Promise<void>;
   messagesByChannel: Store<Record<ChannelId, Message[]>>;
   newerHistoryBoundary: Map<ChannelId, Ts>;
+  onHistoryLoaded?: (channelId: ChannelId, pinCount: number | undefined) => void;
   patchMeta: (channelId: ChannelId, patch: Partial<HistoryMeta>) => void;
   replaceMessages: (channelId: ChannelId, compute: (existing: Message[]) => Message[]) => void;
   windowEpochs: {
@@ -33,18 +34,18 @@ export function createHistoryJump(deps: {
     api,
     historyCursor,
     historyMeta,
+    loadConversationMeta,
     loadedChannels,
-    loadNewerMessages,
     loadRecentHistory,
     messagesByChannel,
     newerHistoryBoundary,
+    onHistoryLoaded,
     patchMeta,
     replaceMessages,
     windowEpochs,
   } = deps;
 
-  async function ensureChannelMessage(channelId: ChannelId, ts: Ts) {
-    if (messagesByChannel[channelId]?.some((message) => message.ts === ts)) return true;
+  function beginWindowLoad(channelId: ChannelId) {
     const epoch = windowEpochs.begin(channelId);
     const previous = historyMeta[channelId];
     patchMeta(channelId, {
@@ -55,9 +56,20 @@ export function createHistoryJump(deps: {
       newerError: false,
       olderError: false,
     });
+    loadConversationMeta(channelId);
+    return epoch;
+  }
+
+  async function ensureChannelMessage(channelId: ChannelId, ts: Ts) {
+    if (messagesByChannel[channelId]?.some((message) => message.ts === ts)) return true;
+    const epoch = beginWindowLoad(channelId);
     try {
-      const { messages, hasMore, nextCursor } = await api.fetchHistoryAround(channelId, ts);
+      const { messages, hasMore, nextCursor, pinCount } = await api.fetchHistoryAround(
+        channelId,
+        ts,
+      );
       if (!windowEpochs.isCurrent(channelId, epoch)) return false;
+      onHistoryLoaded?.(channelId, pinCount);
       if (!messages.some((message) => message.ts === ts)) {
         void loadRecentHistory(channelId);
         return false;
@@ -75,7 +87,6 @@ export function createHistoryJump(deps: {
         olderError: false,
       });
       loadedChannels.add(channelId);
-      void loadNewerMessages(channelId);
       return true;
     } catch (err) {
       console.error("Failed to fetch history around message", err);
@@ -84,21 +95,20 @@ export function createHistoryJump(deps: {
     }
   }
 
+  async function firstMessageSearchStart(channelId: ChannelId, ts: Ts): Promise<Ts> {
+    const { created } = await api.fetchChannelDetails(channelId);
+    return created && created * 1000 > tsToMs(ts) ? tsFromMs(created * 1000) : ts;
+  }
+
   async function jumpToTs(channelId: ChannelId, ts: Ts) {
-    const epoch = windowEpochs.begin(channelId);
-    const previous = historyMeta[channelId];
-    patchMeta(channelId, {
-      anchored: previous?.anchored,
-      hasMore: previous?.hasMore ?? true,
-      initialError: false,
-      loading: true,
-      newerError: false,
-      olderError: false,
-    });
+    const epoch = beginWindowLoad(channelId);
     try {
       const around = await api.fetchHistoryAround(channelId, ts);
+      if (windowEpochs.isCurrent(channelId, epoch)) onHistoryLoaded?.(channelId, around.pinCount);
       const fromStart = around.messages.length === 0;
-      const newer = fromStart ? await api.fetchHistoryNewer(channelId, ts) : undefined;
+      const newer = fromStart
+        ? await api.fetchHistoryNewer(channelId, await firstMessageSearchStart(channelId, ts))
+        : undefined;
       if (!windowEpochs.isCurrent(channelId, epoch)) return false;
       const messages = newer?.messages ?? around.messages;
       if (messages.length === 0) {

@@ -1,12 +1,17 @@
-import { backoff, defined, type Env, type TimerHandle } from "@slock/core";
-import { type Credentials, teamIdFromRoute } from "@slock/plugins/slack/server/api/auth";
-import { isUserId } from "@slock/slack";
-import type { UserId } from "@slock/types";
+import type { Env, TimerHandle } from "@slock/core";
+import {
+  type Credentials,
+  enterpriseIdFromRoute,
+  teamIdFromRoute,
+} from "@slock/plugins/slack/server/api/auth";
+import { isFileId, isUserId } from "@slock/slack";
+import type { FileId, UserId } from "@slock/types";
+import { backoff } from "../protocol/backoff";
 import type { GatewayEvent, RealtimeEventHook, RealtimeTrim } from "./api";
 import { parseFrame } from "./frame";
 import { trimSlackGatewayPayload } from "./trim";
 
-export type ClientSocket = { send(data: string): void };
+type ClientSocket = { send(data: string): void };
 
 type ConnectionState = {
   creds: Credentials;
@@ -18,6 +23,7 @@ type ConnectionState = {
   gatewayRetryTimer: TimerHandle | undefined;
   presenceSubIds: Set<UserId>;
   userChangeSubIds: Set<UserId>;
+  fileSubIds: Set<FileId>;
   lastHeardAt: number;
   closed: boolean;
 };
@@ -57,6 +63,22 @@ function sendPresenceSub(state: ConnectionState) {
   sendGateway(state, { ids: [...state.presenceSubIds], type: "presence_sub" });
 }
 
+function sendFileSubs(
+  state: ConnectionState,
+  ids: Iterable<FileId>,
+  type: "temp_channel_sub" | "temp_channel_unsub",
+) {
+  for (const id of ids) sendGateway(state, { channel_id: id, type });
+}
+
+function watchFiles(state: ConnectionState, ids: Set<FileId>) {
+  const added = [...ids].filter((id) => !state.fileSubIds.has(id));
+  const removed = [...state.fileSubIds].filter((id) => !ids.has(id));
+  state.fileSubIds = ids;
+  sendFileSubs(state, added, "temp_channel_sub");
+  sendFileSubs(state, removed, "temp_channel_unsub");
+}
+
 function sendUserChangeSubscriptions(state: ConnectionState) {
   if (state.gatewaySocket?.readyState !== WebSocket.OPEN) return;
   const added = [...state.presenceSubIds].filter((id) => !state.userChangeSubIds.has(id));
@@ -74,6 +96,13 @@ function sendUserChangeSubscriptions(state: ConnectionState) {
     }
   }
   state.userChangeSubIds = new Set(state.presenceSubIds);
+}
+
+function subscribe(state: ConnectionState) {
+  state.userChangeSubIds = new Set();
+  sendPresenceSub(state);
+  sendUserChangeSubscriptions(state);
+  sendFileSubs(state, state.fileSubIds, "temp_channel_sub");
 }
 
 function forward(state: ConnectionState, event: GatewayEvent) {
@@ -99,12 +128,12 @@ export function createGateway(
 
   // rtm.connect fails with enterprise_is_restricted on Enterprise Grid, so we mirror the web client's gateway URL
   function buildGatewayUrl(current: Credentials) {
-    const [enterpriseId] = current.route.split(":");
+    const enterpriseId = enterpriseIdFromRoute(current.route);
     const gatewayTeamId = teamIdFromRoute(current.route) ?? enterpriseId;
     const shard = 1 + Math.floor(env.random() * 3);
     const params = new URLSearchParams({
       batch_presence_aware: "1",
-      enterprise_id: defined(enterpriseId),
+      enterprise_id: enterpriseId,
       flannel: "3",
       gateway_server: `${gatewayTeamId}-${shard}`,
       lazy_channels: "1",
@@ -157,20 +186,18 @@ export function createGateway(
     }
     state.gatewaySocket = socket;
 
-    socket.addEventListener("open", () => {
-      state.gatewayAttempt = 0;
-      state.lastHeardAt = env.now();
-      send(state, { connected: true, type: "_status" });
-      state.userChangeSubIds = new Set();
-      sendPresenceSub(state);
-      sendUserChangeSubscriptions(state);
-    });
-
     socket.addEventListener("message", (event) => {
       if (state.gatewaySocket !== socket) return;
       state.lastHeardAt = env.now();
       const frame = parseFrame(String(event.data));
-      if (frame) forward(state, frame);
+      if (!frame) return;
+      // Slack silently drops subscriptions sent before its hello, even on an open socket.
+      if (frame.type === "hello") {
+        state.gatewayAttempt = 0;
+        send(state, { connected: true, type: "_status" });
+        subscribe(state);
+      }
+      forward(state, frame);
     });
 
     const onDown = () => {
@@ -194,6 +221,10 @@ export function createGateway(
       sendPresenceSub(state);
       sendUserChangeSubscriptions(state);
     }
+    if (msg.type === "query_presence" && Array.isArray(msg.ids))
+      sendGateway(state, { ids: msg.ids.filter(isUserId), type: "presence_query" });
+    if (msg.type === "watch_files" && Array.isArray(msg.ids))
+      watchFiles(state, new Set(msg.ids.filter(isFileId)));
     if (msg.type === "typing" && typeof msg.channel === "string") {
       sendGateway(state, {
         channel: msg.channel,
@@ -233,6 +264,7 @@ export function createGateway(
       const state: ConnectionState = {
         closed: false,
         creds,
+        fileSubIds: new Set(),
         gatewayAttempt: 0,
         gatewayRetryTimer: undefined,
         gatewaySocket: null,

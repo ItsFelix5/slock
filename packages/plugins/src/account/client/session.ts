@@ -1,5 +1,5 @@
 import { getHost, service } from "@slock/core/solid";
-import { logout } from "@slock/slack";
+import { logout } from "@slock/slack/client";
 
 const dialogs = service("shell.dialogs");
 

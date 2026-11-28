@@ -19,6 +19,7 @@ export function trimHistory(data: HistoryReply) {
   return {
     has_more: data.has_more,
     messages: data.messages?.map(trimMessage),
+    pin_count: data.pin_count,
     ok: true,
     response_metadata: data.response_metadata
       ? { next_cursor: data.response_metadata.next_cursor }

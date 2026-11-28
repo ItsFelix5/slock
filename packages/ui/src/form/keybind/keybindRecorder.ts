@@ -29,7 +29,13 @@ export function useKeybindRecorder(onChange: (combo: ShortcutCombo | null) => vo
       stop();
     };
     window.addEventListener("keydown", onKeyDown, { capture: true });
-    cleanup = () => window.removeEventListener("keydown", onKeyDown, { capture: true });
+    window.addEventListener("blur", stop);
+    document.addEventListener("focusin", stop);
+    cleanup = () => {
+      window.removeEventListener("keydown", onKeyDown, { capture: true });
+      window.removeEventListener("blur", stop);
+      document.removeEventListener("focusin", stop);
+    };
   }
 
   onCleanup(() => cleanup?.());

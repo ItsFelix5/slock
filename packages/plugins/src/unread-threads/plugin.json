@@ -1,5 +1,7 @@
 {
   "id": "unread-threads",
+  "category": "Read and catch up",
   "name": "Unread threads in sidebar",
-  "requires": ["activity", "message-links"]
+  "requires": ["activity", "message-links", "shell"],
+  "boot": true
 }

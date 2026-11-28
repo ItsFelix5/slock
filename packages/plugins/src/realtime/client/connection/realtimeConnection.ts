@@ -3,7 +3,7 @@ import { createEffect, createSignal, onCleanup, onSettled } from "solid-js";
 import { createHeartbeat } from "./heartbeat";
 import { createReconnectScheduler } from "./reconnectScheduler";
 
-export type RealtimeConnectionState = "connected" | "connecting" | "offline" | "reconnecting";
+type RealtimeConnectionState = "connected" | "connecting" | "offline" | "reconnecting";
 
 const ONLINE_GRACE_MS = 45_000;
 const STALE_HIDDEN_MS = 30_000;
@@ -12,21 +12,14 @@ export function createRealtimeConnection(opts: {
   env: Env;
   onMessage: (raw: string) => void;
   onOpen: () => void;
-  onReconnect: (downMs: number) => void;
+  onReconnect: () => void;
   url: () => string;
 }) {
   const online = () => navigator.onLine;
   const [connectionState, setConnectionState] = createSignal<RealtimeConnectionState>(
     online() ? "connecting" : "offline",
   );
-  const [gatewayConnected, setGatewayConnectedSignal] = createSignal(false);
-  let gatewayUp = false;
-  let disconnectedAt = opts.env.now();
-  const writeGatewayConnected = (connected: boolean) => {
-    if (!connected && gatewayUp) disconnectedAt = opts.env.now();
-    gatewayUp = connected;
-    setGatewayConnectedSignal(connected);
-  };
+  const [gatewayConnected, writeGatewayConnected] = createSignal(false);
   const isTrulyOnline = () => online() && gatewayConnected();
   const [recentlyOnline, setRecentlyOnline] = createSignal(online());
   createEffect(isTrulyOnline, (trulyOnline) => {
@@ -158,7 +151,7 @@ export function createRealtimeConnection(opts: {
       if (connected) {
         scheduler.connected();
         hasConnected = true;
-        if (wasConnected) opts.onReconnect(opts.env.now() - disconnectedAt);
+        if (wasConnected) opts.onReconnect();
       }
       setConnectionState(connected ? "connected" : online() ? "reconnecting" : "offline");
     },

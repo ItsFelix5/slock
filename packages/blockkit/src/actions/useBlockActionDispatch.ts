@@ -1,29 +1,25 @@
-import { service } from "@slock/core/solid";
-import type { TimerHandle } from "@slock/core/types";
+import { useDebouncer } from "@slock/core/solid";
 import type { ConfirmationDialog } from "@slock/types";
 import { createSignal, onCleanup } from "solid-js";
 import type { BlockActionContext } from "../BlockKit";
 import { useBlockKitConfirm } from "../context";
 import { containerOf, runBlockAction } from "./blockActions";
 
-const env = service("env");
-
 export function useBlockActionDispatch(context: () => BlockActionContext | undefined) {
   const confirmDialog = useBlockKitConfirm();
-  const [pending, setPending] = createSignal(false);
+  const [inFlight, setInFlight] = createSignal(0);
+  const pending = () => inFlight() > 0;
   const [unsupported, setUnsupported] = createSignal(false);
-  let timer: TimerHandle | undefined;
+  const unflash = useDebouncer(() => setUnsupported(false), 2000);
   let active = true;
 
   onCleanup(() => {
     active = false;
-    env.clearTimeout(timer);
   });
 
   const flashUnsupported = () => {
-    env.clearTimeout(timer);
     setUnsupported(true);
-    timer = env.setTimeout(() => setUnsupported(false), 2000);
+    unflash.schedule();
   };
 
   const canDispatch = (actionId?: string) => !!(context()?.botId && actionId);
@@ -31,8 +27,9 @@ export function useBlockActionDispatch(context: () => BlockActionContext | undef
   const dispatch = async (
     action: Record<string, unknown> & { action_id?: string },
     confirm?: ConfirmationDialog,
+    concurrent = false,
   ) => {
-    if (pending()) return;
+    if (pending() && !concurrent) return;
     const ctx = context();
     if (!(ctx?.botId && action.action_id)) {
       flashUnsupported();
@@ -50,19 +47,19 @@ export function useBlockActionDispatch(context: () => BlockActionContext | undef
     ) {
       return;
     }
-    setPending(true);
+    setInFlight((n) => n + 1);
     try {
       await runBlockAction({
         action,
-        appId: ctx.appId,
         botId: ctx.botId,
+        botTeamId: ctx.botTeamId,
         container: containerOf(ctx),
         state: ctx.view?.state.snapshot(ctx.view.blocks()),
       });
     } catch {
       if (active) flashUnsupported();
     } finally {
-      if (active) setPending(false);
+      if (active) setInFlight((n) => n - 1);
     }
   };
 

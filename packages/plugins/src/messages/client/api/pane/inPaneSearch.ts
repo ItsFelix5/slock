@@ -4,11 +4,12 @@ import type { Message } from "@slock/types";
 import {
   findTextRanges,
   indexElementText,
+  paintHighlight,
   type TextIndex,
   useEscapeClose,
   useShortcut,
 } from "@slock/ui";
-import { type Accessor, createEffect, createMemo, createSignal } from "solid-js";
+import { type Accessor, createEffect, createMemo, createSignal, untrack } from "solid-js";
 import type { FeedScroll } from "./scroll/feedScroll";
 
 const ALL_MATCHES = "search-match";
@@ -22,11 +23,6 @@ function indexContainer(container: HTMLElement): Map<string, TextIndex> {
     if (ts && textEl) index.set(ts, indexElementText(textEl));
   }
   return index;
-}
-
-function clearHighlights() {
-  CSS.highlights.delete(ALL_MATCHES);
-  CSS.highlights.delete(CURRENT_MATCH);
 }
 
 export function createInPaneSearch(
@@ -61,7 +57,7 @@ export function createInPaneSearch(
     const wrapped = ((index % list.length) + list.length) % list.length;
     setMatchIndex(wrapped);
     hasJumpedSinceQueryChange = true;
-    feed.glideTo(defined(list[wrapped]).ts);
+    feed.jumpTo(defined(list[wrapped]).ts);
   };
   const jumpRelative = (delta: number) =>
     jump(hasJumpedSinceQueryChange ? matchIndex() + delta : matchIndex());
@@ -81,17 +77,23 @@ export function createInPaneSearch(
     }),
     ({ current, index, list, q }) => {
       if (!(q && index)) return;
-      const currentRanges: Range[] = [];
-      const otherRanges: Range[] = [];
-      for (const m of list) {
-        const row = index.get(m.ts);
-        if (!row) continue;
-        const ranges = findTextRanges(row, q);
-        (m.ts === current?.ts ? currentRanges : otherRanges).push(...ranges);
-      }
-      CSS.highlights.set(ALL_MATCHES, new Highlight(...otherRanges));
-      CSS.highlights.set(CURRENT_MATCH, new Highlight(...currentRanges));
-      return clearHighlights;
+      const clears = untrack(() => {
+        const currentRanges: Range[] = [];
+        const otherRanges: Range[] = [];
+        for (const m of list) {
+          const row = index.get(m.ts);
+          if (!row) continue;
+          const ranges = findTextRanges(row, q);
+          (m.ts === current?.ts ? currentRanges : otherRanges).push(...ranges);
+        }
+        return [
+          paintHighlight(ALL_MATCHES, otherRanges),
+          paintHighlight(CURRENT_MATCH, currentRanges),
+        ];
+      });
+      return () => {
+        for (const clear of clears) clear();
+      };
     },
   );
 

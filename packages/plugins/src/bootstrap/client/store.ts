@@ -1,7 +1,7 @@
 import { isRecord } from "@slock/core";
 import { defineQuery } from "@slock/plugins/query/client/api";
-import { fetchBootstrap, fetchUserPrefs } from "@slock/plugins/slack/client/api";
 import type { Bootstrap, UserPrefs } from "@slock/types";
+import { fetchBootstrap, fetchUserPrefs } from "./requests";
 
 const isNull = (value: unknown): value is null => value === null;
 
@@ -12,7 +12,7 @@ const bootstrapQuery = defineQuery<null, Bootstrap>({
 });
 
 const userPrefsQuery = defineQuery<null, UserPrefs>({
-  load: fetchUserPrefs,
+  load: (_, { signal }) => fetchUserPrefs(signal),
   name: "userPrefs",
   persist: { isArg: isNull, isData: (value): value is UserPrefs => isRecord(value), version: 1 },
 });
@@ -21,10 +21,11 @@ export function createBootstrapStore(deps: { retryHooks: () => (() => void)[] })
   const bootstrap = bootstrapQuery.state(() => null);
   const userPrefs = userPrefsQuery.state(() => null);
 
-  const mutateUserPrefs = (updater: (current: UserPrefs | undefined) => UserPrefs | undefined) => {
-    const next = updater(userPrefsQuery.read(null));
-    if (next) userPrefsQuery.set(null, next);
-  };
+  const overlayBootstrap = (change: (current: Bootstrap) => Bootstrap) =>
+    bootstrapQuery.overlay(null, change);
+
+  const overlayUserPrefs = (change: (current: UserPrefs) => UserPrefs) =>
+    userPrefsQuery.overlay(null, change);
 
   async function retryUserPrefs(): Promise<void> {
     await userPrefsQuery.refresh(null).catch(() => {});
@@ -36,5 +37,12 @@ export function createBootstrapStore(deps: { retryHooks: () => (() => void)[] })
     for (const hook of deps.retryHooks()) hook();
   }
 
-  return { bootstrap, mutateUserPrefs, retryBootstrap, retryUserPrefs, userPrefs };
+  return {
+    bootstrap,
+    overlayBootstrap,
+    overlayUserPrefs,
+    retryBootstrap,
+    retryUserPrefs,
+    userPrefs,
+  };
 }

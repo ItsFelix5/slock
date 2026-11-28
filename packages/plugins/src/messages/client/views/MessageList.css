@@ -5,7 +5,7 @@
   padding-bottom: calc(var(--composer-overlay-h, 0px) + 12px);
   overflow: hidden auto;
   overflow-anchor: none;
-  transition: opacity 0.12s ease;
+  outline: none;
   scrollbar-width: none;
 }
 .message-list::-webkit-scrollbar {
@@ -14,7 +14,6 @@
 .message-list-pending {
   pointer-events: none;
   opacity: 0;
-  transition: none;
 }
 .message-list-loading-older {
   padding: 10px var(--message-row-inline-end);
@@ -114,18 +113,8 @@
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: calc(-1 * var(--focus-ring-width));
 }
-@keyframes message-flash {
-  0%,
-  100% {
-    background: transparent;
-  }
-  25%,
-  75% {
-    background: var(--hover-bg);
-  }
-}
 .message-row.message-flash {
-  animation: message-flash 1.2s ease;
+  background: var(--hover-bg);
 }
 ::highlight(search-match) {
   background-color: var(--highlight-bg);
@@ -224,9 +213,13 @@
 }
 .message-text.message-emoji-only {
   font-size: var(--font-size-display);
-  line-height: 1.2;
+  line-height: round(1.2em, 1px);
 }
-.message-text.message-emoji-only .emoji-img {
+.message-text.message-emoji-only :is(.bk-rich-text, .bk-section-text, .bk-header) {
+  font-size: inherit;
+  line-height: inherit;
+}
+.message-text.message-emoji-only :is(.emoji-img, .emoji-placeholder) {
   width: 36px;
   height: 36px;
   vertical-align: -7px;

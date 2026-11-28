@@ -1,5 +1,5 @@
-import type { Message } from "@slock/types";
-import { deepEqual } from "../lib/deepEqual";
+import { deepEqual } from "@slock/core";
+import type { Message, Ts } from "@slock/types";
 
 const PENDING_ID_PREFIX = "pending-";
 
@@ -25,6 +25,19 @@ export function dedupeMessages(messages: Message[]): Message[] {
     .map((message) => ({ message, ts: parseFloat(message.ts || "0") }))
     .sort((a, b) => a.ts - b.ts || (a.message.id < b.message.id ? -1 : 1))
     .map(({ message }) => message);
+}
+
+export function dropVanished(
+  current: Message[],
+  known: Message[],
+  fresh: Message[],
+  covers: (ts: Ts) => boolean,
+): Message[] {
+  const returned = new Set(fresh.map((m) => m.ts));
+  const missing = new Set(known.map((m) => m.ts).filter((ts) => !returned.has(ts) && covers(ts)));
+  return current.filter(
+    (m) => !missing.has(m.ts) || isPendingMessage(m) || m.deleted || m.isEphemeral,
+  );
 }
 
 export function mergeMessages(existing: Message[], fresh: Message[]): Message[] {

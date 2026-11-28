@@ -7,7 +7,7 @@ const env = service("env");
 type Authorizations = { authorizations: { encodedUserLink: string }[] };
 type BotUser = { memberships: string[]; otherGroups: number };
 
-export type AppInstallers = { userIds: string[]; channelIds: string[]; hiddenChannels: number };
+type AppInstallers = { userIds: string[]; channelIds: string[]; hiddenChannels: number };
 
 async function readAutomountProps(page: Response): Promise<Map<string, string>> {
   const props = new Map<string, string>();

@@ -1,1 +1,7 @@
-{ "id": "users", "name": "Users", "requires": ["bootstrap", "realtime", "shell"], "boot": true }
+{
+  "id": "users",
+  "category": "Core",
+  "name": "Users",
+  "requires": ["bootstrap", "query", "realtime", "shell"],
+  "boot": true
+}

@@ -1,1 +1,7 @@
-{ "id": "reminders", "name": "Reminders", "requires": ["activity", "later"] }
+{
+  "id": "reminders",
+  "category": "Read and catch up",
+  "name": "Reminders",
+  "requires": ["activity", "later"],
+  "boot": true
+}

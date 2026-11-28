@@ -2,7 +2,7 @@ import type { Attachment, ChannelId, FileId, UserId } from "@slock/types";
 import type { JSX } from "@solidjs/web";
 import { createContext, useContext } from "solid-js";
 
-export interface BlockKitMentionInfo {
+interface BlockKitMentionInfo {
   isMember?: boolean;
 
   isPrivate?: boolean;
@@ -49,7 +49,7 @@ export function useBlockKitResolver(): BlockKitResolver {
   return useContext(BlockKitResolverContext);
 }
 
-export interface TimeAnchor {
+interface TimeAnchor {
   ms: number;
   tz?: string;
 }
@@ -86,7 +86,7 @@ export function useEmojiFreeze(): () => boolean {
   return useContext(EmojiFreezeContext);
 }
 
-export type BlockKitConfirm = (options: {
+type BlockKitConfirm = (options: {
   cancelLabel?: string;
   confirmLabel?: string;
   danger?: boolean;

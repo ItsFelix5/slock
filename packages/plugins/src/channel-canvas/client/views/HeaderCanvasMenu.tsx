@@ -1,6 +1,7 @@
-import { Mrkdwn } from "@slock/blockkit";
+import { EmojiText } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
 import type { MessageHeaderProps } from "@slock/plugins/messages/client/api";
+import { mentionText } from "@slock/plugins/users/client/api";
 import { createResetSignal, IconButton, Menu, MenuItem } from "@slock/ui";
 import { For, Show } from "solid-js";
 import "./HeaderCanvasMenu.css";
@@ -35,7 +36,11 @@ export default function HeaderCanvasMenu(props: MessageHeaderProps) {
               }}
             >
               <span class="truncate">
-                <Mrkdwn text={item.title || "Untitled canvas"} />
+                <EmojiText
+                  text={
+                    mentionText(item.title) || canvas.canvasTitle(item.fileId) || "Untitled canvas"
+                  }
+                />
               </span>
             </MenuItem>
           )}

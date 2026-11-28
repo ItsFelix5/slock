@@ -1,7 +1,7 @@
 import Icon from "../Icon";
 import "./VolumeControl.css";
 
-export interface VolumeControlProps {
+interface VolumeControlProps {
   muted: boolean;
   onMutedChange: (muted: boolean) => void;
   onVolumeChange: (volume: number) => void;

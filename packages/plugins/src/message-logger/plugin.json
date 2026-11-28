@@ -1,1 +1,7 @@
-{ "id": "message-logger", "name": "Message logger", "requires": ["messages", "users"] }
+{
+  "id": "message-logger",
+  "category": "Read and catch up",
+  "name": "Message logger",
+  "requires": ["messages", "users"],
+  "boot": true
+}

@@ -1,7 +1,7 @@
 import { createLocalPref } from "@slock/plugins/slack/client/api/localPref";
 import type { Block, SlackFile } from "@slock/types";
 
-export type ComposerTemplate = {
+type ComposerTemplate = {
   id: string;
   name: string;
   blocks: Block[];

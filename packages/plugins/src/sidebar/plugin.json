@@ -1,1 +1,7 @@
-{ "id": "sidebar", "name": "Sidebar", "requires": ["shell", "users"], "boot": true }
+{
+  "id": "sidebar",
+  "category": "Core",
+  "name": "Sidebar",
+  "requires": ["shell", "users"],
+  "boot": true
+}

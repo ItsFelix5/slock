@@ -1,1 +1,7 @@
-{ "id": "sidebar-typing", "name": "Typing in sidebar", "requires": ["home", "typing"] }
+{
+  "id": "sidebar-typing",
+  "category": "Looks and layout",
+  "name": "Typing in sidebar",
+  "requires": ["home", "typing"],
+  "boot": true
+}

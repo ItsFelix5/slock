@@ -1,12 +1,14 @@
 import { formatTimeFromMs } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { postBroadcastMessage, postMessage, uploadFiles } from "@slock/plugins/slack/client/api";
+import type { PostedDraft } from "@slock/plugins/slack/client/api";
+import { uploadFiles } from "@slock/plugins/slack/client/api/content";
 import { broadcastRangeOf } from "@slock/slack";
 import type { Block, ChannelId, FileId, Message, PendingFile, Ts, User } from "@slock/types";
 import { reconcile } from "solid-js";
 import { dedupeMessages } from "../api/messageMerge";
 import type { MessageLocation } from "../lib/messageLocations";
 import { tsFromMs } from "../lib/tsTime";
+import { postBroadcastMessage, postMessage } from "../requests/send";
 
 const env = service("env");
 
@@ -53,6 +55,7 @@ export function createMessageSending(deps: {
     threadTs?: Ts,
     blocks?: Block[],
     fileIds?: FileId[],
+    draft?: PostedDraft,
   ) {
     const trimmed = text.trim();
     if (!(trimmed || blocks)) return;
@@ -65,7 +68,7 @@ export function createMessageSending(deps: {
     try {
       const res = broadcastRangeOf({ blocks, text: trimmed })
         ? await postBroadcastMessage(channelId, trimmed, unfurl, threadTs, blocks)
-        : await postMessage(channelId, trimmed, unfurl, threadTs, blocks, fileIds);
+        : await postMessage(channelId, trimmed, unfurl, threadTs, blocks, fileIds, draft);
       const confirmedTs = res.ts;
       deps.editList(location, (list) => {
         const confirmed = dedupeMessages(

@@ -3,10 +3,6 @@
   position: relative;
   padding: 0;
 }
-.composer:focus-within {
-  border-color: var(--accent-border-strong);
-  box-shadow: 0 0 0 var(--focus-ring-width) var(--accent-subtle);
-}
 .composer.drag-over {
   border-color: var(--accent);
   border-style: dashed;
@@ -151,9 +147,4 @@
   display: inline-flex;
   align-self: flex-end;
   margin: 2px 0 2px var(--space-xs);
-}
-.composer-link-previews {
-  display: flex;
-  flex-direction: column;
-  padding: var(--space-sm) var(--space-md) 0;
 }

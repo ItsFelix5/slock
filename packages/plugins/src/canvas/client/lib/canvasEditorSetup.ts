@@ -1,6 +1,7 @@
 import Quill, { type Range } from "@slock/ui/editor/quill";
 import { LAYOUT_ATTRIBUTE, SECTION_ID_ATTRIBUTE } from "../views/canvasBlots";
 import { withoutHistory } from "../views/canvasBlots/embedHistory";
+import { enterNeighbour } from "./canvasCaret";
 import type { IdFix } from "./canvasLineIds";
 
 const Delta = Quill.import("delta");
@@ -37,6 +38,8 @@ export function bindFirst(
 }
 
 export function bindCanvasKeys(quill: Quill) {
+  bindFirst(quill, { collapsed: true, key: "ArrowDown" }, () => !enterNeighbour(quill, 1));
+  bindFirst(quill, { collapsed: true, key: "ArrowUp" }, () => !enterNeighbour(quill, -1));
   bindFirst(quill, { format: ["list"], key: "Enter", shortKey: true }, (range, context) => {
     const { list } = context.format;
     if (list !== "checked" && list !== "unchecked") return true;

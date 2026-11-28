@@ -1,26 +1,31 @@
 import type { IconName } from "../../media/Icon";
-import type { InlineFormat } from "../editorShortcuts";
+import type { InlineFormat } from "../inlineFormats";
 import type Quill from "../quill";
 
 export type BubbleButton = { icon: IconName; format: string } & (
   | { kind: "inline"; format: InlineFormat }
   | { kind: "block"; format: "blockquote" | "list"; value: string | true }
   | { kind: "link"; format: "link" }
+  | { kind: "tag"; format: "tag" }
 );
 
 export const BUBBLE_BUTTONS: BubbleButton[] = [
   { format: "bold", icon: "bold", kind: "inline" },
   { format: "italic", icon: "italic", kind: "inline" },
   { format: "strike", icon: "strikethrough", kind: "inline" },
+  { format: "underline", icon: "underline", kind: "inline" },
   { format: "code", icon: "code", kind: "inline" },
   { format: "link", icon: "link", kind: "link" },
+  { format: "tag", icon: "highlight", kind: "tag" },
   { format: "list", icon: "bulleted-list", kind: "block", value: "bullet" },
   { format: "list", icon: "numbered-list", kind: "block", value: "ordered" },
   { format: "blockquote", icon: "quote", kind: "block", value: true },
 ];
 
 export function isButtonActive(button: BubbleButton, format: Record<string, unknown>) {
-  return button.kind === "block" ? format[button.format] === button.value : !!format[button.format];
+  if (button.kind === "block") return format[button.format] === button.value;
+  if (button.kind === "tag") return !!(format.tag || format.client_highlight);
+  return !!format[button.format];
 }
 
 export function toggleBlockFormat(

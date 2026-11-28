@@ -6,6 +6,7 @@ import { toggleInlineFormat } from "../editorShortcuts";
 import type Quill from "../quill";
 import type { Range } from "../quill";
 import { bubbleFits } from "./bubbleVisibility";
+import FormatBubbleColors, { type ColorChoice } from "./FormatBubbleColors";
 import FormatBubbleLink from "./FormatBubbleLink";
 import {
   BUBBLE_BUTTONS,
@@ -16,7 +17,7 @@ import {
 
 const URL_SCHEME_RE = /^[a-z][a-z0-9+.-]*:/i;
 
-export interface FormatBubbleProps {
+interface FormatBubbleProps {
   formats: string[];
   quill: Quill | undefined;
 }
@@ -27,6 +28,7 @@ export default function FormatBubble(props: FormatBubbleProps) {
   const [active, setActive] = createSignal<Record<string, unknown>>({});
   const [anchor, setAnchor] = createSignal<HTMLDivElement>();
   const [linkRange, setLinkRange] = createSignal<Range>();
+  const [tagRange, setTagRange] = createSignal<Range>();
 
   const startLink = () => {
     const range = props.quill?.getSelection();
@@ -50,10 +52,44 @@ export default function FormatBubble(props: FormatBubbleProps) {
     endLink(true);
   };
 
+  const endTag = (restoreSelection: boolean) => {
+    const range = tagRange();
+    setTagRange(undefined);
+    if (range && restoreSelection) props.quill?.setSelection(range.index, range.length, "user");
+  };
+
+  const startTag = () => {
+    const range = props.quill?.getSelection();
+    if (!range || range.length === 0) return;
+    if (active().tag || active().client_highlight) {
+      props.quill?.formatText(
+        range.index,
+        range.length,
+        { client_highlight: false, tag: false },
+        "user",
+      );
+    } else setTagRange(range);
+  };
+
+  const pickColor = (choice: ColorChoice) => {
+    const range = tagRange();
+    if (range) {
+      const highlight = choice === "highlight";
+      props.quill?.formatText(
+        range.index,
+        range.length,
+        { client_highlight: highlight, tag: highlight ? false : choice },
+        "user",
+      );
+    }
+    endTag(true);
+  };
+
   const press = (button: BubbleButton) => {
     const { quill } = props;
     if (!quill) return;
     if (button.kind === "link") startLink();
+    else if (button.kind === "tag") startTag();
     else if (button.kind === "inline") toggleInlineFormat(quill, button.format);
     else toggleBlockFormat(quill, button, isButtonActive(button, active()));
   };
@@ -61,11 +97,23 @@ export default function FormatBubble(props: FormatBubbleProps) {
   useShortcut({
     allowInInputs: true,
     combo: { key: "u", mod: true, shift: true },
-    enabled: () => open() && !linkRange() && props.formats.includes("link"),
+    enabled: () => open() && !linkRange() && !tagRange() && props.formats.includes("link"),
     group: "Formatting",
     handler: startLink,
     id: "composer.link",
     label: "Link",
+    manual: true,
+    scope: "composer",
+  });
+
+  useShortcut({
+    allowInInputs: true,
+    combo: { key: "k", mod: true, shift: true },
+    enabled: () => open() && !linkRange() && !tagRange() && props.formats.includes("tag"),
+    group: "Formatting",
+    handler: startTag,
+    id: "composer.tag",
+    label: "Tag",
     manual: true,
     scope: "composer",
   });
@@ -79,8 +127,9 @@ export default function FormatBubble(props: FormatBubbleProps) {
       quill.container.append(element);
 
       const refresh = () => {
-        if (untrack(linkRange)) return;
-        const range = quill.getSelection();
+        if (untrack(linkRange) || untrack(tagRange)) return;
+        const typing = quill.isEnabled() && document.activeElement === quill.root;
+        const range = typing ? quill.getSelection() : null;
         const bounds =
           range && range.length > 0 ? quill.getBounds(range.index, range.length) : null;
         const format = range ? quill.getFormat(range) : {};
@@ -100,6 +149,7 @@ export default function FormatBubble(props: FormatBubbleProps) {
       };
       const hide = () => {
         setLinkRange(undefined);
+        setTagRange(undefined);
         setOpen(false);
       };
 
@@ -131,25 +181,36 @@ export default function FormatBubble(props: FormatBubbleProps) {
       >
         <Show
           fallback={
-            <FormatBubbleLink
-              onBlur={() => endLink(false)}
-              onCancel={() => endLink(true)}
-              onSubmit={submitLink}
-            />
+            <Show
+              fallback={
+                <FormatBubbleLink
+                  onBlur={() => endLink(false)}
+                  onCancel={() => endLink(true)}
+                  onSubmit={submitLink}
+                />
+              }
+              when={!linkRange()}
+            >
+              <For each={buttons()}>
+                {(button) => (
+                  <IconButton
+                    active={isButtonActive(button, active())}
+                    icon={button.icon}
+                    onClick={() => press(button)}
+                    size="sm"
+                    tabindex={-1}
+                  />
+                )}
+              </For>
+            </Show>
           }
-          when={!linkRange()}
+          when={tagRange()}
         >
-          <For each={buttons()}>
-            {(button) => (
-              <IconButton
-                active={isButtonActive(button, active())}
-                icon={button.icon}
-                onClick={() => press(button)}
-                size="sm"
-                tabindex={-1}
-              />
-            )}
-          </For>
+          <FormatBubbleColors
+            onBlur={() => endTag(false)}
+            onCancel={() => endTag(true)}
+            onPick={pickColor}
+          />
         </Show>
       </FloatingPanel>
     </Show>

@@ -1,15 +1,20 @@
+import { logUnknown } from "@slock/core";
 import {
   ifPresent,
   isChannelId,
   isFileId,
   isRichTextSubBlock,
   isUserId,
+  messageMentionUrl,
   parseUserId,
 } from "@slock/slack";
+import { getCachedWorkspaceDomain } from "@slock/slack/client";
 import type {
-  RichTextBlock as RichTextBlockType,
+  RichTextBlock,
+  RichTextHeader,
   RichTextInlineElement,
-  RichTextList as RichTextListType,
+  RichTextList,
+  RichTextMessageMentionElement,
   RichTextSection,
   RichTextStyle,
   RichTextSubBlock,
@@ -17,9 +22,8 @@ import type {
 import type { JSX } from "@solidjs/web";
 import { dynamic } from "@solidjs/web";
 import { For } from "solid-js";
-import EmojiText from "../emoji/EmojiText";
+import EmojiText, { EmojiGlyph } from "../emoji/EmojiText";
 import { hexCodepointsToEmoji } from "../emoji/emoji";
-import { parseArchiveLink } from "../mrkdwn/mrkdwnInline";
 import {
   CanvasMention,
   DateToken,
@@ -31,6 +35,7 @@ import {
   UsergroupMention,
 } from "../mrkdwn/mrkdwnTokens";
 import { safeColor } from "../safeColor";
+import "@slock/ui/tag/tag.css";
 import "./RichText.css";
 import "../mrkdwn/mrkdwn.css";
 import "../mrkdwn/mrkdwnTokens.css";
@@ -39,10 +44,26 @@ function styleClasses(style: RichTextStyle | undefined) {
   return {
     "bk-rt-bold": !!style?.bold,
     "bk-inline-code": !!style?.code,
-    "bk-rt-highlight": !!style?.highlight,
+    "bk-rt-highlight": !!(style?.highlight || style?.client_highlight),
     "bk-rt-italic": !!style?.italic,
     "bk-rt-strike": !!style?.strike,
+    "bk-rt-underline": !!style?.underline,
   };
+}
+
+function MessageMentionView(props: { el: RichTextMessageMentionElement }) {
+  const { el } = props;
+  const url = messageMentionUrl(el, getCachedWorkspaceDomain());
+  const mention = isChannelId(el.channel_id) ? (
+    <MessageLinkMention
+      authorId={ifPresent(parseUserId, el.author_id)}
+      channelId={el.channel_id}
+      url={url}
+    />
+  ) : (
+    <Link label={el.text} url={url} />
+  );
+  return el.style ? <span class={styleClasses(el.style)}>{mention}</span> : mention;
 }
 
 function RichTextLeaf(props: { el: RichTextInlineElement }) {
@@ -61,14 +82,13 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
     case "emoji": {
       const unicode = el.unicode && hexCodepointsToEmoji(el.unicode);
       return unicode ? (
-        <span class="emoji" data-emoji-name={el.name}>
-          {unicode}
-        </span>
+        <EmojiGlyph glyph={unicode} name={el.name} />
       ) : (
         <EmojiText text={`:${el.name}:`} />
       );
     }
     case "user":
+    case "canvas_user_mention":
       return isUserId(el.user_id) ? (
         <Mention bold={el.style?.bold} id={el.user_id} kind="user" />
       ) : null;
@@ -91,6 +111,12 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
           {el.value}
         </span>
       );
+    case "tag":
+      return (
+        <span class={["bk-tag", `bk-tag-${el.color ?? "gray"}`, styleClasses(el.style)]}>
+          {el.text}
+        </span>
+      );
     case "date":
       return (
         <DateToken
@@ -100,26 +126,37 @@ function RichTextLeaf(props: { el: RichTextInlineElement }) {
           url={el.url}
         />
       );
-    case "message_mention": {
-      const channelId =
-        el.channel_id && isChannelId(el.channel_id)
-          ? el.channel_id
-          : parseArchiveLink(el.url)?.channelId;
-      return channelId ? (
-        <MessageLinkMention
-          authorId={ifPresent(parseUserId, el.author_id)}
-          channelId={channelId}
-          url={el.url}
-        />
-      ) : (
-        <Link label={el.text} url={el.url} />
-      );
-    }
+    case "message_mention":
+      return <MessageMentionView el={el} />;
     case "canvas":
       return isFileId(el.file_id) ? (
         <CanvasMention fileId={el.file_id} label={el.text === el.url ? undefined : el.text} />
       ) : null;
+    case "canvas_message_unfurl":
+      return (
+        <MessageMentionView
+          el={{
+            channel_id: el.root_message_channel,
+            message_ts: el.root_message_ts,
+            style: el.style,
+            type: "message_mention",
+          }}
+        />
+      );
+    case "attachment_mention":
+    case "citation":
+    case "work_object_mention":
+      return <Link label={el.text} url={el.url} />;
+    case "file":
+    case "list_record":
+    case "workflow_mention":
+      return el.url ? <Link label={el.text} url={el.url} /> : el.text;
+    case "team":
+      return <span class="bk-mention">Workspace</span>;
+    case "salesforce_data_field":
+      return el.salesforce_field_label ?? "Salesforce field";
     default:
+      logUnknown("rich text element", el satisfies never);
       return null;
   }
 }
@@ -137,11 +174,20 @@ function RichTextSectionView(props: { section: RichTextSection; trailing?: JSX.E
   );
 }
 
+function RichTextHeaderView(props: { header: RichTextHeader }) {
+  const Heading = dynamic(() => `h${props.header.level ?? 1}` as const);
+  return (
+    <Heading class="bk-header">
+      <RichTextInline elements={props.header.elements} />
+    </Heading>
+  );
+}
+
 const ORDERED_MARKERS = ["decimal", "lower-alpha", "lower-roman"];
 const BULLET_MARKERS = ["disc", "circle", "square"];
 const LIST_INDENT_PX = 28;
 
-function RichTextListView(props: { list: RichTextListType }) {
+function RichTextListView(props: { list: RichTextList }) {
   const ordered = () => props.list.style === "ordered";
   const indent = () => props.list.indent ?? 0;
   const markers = () => (ordered() ? ORDERED_MARKERS : BULLET_MARKERS);
@@ -149,6 +195,7 @@ function RichTextListView(props: { list: RichTextListType }) {
   return (
     <List
       class="bk-rt-list"
+      data-indent={indent()}
       start={ordered() ? (props.list.offset ?? 0) + 1 : undefined}
       style={{
         "list-style-type": markers()[indent() % markers().length],
@@ -171,6 +218,8 @@ function SubBlockView(props: { sub: RichTextSubBlock; trailing?: JSX.Element }) 
   switch (sub.type) {
     case "rich_text_section":
       return <RichTextSectionView section={sub} trailing={props.trailing} />;
+    case "rich_text_header":
+      return <RichTextHeaderView header={sub} />;
     case "rich_text_quote":
       return (
         <blockquote class="bk-quote quote-bar">
@@ -183,9 +232,12 @@ function SubBlockView(props: { sub: RichTextSubBlock; trailing?: JSX.Element }) 
           <RichTextInline elements={sub.elements} />
         </pre>
       );
+    case "rich_text_divider":
+      return <hr class="bk-divider" />;
     case "rich_text_list":
       return <RichTextListView list={sub} />;
     default:
+      logUnknown("rich text block", sub satisfies never);
       return null;
   }
 }
@@ -210,7 +262,7 @@ function QuoteContent(props: { elements: (RichTextInlineElement | RichTextSubBlo
   return <>{nodes}</>;
 }
 
-export default function RichText(props: { block: RichTextBlockType; trailing?: JSX.Element }) {
+export default function RichText(props: { block: RichTextBlock; trailing?: JSX.Element }) {
   return (
     <div class="bk-rich-text">
       <For each={props.block.elements}>

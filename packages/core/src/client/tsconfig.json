@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "noEmit": false,
+    "outDir": "../../dist",
+    "rootDir": "..",
+    "tsBuildInfoFile": "../../dist/tsconfig.client.tsbuildinfo"
+  },
+  "extends": "../../../../tsconfig.base.json",
+  "include": ["."],
+  "references": [{ "path": "../.." }]
+}

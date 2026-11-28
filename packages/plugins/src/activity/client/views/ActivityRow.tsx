@@ -60,6 +60,7 @@ export default function ActivityRow(props: {
 
   const {
     earlierMessageCount,
+    entryAttachments,
     entryAuthor,
     entryBlocks,
     entryFiles,
@@ -70,7 +71,7 @@ export default function ActivityRow(props: {
     olderEntries,
     visibleEntries,
   } = createActivityTimeline({
-    currentUserId: () => usersStore.currentUser()?.id,
+    currentUserId: () => usersStore.currentUserId(),
     expanded,
     isThreadGroup,
     items: () => props.row.items,
@@ -92,6 +93,7 @@ export default function ActivityRow(props: {
   const renderEntry = (entry: TimelineEntry) => (
     <SplitNavigation onSplit={() => openThreadInSplit(entry.ts)}>
       <ActivityTimelineRow
+        attachments={entryAttachments(entry)}
         author={entryAuthor(entry)}
         blocks={entryBlocks(entry)}
         channelId={latest().channelId}
@@ -156,6 +158,7 @@ export default function ActivityRow(props: {
                   ]}
                 >
                   <ActivityMessageText
+                    attachments={latest().attachments}
                     author={latest()}
                     blocks={latest().blocks}
                     channelId={latest().channelId}

@@ -1,20 +1,12 @@
 const STALE_HIDDEN_MS = 30_000;
 const MIN_GAP_MS = 5_000;
 
-export interface RevalidateTriggers {
+interface RevalidateTriggers {
   now(): number;
   onRevalidate(): void;
 }
 
-export interface InstalledTriggers {
-  dispose(): void;
-  trigger(): void;
-}
-
-export function installRevalidateTriggers({
-  now,
-  onRevalidate,
-}: RevalidateTriggers): InstalledTriggers {
+export function installRevalidateTriggers({ now, onRevalidate }: RevalidateTriggers): () => void {
   let hiddenAt: number | null = null;
   let lastAt = Number.NEGATIVE_INFINITY;
   const trigger = () => {
@@ -33,11 +25,8 @@ export function installRevalidateTriggers({
   };
   document.addEventListener("visibilitychange", handleVisibility);
   window.addEventListener("online", trigger);
-  return {
-    dispose: () => {
-      document.removeEventListener("visibilitychange", handleVisibility);
-      window.removeEventListener("online", trigger);
-    },
-    trigger,
+  return () => {
+    document.removeEventListener("visibilitychange", handleVisibility);
+    window.removeEventListener("online", trigger);
   };
 }

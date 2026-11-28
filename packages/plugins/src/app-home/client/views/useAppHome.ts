@@ -7,7 +7,7 @@ const dms = service("dms");
 const users = service("users");
 
 const appHome = defineQuery<ChannelId, Awaited<ReturnType<typeof fetchAppHome>>>({
-  load: fetchAppHome,
+  load: (channelId, { signal }) => fetchAppHome(channelId, signal),
   name: "appHome",
 });
 

@@ -7,12 +7,12 @@ import {
   newListWrite,
   updatedContainerWrite,
 } from "./containerWrites.ts";
+import { type ControlContext, controlWrite } from "./controlWrites.ts";
 import {
   changedLineWrite,
-  controlWrite,
   deleteWrite,
   movedAtomWrite,
-  newFileWrite,
+  newAttachmentWrite,
   newImageWrite,
   newLineWrite,
   type Placement,
@@ -25,21 +25,25 @@ import type { Bytes } from "./protobufWrite.ts";
 import { buildFlow } from "./read.ts";
 import { type CanvasMeta, type DecodedCanvas, newSectionId } from "./sections.ts";
 import { encodeDocumentData, type SectionWrite } from "./sectionWrite.ts";
-import { flatten, isLayout, layoutSpec, type Slot, slotPosition } from "./slots.ts";
+import { flatten, isLayout, layoutSpec, placeSlots, type Slot } from "./slots.ts";
 import { cellWrites, newTableWrite, tableChanged, updatedTableWrite } from "./tableWrites.ts";
 import { buildTree, type PlannedContainer } from "./tree.ts";
 import { validate } from "./validate.ts";
 
-export type PlanResult =
+type PlanResult =
   | { data: Bytes; meta: CanvasMeta; ok: true; title: string | null; writes: number }
   | { error: string; ok: false };
 
-export function planEdit(decoded: DecodedCanvas, edit: CanvasEdit): PlanResult {
-  const invalid = validate(edit);
-  if (invalid) return { error: invalid, ok: false };
+export function planEdit(
+  decoded: DecodedCanvas,
+  edit: CanvasEdit,
+  context: ControlContext,
+): PlanResult {
   const { meta } = decoded;
   if (!meta) return { error: "no_document", ok: false };
   const flow = buildFlow(decoded);
+  const invalid = validate(edit, flow.records);
+  if (invalid) return { error: invalid, ok: false };
   const applied = applyEdit(flow.entries, edit);
   if (!applied.ok) return applied;
   const makeId = () => newSectionId(meta.shardChars);
@@ -50,17 +54,11 @@ export function planEdit(decoded: DecodedCanvas, edit: CanvasEdit): PlanResult {
   const slots: Slot[] = [];
   flatten(tree.root, null, slots);
   const floor = flow.title ? ownPosition(flow.title) : null;
-  const positions = assignPositions(
-    slots.map((slot) => slotPosition(slot, flow)),
-    { floor },
-    flow.usedPositions,
-  );
+  const placed = placeSlots(slots, flow, floor);
 
-  const writes: SectionWrite[] = edit.controls.map((control) =>
-    controlWrite(control, meta.secretPath),
-  );
+  const writes: SectionWrite[] = edit.controls.map((control) => controlWrite(control, context));
   if (edit.title !== null) {
-    const first = positions[0] ?? null;
+    const first = placed[0]?.position ?? null;
     const position = flow.title ? "" : positionBetween(null, first, flow.usedPositions);
     writes.push(titleWrite(flow.title, makeId(), edit.title, position));
   }
@@ -82,11 +80,12 @@ export function planEdit(decoded: DecodedCanvas, edit: CanvasEdit): PlanResult {
 
   function entryWrite(entry: FlowEntry, placement: Placement): SectionWrite | null {
     const { node } = entry;
-    if (!node) return movedAtomWrite(entry, placement);
     if (!isLineNode(node)) {
       if (node.kind === "table") return tableWrite(entry, node, placement);
-      if (entry.existing) return movedAtomWrite(entry, placement);
-      return node.kind === "file" ? newFileWrite(node, placement) : newImageWrite(node, placement);
+      if (entry.existing || node.kind === "unknown") return movedAtomWrite(entry, placement);
+      return node.kind === "image"
+        ? newImageWrite(node, placement)
+        : newAttachmentWrite(node, placement);
     }
     return entry.existing
       ? changedLineWrite(entry, node, placement)
@@ -159,7 +158,7 @@ export function planEdit(decoded: DecodedCanvas, edit: CanvasEdit): PlanResult {
       writes.push(newLayoutWrite(container.id, spec, parentIsLayout, placement, makeColumnId));
       return;
     }
-    const contentChanged = layoutChanged(existing, spec);
+    const contentChanged = layoutChanged(existing, spec, flow.records);
     if (moved || parentFlag !== null || contentChanged)
       writes.push(
         updatedContainerWrite(existing, {
@@ -171,9 +170,7 @@ export function planEdit(decoded: DecodedCanvas, edit: CanvasEdit): PlanResult {
       );
   }
 
-  slots.forEach((slot, index) => {
-    const position = positions[index];
-    if (!position) return;
+  placed.forEach(({ position, slot }, index) => {
     if (slot.kind === "container") {
       containerWrites(slot.container, position);
       return;
@@ -187,13 +184,13 @@ export function planEdit(decoded: DecodedCanvas, edit: CanvasEdit): PlanResult {
     });
     if (write) writes.push(write);
     const { node } = slot.entry;
-    if (node?.kind === "table")
+    if (node.kind === "table")
       writes.push(
         ...cellWrites(
           node,
           slot.entry.existing?.record ?? null,
           flow.records,
-          { ceiling: positions[index + 1] ?? null, floor: position },
+          { ceiling: slot.parent ? null : (placed[index + 1]?.position ?? null), floor: position },
           flow.usedPositions,
         ),
       );

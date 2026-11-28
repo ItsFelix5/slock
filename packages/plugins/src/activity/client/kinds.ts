@@ -6,6 +6,10 @@ export const NO_USER = parseUserId("U000000000");
 
 export const hasChannel = (item: Pick<ActivityItem, "channelId">) => item.channelId !== NO_CHANNEL;
 
+const MESSAGELESS_TYPES = new Set(["internal_channel_invite", "quietly_added_to_channel"]);
+export const needsMessage = (item: Pick<ActivityItem, "activityType" | "channelId">) =>
+  hasChannel(item) && !MESSAGELESS_TYPES.has(item.activityType ?? "");
+
 export const PING_KINDS = new Set<ActivityItem["kind"]>(["mention", "dm", "keyword", "other"]);
 
 const OwnMessageFilteredKinds = new Set<ActivityItem["kind"]>([

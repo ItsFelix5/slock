@@ -1,3 +1,4 @@
+import type { ChannelPlacement } from "@slock/plugins/channels/client/api/sectionMutations";
 import type { Channel, ChannelId } from "@slock/types";
 
 export type DmKind = "people" | "apps";
@@ -9,6 +10,7 @@ export interface Category {
   dmIds: ChannelId[];
   id: string;
   name: string;
+  placement?: ChannelPlacement;
   reorderable: boolean;
   sidebar: "hid" | "active" | "all";
 }
@@ -27,7 +29,7 @@ export type SectionData = {
   type: string;
 };
 
-export type CategoryInput = {
+type CategoryInput = {
   allChannels: Channel[];
   allDmIds: ChannelId[];
   hasDms: (kind: DmKind) => boolean;
@@ -100,6 +102,7 @@ export function buildCategories({
         dmIds,
         id,
         name: "Starred",
+        placement: { kind: "stars" },
         reorderable,
         sidebar,
       });
@@ -114,6 +117,7 @@ export function buildCategories({
         dmIds: [],
         id,
         name: "Channels",
+        placement: { kind: "home" },
         reorderable,
         sidebar,
       });
@@ -127,6 +131,7 @@ export function buildCategories({
       dmIds: [],
       id,
       name: dm === "people" ? "Direct messages" : "Apps",
+      placement: { kind: "home" },
       reorderable,
       sidebar: "all",
     });
@@ -160,6 +165,7 @@ export function buildCategories({
           dmIds,
           id: s.id,
           name: s.name,
+          placement: s.type === "standard" ? { id: s.id, kind: "section" } : undefined,
           reorderable: true,
           sidebar: s.sidebar,
         });

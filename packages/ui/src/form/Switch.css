@@ -29,7 +29,6 @@
   height: 20px;
   background: var(--text-on-accent);
   border-radius: var(--radius-lg);
-  transition: left 0.2s;
 }
 
 .switch:checked::after {

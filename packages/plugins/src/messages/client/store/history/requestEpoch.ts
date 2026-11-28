@@ -9,6 +9,9 @@ export function createRequestEpochs<Key>() {
     current(key: Key) {
       return epochs.get(key) ?? 0;
     },
+    drop(key: Key) {
+      epochs.delete(key);
+    },
     isCurrent(key: Key, epoch: number) {
       return epochs.get(key) === epoch;
     },

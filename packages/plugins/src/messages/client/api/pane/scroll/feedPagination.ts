@@ -11,6 +11,7 @@ export function createFeedPagination(deps: {
   canLoadNewer: () => boolean;
   loadOlder: () => void;
   loadNewer: () => void;
+  settle: () => void;
 }) {
   let sizeAtLayoutLoad: number | undefined;
   let lastLoad: ScrollDirection | undefined;
@@ -35,7 +36,11 @@ export function createFeedPagination(deps: {
 
   createEffect(
     () => [deps.ready(), deps.busy(), deps.size()],
-    () => void untrack(() => check(undefined)),
+    () =>
+      void untrack(() => {
+        deps.settle();
+        check(undefined);
+      }),
   );
 
   return {

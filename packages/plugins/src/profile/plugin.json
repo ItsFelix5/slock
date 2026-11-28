@@ -1,1 +1,7 @@
-{ "id": "profile", "name": "Profiles", "requires": ["dms", "query", "shell", "users"] }
+{
+  "id": "profile",
+  "category": "People and channels",
+  "name": "Profiles",
+  "requires": ["dms", "query", "shell", "users"],
+  "boot": true
+}

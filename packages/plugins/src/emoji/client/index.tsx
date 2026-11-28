@@ -3,6 +3,7 @@ import type { Setup } from "@slock/core";
 import { createCustomEmojiSource } from "./api/customEmojiSource";
 import { emojiAutoconvert } from "./api/emojiAutoconvert";
 import { createEmojiIndex } from "./api/emojiSearch";
+import { PICKER_SHORTCUTS } from "./pickerShortcuts";
 
 const setup: Setup = (ctx) => {
   const source = createCustomEmojiSource();
@@ -13,6 +14,7 @@ const setup: Setup = (ctx) => {
   ctx.add("shell.provider", (props) => (
     <EmojiSourceContext value={source}>{props.children}</EmojiSourceContext>
   ));
+  ctx.onCleanup(ctx.get("ui").shortcuts.declare(PICKER_SHORTCUTS.map(({ spec }) => spec)));
   ctx.onCleanup(source.invalidate);
 };
 

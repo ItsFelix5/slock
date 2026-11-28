@@ -10,6 +10,7 @@
   margin: var(--space-xs) 0;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   font-size: var(--font-size-control);
+  line-height: round(1.46em, 1px);
   word-break: break-word;
   white-space: pre-wrap;
   background: var(--code-bg);

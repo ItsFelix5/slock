@@ -1,6 +1,5 @@
-import { compareTs } from "@slock/slack";
+import { compareTs, withReaction } from "@slock/slack";
 import type { ChannelId, HistoryPage, Message, Ts, UserId } from "@slock/types";
-import { addReactionUser, removeReactionUser } from "../../lib/reactionList";
 import type { MessageHistoryApi } from "./historyApi";
 
 export type LiveChange = { channelId: ChannelId; ts: Ts } & (
@@ -18,9 +17,7 @@ function applyChange(message: Message, change: Logged): Message {
     return isNewerEdit(change.edit, message) ? { ...message, ...change.edit } : message;
   const { added, name, userId } = change.reaction;
   const reactions = message.reactions ?? [];
-  const next = added
-    ? addReactionUser(reactions, name, userId)
-    : removeReactionUser(reactions, name, userId);
+  const next = withReaction(reactions, name, userId, added);
   return next === reactions ? message : { ...message, reactions: next };
 }
 
@@ -60,8 +57,8 @@ export function createLiveChanges() {
         replayOver(channelId, () => api.fetchHistory(channelId, cursor)),
       fetchHistoryAround: (channelId, ts) =>
         replayOver(channelId, () => api.fetchHistoryAround(channelId, ts)),
-      fetchHistoryNewer: (channelId, oldest) =>
-        replayOver(channelId, () => api.fetchHistoryNewer(channelId, oldest)),
+      fetchHistoryNewer: (channelId, oldest, spanHint) =>
+        replayOver(channelId, () => api.fetchHistoryNewer(channelId, oldest, spanHint)),
     }),
     record,
   };

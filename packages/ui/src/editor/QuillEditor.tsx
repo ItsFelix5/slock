@@ -15,11 +15,12 @@ import Quill from "./quill";
 import { BASE_FORMATS, EXTENDED_FORMATS, quillKeyboardBindings } from "./quillKeyboard";
 import { pasteCaptureHandler, stripPastedHeader } from "./quillPaste";
 import "./editor.css";
+import "../tag/tag.css";
 import "./editorLists.css";
 
 const ui = service("ui");
 
-export interface QuillEditorProps {
+interface QuillEditorProps {
   checklists?: boolean;
   extendedFormats?: boolean;
   formats?: string[];
@@ -63,7 +64,7 @@ export default function QuillEditor(props: QuillEditorProps) {
     const activeFormats = formats();
     const has = (name: string) => activeFormats.includes(name);
     const editor: Quill = new Quill(container, {
-      formats: has("list") ? [...activeFormats, "listOffset"] : activeFormats,
+      formats: activeFormats,
       modules: {
         keyboard: {
           bindings: quillKeyboardBindings(() => editor, activeFormats, props.checklists ?? false),
@@ -92,7 +93,7 @@ export default function QuillEditor(props: QuillEditorProps) {
 
     wireMarkdownAutoformat(editor, has("code-block"));
     wireArrowDownExit(editor);
-    if (has("list")) wireListOffsetCleanup(editor);
+    if (has("listOffset")) wireListOffsetCleanup(editor);
     wireLinkAutoconvert(editor);
     const unwireEmbedCaretEscape = wireEmbedCaretEscape(editor);
     editor.on("text-change", linkEdit.revalidate);

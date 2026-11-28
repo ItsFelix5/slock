@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 
-export type GithubRef = { owner: string; repo: string; ref?: string; subpath: string };
+type GithubRef = { owner: string; repo: string; ref?: string; subpath: string };
 
 const TREE_OR_BLOB = /^(?:tree|blob)$/;
 const GIT_SUFFIX = /\.git$/;

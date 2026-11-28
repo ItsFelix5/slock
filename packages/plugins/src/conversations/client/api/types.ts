@@ -11,3 +11,5 @@ declare module "../../../shell/client/api/types" {
 export type View = PaneContentOf<"channel" | "dm">;
 
 export type ChannelMessageTarget = { channelId: ChannelId; ts: Ts };
+
+export type PaneSide = "before" | "over" | "after";

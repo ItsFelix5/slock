@@ -4,7 +4,7 @@ import { useKeybindRecorder } from "./keybindRecorder";
 import "./KeybindField.css";
 import IconButton from "../../button/IconButton";
 
-export interface KeybindFieldProps {
+interface KeybindFieldProps {
   combo: ShortcutCombo | null;
   isCustom: boolean;
   label: string;

@@ -1,7 +1,8 @@
 import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { Icon, Menu, MenuItem, type ThemeFamily, type ThemePreset } from "@slock/ui";
+import { Icon, Menu, MenuItem } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
+import type { ThemeFamily, ThemePreset } from "../theme/themePresets";
 import "./ThemeFamilyChip.css";
 
 const theme = service("theme");

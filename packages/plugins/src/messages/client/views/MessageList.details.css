@@ -37,10 +37,6 @@
 button.message-bot-badge {
   cursor: pointer;
 }
-.message-edited {
-  font-size: var(--font-size-meta);
-  color: var(--text-dim);
-}
 .message-deleted-text {
   color: var(--danger);
   text-decoration: line-through;
@@ -52,6 +48,27 @@ button.message-bot-badge {
 }
 .message-row-group.deleted .message-body {
   opacity: 0.7;
+}
+.message-row-group.deleted.collapsed {
+  background: none;
+  box-shadow: none;
+}
+.message-row-group.collapsed .message-row {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.message-deleted-clue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--message-avatar-size);
+  height: var(--space-lg);
+  color: var(--text-dim);
+  opacity: 0.5;
+}
+.message-deleted-clue:hover,
+.message-deleted-clue:focus-visible {
+  opacity: 1;
 }
 .message-row-group.saved {
   box-shadow: inset 2px 0 0 var(--accent-border);
@@ -88,33 +105,6 @@ button.message-bot-badge {
 .message-ephemeral-badge {
   color: var(--mention-self-text);
   background: var(--mention-self-bg);
-}
-.reaction-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
-}
-.reaction-pill {
-  gap: 5px;
-  padding: 2px var(--space-sm);
-  font-size: var(--font-size-meta);
-  color: var(--text-secondary);
-  background: var(--hover-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-pill);
-}
-.reaction-pill:hover:not(:disabled) {
-  cursor: pointer;
-  border-color: var(--text-dim);
-}
-.reaction-pill.mine {
-  color: var(--text-primary);
-  background: var(--accent-emphasis);
-  border-color: var(--accent);
-}
-.reaction-count {
-  font-weight: 700;
 }
 .message-replies {
   gap: 6px;

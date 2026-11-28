@@ -1,7 +1,7 @@
 import type { CanvasEdit } from "@slock/types";
 import type { FlowEntry } from "./flow.ts";
 
-export type ApplyResult =
+type ApplyResult =
   | { entries: FlowEntry[]; ok: true; removed: FlowEntry[] }
   | { error: string; ok: false };
 
@@ -18,7 +18,6 @@ export function applyEdit(flowEntries: FlowEntry[], edit: CanvasEdit): ApplyResu
   for (const { after, node } of edit.upserts) {
     const current = entries.findIndex((entry) => entry.id === node.id);
     const entry = current >= 0 ? entries[current] : undefined;
-    if (entry && entry.node === null) return { error: "opaque_block", ok: false };
     if (entry) {
       entry.node = node;
       entry.frames = node.frames;
@@ -32,7 +31,7 @@ export function applyEdit(flowEntries: FlowEntry[], edit: CanvasEdit): ApplyResu
       continue;
     }
     const index = indexAfter(entries, after);
-    if (index < 0) return { error: "unknown_anchor", ok: false };
+    if (index < 0 || node.kind === "unknown") return { error: "unknown_anchor", ok: false };
     entries.splice(index, 0, {
       descendants: [],
       existing: null,

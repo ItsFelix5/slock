@@ -9,17 +9,12 @@ import { relayDelete, relayEdit } from "@slock/plugins/slack/server/api/relayMes
 import type { Route } from "@slock/plugins/slack/server/api/router";
 import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
 import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
-import type {
-  ConversationViewReply,
-  HistoryReply,
-  MessagesListReply,
-  PostMessageReply,
-  UnfurlLinkReply,
-} from "@slock/plugins/slack/server/api/slackReplies";
+import type { HistoryReply } from "@slock/plugins/slack/server/api/slackReplies";
 import { trimChannel } from "@slock/plugins/slack/server/api/trim/slackChannels";
 import { trimUser } from "@slock/plugins/slack/server/api/trim/slackEntities";
 import { trimAttachment, trimMessage } from "@slock/plugins/slack/server/api/trim/slackMessages";
 import { isRawMessage } from "@slock/slack";
+import type { RawAttachment, RawChannel, RawMessage, RawUser } from "@slock/types";
 import { historyParams, trimHistory } from "./api";
 import { channelPreloads } from "./preload";
 
@@ -50,12 +45,18 @@ const list: Route[] = [
       blocks?: unknown;
       unfurl?: string[];
       fileIds?: string[];
+      draft?: { clientMsgId: string; id: string };
     }>();
     if (!body.text) return errorResponse("invalid_text", 400);
     const params: Record<string, string> = {
       channel: ctx.params.id,
       text: body.text,
     };
+    if (body.draft) {
+      params.draft_id = body.draft.id;
+      params.client_msg_id = body.draft.clientMsgId;
+      params.xArgs = JSON.stringify({ draft_id: body.draft.id });
+    }
     if (body.threadTs) params.thread_ts = body.threadTs;
     if (body.blocks) params.blocks = JSON.stringify(body.blocks);
     if (body.unfurl) params.unfurl = JSON.stringify(body.unfurl.map((url) => ({ url })));
@@ -184,3 +185,15 @@ const setup: Setup = (ctx) => {
 };
 
 export default setup;
+
+type PostMessageReply = { ts?: string };
+
+type UnfurlLinkReply = { attachments?: Record<string, RawAttachment> };
+
+type MessagesListReply = { messages?: unknown };
+
+type ConversationViewReply = {
+  channel?: RawChannel;
+  history?: { has_more?: boolean; messages?: RawMessage[] };
+  users?: RawUser[];
+};

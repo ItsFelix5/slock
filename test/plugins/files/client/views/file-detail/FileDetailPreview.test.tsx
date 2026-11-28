@@ -1,0 +1,52 @@
+import { afterEach, describe, expect, test } from "bun:test";
+import type { SlackFile } from "@slock/types";
+import { render } from "@solidjs/web";
+import FileDetailPreview from "../../../../../../packages/plugins/src/files/client/views/file-detail/FileDetailPreview";
+import { fid } from "../../../../../support/slack";
+
+const disposers: (() => void)[] = [];
+
+afterEach(() => {
+  for (const dispose of disposers.splice(0)) dispose();
+  document.body.replaceChildren();
+});
+
+const mountPreview = (fields: Partial<SlackFile>) => {
+  const host = document.createElement("div");
+  document.body.append(host);
+  const file: SlackFile = { id: fid("F1"), isImage: false, name: "a", urlPrivate: "", ...fields };
+  disposers.push(
+    render(() => <FileDetailPreview content={undefined} failed={false} file={file} />, host),
+  );
+  return host;
+};
+
+describe("FileDetailPreview", () => {
+  test("renders a safe image thumbnail", () => {
+    const host = mountPreview({ isImage: true, thumbUrl: "https://files.slack.com/t.png" });
+    expect(host.querySelector("img")?.getAttribute("src")).toBe(
+      "/api/assets?url=https%3A%2F%2Ffiles.slack.com%2Ft.png",
+    );
+  });
+
+  test.each([
+    "javascript:alert(1)",
+    "data:image/svg+xml,<svg onload=alert(1)>",
+    "//evil.com/t.png",
+  ])("drops image thumbnail %p", (thumbUrl) => {
+    const host = mountPreview({ isImage: true, thumbUrl });
+    expect(host.querySelector("img")).toBeNull();
+  });
+
+  test("links a safe original", () => {
+    const host = mountPreview({ urlPrivate: "https://files.slack.com/f.zip" });
+    expect(host.querySelector("a")?.getAttribute("href")).toBe(
+      "/api/assets?url=https%3A%2F%2Ffiles.slack.com%2Ff.zip",
+    );
+  });
+
+  test.each(["javascript:alert(1)", "//evil.com/f.zip"])("hides open link for %p", (urlPrivate) => {
+    const host = mountPreview({ urlPrivate });
+    expect(host.querySelector("a")).toBeNull();
+  });
+});

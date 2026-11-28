@@ -1,1 +1,7 @@
-{ "id": "query", "name": "Data cache", "requires": ["shell"], "boot": true }
+{
+  "id": "query",
+  "category": "Core",
+  "name": "Data cache",
+  "requires": ["shell"],
+  "boot": true
+}

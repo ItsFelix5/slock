@@ -21,10 +21,8 @@ export type ReadTrackingInput = {
   hasNewerHistory: (channelId: ChannelId) => boolean;
 };
 
-export type ReadTrackingDeps = {
+type ReadTrackingDeps = {
   clearChannelUnread: (channelId: ChannelId) => void;
-  countsMayChange: Set<string>;
-  isThreadUnread: (root: Message) => boolean;
   isViewed: (id: ChannelId | Ts) => boolean;
   lastReadByChannel: Record<string, number | undefined>;
   lastReadSeeded: () => boolean;
@@ -33,7 +31,6 @@ export type ReadTrackingDeps = {
   setUnreadDividerTs: (channelId: ChannelId, anchor: number | undefined) => void;
   syncChannelRead: (channelId: ChannelId, ts: Ts) => Promise<boolean>;
   syncThreadRead: (channelId: ChannelId, threadTs: Ts, ts: Ts) => Promise<boolean>;
-  threadKey: (channelId: ChannelId, threadTs: Ts) => string;
   unreadChannelIds: Record<string, boolean>;
   unreadDividerTs: Record<string, number | undefined>;
 };
@@ -124,7 +121,6 @@ export function wireReadTracking(deps: ReadTrackingDeps, input: ReadTrackingInpu
     const plan = threadReadPlan(thread, lastMarkedThreadRead.get(ts));
     if (!plan) return;
     lastMarkedThreadRead.set(ts, plan.markTs);
-    if (deps.isThreadUnread(plan.root)) deps.countsMayChange.add(deps.threadKey(channelId, ts));
     deps.setThreadReadTs(ts, plan.markTs);
     void deps.syncThreadRead(channelId, ts, plan.markTs).then((synced) => {
       if (!synced && lastMarkedThreadRead.get(ts) === plan.markTs) lastMarkedThreadRead.delete(ts);

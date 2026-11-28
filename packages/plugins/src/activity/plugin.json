@@ -1,5 +1,6 @@
 {
   "id": "activity",
+  "category": "Read and catch up",
   "name": "Activity",
   "requires": [
     "bootstrap",
@@ -13,5 +14,6 @@
     "sidebar",
     "unread",
     "users"
-  ]
+  ],
+  "boot": true
 }

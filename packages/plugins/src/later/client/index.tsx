@@ -1,15 +1,10 @@
 import type { Setup } from "@slock/core";
 import { lazyChunk, service } from "@slock/core/solid";
 import { liveOnly } from "@slock/plugins/messages/client/api/deletedMessages";
-import {
-  fetchMessagesByIds,
-  fetchSaved,
-  saveWithReminder,
-  toggleSaved,
-  updateSaved,
-} from "@slock/plugins/slack/client/api";
+import { fetchMessagesByIds } from "@slock/plugins/slack/client/api";
 import { isChannelId, isTs } from "@slock/slack";
 import { Icon, useShortcut } from "@slock/ui";
+import { fetchSaved, saveWithReminder, toggleSaved, updateSaved } from "./requests";
 import { createLaterSlice } from "./store";
 import SaveButton from "./views/SaveButton";
 import SavedBadge from "./views/SavedBadge";

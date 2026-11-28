@@ -24,7 +24,7 @@ declare module "@slock/core/types" {
   interface Points {
     "realtime.handler": RealtimeHandler;
     "realtime.open": () => void;
-    "realtime.reconnect": (info: { downMs: number }) => void;
+    "realtime.reconnect": () => void;
   }
   interface Services {
     realtime: ReturnType<typeof createRealtime>;

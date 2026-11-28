@@ -19,7 +19,7 @@ const setup: Setup = (ctx) => {
   const share = createIncomingShare();
   share.consumeShareTarget();
   ctx.provide("message-links.share", share);
-  installPermalinkHandler(ctx.use("message-links.loaded"));
+  installPermalinkHandler(ctx.use("message-links.load"));
   ctx.add("messages.menu", CopyLinkItem, { order: 10 });
   ctx.add(
     "messages.bar",

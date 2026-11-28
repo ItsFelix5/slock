@@ -21,13 +21,21 @@ const setup: Setup = (ctx) => {
   const bootstrap = service("bootstrap");
   const users = service("users");
   const view = service("conversations");
+  const channels = service("channels");
+  const panes = service("shell.panes");
   const store = createDmsStore({
     activeView: view.activeView,
+    addJoinedChannel: channels.addJoinedChannel,
     bootstrap: () => bootstrap.bootstrap().data,
     closeUserProfile: users.closeUserProfile,
     currentUser: users.currentUser,
-    openInPane: service("shell.panes").openInNewPane,
+    openInPane: panes.openInNewPane,
     setActiveView: view.setActiveView,
+    showAsChannel: (id) => {
+      for (const pane of panes.currentPanes())
+        if (pane.content?.kind === "dm" && pane.content.id === id)
+          panes.setPaneContent(pane.id, { id, kind: "channel" });
+    },
   });
   ctx.provide("dms", store);
   ctx.add("shell.title", createDmTitleResolver(store.dmById, users.userById), { order: 0 });
@@ -46,6 +54,31 @@ const setup: Setup = (ctx) => {
     if (opened.kind === "dm" && store.closedDmIds[opened.id])
       store.setClosedDmIds(opened.id, false);
   });
+  const syncGroup = (channel: string | undefined) => {
+    const id = ifPresent(parseChannelId, channel);
+    if (id && store.isGroupDm(id)) void store.refreshGroupDm(id);
+  };
+  ctx.add(
+    "realtime.handler",
+    gatewayHandler(["channel_rename", "group_rename"], (event) => syncGroup(event.channel.id)),
+  );
+  ctx.add(
+    "realtime.handler",
+    gatewayHandler(["channel_updated"], (event) => event.channels.forEach(syncGroup)),
+  );
+  ctx.add(
+    "realtime.handler",
+    gatewayHandler(["member_joined_channel", "member_left_channel"], (event) =>
+      syncGroup(event.channel),
+    ),
+  );
+  ctx.add(
+    "realtime.handler",
+    gatewayHandler(["message"], (event) => {
+      if (event.subtype === "channel_topic" || event.subtype === "group_topic")
+        syncGroup(event.channel);
+    }),
+  );
   ctx.add(
     "realtime.handler",
     gatewayHandler(DM_EVENTS, (payload: MembershipEvent) => {

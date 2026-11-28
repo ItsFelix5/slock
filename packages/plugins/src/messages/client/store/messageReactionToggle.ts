@@ -1,9 +1,9 @@
 import { service } from "@slock/core/solid";
-import { createLatestValueSync } from "@slock/plugins/query/client/api";
-import { toggleReaction } from "@slock/plugins/slack/client/api";
+import { defineMutation } from "@slock/plugins/query/client/api";
+import { isReactionSettled, toggleReaction } from "@slock/plugins/slack/client/api";
+import { withReaction } from "@slock/slack";
 import type { ChannelId, Message, Ts, User, UserId } from "@slock/types";
 import type { LocatedMessages } from "../lib/messageLocations";
-import { addReactionUser, removeReactionUser } from "../lib/reactionList";
 import type { LiveChange } from "./history/liveChanges";
 
 const feedback = service("feedback");
@@ -12,11 +12,8 @@ type ReactionWrite = {
   channelId: ChannelId;
   emojiName: string;
   reacted: boolean;
-  seq: number;
   ts: Ts;
 };
-
-const SETTLED_ERRORS = new Set(["already_reacted", "no_reaction"]);
 
 export function createMessageReactionToggle(deps: {
   currentUser: () => User | undefined;
@@ -24,10 +21,11 @@ export function createMessageReactionToggle(deps: {
   patchMessage: (channelId: ChannelId, ts: Ts, patch: Partial<Message>) => void;
   recordLiveChange: (change: LiveChange) => void;
 }) {
-  let seq = 0;
-  const writeKey = (write: { channelId: ChannelId; ts: Ts; emojiName: string }) =>
-    `${write.channelId}:${write.ts}:${write.emojiName}`;
-  const latestSeq = new Map<string, number>();
+  const writeKey = (write: ReactionWrite) => `${write.channelId}:${write.ts}:${write.emojiName}`;
+  const newest = new Map<string, ReactionWrite>();
+  const onServer = new Set<string>();
+  const noteServer = (key: string, reacted: boolean) =>
+    reacted ? onServer.add(key) : onServer.delete(key);
   const currentReactions = (channelId: ChannelId, ts: Ts) =>
     deps.findAllMessageLocations(channelId, ts)[0]?.list.find((m) => m.ts === ts)?.reactions;
   function setReaction(
@@ -44,23 +42,14 @@ export function createMessageReactionToggle(deps: {
       ts,
     });
     deps.patchMessage(channelId, ts, {
-      reactions: withReaction(base, emojiName, userId, reacted),
+      reactions: withReaction(base ?? [], emojiName, userId, reacted),
     });
   }
-  const withReaction = (
-    reactions: Message["reactions"],
-    emojiName: string,
-    userId: UserId,
-    reacted: boolean,
-  ) =>
-    reacted
-      ? addReactionUser(reactions ?? [], emojiName, userId)
-      : removeReactionUser(reactions ?? [], emojiName, userId);
 
-  const sync = createLatestValueSync<ReactionWrite>({
+  const sync = defineMutation<ReactionWrite>({
     key: writeKey,
-    onError: (write, error) => {
-      if (error instanceof Error && SETTLED_ERRORS.has(error.message)) return true;
+    mode: "latest",
+    onError: (error, write) => {
       console.error("Failed to toggle reaction", error);
       feedback.error(write.ts, "Failed to update reaction.");
       const me = deps.currentUser();
@@ -70,14 +59,17 @@ export function createMessageReactionToggle(deps: {
           write.ts,
           write.emojiName,
           me.id,
-          !write.reacted,
+          onServer.has(writeKey(write)),
           currentReactions(write.channelId, write.ts),
         );
-      return false;
     },
-    version: (write) => write.seq,
-    write: async (write) => {
-      await toggleReaction(write.channelId, write.ts, write.emojiName, !write.reacted);
+    run: async (write) => {
+      try {
+        await toggleReaction(write.channelId, write.ts, write.emojiName, !write.reacted);
+      } catch (error) {
+        if (!isReactionSettled(error)) throw error;
+      }
+      noteServer(writeKey(write), write.reacted);
     },
   });
 
@@ -88,6 +80,9 @@ export function createMessageReactionToggle(deps: {
       ?.find((r) => r.name === emojiName)
       ?.users.includes(me.id);
     const reacted = !alreadyReacted;
+    const write = { channelId, emojiName, reacted, ts: msg.ts };
+    const key = writeKey(write);
+    if (!sync.pending(key)) noteServer(key, alreadyReacted);
     setReaction(
       channelId,
       msg.ts,
@@ -96,12 +91,10 @@ export function createMessageReactionToggle(deps: {
       reacted,
       currentReactions(channelId, msg.ts) ?? msg.reactions,
     );
-    const write = { channelId, emojiName, reacted, seq: ++seq, ts: msg.ts };
-    const key = writeKey(write);
-    latestSeq.set(key, write.seq);
-    const synced = await sync.force(write);
-    if (!synced || latestSeq.get(key) !== write.seq) return;
-    latestSeq.delete(key);
+    newest.set(key, write);
+    const synced = await sync.run(write);
+    if (!synced || newest.get(key) !== write) return;
+    newest.delete(key);
     feedback.undo.push({
       label: reacted ? `react :${emojiName}:` : `remove :${emojiName}:`,
       undo: () => reactToMessage(channelId, msg, emojiName),

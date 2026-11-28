@@ -1,5 +1,5 @@
 import { isRecord } from "@slock/core";
-import { isChannelId, isFileId, isTeamId, isUserId } from "@slock/slack";
+import { isChannelId, isFileId, isTs, isUserId } from "@slock/slack";
 import type {
   CanvasControl,
   CanvasEdit,
@@ -59,6 +59,17 @@ function isCanvasLine(value: Record<string, unknown>): boolean {
   );
 }
 
+function isCanvasCard(value: Record<string, unknown>): boolean {
+  return (
+    hasFrames(value) &&
+    isId(value.channelId, isChannelId) &&
+    isId(value.ts, isTs) &&
+    isString(value.ownerId) &&
+    isString(value.url) &&
+    typeof value.isMessage === "boolean"
+  );
+}
+
 function isCanvasFile(value: Record<string, unknown>): boolean {
   return hasFrames(value) && isId(value.fileId, isFileId) && isString(value.permalink);
 }
@@ -107,9 +118,11 @@ function isCanvasTable(value: Record<string, unknown>): boolean {
 
 function isCanvasNode(value: unknown): value is CanvasNode {
   if (!isRecord(value)) return false;
+  if (value.kind === "card") return isCanvasCard(value);
   if (value.kind === "file") return isCanvasFile(value);
   if (value.kind === "image") return isCanvasImage(value);
   if (value.kind === "table") return isCanvasTable(value);
+  if (value.kind === "unknown") return hasFrames(value) && isString(value.text);
   return isCanvasLine(value);
 }
 
@@ -118,7 +131,7 @@ function isCanvasControl(value: unknown): value is CanvasControl {
   if (value.kind === "annotation") return true;
   if (value.kind === "user") return isId(value.userId, isUserId);
   if (value.kind === "channel") return isId(value.channelId, isChannelId);
-  if (value.kind === "emoji") return isString(value.name) && isId(value.teamId, isTeamId);
+  if (value.kind === "emoji") return isString(value.name);
   return value.kind === "date" && isNumber(value.ms) && isString(value.label);
 }
 

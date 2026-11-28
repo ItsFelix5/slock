@@ -2,13 +2,10 @@ import { defined } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { ifPresent, parseTs } from "@slock/slack";
 import type { ChannelId, Message, Ts } from "@slock/types";
-import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js";
-import { findUnreadDividerIndex } from "../lib/unreadDivider";
+import { type Accessor, createEffect, createSignal, flush, onCleanup } from "solid-js";
 import type { FeedScroll } from "./pane/scroll/feedScroll";
 
-const unreadStore = service("unread");
-
-export interface OpenThreadOptions {
+interface OpenThreadOptions {
   pinned?: boolean;
 }
 
@@ -18,13 +15,15 @@ export function threadRootTs(msg: Message) {
 
 export type OpenThreadHandler = (ts: Ts, opts?: OpenThreadOptions) => void;
 
-export interface MessageFocusCallbacks {
+interface MessageFocusCallbacks {
   active?: Accessor<boolean>;
   paneId?: string;
   onOpenThread?: OpenThreadHandler;
   onReplyLink?: (msg: Message) => void;
 
   threadTs?: Accessor<Ts | undefined>;
+  landedTs?: Accessor<Ts | undefined>;
+  loadLatest?: () => Promise<void> | undefined;
 }
 
 export interface ActiveMessageFocus {
@@ -71,13 +70,14 @@ export function createMessageFocus(
     const list = messages();
     if (!list.length) return null;
     if (current && list.some((m) => m.ts === current)) return current;
-    const id = channelId();
-    const unreadIndex = findUnreadDividerIndex(
-      list,
-      id && unreadStore.unreadDividerTsForChannel(id),
-    );
-    return defined(list[unreadIndex >= 0 ? unreadIndex : list.length - 1]).ts;
+    return defined(list.at(-1)).ts;
   });
+  createEffect(
+    () => callbacks.landedTs?.(),
+    (ts) => {
+      if (ts) setFocusedTs(ts);
+    },
+  );
   const [editingTs, setEditingTs] = createSignal<Ts | null>(null);
   const [listFocused, setListFocused] = createSignal(false);
   const [reactionPickerTs, setReactionPickerTs] = createSignal<Ts | null>(null);
@@ -100,15 +100,26 @@ export function createMessageFocus(
     );
     const next = list[nextIndex];
     if (!next) return;
-    if (nextIndex === list.length - 1) focusEdge("end");
+    if (nextIndex === list.length - 1) scrollToEdge("end");
     else focusRow(next.ts);
   }
 
-  function focusEdge(edge: "start" | "end") {
+  function scrollToEdge(edge: "start" | "end") {
     const list = messages();
     if (!list.length) return;
     focusRow(defined(list[edge === "start" ? 0 : list.length - 1]).ts, { preventScroll: true });
     feed.scrollEdge(edge);
+  }
+
+  function focusEdge(edge: "start" | "end") {
+    const threadTs = callbacks.threadTs?.();
+    const loading = edge === "end" ? callbacks.loadLatest?.() : undefined;
+    if (!loading) return scrollToEdge(edge);
+    void loading.then(() => {
+      if (callbacks.threadTs?.() !== threadTs) return;
+      flush();
+      scrollToEdge(edge);
+    });
   }
 
   const focusedMessage = () => {

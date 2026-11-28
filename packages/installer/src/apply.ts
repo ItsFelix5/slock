@@ -9,8 +9,7 @@ import type { Plan } from "./plan";
 import { writePrecompressed } from "./precompress";
 import { type Unit, writeUnitManifest } from "./units";
 
-const SWAPPED = ["plugins", "client", "server.js", "package.json"];
-const INSTANCE_PACKAGE = { scripts: { start: "bun server.js" } };
+const SWAPPED = ["plugins", "client", "server.js"];
 
 export const instancePaths = (dir: string) => ({
   data: join(dir, "data"),
@@ -89,7 +88,6 @@ async function assemble(dir: string, plan: Plan): Promise<void> {
   await writeClient(join(next, "client"), client);
   await rm(join(next, "node_modules"), { force: true, recursive: true });
   await rm(join(next, "bun.lock"), { force: true });
-  await Bun.write(join(next, "package.json"), `${JSON.stringify(INSTANCE_PACKAGE, null, 2)}\n`);
   const bytes = [...client.files.values()].reduce((sum, { contents }) => sum + contents.size, 0);
   console.log(
     `built ${units.length} plugins, client ${client.files.size} files ${formatBytes(bytes)}, ${client.preloads.length} modulepreload`,

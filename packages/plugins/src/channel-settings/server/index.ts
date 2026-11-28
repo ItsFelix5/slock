@@ -1,8 +1,5 @@
 import type { Setup } from "@slock/core";
-import {
-  fetchChannelManagerAssignments,
-  managerIdsFromAssignments,
-} from "@slock/plugins/slack/server/api/channelManagers";
+import { teamIdFromRoute } from "@slock/plugins/slack/server/api/auth";
 import {
   errorResponse,
   jsonResponse,
@@ -12,11 +9,12 @@ import {
 import type { Route } from "@slock/plugins/slack/server/api/router";
 import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
 import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
-import type {
-  ChannelInfoReply,
-  MemberPermissionsReply,
-  RetentionReply,
-} from "@slock/plugins/slack/server/api/slackReplies";
+import type { ChannelInfoReply } from "@slock/plugins/slack/server/api/slackReplies";
+import {
+  CHANNEL_MANAGER_ROLE_ID,
+  fetchChannelManagerAssignments,
+  managerIdsFromAssignments,
+} from "./channelManagers";
 
 const list: Route[] = [
   route("PUT", "channels/:id/purpose", async (ctx) => {
@@ -40,8 +38,8 @@ const list: Route[] = [
     if (!data.ok) {
       return slackErrorResponse(data, "conversations.getRetention");
     }
-    const days = data.retention_type === "1" ? Number(data.retention_duration) || null : null;
-    return jsonResponse({ days, ok: true });
+    const { retention_duration, retention_type } = data.retention;
+    return jsonResponse({ days: retention_type === 1 ? retention_duration : null, ok: true });
   }),
 
   route("PUT", "channels/:id/retention", async (ctx) => {
@@ -50,8 +48,9 @@ const list: Route[] = [
       "conversations.setRetention",
       {
         channel: ctx.params.id,
-        retention_duration: String(days ?? 0),
-        retention_type: days ? "1" : "0",
+        ...(days
+          ? { retention_duration: String(days), retention_type: "1" }
+          : { retention_type: "0" }),
       },
       ctx,
     );
@@ -136,9 +135,17 @@ const list: Route[] = [
     mutate("conversations.unarchive", { channel: ctx.params.id }, ctx),
   ),
 
-  route("POST", "channels/:id/convert-to-private", (ctx) =>
-    mutate("conversations.convertToPrivate", { channel: ctx.params.id }, ctx),
-  ),
+  route("POST", "channels/:id/convert-to-private", async (ctx) => {
+    const { name } = await ctx.body.json<{ name?: string }>();
+    return mutate(
+      "conversations.convertToPrivate",
+      {
+        channel: ctx.params.id,
+        ...(name && { name, workspace: teamIdFromRoute(ctx.creds?.route ?? "") }),
+      },
+      ctx,
+    );
+  }),
 
   route("GET", "channels/:id/managers", async (ctx) => {
     const data = await fetchChannelManagerAssignments(ctx.params.id, ctx.creds);
@@ -150,6 +157,20 @@ const list: Route[] = [
       userIds: managerIdsFromAssignments(data),
     });
   }),
+
+  route("POST", "channels/:id/managers", async (ctx) => {
+    const { userId } = await ctx.body.json<{ userId?: string }>();
+    if (!userId) return errorResponse("invalid_user_id", 400);
+    return mutate(
+      "admin.roles.addMembers",
+      {
+        role_id: CHANNEL_MANAGER_ROLE_ID,
+        role_scopes: JSON.stringify([ctx.params.id]),
+        user_ids: userId,
+      },
+      ctx,
+    );
+  }),
 ];
 
 const setup: Setup = (ctx) => {
@@ -157,3 +178,12 @@ const setup: Setup = (ctx) => {
 };
 
 export default setup;
+
+type MemberPermissionsReply = {
+  account_types?: {
+    account_type: string;
+    permissions: { is_allowed: boolean; permission: string }[];
+  }[];
+};
+
+type RetentionReply = { retention: { retention_duration: number; retention_type: number } };

@@ -1,13 +1,13 @@
 import { useShortcut } from "../hooks/useShortcut";
+import { caretLink, followLink } from "./format/linkEdit";
 import { toggleUnicodeFont, type UnicodeFontKey } from "./format/unicodeFonts";
+import type { InlineFormat } from "./inlineFormats";
 import { linkifyBeforeSubmit } from "./linkAutolink";
 import type Quill from "./quill";
 
 const CONTINUED_BLOCK_FORMATS = ["blockquote", "context", "header", "list", "code-block"];
 const EXITABLE_BLOCK_FORMATS = ["blockquote", "list"];
 const RESET_ON_NEWLINE_FORMATS = ["header", "context"];
-
-export type InlineFormat = "bold" | "code" | "italic" | "strike";
 
 export function toggleInlineFormat(quill: Quill, name: InlineFormat) {
   quill.format(name, !quill.getFormat()[name], "user");
@@ -56,7 +56,8 @@ export function useEditorShortcuts(
     onSubmit: () => (() => void) | undefined;
   },
 ) {
-  const focused = () => getQuill()?.hasFocus() ?? false;
+  // hasFocus() is also true for an outer editor while a nested one has the caret.
+  const focused = () => getQuill()?.root === document.activeElement;
   const format = (name: InlineFormat) => () => {
     const quill = getQuill();
     if (quill) toggleInlineFormat(quill, name);
@@ -105,6 +106,22 @@ export function useEditorShortcuts(
   });
   useShortcut({
     ...shared,
+    combo: { alt: true, key: "Enter" },
+    enabled: () => {
+      const quill = getQuill();
+      return focused() && !!quill && !!caretLink(quill);
+    },
+    handler: () => {
+      const quill = getQuill();
+      const link = quill && caretLink(quill);
+      if (link) followLink(quill, link);
+    },
+    id: "composer.openLink",
+    group: "Formatting",
+    label: "Open link",
+  });
+  useShortcut({
+    ...shared,
     combo: { key: "b", mod: true },
     enabled: focused,
     handler: format("bold"),
@@ -129,6 +146,24 @@ export function useEditorShortcuts(
     id: "composer.strike",
     group: "Formatting",
     label: "Strikethrough",
+  });
+  useShortcut({
+    ...shared,
+    combo: { key: "u", mod: true },
+    enabled: focused,
+    handler: format("underline"),
+    id: "composer.underline",
+    group: "Formatting",
+    label: "Underline",
+  });
+  useShortcut({
+    ...shared,
+    combo: { key: "h", mod: true, shift: true },
+    enabled: focused,
+    handler: format("client_highlight"),
+    id: "composer.highlight",
+    group: "Formatting",
+    label: "Highlight",
   });
   useShortcut({
     ...shared,

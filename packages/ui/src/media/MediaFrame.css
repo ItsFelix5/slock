@@ -1,6 +1,5 @@
 .media-frame {
   max-width: min(360px, 100%);
-  margin-top: var(--space-xs);
 }
 
 .media-frame-toggle {

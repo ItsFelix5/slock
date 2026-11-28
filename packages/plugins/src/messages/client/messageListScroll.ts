@@ -62,6 +62,7 @@ export function createMessageListScroll(deps: {
     loadOlder: () => whenView((id) => void messagesStore.loadOlderMessages(id), undefined),
     ready: () => feed.ready(),
     scroller: () => feed.element(),
+    settle: feed.settle,
     size: () => deps.messages().length,
   });
 

@@ -1,5 +1,7 @@
-import { assertNever, type Env, type TimerHandle } from "@slock/core";
-import { blockPreviewText, isSlackError } from "@slock/slack";
+import { assertNever, createDebouncer, type Env } from "@slock/core";
+import { service } from "@slock/core/solid";
+import { isSlackError } from "@slock/slack";
+import { blockPreviewText } from "@slock/slack/client";
 import type { Block, ChannelId, DraftEntry, Ts } from "@slock/types";
 import { createEffect, createSignal, onCleanup, untrack } from "solid-js";
 import { saveDraft } from "./draftApi";
@@ -13,6 +15,8 @@ import { type DraftStore, draftCacheKey } from "./draftStore";
 
 const SAVE_DELAY_MS = 1000;
 
+const query = service("query");
+
 const isEmpty = (blocks: Block[]) => !blockPreviewText(blocks).trim();
 
 export type ComposerDraftOptions = {
@@ -24,19 +28,25 @@ export type ComposerDraftOptions = {
 };
 
 export function createComposerDraftState(store: DraftStore, env: Env, opts: ComposerDraftOptions) {
-  const { drafts } = store;
+  const { drafts, unsaved } = store;
   const [activeDraftId, setActiveDraftId] = createSignal<string | undefined>(undefined);
   const [syncError, setSyncError] = createSignal(false);
   let session = initialSession;
-  let saveTimer: TimerHandle | undefined;
-  let pendingSave: (() => void) | undefined;
-  let saveQueue: Promise<void> = Promise.resolve();
-  const unsaved = new Map<string, Block[]>();
+  const autosave = createDebouncer(env, runSave, SAVE_DELAY_MS);
+  onCleanup(query.hub.onFlush(autosave.flush));
 
   const key = () => {
     const channelId = opts.channelId();
     return channelId ? draftCacheKey(channelId, opts.threadTs()) : undefined;
   };
+
+  const earlierSave = untrack(() => {
+    const draftKey = key();
+    return draftKey ? store.settled(draftKey) : undefined;
+  });
+  const [caughtUp, setCaughtUp] = createSignal(!earlierSave);
+  const catchUp = () => void setCaughtUp(true);
+  void earlierSave?.then(catchUp, catchUp);
 
   function dispatch(input: SessionInput) {
     const step = reduceSession(session, input);
@@ -51,29 +61,18 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
       case "setActiveDraftId":
         return setActiveDraftId(effect.id);
       case "flushPendingSave":
-        return flushPendingSave();
+        return autosave.flush();
       case "upsertDraft":
         return store.upsert(effect.entry);
       case "removeDraft":
         return store.remove(effect.draftKey, effect.id);
       case "scheduleSave": {
         const { blocks, channelId, clientMsgId, generation, id, threadTs } = effect;
-        cancelPendingSave();
-        pendingSave = () => {
-          void runSave(channelId, threadTs, blocks, id, clientMsgId, generation);
-        };
-        saveTimer = env.setTimeout(flushPendingSave, SAVE_DELAY_MS);
-        return;
+        return autosave.schedule(channelId, threadTs, blocks, id, clientMsgId, generation);
       }
       default:
         return assertNever(effect);
     }
-  }
-
-  function enqueue(task: () => Promise<void>): Promise<void> {
-    const next = saveQueue.then(task, task);
-    saveQueue = next;
-    return next;
   }
 
   async function tracked(task: () => Promise<void>) {
@@ -97,7 +96,7 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
     const draftKey = draftCacheKey(channelId, threadTs);
     store.touch(draftKey);
     unsaved.set(draftKey, blocks);
-    return enqueue(() =>
+    return store.enqueue(draftKey, () =>
       tracked(async () => {
         const startId = knownId ?? drafts[draftKey]?.find((e) => e.clientMsgId === startCmid)?.id;
         if (startId && !(await store.hydrate())) {
@@ -148,20 +147,8 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
     );
   }
 
-  function cancelPendingSave() {
-    env.clearTimeout(saveTimer);
-    saveTimer = undefined;
-    pendingSave = undefined;
-  }
-
-  function flushPendingSave() {
-    const save = pendingSave;
-    cancelPendingSave();
-    save?.();
-  }
-
   function flush(): Promise<void> {
-    cancelPendingSave();
+    autosave.cancel();
     const channelId = opts.channelId();
     if (!channelId) return Promise.resolve();
     dispatch({ kind: "claimClientMsgId", mintedId: crypto.randomUUID() });
@@ -192,7 +179,7 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
         empty: isEmpty(blocks),
         entries: draftKey ? (drafts[draftKey] ?? []).map((entry) => ({ ...entry })) : [],
         mintedId: crypto.randomUUID(),
-        storeReady: store.ready(),
+        storeReady: store.ready() && caughtUp(),
         threadTs: opts.threadTs(),
         unsaved: draftKey ? untrack(() => unsaved.get(draftKey)) : undefined,
       };
@@ -201,22 +188,33 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
   );
 
   onCleanup(() => {
-    void flush();
+    if (caughtUp()) void flush();
   });
 
   return {
     activeDraftId,
-    async clearAfterSend(pendingFiles: { clear: (key: string) => void }) {
+    current(): { clientMsgId: string; id: string } | undefined {
+      const id = activeDraftId();
+      const { clientMsgId } = session;
+      return id && clientMsgId ? { clientMsgId, id } : undefined;
+    },
+    discard(id: string) {
+      const draftKey = key();
+      if (!draftKey) return Promise.resolve();
+      return store.enqueue(draftKey, () => tracked(() => store.deleteOnServer(id)));
+    },
+    async clearAfterSend(pendingFiles: { clear: (key: string) => void }, postedDraftId?: string) {
       const sentClientMsgId = session.clientMsgId;
       const channelId = opts.channelId();
       if (!channelId) return dispatch({ draftKey: undefined, kind: "sent" });
       const draftKey = draftCacheKey(channelId, opts.threadTs());
       pendingFiles.clear(draftKey);
-      cancelPendingSave();
+      autosave.cancel();
+      unsaved.delete(draftKey);
       const activeId = activeDraftId();
       if (activeId) store.remove(draftKey, activeId);
       dispatch({ draftKey, kind: "sent" });
-      await enqueue(() =>
+      await store.enqueue(draftKey, () =>
         tracked(async () => {
           const ids = new Set(
             (drafts[draftKey] ?? [])
@@ -224,6 +222,7 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
               .map((e) => e.id),
           );
           if (activeId) ids.add(activeId);
+          if (postedDraftId) ids.delete(postedDraftId);
           for (const id of ids) {
             await store.deleteOnServer(id);
             store.remove(draftKey, id);
@@ -236,7 +235,7 @@ export function createComposerDraftState(store: DraftStore, env: Env, opts: Comp
     remove(entry: DraftEntry) {
       const draftKey = key();
       if (!draftKey) return Promise.resolve();
-      return tracked(() => store.deleteEntry(draftKey, entry.id));
+      return store.enqueue(draftKey, () => tracked(() => store.deleteNow(draftKey, entry.id)));
     },
     async saveAndStartNew() {
       await flush();

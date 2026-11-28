@@ -1,6 +1,7 @@
 import { parseSlackPermalink } from "@slock/plugins/message-links/client/api/slackPermalink";
 import type { Block, RichTextInlineElement, RichTextStyle, RichTextSubBlock } from "@slock/types";
-import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
+import { INLINE_STYLE_FORMATS } from "@slock/ui/editor/inlineFormats";
+import { parseTagColor } from "@slock/ui/tag/tagColors";
 import { type DeltaLine, type DeltaOp, type DeltaSegment, deltaLines } from "./deltaLines";
 import { MENTION_PREFIX, userlinkUrl } from "./embedValues";
 import { cutHeaderText } from "./headerLimit";
@@ -11,7 +12,7 @@ function styleFromAttrs(
   forceBold: boolean,
 ): RichTextStyle | undefined {
   const style: RichTextStyle = {};
-  for (const [, key] of INLINE_MARKS) if (attrs?.[key]) style[key] = true;
+  for (const key of INLINE_STYLE_FORMATS) if (attrs?.[key]) style[key] = true;
   if (forceBold) style.bold = true;
   return Object.keys(style).length ? style : undefined;
 }
@@ -67,6 +68,8 @@ function segmentElements(segment: DeltaSegment, forceBold: boolean): RichTextInl
   const style = styleFromAttrs(segment.attributes, forceBold);
   const link = segment.attributes?.link;
   if (typeof link === "string") return [{ style, text: segment.text, type: "link", url: link }];
+  const tag = parseTagColor(segment.attributes?.tag);
+  if (tag) return [{ color: tag, style, text: segment.text, type: "tag" }];
   return [{ style, text: segment.text, type: "text" }];
 }
 

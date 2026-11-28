@@ -8,9 +8,8 @@
     "examplePlugin"
   ],
   "scripts": {
-    "dev": "bun run --watch packages/server/src/dev.ts",
+    "dev": "bun run --watch packages/installer/src/devServer.ts",
     "plugin": "bun packages/installer/src/cli.ts",
-    "start": "bun instance/server.js",
     "relay": "bun run packages/relay/src/index.ts",
     "test": "bun test --conditions browser --conditions development --timeout 30000",
     "check": "biome check . --write && tsc -b && bun scripts/checkPlugins.ts && bun scripts/checkPackages.ts && bun scripts/checkSource.ts",
@@ -18,8 +17,18 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.2",
+    "@slock/blockkit": "workspace:*",
     "@slock/core": "workspace:*",
+    "@slock/installer": "workspace:*",
+    "@slock/plugins": "workspace:*",
+    "@slock/slack": "workspace:*",
+    "@slock/types": "workspace:*",
+    "@slock/ui": "workspace:*",
+    "@solidjs/web": "2.0.3",
+    "@types/node": "^24.13.2",
+    "bun-types": "^1.3.14",
     "happy-dom": "^21.0.4",
+    "solid-js": "2.0.3",
     "typescript": "~6.0.2"
   }
 }

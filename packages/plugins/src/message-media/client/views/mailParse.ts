@@ -1,5 +1,6 @@
 import { defined } from "@slock/core";
-export interface ParsedMail {
+
+interface ParsedMail {
   bodyHtml?: string;
   bodyText?: string;
   date?: string;

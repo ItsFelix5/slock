@@ -24,13 +24,13 @@ export type PaneKind = {
 
 export type TitleResolver = (id: ChannelId) => { name: string; prefix?: string } | undefined;
 
-export type DefaultView = () => PaneContent | undefined;
+type DefaultView = () => PaneContent | undefined;
 
-export type PaneResolver = (content: PaneContent) => PaneContent | undefined;
+type PaneResolver = (content: PaneContent) => PaneContent | undefined;
 
-export type ShellBlocker = { active: () => boolean; view: Component };
+type ShellBlocker = { active: () => boolean; view: Component };
 
-export type ShellArrangement = { view: Component<PaneLayoutProps<PaneContent | null>> };
+type ShellArrangement = { view: Component<PaneLayoutProps<PaneContent | null>> };
 
 declare module "@slock/core/types" {
   interface Points {

@@ -1,5 +1,6 @@
 {
   "id": "composer",
+  "category": "Core",
   "name": "Composer",
   "requires": [
     "channels",
@@ -7,6 +8,7 @@
     "emoji",
     "messages",
     "prefs",
+    "query",
     "shell",
     "slash-commands",
     "templates",

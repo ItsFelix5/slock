@@ -1,6 +1,6 @@
 import type { Setup } from "@slock/core";
 import { service } from "@slock/core/services";
-import { teamIdFromRoute } from "@slock/plugins/slack/server/api/auth";
+import { type Credentials, teamIdFromRoute } from "@slock/plugins/slack/server/api/auth";
 import {
   errorResponse,
   jsonResponse,
@@ -21,27 +21,30 @@ type SubmitReply = {
 
 const env = service("env");
 
+function serviceTeamId(botTeamId: string | undefined, creds: Credentials | null | undefined) {
+  return botTeamId ?? teamIdFromRoute(creds?.route ?? "");
+}
+
 const list: Route[] = [
   route("POST", "blocks/actions", async (ctx) => {
     const body = await ctx.body.json<{
       action?: Record<string, unknown>;
-      appId?: string;
       botId?: string;
+      botTeamId?: string;
       container?: Record<string, unknown>;
       state?: unknown;
     }>();
-    if (!(body.action && body.appId && body.botId && body.container)) {
+    if (!(body.action && body.botId && body.container)) {
       return errorResponse("invalid_block_action", 400);
     }
     return mutate(
       "blocks.actions",
       {
         actions: JSON.stringify([body.action]),
-        app_id: body.appId,
         client_token: `web-${env.now()}`,
         container: JSON.stringify(body.container),
         service_id: body.botId,
-        service_team_id: teamIdFromRoute(ctx.creds?.route ?? "") ?? "",
+        service_team_id: serviceTeamId(body.botTeamId, ctx.creds),
         state: JSON.stringify(body.state ?? { values: {} }),
       },
       ctx,
@@ -51,24 +54,23 @@ const list: Route[] = [
   route("POST", "blocks/suggestions", async (ctx) => {
     const body = await ctx.body.json<{
       actionId?: string;
-      appId?: string;
       blockId?: string;
       botId?: string;
+      botTeamId?: string;
       container?: Record<string, unknown>;
       value?: string;
     }>();
-    if (!(body.actionId && body.appId && body.botId && body.container)) {
+    if (!(body.actionId && body.botId && body.container)) {
       return errorResponse("invalid_block_suggestion", 400);
     }
     const data = await callSlack<{ option_groups?: unknown[]; options?: unknown[] }>(
       "blocks.suggestions",
       {
         action_id: body.actionId,
-        app_id: body.appId,
         block_id: body.blockId ?? "",
         container: JSON.stringify(body.container),
         service_id: body.botId,
-        service_team_id: teamIdFromRoute(ctx.creds?.route ?? "") ?? "",
+        service_team_id: serviceTeamId(body.botTeamId, ctx.creds),
         value: body.value ?? "",
       },
       ctx.creds,

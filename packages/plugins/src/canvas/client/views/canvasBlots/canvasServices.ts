@@ -1,14 +1,17 @@
+import type { CanvasAccess } from "@slock/types";
 import type Quill from "@slock/ui/editor/quill";
 import { createSignal, onSettled } from "solid-js";
 import type { CanvasNames } from "../../lib/canvasEmbeds";
 
 export interface CanvasServices {
+  access: CanvasAccess;
   activate(quill: Quill): void;
   afterChange(quill: Quill): void;
+  movesAnnotation(id: string): boolean;
   names: CanvasNames;
   newId(): string;
-  readOnly: boolean;
   register(scope: () => string, quill: Quill): () => void;
+  upload(quill: Quill, files: File[]): void;
 }
 
 const ROOT_CLASS = ".canvas-editor";

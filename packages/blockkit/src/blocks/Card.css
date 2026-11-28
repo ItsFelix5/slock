@@ -18,6 +18,10 @@
   padding: 10px;
 }
 
+.bk-card-heading > div {
+  min-width: 0;
+}
+
 .bk-card-heading .bk-image-el {
   width: 32px;
   height: 32px;
@@ -37,7 +41,7 @@
 .bk-card-body {
   margin-top: 9px;
   font-size: var(--font-size-secondary);
-  line-height: 1.4;
+  line-height: round(1.4em, 1px);
 }
 
 .bk-card-subtext {
@@ -45,6 +49,10 @@
 }
 
 .bk-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
   margin-top: 10px;
 }
 

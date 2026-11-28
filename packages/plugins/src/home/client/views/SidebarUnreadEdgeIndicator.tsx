@@ -1,4 +1,4 @@
-import { Icon, Tooltip } from "@slock/ui";
+import { Icon } from "@slock/ui";
 import { createSignal, onSettled, Show } from "solid-js";
 import "./SidebarUnreadEdgeIndicator.css";
 
@@ -52,7 +52,7 @@ export default function SidebarUnreadEdgeIndicator(props: {
       direction === -1
         ? rows.filter((row) => row.getBoundingClientRect().bottom <= bounds.top).at(-1)
         : rows.find((row) => row.getBoundingClientRect().top >= bounds.bottom);
-    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    target?.scrollIntoView({ block: "center" });
   }
 
   let recomputeRaf = 0;
@@ -88,32 +88,25 @@ export default function SidebarUnreadEdgeIndicator(props: {
   return (
     <>
       <Show when={edges().above}>
-        <Tooltip content="Unread channels above">
-          <button
-            class={[
-              "sidebar-unread-edge sidebar-unread-edge-top",
-              { mention: edges().aboveMention },
-            ]}
-            onClick={() => scrollToward(-1)}
-            type="button"
-          >
-            <Icon name="caret-up-filled" size={12} />
-          </button>
-        </Tooltip>
+        <button
+          class={["sidebar-unread-edge sidebar-unread-edge-top", { mention: edges().aboveMention }]}
+          onClick={() => scrollToward(-1)}
+          type="button"
+        >
+          <Icon name="caret-up-filled" size={12} />
+        </button>
       </Show>
       <Show when={edges().below}>
-        <Tooltip content="Unread channels below">
-          <button
-            class={[
-              "sidebar-unread-edge sidebar-unread-edge-bottom",
-              { mention: edges().belowMention },
-            ]}
-            onClick={() => scrollToward(1)}
-            type="button"
-          >
-            <Icon name="caret-down-filled" size={12} />
-          </button>
-        </Tooltip>
+        <button
+          class={[
+            "sidebar-unread-edge sidebar-unread-edge-bottom",
+            { mention: edges().belowMention },
+          ]}
+          onClick={() => scrollToward(1)}
+          type="button"
+        >
+          <Icon name="caret-down-filled" size={12} />
+        </button>
       </Show>
     </>
   );

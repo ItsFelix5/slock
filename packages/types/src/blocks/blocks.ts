@@ -5,9 +5,7 @@ export type {
   ConfirmationDialog,
   ConversationFilter,
   DatePickerElement,
-  FeedbackButtonsElement,
   FileInputElement,
-  IconButtonElement,
   ImageElement,
   Option,
   OptionGroup,
@@ -16,13 +14,12 @@ export type {
   SelectElement,
   TextInputElement,
   TextObject,
-  UnknownElement,
-  WorkflowButtonElement,
 } from "./blockElements";
 
 import type { RichTextBlock } from "../richText";
 import type { DataVisualizationBlock, TableBlock } from "./blockDataViz";
 import type { BlockElement, ImageElement, TextObject } from "./blockElements";
+import type { LayoutBlock } from "./blockLayout";
 
 export interface SectionBlock {
   accessory?: BlockElement;
@@ -33,7 +30,7 @@ export interface SectionBlock {
   type: "section";
 }
 
-export interface DividerBlock {
+interface DividerBlock {
   block_id?: string;
   type: "divider";
 }
@@ -107,7 +104,7 @@ export interface VideoBlock {
   video_url: string;
 }
 
-export interface SlackIconObject {
+interface SlackIconObject {
   name: string;
   type: "icon";
 }
@@ -152,14 +149,10 @@ export interface ContextActionsBlock {
 }
 
 export type {
-  Chart,
   ChartAxisConfig,
-  ChartDataPoint,
-  ChartSegment,
   ChartSeries,
   DataVisualizationBlock,
   TableBlock,
-  TableCell,
 } from "./blockDataViz";
 
 export interface TaskCardBlock {
@@ -191,26 +184,17 @@ export interface AlertBlock {
 
 export type {
   RichTextBlock,
-  RichTextBroadcastElement,
-  RichTextChannelElement,
-  RichTextColorElement,
-  RichTextDateElement,
-  RichTextEmojiElement,
+  RichTextHeader,
   RichTextInlineElement,
-  RichTextLinkElement,
   RichTextList,
   RichTextMessageMentionElement,
-  RichTextPreformatted,
-  RichTextQuote,
   RichTextSection,
   RichTextStyle,
   RichTextSubBlock,
-  RichTextTextElement,
-  RichTextUserElement,
-  RichTextUsergroupElement,
+  RichTextTagElement,
 } from "../richText";
 
-export interface UnknownBlock {
+interface UnknownBlock {
   block_id?: string;
   type: string;
   [key: string]: unknown;
@@ -237,10 +221,10 @@ export type Block =
   | PlanBlock
   | AlertBlock
   | RichTextBlock
+  | LayoutBlock
   | UnknownBlock;
 
 export interface ModalView {
-  app_id?: string;
   blocks: Block[];
   bot_id?: string;
   callback_id?: string;

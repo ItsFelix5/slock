@@ -1,5 +1,6 @@
 import { service } from "@slock/core/solid";
 import type { ChannelId, Message } from "@slock/types";
+import { domToMarkdown } from "@slock/ui";
 
 const dialogs = service("shell.dialogs");
 
@@ -13,7 +14,7 @@ export async function copyMessageText(msg: Message) {
   );
   const copied =
     body &&
-    (await navigator.clipboard.writeText(body.innerText).then(
+    (await navigator.clipboard.writeText(domToMarkdown(body)).then(
       () => true,
       () => false,
     ));

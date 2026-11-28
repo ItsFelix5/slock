@@ -24,9 +24,6 @@
   outline: none;
   opacity: 0.55;
   cursor: pointer;
-  transition:
-    background 0.1s ease,
-    opacity 0.1s ease;
 }
 
 .canvas-outline-mark[data-level="1"] {
@@ -66,9 +63,6 @@
   opacity: 0;
   transform: scale(0.98);
   transform-origin: top right;
-  transition:
-    opacity 0.1s ease,
-    transform 0.1s ease;
   pointer-events: none;
 }
 

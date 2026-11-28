@@ -1,1 +1,1 @@
-{ "id": "drafts", "name": "Drafts", "requires": [], "boot": true }
+{ "id": "drafts", "category": "Core", "name": "Drafts", "requires": ["query"], "boot": true }

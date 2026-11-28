@@ -128,6 +128,7 @@ label:has(> .sr-input:focus-visible) {
   background: var(--main-bg);
 }
 .modal-card {
+  --field-bg: var(--main-bg);
   background: var(--composer-bg);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-modal-lg);
@@ -139,15 +140,23 @@ label:has(> .sr-input:focus-visible) {
   border-radius: var(--surface-radius, var(--radius-md));
   box-shadow: var(--shadow-popover);
 }
+.field-surface,
+.text-field {
+  background: var(--field-bg, var(--composer-bg));
+  border: 1px solid var(--border-strong);
+  border-radius: var(--field-radius, var(--radius-control));
+}
+.field-surface:focus-within,
+.text-field:focus-within {
+  border-color: var(--accent-border-strong);
+  box-shadow: 0 0 0 var(--focus-ring-width) var(--accent-subtle);
+}
 .text-field {
   width: 100%;
   padding: 6px var(--space-sm);
   font: inherit;
   font-size: var(--font-size-control);
   color: var(--text-primary);
-  background: var(--main-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-control);
 }
 .select-field {
   appearance: none;
@@ -164,8 +173,8 @@ label:has(> .sr-input:focus-visible) {
 .select-field:disabled {
   background-image: none;
 }
+.field-surface:focus-visible,
 .text-field:focus-visible {
-  border-color: var(--accent);
   outline: none;
 }
 .text-field:disabled {
@@ -255,6 +264,7 @@ label:has(> .sr-input:focus-visible) {
 }
 .composer-frame {
   --surface-radius: var(--composer-radius);
+  --field-radius: var(--composer-radius);
   flex-shrink: 0;
   padding: 2px var(--space-xs);
   margin: 0 var(--composer-frame-inline) var(--composer-frame-block-end);

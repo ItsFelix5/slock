@@ -1,1 +1,7 @@
-{ "id": "files", "name": "Files", "requires": ["message-links", "query", "shell", "users"] }
+{
+  "id": "files",
+  "category": "Search and files",
+  "name": "Files",
+  "requires": ["channels", "message-links", "query", "shell", "users"],
+  "boot": true
+}

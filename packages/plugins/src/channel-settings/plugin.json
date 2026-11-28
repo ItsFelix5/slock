@@ -1,5 +1,7 @@
 {
   "id": "channel-settings",
+  "category": "People and channels",
   "name": "Channel settings",
-  "requires": ["channel-details", "shell", "users"]
+  "requires": ["channel-details", "query", "realtime", "shell", "users"],
+  "boot": true
 }

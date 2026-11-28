@@ -47,7 +47,7 @@ export function createActivityRowDisplay(deps: {
   const reactions = createMemo(() => reactedMessage()?.reactions ?? []);
 
   const replierIds = createMemo(() => {
-    const me = usersStore.currentUser()?.id;
+    const me = usersStore.currentUserId();
     const candidates = [
       ...deps.items().map((item) => item.userId),
       ...reactions().flatMap((reaction) => reaction.users.filter((id) => id !== me)),
@@ -56,7 +56,7 @@ export function createActivityRowDisplay(deps: {
   });
 
   const interactorNames = (ids: UserId[], max?: number) =>
-    formatInteractorNames(ids, usersStore.currentUser()?.id, usersStore.userById, max);
+    formatInteractorNames(ids, usersStore.currentUserId(), usersStore.userById, max);
 
   return {
     avatarUrl,

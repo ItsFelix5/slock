@@ -1,12 +1,14 @@
 import { parseUserProfileLink } from "@slock/blockkit";
 import { narrowByType } from "@slock/core";
-import { isRichTextSubBlock } from "@slock/slack";
+import { isRichTextSubBlock, messageMentionUrl } from "@slock/slack";
+import { getCachedWorkspaceDomain } from "@slock/slack/client";
 import type { Block, RichTextBlock, RichTextInlineElement, RichTextSubBlock } from "@slock/types";
 
 function elementLinks(elements: readonly (RichTextInlineElement | RichTextSubBlock)[]): string[] {
   return elements.flatMap((el) => {
-    if (isRichTextSubBlock(el)) return elementLinks(el.elements);
-    return (el.type === "link" || el.type === "message_mention") && el.url ? [el.url] : [];
+    if (isRichTextSubBlock(el)) return "elements" in el ? elementLinks(el.elements) : [];
+    if (el.type === "message_mention") return [messageMentionUrl(el, getCachedWorkspaceDomain())];
+    return el.type === "link" ? [el.url] : [];
   });
 }
 

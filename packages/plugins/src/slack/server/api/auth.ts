@@ -1,4 +1,4 @@
-import { isRecord } from "@slock/core";
+import { defined, isRecord } from "@slock/core";
 
 export const jsonHeaders = { "content-type": "application/json" };
 
@@ -13,9 +13,7 @@ declare module "@slock/core/http" {
   interface HttpContext {
     creds?: Credentials | null;
   }
-}
 
-declare module "@slock/server/http" {
   interface WsData {
     creds: Credentials | null;
   }
@@ -65,6 +63,10 @@ export function parseCredentials(
     },
     ok: true,
   };
+}
+
+export function enterpriseIdFromRoute(route: string): string {
+  return defined(route.split(":")[0]);
 }
 
 export function teamIdFromRoute(route: string): string {

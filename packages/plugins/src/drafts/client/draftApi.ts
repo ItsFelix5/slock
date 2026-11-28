@@ -1,8 +1,10 @@
-import { apiDelete, apiGet, apiPut, ifPresent, mapDraft, parseTs, replyError } from "@slock/slack";
+import { ifPresent, parseTs, replyError } from "@slock/slack";
+import { apiDelete, apiGet, apiPut } from "@slock/slack/client";
 import type { Block, ChannelId, DraftEntry, RawDraftEntry, Ts } from "@slock/types";
+import { mapDraft } from "./mapDraft";
 
-export async function fetchDrafts(): Promise<DraftEntry[]> {
-  const data = await apiGet<{ drafts?: RawDraftEntry[] }>("/api/drafts");
+export async function fetchDrafts(signal: AbortSignal): Promise<DraftEntry[]> {
+  const data = await apiGet<{ drafts?: RawDraftEntry[] }>("/api/drafts", signal);
   if (!data.ok) throw replyError(data, "drafts.list failed");
   return (data.drafts ?? []).map(mapDraft);
 }
@@ -15,14 +17,11 @@ export async function saveDraft(
   clientMsgId: string,
   lastUpdatedTs?: Ts,
 ): Promise<{ id: string; lastUpdatedTs?: Ts }> {
-  const data = await apiPut<{ id: string; lastUpdatedTs?: string }>("/api/drafts", {
-    blocks,
-    channelId,
-    clientMsgId,
-    draftId,
-    lastUpdatedTs,
-    threadTs,
-  });
+  const data = await apiPut<{ id: string; lastUpdatedTs?: string }>(
+    "/api/drafts",
+    { blocks, channelId, clientMsgId, draftId, lastUpdatedTs, threadTs },
+    { keepalive: true },
+  );
   if (!data.ok) throw replyError(data, "drafts.create failed");
   return {
     id: data.id,
@@ -31,6 +30,6 @@ export async function saveDraft(
 }
 
 export async function deleteDraft(draftId: string, lastUpdatedTs?: Ts): Promise<void> {
-  const data = await apiDelete(`/api/drafts/${draftId}`, { lastUpdatedTs });
+  const data = await apiDelete(`/api/drafts/${draftId}`, { lastUpdatedTs }, { keepalive: true });
   if (!data.ok) throw replyError(data, "drafts.delete failed");
 }

@@ -76,9 +76,7 @@ export default function LaterItemCard(props: {
         context={
           <SplitNavigation onSplit={() => openConversationInSplit(props.item.channelId)}>
             <ClickableInline onActivate={() => openConversation(props.item.channelId)}>
-              <span class="result-message-card-context-text">
-                {titles.label(props.item.channelId)}
-              </span>
+              <span class="truncate">{titles.label(props.item.channelId)}</span>
             </ClickableInline>
           </SplitNavigation>
         }
@@ -108,13 +106,17 @@ export default function LaterItemCard(props: {
             <Show fallback="Message unavailable" when={msg()}>
               {(message) => (
                 <MessageReferenceSnippet
+                  attachments={message().attachments}
                   blocks={message().blocks}
                   botId={message().botId}
+                  botTeamId={message().botTeamId}
                   botUserId={message().userId}
                   channelId={props.item.channelId}
                   edited={message().edited}
+                  files={message().files}
                   text={message().text}
                   threadTs={message().threadTs}
+                  thumbnails
                   ts={message().ts}
                   tz={author()?.tz}
                 />

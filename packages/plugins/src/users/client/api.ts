@@ -1,3 +1,6 @@
+import { service } from "@slock/core/solid";
+import { defineQuery } from "@slock/plugins/query/client/api";
+import { isChannelId, isUserId } from "@slock/slack";
 import type { User, UserId } from "@slock/types";
 import type { createUsersStore } from "./store";
 
@@ -6,6 +9,26 @@ declare module "@slock/core/types" {
     users: ReturnType<typeof createUsersStore>;
   }
 }
+
+const users = service("users");
+const titles = service("titles");
+
+const MENTION_RE = /<([#@])([A-Z0-9]+)(?:\|([^>]*))?>/g;
+
+export function mentionText(text: string): string {
+  return text.replace(MENTION_RE, (token, sigil: string, id: string, label?: string) => {
+    if (sigil === "#" && isChannelId(id)) return label ? `#${label}` : titles.label(id);
+    if (sigil === "@" && isUserId(id)) return `@${users.userById(id)?.name ?? (label || id)}`;
+    return token;
+  });
+}
+
+export const userMatches = defineQuery<string, User[]>({
+  load: (term) => users.searchUsers(term),
+  maxAgeMs: 30_000,
+  name: "userMatches",
+  revalidates: false,
+});
 
 export function formatInteractorNames(
   ids: UserId[],

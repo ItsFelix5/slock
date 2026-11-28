@@ -146,9 +146,19 @@ const COMMANDS: Record<string, (context: Context) => Promise<void>> = {
   update,
 };
 
+const USAGE = `usage: bun plugin <command> [options]
+
+  install <id|path|url>...   add plugins
+  uninstall <id>...          remove plugins
+  update [id]...             update all or the given plugins
+  list                       show installed plugins
+  build <entry> <out.js>     bundle a plugin
+
+options: --dir <instance dir>  --off  --yes  --force`;
+
 export function runCommand(command: Command, prompter: Prompter): Promise<void> {
   const handler = COMMANDS[command.name];
   if (!handler)
-    throw new Error(`unknown command "${command.name}": install, uninstall, update, list, build`);
+    throw new Error(command.name ? `unknown command "${command.name}"\n\n${USAGE}` : USAGE);
   return handler({ command, dir: resolve(command.dir ?? "instance"), prompter });
 }

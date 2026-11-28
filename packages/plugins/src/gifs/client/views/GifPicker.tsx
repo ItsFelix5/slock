@@ -1,6 +1,4 @@
-import type { TimerHandle } from "@slock/core";
-import { service } from "@slock/core/solid";
-import { defineQuery } from "@slock/plugins/query/client/api";
+import { service, useDebouncer } from "@slock/core/solid";
 import {
   gridNavigationIndex,
   IconButton,
@@ -11,22 +9,15 @@ import {
   useGridShortcuts,
   useListShortcuts,
 } from "@slock/ui";
-import { createMemo, createSignal, For, onCleanup, onSettled, Show } from "solid-js";
+import { createMemo, createSignal, For, onSettled, Show } from "solid-js";
+import { gifsQuery } from "../queries";
 import type { Gif } from "../store";
-import { loadGifs } from "../tenor";
 import "./GifPicker.css";
 
 const gifs = service("gifs");
-const env = service("env");
 
 const COLS = 2;
 const SEARCH_DELAY_MS = 250;
-const STALE_MS = 5 * 60 * 1000;
-const gifsQuery = defineQuery<string, Gif[]>({
-  load: loadGifs,
-  maxAgeMs: STALE_MS,
-  name: "gifs",
-});
 
 export default function GifPicker(props: { onClose: () => void; onSelect: (gif: Gif) => void }) {
   const [input, setInput] = createSignal("");
@@ -36,9 +27,9 @@ export default function GifPicker(props: { onClose: () => void; onSelect: (gif: 
     gifs.favorites().length ? "favorites" : "trending",
   );
   const tenor = gifsQuery.state(query);
+  const search = useDebouncer((value: string) => setQuery(value.trim()), SEARCH_DELAY_MS);
   let searchRef: HTMLInputElement | undefined;
   let bodyRef: HTMLDivElement | undefined;
-  let delay: TimerHandle | undefined;
 
   useEscapeClose(props.onClose);
   useClickOutside(".gif-picker", props.onClose);
@@ -46,7 +37,6 @@ export default function GifPicker(props: { onClose: () => void; onSelect: (gif: 
     const frame = requestAnimationFrame(() => searchRef?.focus());
     return () => cancelAnimationFrame(frame);
   });
-  onCleanup(() => env.clearTimeout(delay));
 
   const showingFavorites = () => tab() === "favorites" && !query();
   const entries = createMemo(() => (showingFavorites() ? gifs.favorites() : (tenor().data ?? [])));
@@ -59,8 +49,7 @@ export default function GifPicker(props: { onClose: () => void; onSelect: (gif: 
   const onInput = (value: string) => {
     setInput(value);
     setActiveIndex(0);
-    env.clearTimeout(delay);
-    delay = env.setTimeout(() => setQuery(value.trim()), SEARCH_DELAY_MS);
+    search.schedule(value);
   };
 
   const focusTile = (index: number) =>

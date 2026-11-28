@@ -1,1 +1,6 @@
-{ "id": "last-seen", "name": "Last seen", "requires": ["messages"] }
+{
+  "id": "last-seen",
+  "category": "People and channels",
+  "name": "Last seen",
+  "requires": ["messages"]
+}

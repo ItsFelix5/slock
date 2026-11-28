@@ -1,1 +1,7 @@
-{ "id": "channel-canvas", "name": "Channel canvases", "requires": ["channels", "canvas"] }
+{
+  "id": "channel-canvas",
+  "category": "Search and files",
+  "name": "Channel canvases",
+  "requires": ["channels", "canvas"],
+  "boot": true
+}

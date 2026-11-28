@@ -1,7 +1,7 @@
 import type { JSX } from "@solidjs/web";
 import ZoomableImage, { type ZoomableImageItem } from "./ZoomableImage";
 
-export interface ConstrainedImageProps {
+interface ConstrainedImageProps {
   alt?: string;
   blurSrc?: string;
   class?: string;

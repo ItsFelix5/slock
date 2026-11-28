@@ -1,6 +1,6 @@
 import { asMessage, asString, decodeRaw, field, type RawMessage } from "./protobufRaw.ts";
 
-export const ORPHANED_EMBED_RECORDS_ANCHOR = "zzzzzz-orphaned-m";
+export const CONTROL_CLASS = 1;
 
 export interface SectionRecord {
   anchor: string;
@@ -16,7 +16,6 @@ export interface SectionRecord {
 
 export interface CanvasMeta {
   documentId: string;
-  secretPath: string;
   shardChars: string;
   threadId: string;
 }
@@ -26,7 +25,7 @@ export interface DecodedCanvas {
   records: SectionRecord[];
 }
 
-function numberField(msg: RawMessage, num: number): number {
+export function numberField(msg: RawMessage, num: number): number {
   return Number(field(msg, num)?.varint ?? 0n);
 }
 
@@ -47,16 +46,6 @@ function decodeSection(msg: RawMessage): SectionRecord | null {
   };
 }
 
-const PLAIN_ID_RE = /^[A-Za-z0-9]+$/;
-
-function secretPathOf(thread: RawMessage): string {
-  const ref = field(thread, 7);
-  const text = asString(ref) ?? "";
-  if (PLAIN_ID_RE.test(text)) return text;
-  const packed = asMessage(ref);
-  return (packed && asString(field(packed, 9))) ?? "";
-}
-
 function decodeMeta(document: RawMessage): CanvasMeta | null {
   const thread = asMessage(field(document, 3));
   const doc = asMessage(field(document, 6));
@@ -65,7 +54,6 @@ function decodeMeta(document: RawMessage): CanvasMeta | null {
   if (!(thread && doc && threadId && documentId)) return null;
   return {
     documentId,
-    secretPath: secretPathOf(thread),
     shardChars: asString(field(doc, 42)) || documentId.slice(0, 3),
     threadId,
   };
@@ -86,9 +74,13 @@ export function decodeRecords(bytes: Uint8Array, path: number[]): SectionRecord[
   return last === undefined ? [] : recordsIn(message, last);
 }
 
-export function decodeLoadData(bytes: Uint8Array): DecodedCanvas {
+export function documentMessage(bytes: Uint8Array): RawMessage | null {
   const payload = asMessage(field(decodeRaw(bytes), 2));
-  const document = payload && asMessage(field(payload, 2));
+  return payload && asMessage(field(payload, 2));
+}
+
+export function decodeLoadData(bytes: Uint8Array): DecodedCanvas {
+  const document = documentMessage(bytes);
   if (!document) return { meta: null, records: [] };
   return { meta: decodeMeta(document), records: recordsIn(document, 7) };
 }

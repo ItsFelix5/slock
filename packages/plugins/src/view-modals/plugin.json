@@ -1,1 +1,7 @@
-{ "id": "view-modals", "name": "Slack modals", "requires": [] }
+{
+  "id": "view-modals",
+  "category": "Core",
+  "name": "Slack modals",
+  "requires": ["query"],
+  "boot": true
+}

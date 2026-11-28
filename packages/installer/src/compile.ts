@@ -14,7 +14,7 @@ export function packageName(specifier: string): string {
   return first?.startsWith("@") ? `${first}/${second}` : (first ?? specifier);
 }
 
-export function bareImports(code: string): string[] {
+function bareImports(code: string): string[] {
   return scanner
     .scanImports(code)
     .map(({ path }) => path)

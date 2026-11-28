@@ -5,7 +5,7 @@ import ColorChannelRow from "./ColorChannelRow";
 import { cssColorToOklch, formatOklch, type OklchColor } from "./oklchColor";
 import "./OklchColorPicker.css";
 
-export interface OklchColorPickerProps {
+interface OklchColorPickerProps {
   label: string;
   onChange: (value: string) => void;
   relative?: RelativeColor;

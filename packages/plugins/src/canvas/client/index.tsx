@@ -3,15 +3,17 @@ import type { Setup } from "@slock/core";
 import { lazyChunk, service } from "@slock/core/solid";
 import { gatewayHandler } from "@slock/plugins/realtime/client/api";
 import type { PaneContent } from "@slock/plugins/shell/client/api/types";
-import { isChannelId, isFileId } from "@slock/slack";
+import { mentionText } from "@slock/plugins/users/client/api";
+import { hostedFileId, isChannelId, isFileId, isTs } from "@slock/slack";
 import { narrowPaneContent, type Pane } from "@slock/ui";
-import { createEffect, Show } from "solid-js";
+import { Show } from "solid-js";
 import type { CanvasPaneContent } from "./api";
-import { refreshCommentsForChannel } from "./lib/canvasComments";
+import { noteCommentActivity } from "./lib/canvasComments";
 import { openCanvasLinksOnClick } from "./lib/canvasLinks";
-import { fetchCanvasTitle } from "./lib/canvasRequests";
-import { newlyUntitled, untitledCanvases } from "./lib/untitledCanvases";
+import { titleUntitledPanes } from "./lib/titleUntitledPanes";
 import { createCanvasStore } from "./store";
+import CommentQuote from "./views/CommentQuote";
+import { commentThread } from "./views/commentThread";
 
 const CanvasPane = lazyChunk(() => import("./views/CanvasPane"));
 
@@ -27,16 +29,7 @@ const setup: Setup = (ctx) => {
   const panes = service("shell.panes");
   const store = createCanvasStore({ panes });
   ctx.provide("canvas", store);
-  createEffect(
-    () => untitledCanvases(panes.panes()),
-    (untitled, previous) => {
-      for (const { fileId, id } of newlyUntitled(previous, untitled)) {
-        void fetchCanvasTitle(fileId).then((title) => {
-          if (title) panes.setPaneContent(id, { fileId, kind: "canvas", title });
-        });
-      }
-    },
-  );
+  titleUntitledPanes(panes, store.rawCanvasTitle);
   ctx.onCleanup(openCanvasLinksOnClick(store.openCanvasPane));
   ctx.add("realtime.handler", {
     run: (event) => {
@@ -50,15 +43,31 @@ const setup: Setup = (ctx) => {
       if ("file_id" in event && event.file_id && isFileId(event.file_id))
         store.noteRemoteChange(event.file_id);
     },
-    types: ["document_change", "document_update", "file_change"],
+    types: ["document_update", "file_change"],
   });
+  const users = service("users");
   ctx.add(
     "realtime.handler",
     gatewayHandler(["message", "reaction_added", "reaction_removed"], (event) => {
       const channelId = event.type === "message" ? event.channel : event.item.channel;
-      if (channelId && isChannelId(channelId)) refreshCommentsForChannel(channelId);
+      if (!(channelId && isChannelId(channelId))) return;
+      const reply =
+        event.type === "message" && event.user === users.currentUserId()
+          ? event.thread_ts
+          : undefined;
+      noteCommentActivity(channelId, reply && isTs(reply) ? reply : undefined);
     }),
   );
+  ctx.add("messages.quote", (msg, channelId) =>
+    msg.canvasComment ? (
+      <CommentQuote
+        fileId={hostedFileId(channelId)}
+        text={msg.text}
+        threadId={msg.canvasComment.threadId}
+      />
+    ) : undefined,
+  );
+  ctx.add("threads.override", commentThread);
   ctx.add("messages.blockKit", {
     onCanvasClick: store.openCanvasPane,
     resolveCanvasTitle: store.canvasTitle,
@@ -68,7 +77,8 @@ const setup: Setup = (ctx) => {
     {
       identity: (content) => (content.kind === "canvas" ? { ...content, title: "" } : content),
       kind: "canvas",
-      tabLabel: (content) => (content.kind === "canvas" ? <EmojiText text={content.title} /> : "…"),
+      tabLabel: (content) =>
+        content.kind === "canvas" ? <EmojiText text={mentionText(content.title)} /> : "…",
       url: {
         parse: (segment) =>
           isFileId(segment) ? { fileId: segment, kind: "canvas", title: "" } : null,

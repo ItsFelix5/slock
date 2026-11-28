@@ -1,4 +1,5 @@
 import { BLOCKS_CLIPBOARD_TYPE, fragmentToBlocks } from "@slock/blockkit";
+import { domToMarkdown } from "@slock/ui";
 
 const MESSAGE_CONTENT_SELECTOR = ".message-list, .thread-panel-messages";
 
@@ -16,8 +17,11 @@ export function handleMessageCopy(e: ClipboardEvent) {
   container.appendChild(range.cloneContents());
   const blocks = fragmentToBlocks(container);
   if (!(blocks.length && e.clipboardData)) return;
-  e.clipboardData.setData("text/plain", sel.toString());
   e.clipboardData.setData("text/html", container.innerHTML);
+  // Meta items are spaced by CSS alone, so plain text would glue the name to the time.
+  for (const item of container.querySelectorAll(".message-meta > :not(:last-child)"))
+    item.append(" ");
+  e.clipboardData.setData("text/plain", domToMarkdown(container));
   e.clipboardData.setData(BLOCKS_CLIPBOARD_TYPE, JSON.stringify(blocks));
   e.preventDefault();
 }

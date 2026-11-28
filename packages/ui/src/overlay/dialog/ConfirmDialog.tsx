@@ -4,7 +4,7 @@ import "./ConfirmDialog.css";
 import { useShortcut } from "../../hooks/useShortcut";
 import Modal from "./Modal";
 
-export interface ConfirmDialogOptions {
+interface ConfirmDialogOptions {
   title?: string;
   message: string;
   confirmLabel?: string;

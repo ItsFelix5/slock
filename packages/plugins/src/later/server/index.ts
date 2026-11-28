@@ -1,4 +1,5 @@
 import type { Setup } from "@slock/core";
+import { logUnknown } from "@slock/core";
 import { jsonResponse, slackErrorResponse } from "@slock/plugins/slack/server/api/jsonResponse";
 import type { Route } from "@slock/plugins/slack/server/api/router";
 import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
@@ -56,7 +57,11 @@ const list: Route[] = [
 
     const items = data.saved_items ?? data.items ?? [];
     const normalized = items
-      .filter((item) => !item.item_type || item.item_type === "message")
+      .filter((item) => {
+        const isMessage = !item.item_type || item.item_type === "message";
+        if (!isMessage) logUnknown("saved item", item.item_type);
+        return isMessage;
+      })
       .filter((item) => !item.state || item.state === "in_progress")
       .map((item) => ({
         channelId: item.item_id ?? item.channel_id ?? item.channel,

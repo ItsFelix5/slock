@@ -1,4 +1,11 @@
-import { asDouble, asMessage, asString, field, type RawMessage } from "./protobufRaw.ts";
+import {
+  asDouble,
+  asMessage,
+  asString,
+  field,
+  type RawField,
+  type RawMessage,
+} from "./protobufRaw.ts";
 
 export interface RawTable {
   cellContentIds: Map<string, string>;
@@ -11,6 +18,11 @@ export interface RawTable {
 }
 
 const FIELD_TABLE = 30;
+const CORRUPT_ROW_PREFIX_RE = /^r[^o]w:/;
+
+function rowIdOf(f: RawField | undefined): string | null {
+  return asString(f)?.replace(CORRUPT_ROW_PREFIX_RE, "row:") ?? null;
+}
 
 function byKey(entries: { id: string; key: string }[]): string[] {
   return entries
@@ -25,8 +37,7 @@ export function tableGrid(content: RawMessage): RawTable | null {
   const rows: { id: string; key: string }[] = [];
   for (const rowEntry of table.get(1) ?? []) {
     const rowMsg = asMessage(rowEntry);
-    const rowIdMsg = rowMsg && asMessage(field(rowMsg, 1));
-    const id = rowIdMsg && asString(field(rowIdMsg, 14));
+    const id = rowMsg && rowIdOf(field(rowMsg, 1));
     if (rowMsg && id) rows.push({ id, key: asString(field(rowMsg, 2)) ?? "" });
   }
   const cols: { id: string; key: string; width: number }[] = [];
@@ -47,8 +58,7 @@ export function tableGrid(content: RawMessage): RawTable | null {
   for (const cellEntry of table.get(3) ?? []) {
     const cellMsg = asMessage(cellEntry);
     if (!cellMsg) continue;
-    const rowRefMsg = asMessage(field(cellMsg, 2));
-    const rowId = rowRefMsg && asString(field(rowRefMsg, 14));
+    const rowId = rowIdOf(field(cellMsg, 2));
     const colId = asString(field(cellMsg, 3));
     const contentId = asString(field(cellMsg, 4));
     const cellId = asString(field(cellMsg, 1));

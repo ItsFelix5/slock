@@ -1,5 +1,5 @@
 import type { JSX } from "@solidjs/web";
-import { type Accessor, createEffect, Show } from "solid-js";
+import { type Accessor, createEffect, Show, untrack } from "solid-js";
 import { useHoverIntent } from "../hooks/useHoverIntent";
 import FloatingPanel, {
   type FloatingAlign,
@@ -7,7 +7,7 @@ import FloatingPanel, {
 } from "./floating/FloatingPanel";
 import "./HoverCard.css";
 
-export interface HoverCardProps {
+interface HoverCardProps {
   align?: FloatingAlign;
   anchorClass?: string;
   children?: JSX.Element;
@@ -29,7 +29,12 @@ export default function HoverCard(props: HoverCardProps) {
   const open = () => intent().open();
   const close = () => intent().close();
 
-  createEffect(open, (isOpen) => void props.onOpenChange?.(isOpen));
+  createEffect(open, (isOpen) => void untrack(() => props.onOpenChange?.(isOpen)));
+
+  const handleFocusIn = (event: FocusEvent) => {
+    if (event.target instanceof Element && event.target.matches(":focus-visible"))
+      intent().openNow();
+  };
 
   const handleFocusOut = (event: FocusEvent) => {
     const next = event.relatedTarget;
@@ -64,10 +69,12 @@ export default function HoverCard(props: HoverCardProps) {
   return (
     <span
       class={["hover-card-anchor", props.anchorClass]}
-      onFocusIn={() => intent().openNow()}
+      onFocusIn={handleFocusIn}
       onFocusOut={handleFocusOut}
+      onKeyDown={intent().closeOnPress}
       onMouseEnter={() => intent().scheduleOpen()}
       onMouseLeave={() => intent().scheduleClose()}
+      onPointerDown={intent().closeOnPress}
       ref={(element) => {
         anchorRef = element;
       }}

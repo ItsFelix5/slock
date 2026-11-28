@@ -1,22 +1,17 @@
-import { apiGet, apiPost } from "@slock/slack";
-import type { AttachmentAction, ChannelId, Option, OptionGroup, RawBot, Ts } from "@slock/types";
+import { apiPost } from "@slock/slack/client";
+import type { AttachmentAction, ChannelId, Option, OptionGroup, Ts } from "@slock/types";
 import type { BlockActionContext } from "../BlockKit";
 
-async function fetchBotAppInfo(botId: string): Promise<{ appId: string } | null> {
-  const data = await apiGet<{ bot: RawBot }>(`/api/bots/${botId}`);
-  if (!data.ok) throw new Error(data.error ?? "bots.info failed");
-  return data.bot.app_id ? { appId: data.bot.app_id } : null;
-}
-
 export function containerOf(ctx: BlockActionContext) {
-  return ctx.view
-    ? { type: "view", view_id: ctx.view.id }
-    : {
-        channel_id: ctx.channelId,
-        is_ephemeral: false,
-        message_ts: ctx.messageTs,
-        type: "message",
-      };
+  if (ctx.view) return { type: "view", view_id: ctx.view.id };
+  const message = {
+    channel_id: ctx.channelId,
+    is_ephemeral: ctx.isEphemeral ?? false,
+    message_ts: ctx.messageTs,
+  };
+  return ctx.attachmentId === undefined
+    ? { ...message, type: "message" }
+    : { ...message, attachment_id: ctx.attachmentId, type: "message_attachment" };
 }
 
 export async function fetchExternalOptions(
@@ -24,15 +19,13 @@ export async function fetchExternalOptions(
   params: { actionId: string; blockId?: string; value: string },
 ) {
   if (!ctx.botId) throw new Error("This menu needs its app");
-  const appId = ctx.appId ?? (await fetchBotAppInfo(ctx.botId))?.appId;
-  if (!appId) throw new Error("Couldn't resolve the app behind this menu");
   const data = await apiPost<{
     option_groups?: OptionGroup[];
     options?: Option[];
   }>("/api/blocks/suggestions", {
     ...params,
-    appId,
     botId: ctx.botId,
+    botTeamId: ctx.botTeamId,
     container: containerOf(ctx),
   });
   if (!data.ok) throw new Error(data.error ?? "blocks.suggestions failed");
@@ -41,14 +34,12 @@ export async function fetchExternalOptions(
 
 export async function runBlockAction(params: {
   action: Record<string, unknown>;
-  appId?: string;
   botId: string;
+  botTeamId?: string;
   container: Record<string, unknown>;
   state?: unknown;
 }): Promise<void> {
-  const appId = params.appId ?? (await fetchBotAppInfo(params.botId))?.appId;
-  if (!appId) throw new Error("Couldn't resolve the app behind this button");
-  const data = await apiPost("/api/blocks/actions", { ...params, appId });
+  const data = await apiPost("/api/blocks/actions", params);
   if (!data.ok) throw new Error(data.error ?? "blocks.actions failed");
 }
 

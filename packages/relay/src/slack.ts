@@ -1,5 +1,5 @@
-export type SlackFailure = { error: string; ok: false };
-export type SlackReply<T extends object = object> = (T & { ok: true }) | SlackFailure;
+type SlackFailure = { error: string; ok: false };
+type SlackReply<T extends object = object> = (T & { ok: true }) | SlackFailure;
 
 const botTokens: Record<string, string> = JSON.parse(Bun.env.SLACK_BOT_TOKENS ?? "{}");
 

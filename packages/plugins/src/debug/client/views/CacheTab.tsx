@@ -33,21 +33,23 @@ function CacheRow(props: { entry: HubEntry }) {
       <td class="debug-cache-error">
         <Show when={props.entry.state.error}>{(error) => errorMessage(error())}</Show>
       </td>
-      <td class="debug-cache-actions flex-align-center">
-        <IconButton
-          icon="refresh"
-          iconSize={15}
-          label="Refresh"
-          onClick={() => void props.entry.refresh().catch(() => {})}
-          size="sm"
-        />
-        <IconButton
-          icon="clock"
-          iconSize={15}
-          label="Invalidate"
-          onClick={props.entry.invalidate}
-          size="sm"
-        />
+      <td>
+        <div class="debug-cache-actions flex-align-center">
+          <IconButton
+            icon="refresh"
+            iconSize={15}
+            label="Refresh"
+            onClick={() => void props.entry.refresh().catch(() => {})}
+            size="sm"
+          />
+          <IconButton
+            icon="clock"
+            iconSize={15}
+            label="Invalidate"
+            onClick={props.entry.invalidate}
+            size="sm"
+          />
+        </div>
       </td>
     </tr>
   );

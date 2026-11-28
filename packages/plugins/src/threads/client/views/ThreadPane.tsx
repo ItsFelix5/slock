@@ -1,4 +1,5 @@
-import { Slot, service } from "@slock/core/solid";
+import { firstTruthy } from "@slock/core";
+import { Slot, service, usePoint } from "@slock/core/solid";
 import { prepareReplyLink } from "@slock/plugins/message-links/client/api/messageLinks";
 import type { ThreadPaneContent } from "@slock/plugins/messages/client/api";
 import { createMessageFocus } from "@slock/plugins/messages/client/api/messageFocus";
@@ -9,8 +10,8 @@ import MessageRows from "@slock/plugins/messages/client/api/pane/MessageRows";
 import { createFeedPagination } from "@slock/plugins/messages/client/api/pane/scroll/feedPagination";
 import { createFeedScroll } from "@slock/plugins/messages/client/api/pane/scroll/feedScroll";
 import type { Message, Ts } from "@slock/types";
-import { createResetSignal, type Pane } from "@slock/ui";
-import { createEffect, createMemo, Show } from "solid-js";
+import { createResetSignal, isTypingInPane, type Pane } from "@slock/ui";
+import { createEffect, createMemo, Show, untrack } from "solid-js";
 import { planThreadFocus } from "../lib/threadFocusPlan";
 import ThreadHeader from "./ThreadHeader";
 import ThreadJumpPills from "./ThreadJumpPills";
@@ -32,6 +33,11 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
   const messages = createMemo(() => messagesStore.messagesInThread(thread().ts) ?? []);
   const hasMore = () =>
     messagesStore.hasMoreReplies(thread().ts) || messagesStore.missingReplies(thread().ts) > 0;
+
+  const overrides = usePoint("threads.override");
+  const override = createMemo(() =>
+    firstTruthy(overrides(), (item) => item(thread().channelId, messages()[0])),
+  );
 
   const feed = createFeedScroll({
     isLive: () => !hasMore(),
@@ -60,10 +66,12 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
     loadOlder: loadEarlier,
     ready: feed.ready,
     scroller: feed.element,
+    settle: feed.settle,
     size: () => messages().length,
   });
 
   const messageFocus = createMessageFocus(messages, feed, () => thread().channelId, {
+    loadLatest: () => messagesStore.loadLatestReplies(thread().ts),
     paneId: props.pane.id,
     onReplyLink: (msg) => void startReply(msg),
     threadTs: () => thread().ts,
@@ -74,7 +82,7 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
   const replyTargetMessage = () => messages().find((m) => m.ts === replyTarget()?.ts);
   const jumpToReplyTarget = () => {
     const target = replyTarget();
-    if (target) feed.glideTo(target.ts);
+    if (target) feed.jumpTo(target.ts);
   };
   const cancelReply = () => setReplyTarget(null);
 
@@ -85,6 +93,11 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
       pagination.reset();
     },
   );
+
+  const focusLanding = (ts: Ts) =>
+    untrack(() => {
+      if (!isTypingInPane(props.pane.id)) messageFocus.focusMessage(ts);
+    });
 
   let handledFocusKey: string | undefined;
   createEffect(
@@ -108,22 +121,23 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
         repliesExhausted: false,
         ts,
       };
-      let step = planThreadFocus(input);
+      const plan = (next: typeof input) => untrack(() => planThreadFocus(next));
+      let step = plan(input);
       if (step.kind === "load-replies") {
         if (messagesStore.ensureThreadRepliesLoaded(channelId, ts, highlightTs)) return;
-        step = planThreadFocus({ ...input, repliesExhausted: true });
+        step = plan({ ...input, repliesExhausted: true });
       }
       if (step.kind !== "land") return;
       handledFocusKey = step.key;
       if (step.missingHighlight) feedback.flash("navigation", "Couldn't find that reply.", "error");
       const { landing } = step;
       if (landing.at === "highlight") {
-        messageFocus.focusMessage(landing.ts);
+        focusLanding(landing.ts);
         feed.land({ align: "center", at: "row", flash: true, ts: landing.ts });
       } else if (landing.at === "remembered") {
         feed.land({ at: "offset", offset: landing.offset, ts: landing.ts });
       } else {
-        messageFocus.focusMessage(landing.ts);
+        focusLanding(landing.ts);
         feed.land({ align: "start", at: "row", ts: landing.ts });
       }
     },
@@ -150,6 +164,7 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
       <ThreadHeader
         channelId={thread().channelId}
         hasMessages={messages().length > 0}
+        override={override()}
         paneId={props.pane.id}
         threadTs={thread().ts}
       />
@@ -161,6 +176,7 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
         onFocusIn={messageFocus.onContainerFocusIn}
         onFocusOut={messageFocus.onContainerFocusOut}
         ref={feed.attach}
+        tabindex={-1}
       >
         <Show when={inPaneSearch.open()}>
           <InPaneSearchBar
@@ -179,7 +195,7 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
           focusedTs={messageFocus.focusedTs}
           messages={messages()}
           moreMenuTs={messageFocus.moreMenuTs}
-          onJumpToMessage={feed.glideTo}
+          onJumpToMessage={feed.jumpTo}
           onReplyLink={startReply}
           onStartEdit={messageFocus.onStartEdit}
           onStopEdit={messageFocus.onStopEdit}
@@ -193,35 +209,37 @@ export default function ThreadPane(props: { pane: Pane<ThreadPaneContent> }) {
         <ThreadMoreStatus ts={thread().ts} />
       </div>
       <ThreadJumpPills
-        atBottom={feed.atBottom() && !hasMore()}
+        atBottom={feed.atBottom() && !messagesStore.hasMoreReplies(thread().ts)}
         atTop={feed.atTop()}
         onFirst={() => messageFocus.focusEdge("start")}
         onLatest={() => messageFocus.focusEdge("end")}
       />
       <div class="typing-indicator-anchor composer-overlay">
         <Slot channelId={thread().channelId} point="messages.footer" threadTs={thread().ts} />
-        <ComposerGate channelId={thread().channelId} locked={messages()[0]?.isLocked}>
-          <Show keyed when={thread().ts}>
-            <Slot
-              channelId={thread().channelId}
-              paneId={props.pane.id}
-              placeholder="Reply…"
-              point="composer.input"
-              replyTo={(() => {
-                const rt = replyTarget();
-                return rt
-                  ? {
-                      message: replyTargetMessage(),
-                      onCancel: cancelReply,
-                      onJump: jumpToReplyTarget,
-                      onSent: cancelReply,
-                      permalink: rt.permalink,
-                    }
-                  : undefined;
-              })()}
-              threadTs={thread().ts}
-            />
-          </Show>
+        <ComposerGate
+          channelId={thread().channelId}
+          locked={messages()[0]?.isLocked}
+          notice={override()?.notice?.()}
+        >
+          <Slot
+            channelId={thread().channelId}
+            paneId={props.pane.id}
+            placeholder="Reply…"
+            point="composer.input"
+            replyTo={(() => {
+              const rt = replyTarget();
+              return rt
+                ? {
+                    message: replyTargetMessage(),
+                    onCancel: cancelReply,
+                    onJump: jumpToReplyTarget,
+                    onSent: cancelReply,
+                    permalink: rt.permalink,
+                  }
+                : undefined;
+            })()}
+            threadTs={thread().ts}
+          />
         </ComposerGate>
       </div>
     </div>

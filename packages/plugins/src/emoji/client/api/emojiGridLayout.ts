@@ -8,7 +8,7 @@ const CHUNK_ROWS = 6;
 const CHUNK_SIZE = EMOJI_COLUMNS * CHUNK_ROWS;
 const OVERSCAN_PX = 120;
 
-export interface EmojiChunk<T> {
+interface EmojiChunk<T> {
   entries: T[];
   height: number;
   startIndex: number;

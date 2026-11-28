@@ -1,5 +1,10 @@
 const SLACK_HOST_RE = /\.(?:slack-files|slack|slack-edge)\.com$/;
 const HTTP_RE = /^https?:\/\//i;
+const GIF_PATH_RE = /^[^?#]*\.gif(?:[?#]|$)/i;
+
+export function isGifUrl(url: string | undefined): boolean {
+  return !!url && GIF_PATH_RE.test(url);
+}
 
 function isSlackFile(url: string): boolean {
   try {
@@ -8,6 +13,10 @@ function isSlackFile(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+export function isThirdParty(url: string | undefined): boolean {
+  return !!url && HTTP_RE.test(url) && !isSlackFile(url);
 }
 
 export function fileSrc(url: string): string;

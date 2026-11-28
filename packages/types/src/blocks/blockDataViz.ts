@@ -1,9 +1,11 @@
 import type { RichTextBlock } from "../richText";
+import type { ButtonElement } from "./blockElements";
 
-export interface TableCell {
+interface TableCell {
+  element?: ButtonElement;
   elements?: RichTextBlock["elements"];
   text?: string;
-  type: "raw_text" | "raw_number" | "rich_text";
+  type: "action_cell" | "raw_text" | "raw_number" | "rich_text";
   value?: number;
 }
 
@@ -20,12 +22,12 @@ export interface TableBlock {
   row_header_column_index?: number;
 }
 
-export interface ChartSegment {
+interface ChartSegment {
   label: string;
   value: number;
 }
 
-export interface ChartDataPoint {
+interface ChartDataPoint {
   label: string;
   value: number;
 }
@@ -41,7 +43,7 @@ export interface ChartAxisConfig {
   y_label?: string;
 }
 
-export type Chart =
+type Chart =
   | { segments: ChartSegment[]; type: "pie" }
   | { axis_config: ChartAxisConfig; series: ChartSeries[]; type: "bar" | "area" | "line" };
 

@@ -3,8 +3,8 @@ import type Quill from "@slock/ui/editor/quill";
 import { type CanvasCommandContext, runCanvasCommand } from "../lib/canvasCommands";
 
 export function useCanvasSelectionShortcuts(options: {
+  canComment: () => boolean;
   contextFor: (quill: Quill) => CanvasCommandContext;
-  editable: () => boolean;
   quill: () => Quill | undefined;
 }) {
   const focusedQuill = () => {
@@ -13,7 +13,7 @@ export function useCanvasSelectionShortcuts(options: {
   };
   const shared = {
     allowInInputs: true,
-    enabled: () => options.editable() && !!focusedQuill(),
+    enabled: () => options.canComment() && !!focusedQuill(),
     group: "Canvas",
     scope: "general",
   } as const;

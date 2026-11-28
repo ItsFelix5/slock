@@ -1,5 +1,6 @@
 {
   "id": "messages",
+  "category": "Core",
   "name": "Messages",
   "requires": [
     "bootstrap",

@@ -89,6 +89,7 @@ export function MessageLinkMention(props: {
   return (
     <Link
       class={`bk-mention bk-mention-link bk-mention-message${isVisible() ? " bk-mention-visible" : ""}`}
+      data={{ "data-copy": props.url }}
       url={props.url}
     >
       <Icon name="message" size={12} />
@@ -213,6 +214,7 @@ export function Mention(
       ? { "data-link-url": props.url, "data-mention-id": props.id }
       : {
           "data-channel-id": props.id,
+          "data-copy": `#${name()}`,
           "data-channel-name": name(),
           "data-link-url": props.url,
         };

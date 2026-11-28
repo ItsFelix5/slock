@@ -1,8 +1,16 @@
 import { isRecord } from "@slock/core";
 import { defineQuery } from "@slock/plugins/query/client/api";
-import { apiPost, isRawMessage, mapVisibleMessage, parseChannelId, parseTs } from "@slock/slack";
-import type { ChannelId, Message, RawMessage, Ts } from "@slock/types";
-import { createBatchedIdFetcher } from "./cache/batchedIdFetcher";
+import { createBatchLoader } from "@slock/resource";
+import {
+  ifPresent,
+  isHiddenSubtype,
+  isRawMessage,
+  parseChannelId,
+  parseTs,
+  replyError,
+} from "@slock/slack";
+import { apiPost, mapVisibleMessage } from "@slock/slack/client";
+import type { ChannelId, GatewayMessageEvent, Message, RawMessage, Ts } from "@slock/types";
 
 type MessageIdGroup = { channel: ChannelId; timestamps: Ts[] };
 type MessageRef = { channelId: ChannelId; ts: Ts };
@@ -30,7 +38,7 @@ async function lookup(messageIds: MessageIdGroup[]): Promise<Map<string, Message
       ]);
       return new Map(halves.flatMap((half) => [...half]));
     }
-    throw new Error(data.error ?? "messages.list failed while resolving messages");
+    throw replyError(data, "messages.list failed while resolving messages");
   }
   const found = new Map<string, Message>();
   for (const [channelId, entry] of Object.entries(data.messages ?? {})) {
@@ -42,23 +50,49 @@ async function lookup(messageIds: MessageIdGroup[]): Promise<Map<string, Message
   return found;
 }
 
-const fetchBatched = createBatchedIdFetcher<Message | null>(async (keys) => {
-  const timestampsByChannel = new Map<ChannelId, Ts[]>();
-  for (const key of keys) {
-    const [rawChannel = "", rawTs = ""] = key.split(":");
-    const channel = parseChannelId(rawChannel);
-    timestampsByChannel.set(channel, [...(timestampsByChannel.get(channel) ?? []), parseTs(rawTs)]);
-  }
-  const found = await lookup(
-    [...timestampsByChannel].map(([channel, timestamps]) => ({ channel, timestamps })),
-  );
-  return new Map(keys.map((key) => [key, found.get(key) ?? null]));
-}, MESSAGES_LIST_BATCH_SIZE);
+const fetchBatched = createBatchLoader<Message | null>({
+  load: async (keys) => {
+    const timestampsByChannel = new Map<ChannelId, Ts[]>();
+    for (const key of keys) {
+      const [rawChannel = "", rawTs = ""] = key.split(":");
+      const channel = parseChannelId(rawChannel);
+      timestampsByChannel.set(channel, [
+        ...(timestampsByChannel.get(channel) ?? []),
+        parseTs(rawTs),
+      ]);
+    }
+    const found = await lookup(
+      [...timestampsByChannel].map(([channel, timestamps]) => ({ channel, timestamps })),
+    );
+    return new Map(keys.map((key) => [key, found.get(key) ?? null]));
+  },
+  maxBatch: MESSAGES_LIST_BATCH_SIZE,
+});
 
 const lookupMessage = defineQuery<MessageRef, Message | null>({
   load: ({ channelId, ts }) => fetchBatched(`${channelId}:${ts}`),
   name: "message",
 });
+
+export function primeMessageLookup(event: GatewayMessageEvent): void {
+  const channelId = ifPresent(parseChannelId, event.channel);
+  if (!channelId) return;
+  const deletedTs = ifPresent(parseTs, event.deleted_ts);
+  if (deletedTs) {
+    lookupMessage.set({ channelId, ts: deletedTs }, null);
+    return;
+  }
+  const wraps = event.subtype === "message_changed" || event.subtype === "message_replied";
+  const raw = wraps ? event.message : event;
+  const ts = ifPresent(parseTs, raw?.ts);
+  if (!(raw && ts) || raw.is_ephemeral) return;
+  const message = isHiddenSubtype(raw.subtype) ? null : mapVisibleMessage({ ...raw, ts });
+  if (message !== undefined) lookupMessage.set({ channelId, ts }, message);
+}
+
+export function invalidateMessageLookup(channelId: ChannelId, ts: Ts): void {
+  lookupMessage.invalidate({ channelId, ts });
+}
 
 export async function fetchMessagesByIds(
   entries: MessageRef[],

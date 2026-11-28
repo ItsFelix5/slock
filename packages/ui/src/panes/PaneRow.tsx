@@ -1,5 +1,5 @@
 import type { JSX } from "@solidjs/web";
-import { createMemo, For, Show } from "solid-js";
+import { createMemo, For, Show, untrack } from "solid-js";
 import "./PaneRow.css";
 import { defined } from "@slock/core";
 
@@ -91,7 +91,7 @@ export default function PaneRow<T>(props: PaneLayoutProps<T>) {
                     }
                   }}
                   tabRef={(el) => {
-                    tabButtonRefs[i()] = el;
+                    tabButtonRefs[untrack(i)] = el;
                   }}
                 >
                   {props.tabLabel?.(pane)}

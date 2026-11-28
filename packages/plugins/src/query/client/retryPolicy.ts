@@ -1,5 +1,6 @@
 import type { RetryDecision, RetryPolicy } from "@slock/resource";
-import { isSlackError, retryDecision } from "@slock/slack";
+import { isSlackError } from "@slock/slack";
+import { retryDecision } from "./api/retryDecision";
 
 const MAX_ATTEMPTS = 3;
 const MAX_PLAIN_BACKOFF_MS = 1_000;

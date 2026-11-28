@@ -1,7 +1,7 @@
 import { decodeTextEntities } from "@slock/slack";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Match, Switch } from "solid-js";
 import { useEmojiFreeze } from "../context";
-import { EMOJI_TOKEN_RE, resolveStandardEmoji } from "./emoji";
+import { EMOJI_TOKEN_RE, resolveEmojiGlyph } from "./emoji";
 import { useEmojiSource } from "./emojiSource";
 import "./EmojiText.css";
 import { defined } from "@slock/core";
@@ -56,73 +56,62 @@ function StillEmojiImg(props: { name: string; url: string; onError?: () => void 
   );
 }
 
-export default function EmojiText(props: { text: string }) {
+export function EmojiGlyph(props: { glyph: string; name: string }) {
+  return (
+    <span class="emoji" data-emoji-name={props.name} title={`:${props.name}:`}>
+      {props.glyph}
+    </span>
+  );
+}
+
+function EmojiPart(props: { name: string }) {
   const freeze = useEmojiFreeze();
   const emoji = useEmojiSource();
+  const [brokenUrl, setBrokenUrl] = createSignal<string | null>();
+  const url = createMemo(() => {
+    const candidate = emoji.url(props.name);
+    return candidate === brokenUrl() ? undefined : candidate;
+  });
+  const unicode = createMemo(() => resolveEmojiGlyph(props.name, emoji));
+  createEffect(
+    () => !unicode() && url() === undefined && !emoji.failed(),
+    (needsLoad) => {
+      if (needsLoad) void emoji.load();
+    },
+  );
+  const onError = () => setBrokenUrl(emoji.url(props.name));
+  return (
+    <Switch fallback={<span class="emoji-missing">{`:${props.name}:`}</span>}>
+      <Match when={url()}>
+        {(src) =>
+          freeze() ? (
+            <StillEmojiImg name={props.name} onError={onError} url={src()} />
+          ) : (
+            <img
+              alt={`:${props.name}:`}
+              class="emoji-img"
+              data-emoji-name={props.name}
+              decoding="async"
+              onError={onError}
+              src={src()}
+              title={`:${props.name}:`}
+            />
+          )
+        }
+      </Match>
+      <Match when={unicode()}>{(glyph) => <EmojiGlyph glyph={glyph()} name={props.name} />}</Match>
+      <Match when={url() === undefined}>
+        <span class="emoji-img emoji-placeholder" data-emoji-name={props.name} />
+      </Match>
+    </Switch>
+  );
+}
+
+export default function EmojiText(props: { text: string }) {
   const parts = createMemo(() => splitParts(decodeTextEntities(props.text)));
   return (
     <For each={parts()}>
-      {(part) => {
-        if (part.type === "text") return <>{part.value}</>;
-
-        const rawUrl = createMemo(() => emoji.url(part.name));
-        const [brokenUrl, setBrokenUrl] = createSignal<string | null>();
-        const url = createMemo(() => {
-          const candidate = rawUrl();
-          return candidate === brokenUrl() ? undefined : candidate;
-        });
-        const unicode = createMemo(() => {
-          const alias = emoji.aliasTarget(part.name);
-          return (
-            resolveStandardEmoji(part.name) ?? (alias ? resolveStandardEmoji(alias) : undefined)
-          );
-        });
-        const loading = createMemo(() => !unicode() && url() === undefined);
-        createEffect(
-          () => !unicode() && url() === undefined && !emoji.failed(),
-          (needsLoad) => {
-            if (needsLoad) void emoji.load();
-          },
-        );
-        return (
-          <Show
-            fallback={
-              unicode() ? (
-                <span class="emoji" data-emoji-name={part.name}>
-                  {unicode()}
-                </span>
-              ) : loading() ? (
-                <span class="emoji-img emoji-placeholder" data-emoji-name={part.name} />
-              ) : (
-                <span class="emoji-missing">{`:${part.name}:`}</span>
-              )
-            }
-            when={url()}
-          >
-            {(u) => {
-              const onError = () => setBrokenUrl(rawUrl());
-              return (
-                <Show
-                  fallback={
-                    <img
-                      alt={`:${part.name}:`}
-                      class="emoji-img"
-                      data-emoji-name={part.name}
-                      decoding="async"
-                      onError={onError}
-                      src={u()}
-                      title={`:${part.name}:`}
-                    />
-                  }
-                  when={freeze()}
-                >
-                  <StillEmojiImg name={part.name} onError={onError} url={u()} />
-                </Show>
-              );
-            }}
-          </Show>
-        );
-      }}
+      {(part) => (part.type === "text" ? part.value : <EmojiPart name={part.name} />)}
     </For>
   );
 }

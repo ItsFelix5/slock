@@ -2,7 +2,7 @@ import { service } from "@slock/core/solid";
 import type { JSX } from "@solidjs/web";
 import { Portal } from "@solidjs/web";
 import { onSettled } from "solid-js";
-import { focusableWithin, tabWrapTarget } from "./dialog/focusTrap";
+import { captureFocus, focusableWithin, tabWrapTarget } from "./dialog/focusTrap";
 import { FloatingMountContext } from "./floating/FloatingPanel";
 import "./Overlay.css";
 
@@ -12,7 +12,7 @@ type OverlayLabel =
   | { ariaLabel: string; ariaLabelledBy?: never }
   | { ariaLabel?: never; ariaLabelledBy: string };
 
-export type OverlayProps = OverlayLabel & {
+type OverlayProps = OverlayLabel & {
   align?: "center" | "top";
   children: JSX.Element;
   onClose: () => void;
@@ -21,22 +21,19 @@ export type OverlayProps = OverlayLabel & {
 export default function Overlay(props: OverlayProps) {
   let overlayRef: HTMLDivElement | undefined;
   let pressStartedOnBackdrop = false;
-  const previouslyFocused =
-    document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const returnFocus = captureFocus();
 
   onSettled(() => {
-    const layer = ui.focusLayers.push({});
+    const { focusLayers } = ui;
+    const layer = focusLayers.push({});
     queueMicrotask(() => {
-      if (
-        !(ui.focusLayers.isTop(layer) && overlayRef) ||
-        overlayRef.contains(document.activeElement)
-      )
+      if (!(focusLayers.isTop(layer) && overlayRef) || overlayRef.contains(document.activeElement))
         return;
       (focusableWithin(overlayRef)[0] ?? overlayRef).focus();
     });
 
     const keepFocusInside = (event: KeyboardEvent) => {
-      if (event.key !== "Tab" || !ui.focusLayers.isTop(layer) || !overlayRef) return;
+      if (event.key !== "Tab" || !focusLayers.isTop(layer) || !overlayRef) return;
       const focusable = focusableWithin(overlayRef);
       if (focusable.length === 0) {
         event.preventDefault();
@@ -58,12 +55,8 @@ export default function Overlay(props: OverlayProps) {
     document.addEventListener("keydown", keepFocusInside);
     return () => {
       document.removeEventListener("keydown", keepFocusInside);
-      const { wasTop, revealed } = ui.focusLayers.pop(layer);
-      if (!(wasTop && previouslyFocused?.isConnected)) return;
-      queueMicrotask(() => {
-        if (ui.focusLayers.isTop(revealed) && previouslyFocused.isConnected)
-          previouslyFocused.focus();
-      });
+      const { wasTop, revealed } = focusLayers.pop(layer);
+      if (wasTop) returnFocus(() => focusLayers.isTop(revealed));
     };
   });
 

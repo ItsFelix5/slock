@@ -19,7 +19,7 @@ function candidates(base: string): string[] {
   ];
 }
 
-export function resolveFile(base: string): string | undefined {
+function resolveFile(base: string): string | undefined {
   return candidates(base).find(isFile);
 }
 

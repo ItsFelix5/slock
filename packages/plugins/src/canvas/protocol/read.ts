@@ -1,6 +1,6 @@
 import type { CanvasNode, CanvasTable, LayoutFrame } from "@slock/types";
 import { tableGrid } from "./canvasTable.ts";
-import { readFile, readImage } from "./fileContent.ts";
+import { readAttachment, readImage } from "./fileContent.ts";
 import {
   type ContainerKind,
   type ExistingContainer,
@@ -9,11 +9,10 @@ import {
   ownPosition,
   sectionText,
 } from "./flow.ts";
-import { type LayoutRead, layoutKindOf, layoutMemberIds, readLayout } from "./layoutContent.ts";
+import { type LayoutRead, layoutKindOf, readLayout } from "./layoutContent.ts";
 import {
   lineShapeForStyle,
   listKindForStyle,
-  STYLE_DIVIDER,
   STYLE_FILE,
   STYLE_IMAGE,
   STYLE_TABLE,
@@ -27,17 +26,12 @@ import {
 } from "./lineStyles.ts";
 import { asMessage, field } from "./protobufRaw.ts";
 import type { DecodedCanvas, SectionRecord } from "./sections.ts";
+import { referencedIds, unknownNode } from "./unknown.ts";
 
 interface Trail {
   frames: LayoutFrame[];
   layoutIds: string[];
   wrapper: { id: string; weight: number } | null;
-}
-
-function descendantIds(record: SectionRecord): string[] {
-  const content = asMessage(field(record.msg, 12));
-  if (!content) return [];
-  return [...layoutMemberIds(record), ...(tableGrid(content)?.cellContentIds.values() ?? [])];
 }
 
 function compare(a: SectionRecord, b: SectionRecord): number {
@@ -54,6 +48,13 @@ function attributes(record: SectionRecord) {
 
 function isListContainer(record: SectionRecord): boolean {
   return record.type === TYPE_LIST && listKindForStyle(record.style) !== null;
+}
+
+// Slack omits the content of a line that is still empty.
+function isTextLine(record: SectionRecord): boolean {
+  if (record.type !== TYPE_TEXT) return false;
+  const content = field(record.msg, 12);
+  return !content || !!asMessage(content)?.has(1);
 }
 
 function tableNode(
@@ -84,14 +85,19 @@ function atomNode(
 ): CanvasNode | null {
   const { id } = record;
   if (!id) return null;
-  if (record.type === TYPE_DIVIDER && record.style === STYLE_DIVIDER)
+  if (record.type === TYPE_DIVIDER)
     return { checked: false, frames, html: "", id, indent: 0, kind: "divider", level: 0 };
-  if (record.type === TYPE_FILE && record.style === STYLE_FILE) return readFile(record, frames);
+  if (record.type === TYPE_FILE && record.style === STYLE_FILE)
+    return readAttachment(record, frames);
   if (record.type === TYPE_IMAGE && record.style === STYLE_IMAGE)
     return readImage(record, frames, weight);
   if (record.type === TYPE_TABLE && record.style === STYLE_TABLE)
     return tableNode(record, records, frames);
   return null;
+}
+
+export function readNodes(decoded: DecodedCanvas): CanvasNode[] {
+  return buildFlow(decoded).entries.map((entry) => entry.node);
 }
 
 export function buildFlow(decoded: DecodedCanvas): Flow {
@@ -117,15 +123,13 @@ export function buildFlow(decoded: DecodedCanvas): Flow {
   const entries: FlowEntry[] = [];
   const visited = new Set<string>();
 
-  function push(
-    record: SectionRecord,
-    node: CanvasNode | null,
-    trail: Trail,
-    listId: string | null,
-  ) {
+  function push(record: SectionRecord, node: CanvasNode, trail: Trail, listId: string | null) {
     if (!record.id) return;
+    const descendants =
+      node.kind === "table" || node.kind === "unknown" ? referencedIds(record, records) : [];
+    for (const id of descendants) visited.add(id);
     entries.push({
-      descendants: node && node.kind !== "table" ? [] : descendantIds(record),
+      descendants,
       existing: {
         layoutIds: trail.layoutIds,
         listId,
@@ -157,6 +161,11 @@ export function buildFlow(decoded: DecodedCanvas): Flow {
     for (const item of listItems(container)) {
       if (!item.id || visited.has(item.id)) continue;
       visited.add(item.id);
+      if (item.type !== TYPE_TEXT) {
+        const node = unknownNode(item.id, item, records, trail.frames);
+        push(item, node, trail, item.parentIds[0] ?? container.id);
+        continue;
+      }
       const ownerId = item.parentIds[0] ?? container.id;
       const owner = ownerId ? containers.get(ownerId) : undefined;
       const kind = (owner && listKindForStyle(owner.style)) ?? containerKind;
@@ -176,7 +185,8 @@ export function buildFlow(decoded: DecodedCanvas): Flow {
 
   function walkLayout(record: SectionRecord, layout: LayoutRead, trail: Trail) {
     if (layout.kind === "columns" && trail.frames.some((frame) => frame.kind !== "columns")) {
-      push(record, null, trail, null);
+      if (record.id)
+        push(record, unknownNode(record.id, record, records, trail.frames), trail, null);
       return;
     }
     const weights = layout.columns.map((column) => column.weight);
@@ -218,24 +228,23 @@ export function buildFlow(decoded: DecodedCanvas): Flow {
       walkList(record, trail);
       return;
     }
-    if (record.type === TYPE_TEXT && field(record.msg, 12)) {
-      const content = asMessage(field(record.msg, 12));
-      if (content && field(content, 1)) {
-        const shape = lineShapeForStyle(record.style);
-        const node: CanvasNode = {
-          checked: false,
-          frames: trail.frames,
-          html: sectionText(record),
-          id: record.id,
-          indent: 0,
-          kind: shape.kind,
-          level: shape.level,
-        };
-        push(record, node, trail, null);
-        return;
-      }
+    if (isTextLine(record)) {
+      const shape = lineShapeForStyle(record.style);
+      const node: CanvasNode = {
+        checked: false,
+        frames: trail.frames,
+        html: sectionText(record),
+        id: record.id,
+        indent: 0,
+        kind: shape.kind,
+        level: shape.level,
+      };
+      push(record, node, trail, null);
+      return;
     }
-    const node = atomNode(record, records, trail.frames, trail.wrapper?.weight ?? 0);
+    const node =
+      atomNode(record, records, trail.frames, trail.wrapper?.weight ?? 0) ??
+      unknownNode(record.id, record, records, trail.frames);
     push(record, node, trail, null);
   }
 

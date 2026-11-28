@@ -16,7 +16,6 @@ type BootstrapCounts = {
 export function createUnreadStore(deps: {
   api: ReadApi;
   flash: Services["feedback"]["flash"];
-  onReadSynced: () => void;
   patchChannel: (id: ChannelId, patch: Partial<Channel>) => void;
   patchDm: (id: ChannelId, patch: Partial<DirectMessage>) => void;
   bootstrap: () => BootstrapCounts | undefined;
@@ -65,39 +64,10 @@ export function createUnreadStore(deps: {
     },
   );
 
-  const countsMayChange = new Set<string>();
-  const threadKey = (channelId: ChannelId, threadTs: Ts) => `${channelId}:${threadTs}`;
-  const afterWrite = async <T>(key: string, write: Promise<T>) => {
-    const result = await write;
-    if (countsMayChange.delete(key)) deps.onReadSynced();
-    return result;
-  };
-  const readSync = createReadSync(
-    {
-      markChannelRead: (channelId, ts) =>
-        afterWrite(channelId, deps.api.markChannelRead(channelId, ts)),
-      markThreadRead: (channelId, threadTs, ts) =>
-        afterWrite(
-          threadKey(channelId, threadTs),
-          deps.api.markThreadRead(channelId, threadTs, ts),
-        ),
-    },
-    deps.flash,
-  );
-  const { isStaleReadEcho, syncThreadRead } = readSync;
-
-  function setChannelRead(channelId: ChannelId, ts: Ts) {
-    countsMayChange.add(channelId);
-    return readSync.setChannelRead(channelId, ts);
-  }
-
-  function syncChannelRead(channelId: ChannelId, ts: Ts) {
-    if (unreadChannelIds[channelId]) countsMayChange.add(channelId);
-    return readSync.syncChannelRead(channelId, ts);
-  }
+  const readSync = createReadSync(deps.api, deps.flash);
+  const { isStaleReadEcho, setChannelRead, syncChannelRead, syncThreadRead } = readSync;
 
   async function setThreadRead(channelId: ChannelId, threadTs: Ts, ts: Ts): Promise<boolean> {
-    countsMayChange.add(threadKey(channelId, threadTs));
     const prior = threadReadTs[threadTs];
     setThreadReadTs(threadTs, ts);
     const synced = await readSync.setThreadRead(channelId, threadTs, ts);
@@ -106,7 +76,6 @@ export function createUnreadStore(deps: {
   }
 
   function clearChannelUnread(channelId: ChannelId) {
-    if (unreadChannelIds[channelId]) countsMayChange.add(channelId);
     setUnreadChannelIds(channelId, false);
     const isDm = isDmId(
       channelId,
@@ -148,8 +117,6 @@ export function createUnreadStore(deps: {
       wireReadTracking(
         {
           clearChannelUnread,
-          countsMayChange,
-          isThreadUnread,
           isViewed,
           lastReadByChannel,
           lastReadSeeded,
@@ -158,7 +125,6 @@ export function createUnreadStore(deps: {
           setUnreadDividerTs,
           syncChannelRead,
           syncThreadRead,
-          threadKey,
           unreadChannelIds,
           unreadDividerTs,
         },

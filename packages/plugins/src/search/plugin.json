@@ -1,5 +1,6 @@
 {
   "id": "search",
+  "category": "Search and files",
   "name": "Search",
   "requires": [
     "bootstrap",
@@ -10,8 +11,10 @@
     "files",
     "message-links",
     "prefs",
+    "query",
     "shell",
     "sidebar",
     "users"
-  ]
+  ],
+  "boot": true
 }

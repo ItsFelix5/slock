@@ -1,18 +1,10 @@
 import { sameItems } from "@slock/core";
+import { mentionText } from "@slock/plugins/users/client/api";
 import type { FilesLinksEntry } from "../api";
 
 export type TypeFilter = "all" | "images" | "files" | "links";
 export type SortMode = "newest" | "oldest" | "name";
 export const SORT_MODES: SortMode[] = ["newest", "oldest", "name"];
-
-export function formatDate(seconds: number | undefined): string {
-  if (!seconds) return "";
-  return new Date(seconds * 1000).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 function monthLabel(seconds: number): string {
   if (!seconds) return "Undated";
@@ -30,7 +22,7 @@ export function linkDomain(url: string): string {
 
 function entryTitle(entry: FilesLinksEntry): string {
   return entry.kind === "file"
-    ? entry.file.title || entry.file.name || ""
+    ? mentionText(entry.file.title || entry.file.name || "")
     : entry.link.title || entry.link.url;
 }
 

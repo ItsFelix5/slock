@@ -1,22 +1,62 @@
 import { BlockKit, TimeAnchorContext } from "@slock/blockkit";
-import TextOrFiles from "@slock/plugins/files/client/api/TextOrFiles";
-import type { Block, ChannelId, SlackFile, Ts } from "@slock/types";
+import type { ChannelId, TeamId, Ts } from "@slock/types";
 import { Show } from "solid-js";
+import MessagePreviewImages from "../preview/MessagePreviewImages";
+import MessagePreviewText from "../preview/MessagePreviewText";
+import { type PreviewContent, previewBody } from "../preview/previewContent";
+import "./MessageEdited.css";
 
-export default function MessageReferenceSnippet(props: {
-  blocks?: Block[];
-  botId?: string;
-  botUserId?: string;
-  channelId: ChannelId;
-  edited?: boolean;
-  files?: SlackFile[];
-  inline?: boolean;
-  text: string;
-  threadTs?: Ts;
-  ts: Ts;
-  tz?: string;
-}) {
-  const blocks = () => (props.blocks?.length ? props.blocks : undefined);
+export default function MessageReferenceSnippet(
+  props: PreviewContent & {
+    botId?: string;
+    botTeamId?: TeamId;
+    botUserId?: string;
+    channelId: ChannelId;
+    edited?: boolean;
+    inline?: boolean;
+    textClass?: string;
+    threadTs?: Ts;
+    thumbnails?: boolean;
+    ts: Ts;
+    tz?: string;
+  },
+) {
+  const blocks = () => previewBody(props).blocks;
+  const body = () => (
+    <Show
+      fallback={
+        <>
+          <MessagePreviewText
+            attachments={props.attachments}
+            blocks={props.blocks}
+            files={props.files}
+            inline={props.inline}
+            text={props.text}
+          />
+          <Show when={props.edited}>
+            <span class="message-edited" />
+          </Show>
+        </>
+      }
+      when={blocks()}
+    >
+      {(b) => (
+        <BlockKit
+          blocks={b()}
+          context={{
+            botId: props.botId,
+            botTeamId: props.botTeamId,
+            botUserId: props.botUserId,
+            channelId: props.channelId,
+            messageTs: props.ts,
+            threadTs: props.threadTs,
+          }}
+          inert={props.inline}
+          trailing={props.edited ? <span class="message-edited" /> : undefined}
+        />
+      )}
+    </Show>
+  );
 
   return (
     <TimeAnchorContext
@@ -29,31 +69,14 @@ export default function MessageReferenceSnippet(props: {
         },
       }}
     >
-      <Show
-        fallback={
-          <>
-            <TextOrFiles files={props.files} inline={props.inline} text={props.text} />
-            <Show when={props.edited}>
-              <span class="message-edited"> (edited)</span>
-            </Show>
-          </>
-        }
-        when={blocks()}
-      >
-        {(b) => (
-          <BlockKit
-            blocks={b()}
-            context={{
-              botId: props.botId,
-              botUserId: props.botUserId,
-              channelId: props.channelId,
-              messageTs: props.ts,
-              threadTs: props.threadTs,
-            }}
-            inert={props.inline}
-            trailing={props.edited ? <span class="message-edited"> (edited)</span> : undefined}
-          />
-        )}
+      <Show fallback={body()} when={props.thumbnails}>
+        <div class={props.textClass}>{body()}</div>
+        <MessagePreviewImages
+          attachments={props.attachments}
+          blocks={props.blocks}
+          files={props.files}
+          text={props.text}
+        />
       </Show>
     </TimeAnchorContext>
   );

@@ -5,14 +5,13 @@ import { createSignal, Show } from "solid-js";
 import { createSearchStore } from "./store";
 
 const GlobalSearch = lazyChunk(() => import("./views/GlobalSearch"));
-const MessageSearchView = lazyChunk(() => import("./views/MessageSearchView"));
+const SearchScreen = lazyChunk(() => import("./views/SearchScreen"));
 
 const setup: Setup = (ctx) => {
   const sidebar = service("sidebar");
   const search = createSearchStore({ showScreen: () => sidebar.setNavView("search") });
   ctx.provide("search", search);
   const [open, setOpen] = createSignal(!!service("message-links.share").pendingShareText());
-  const files = service("files");
 
   useShortcut({
     allowInInputs: true,
@@ -42,7 +41,7 @@ const setup: Setup = (ctx) => {
       hidden: true,
       id: "search",
       label: "Search",
-      view: MessageSearchView,
+      view: SearchScreen,
     },
     { order: 30 },
   );
@@ -58,11 +57,9 @@ const setup: Setup = (ctx) => {
     { order: 30 },
   );
   ctx.add("shell.overlay", () => (
-    <>
-      <Show when={open()}>
-        <GlobalSearch onClose={() => setOpen(false)} onFile={files.open} />
-      </Show>
-    </>
+    <Show when={open()}>
+      <GlobalSearch onClose={() => setOpen(false)} />
+    </Show>
   ));
 };
 

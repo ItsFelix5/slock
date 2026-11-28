@@ -1,5 +1,5 @@
 import { service } from "@slock/core/solid";
-import { createEffect, createSignal } from "solid-js";
+import { createEffect, createSignal, untrack } from "solid-js";
 import { type TopUpState, topUpStep } from "./activityScroll";
 
 const activityStore = service("activity");
@@ -23,11 +23,12 @@ export function createActivityTopUp(scope: {
       return { key: scope.key(), types: scope.types(), unreadOnly: scope.unreadOnly() };
     },
     {
-      effect: ({ key, types, unreadOnly }) => {
-        const step = topUpStep(topUp, key, scope.container());
-        topUp = step.state;
-        if (step.load) activityStore.loadMoreActivity(types, unreadOnly);
-      },
+      effect: ({ key, types, unreadOnly }) =>
+        untrack(() => {
+          const step = topUpStep(topUp, key, scope.container());
+          topUp = step.state;
+          if (step.load) activityStore.loadMoreActivity(types, unreadOnly);
+        }),
       error: () => {},
     },
   );

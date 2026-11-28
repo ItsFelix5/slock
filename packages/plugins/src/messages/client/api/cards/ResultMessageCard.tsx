@@ -50,14 +50,13 @@ export default function ResultMessageCard(props: {
                 <span class="result-message-card-context flex-align-center">{props.context}</span>
               </Show>
               <Show when={props.time}>
-                <Show
-                  fallback={<span class="result-message-card-time">{props.time}</span>}
-                  when={props.timeTitle}
-                >
-                  <Tooltip content={props.timeTitle}>
-                    <span class="result-message-card-time">{props.time}</span>
-                  </Tooltip>
-                </Show>
+                <span class="result-message-card-time">
+                  <Show fallback={props.time} when={props.timeTitle}>
+                    <Tooltip content={props.timeTitle}>
+                      <span>{props.time}</span>
+                    </Tooltip>
+                  </Show>
+                </span>
               </Show>
             </div>
             <div class="result-message-card-snippet">{props.snippet}</div>

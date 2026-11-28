@@ -1,13 +1,11 @@
-import type { TimerHandle } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { FloatingPanel, IconButton, InlineFeedback, MenuItem } from "@slock/ui";
-import { createSignal, For, onCleanup } from "solid-js";
+import { FloatingPanel, IconButton, InlineFeedback, MenuItem, useHoverIntent } from "@slock/ui";
+import { For } from "solid-js";
 import "./DndButton.css";
 
 const feedback = service("feedback");
 
 const prefsStore = service("prefs");
-const env = service("env");
 
 const OPEN_DELAY = 350;
 const CLOSE_DELAY = 200;
@@ -21,32 +19,17 @@ const DURATIONS = [
 ];
 
 export default function DndButton() {
-  const [open, setOpen] = createSignal(false);
-
+  const hover = useHoverIntent(OPEN_DELAY, CLOSE_DELAY);
   let wrapRef: HTMLFieldSetElement | undefined;
-  let openTimer: TimerHandle | undefined;
-  let closeTimer: TimerHandle | undefined;
 
   const scheduleOpen = () => {
-    env.clearTimeout(closeTimer);
-    if (!(prefsStore.isDndActive() || prefsStore.hasDndStatusError()))
-      openTimer = env.setTimeout(() => setOpen(true), OPEN_DELAY);
+    if (prefsStore.isDndActive() || prefsStore.hasDndStatusError()) hover.cancelClose();
+    else hover.scheduleOpen();
   };
-  const scheduleClose = () => {
-    env.clearTimeout(openTimer);
-    closeTimer = env.setTimeout(() => setOpen(false), CLOSE_DELAY);
-  };
-  const cancelClose = () => env.clearTimeout(closeTimer);
-
-  onCleanup(() => {
-    env.clearTimeout(openTimer);
-    env.clearTimeout(closeTimer);
-  });
 
   const pick = (minutes: number) => {
     if (prefsStore.isDndPending()) return;
-    env.clearTimeout(openTimer);
-    setOpen(false);
+    hover.close();
     prefsStore.snoozeDnd(minutes);
   };
 
@@ -55,10 +38,10 @@ export default function DndButton() {
       aria-busy={prefsStore.isDndPending() ? "true" : "false"}
       class="dnd-btn-wrap"
       disabled={prefsStore.isDndPending()}
-      onBlur={scheduleClose}
+      onBlur={hover.scheduleClose}
       onFocus={scheduleOpen}
       onMouseEnter={scheduleOpen}
-      onMouseLeave={scheduleClose}
+      onMouseLeave={hover.scheduleClose}
       ref={wrapRef}
     >
       <IconButton
@@ -73,8 +56,7 @@ export default function DndButton() {
               : undefined
         }
         onClick={() => {
-          env.clearTimeout(openTimer);
-          setOpen(false);
+          hover.close();
           if (prefsStore.hasDndStatusError()) prefsStore.retryDndStatus();
           else if (prefsStore.isDndActive()) prefsStore.endDnd();
           else prefsStore.snoozeDnd(60);
@@ -84,10 +66,10 @@ export default function DndButton() {
       <FloatingPanel
         anchor={() => wrapRef}
         class="menu-panel dnd-duration-panel"
-        onMouseEnter={cancelClose}
-        onMouseLeave={scheduleClose}
-        onScroll={() => setOpen(false)}
-        open={open()}
+        onMouseEnter={hover.cancelClose}
+        onMouseLeave={hover.scheduleClose}
+        onScroll={hover.close}
+        open={hover.open()}
       >
         <For each={DURATIONS}>
           {(d) => <MenuItem onClick={() => pick(d.minutes)}>{d.label}</MenuItem>}

@@ -17,6 +17,8 @@ function createVersion(reactive: Reactive) {
   return { bump: () => set(++version), read };
 }
 
+type Owned = { owned(owner: string): number; removeOwner(owner: string): void };
+
 function createPointCell<T>(reactive: Reactive) {
   const version = createVersion(reactive);
   let entries: Entry<T>[] = [];
@@ -106,16 +108,17 @@ export function createRegistry(reactive: Reactive) {
     return serviceCell(key).get();
   }
 
+  const cells = () => [
+    ...Object.values<Owned | undefined>(points),
+    ...Object.values<Owned | undefined>(services),
+  ];
+
   function removeOwner(owner: string) {
-    for (const cell of Object.values(points)) cell?.removeOwner(owner);
-    for (const cell of Object.values(services)) cell?.removeOwner(owner);
+    for (const cell of cells()) cell?.removeOwner(owner);
   }
 
   function owned(owner: string): number {
-    let count = 0;
-    for (const cell of Object.values(points)) count += cell?.owned(owner) ?? 0;
-    for (const cell of Object.values(services)) count += cell?.owned(owner) ?? 0;
-    return count;
+    return cells().reduce((count, cell) => count + (cell?.owned(owner) ?? 0), 0);
   }
 
   return { add, items, owned, provide, removeOwner, service };

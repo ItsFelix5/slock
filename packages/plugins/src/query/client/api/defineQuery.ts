@@ -3,12 +3,12 @@ import type {
   EnsureOptions,
   EntryState,
   FetchContext,
+  Overlay,
   PersistOptions,
   ResourceCache,
   ResourceHub,
   RetryPolicy,
   SubscribeOptions,
-  Undo,
 } from "@slock/resource";
 import {
   type CacheReader,
@@ -19,7 +19,7 @@ import {
 import type { Accessor } from "solid-js";
 import { retryPolicy } from "../retryPolicy";
 
-export interface QueryPersistence<Arg, T> {
+interface QueryPersistence<Arg, T> {
   isArg: (value: unknown) => value is Arg;
   isData: (value: unknown) => value is T;
   version: number;
@@ -29,9 +29,10 @@ export interface QueryDefinition<Arg, T> {
   gcMs?: number;
   retry?: RetryPolicy;
   load: (arg: Arg, context: FetchContext) => Promise<T>;
-  maxAgeMs?: number;
+  maxAgeMs?: number | ((data: T) => number);
   name: string;
   persist?: QueryPersistence<Arg, T>;
+  revalidates?: boolean;
 }
 
 export interface Query<Arg, T> {
@@ -40,16 +41,19 @@ export interface Query<Arg, T> {
   invalidate(arg: Arg): void;
   invalidateAll(): void;
   invalidateWhere(match: (arg: Arg) => boolean): void;
-  modify(arg: Arg, update: (current: T) => T): Undo;
-  patch(arg: Arg, update: (current: T | undefined) => T): Undo;
+  modify(arg: Arg, update: (current: T) => T): void;
+  overlay(arg: Arg, apply: (data: T) => T): Overlay;
+  patch(arg: Arg, update: (current: T | undefined) => T): void;
   peek(arg: Arg): T | undefined;
   read(arg: Arg): T | undefined;
   refresh(arg: Arg): Promise<T>;
+  request<R>(load: (context: FetchContext) => Promise<R>): Promise<R | undefined>;
   remove(arg: Arg): void;
   restore(): Promise<void>;
   set(arg: Arg, data: T): void;
   state(arg: Accessor<Arg | undefined>, options?: SubscribeOptions): Accessor<EntryState<T>>;
   use(arg: Accessor<Arg | undefined>, options?: SubscribeOptions): Accessor<T | undefined>;
+  values(): T[];
 }
 
 interface Bound<Arg, T> {
@@ -57,7 +61,6 @@ interface Bound<Arg, T> {
   reader: CacheReader<Arg, T>;
 }
 
-const noUndo = () => {};
 const GC_MS = 120_000;
 
 const query = service("query");
@@ -91,6 +94,7 @@ export function defineQuery<Arg, T>(definition: QueryDefinition<Arg, T>): Query<
       name: definition.name,
       persist: definition.persist && persistOptions(definition.name, definition.persist),
       retry: definition.retry ?? retryPolicy,
+      revalidates: definition.revalidates,
     });
     const created = { cache, reader: createCacheReader(cache) };
     bound.set(hub, created);
@@ -104,19 +108,18 @@ export function defineQuery<Arg, T>(definition: QueryDefinition<Arg, T>): Query<
     invalidate: (arg) => bind().cache.invalidate(arg),
     invalidateAll: () => bind().cache.invalidateWhere(() => true),
     invalidateWhere: (match) => bind().cache.invalidateWhere(match),
-    modify: (arg, update) => {
-      const { cache } = bind();
-      const current = cache.read(arg);
-      return current === undefined ? noUndo : cache.patch(arg, () => update(current));
-    },
+    modify: (arg, update) => bind().cache.modify(arg, update),
+    overlay: (arg, apply) => bind().cache.overlay(arg, apply),
     patch: (arg, update) => bind().cache.patch(arg, update),
     peek: (arg) => bind().reader.peek(arg),
     read: (arg) => bind().cache.read(arg),
     refresh: (arg) => bind().cache.refresh(arg),
     remove: (arg) => bind().cache.remove(arg),
+    request: (load) => bind().cache.request(load),
     restore: () => bind().cache.restore(),
     set: (arg, data) => bind().cache.set(arg, data),
     state: (arg, options) => createCacheState(bind().cache, arg, options),
     use: (arg, options) => createCacheValue(bind().cache, arg, options),
+    values: () => bind().reader.values(),
   };
 }

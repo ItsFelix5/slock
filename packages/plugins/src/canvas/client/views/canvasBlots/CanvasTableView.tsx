@@ -1,17 +1,19 @@
 import { Icon } from "@slock/ui";
 import type Quill from "@slock/ui/editor/quill";
 import type { Op } from "@slock/ui/editor/quill";
-import { createSignal, For, Show } from "solid-js";
-import { bindFirst } from "../../lib/canvasEditorSetup";
+import { createSignal, For, Show, untrack } from "solid-js";
 import type { TableEmbedRow, TableEmbedValue } from "../../lib/canvasEmbedValues";
 import CanvasSurface from "../CanvasSurface";
 import { useCanvasServices } from "./canvasServices";
 import type { EmbedViewProps } from "./defineCanvasEmbed";
-import { liveOps, parentScope, removeEmbed } from "./embedOwner";
+import { undoableEmbedChange } from "./embedHistory";
+import { liveOps, parentScope, removeEmbed, resizeStep } from "./embedOwner";
 import { CELL_FORMATS } from "./formats";
+import { bindTableCell, focusCell, type TableActions } from "./tableCell";
 
 const DEFAULT_WIDTH = 300;
 const MIN_WIDTH = 60;
+const KEY_RESIZE = 20;
 const BLANK_CELL: Op[] = [{ insert: "\n" }];
 
 export default function CanvasTableView(props: EmbedViewProps<TableEmbedValue>) {
@@ -43,24 +45,34 @@ export default function CanvasTableView(props: EmbedViewProps<TableEmbedValue>) 
     if (!created) return null;
     return {
       cells: columns().map(() => ({ contentId: created.newId(), ops: BLANK_CELL })),
-      id: `w:${created.newId().slice(-25)}`,
+      id: `row:${created.newId().slice(-25)}`,
     };
+  }
+
+  function restructure(change: () => void) {
+    undoableEmbedChange(props.node, change);
+    notify();
   }
 
   function addRow(after: number) {
     const row = blankRow();
-    if (!row) return null;
+    if (!row) return false;
     const next = [...rows()];
     next.splice(after + 1, 0, row);
-    setRows(next);
-    notify();
-    return row;
+    restructure(() => setRows(next));
+    return true;
   }
 
-  function removeRow(index: number) {
+  function forget(cells: TableEmbedRow["cells"]) {
+    for (const { contentId } of cells) quills.delete(contentId);
+  }
+
+  function removeRow(index: number, column: number) {
     if (rows().length <= 1) return;
-    setRows(rows().filter((_, i) => i !== index));
-    notify();
+    const removed = rows()[index]?.cells ?? [];
+    restructure(() => setRows(rows().filter((_, i) => i !== index)));
+    forget(removed);
+    queueMicrotask(() => focusCell(actions, index, column));
   }
 
   function addColumn(after: number) {
@@ -69,60 +81,61 @@ export default function CanvasTableView(props: EmbedViewProps<TableEmbedValue>) 
     const column = { id: `col:${created.newId().slice(-25)}`, width: DEFAULT_WIDTH };
     const nextColumns = [...columns()];
     nextColumns.splice(after + 1, 0, column);
-    setColumns(nextColumns);
-    setRows(
-      rows().map((row) => {
-        const cells = [...row.cells];
-        cells.splice(after + 1, 0, { contentId: created.newId(), ops: BLANK_CELL });
-        return { ...row, cells };
-      }),
-    );
-    notify();
+    const nextRows = rows().map((row) => {
+      const cells = [...row.cells];
+      cells.splice(after + 1, 0, { contentId: created.newId(), ops: BLANK_CELL });
+      return { ...row, cells };
+    });
+    restructure(() => {
+      setColumns(nextColumns);
+      setRows(nextRows);
+    });
   }
 
-  function removeColumn(index: number) {
+  function removeColumn(index: number, row: number) {
     if (columns().length <= 1) return;
-    setColumns(columns().filter((_, i) => i !== index));
-    setRows(rows().map((row) => ({ ...row, cells: row.cells.filter((_, i) => i !== index) })));
+    const removed = rows().flatMap((entry) => entry.cells.filter((_, i) => i === index));
+    restructure(() => {
+      setColumns(columns().filter((_, i) => i !== index));
+      setRows(
+        rows().map((entry) => ({ ...entry, cells: entry.cells.filter((_, i) => i !== index) })),
+      );
+    });
+    forget(removed);
+    queueMicrotask(() => focusCell(actions, row, index));
+  }
+
+  function widen(origin: TableEmbedValue["columns"], index: number, delta: number) {
+    const width = Math.max(MIN_WIDTH, (origin[index]?.width ?? DEFAULT_WIDTH) + delta);
+    setColumns(
+      origin.map((column, i) => (i === index ? { ...column, width: Math.round(width) } : column)),
+    );
+  }
+
+  function step(index: number, direction: -1 | 1) {
+    widen(columns(), index, direction * KEY_RESIZE);
     notify();
   }
 
-  function focusCell(row: number, column: number) {
-    const contentId = rows()[row]?.cells[column]?.contentId;
-    const quill = contentId ? quills.get(contentId) : undefined;
-    quill?.focus();
-    quill?.setSelection(quill.getLength() - 1, 0);
-  }
-
-  function bindCell(quill: Quill, contentId: string) {
-    quills.set(contentId, quill);
-    const position = () => {
-      const row = rows().findIndex((entry) =>
+  const actions: TableActions = {
+    addColumn,
+    addRow,
+    columns: () => untrack(columns).length,
+    node: props.node,
+    position(contentId) {
+      const current = untrack(rows);
+      const row = current.findIndex((entry) =>
         entry.cells.some((cell) => cell.contentId === contentId),
       );
-      const column = rows()[row]?.cells.findIndex((cell) => cell.contentId === contentId) ?? 0;
+      const column = current[row]?.cells.findIndex((cell) => cell.contentId === contentId) ?? 0;
       return { column, row };
-    };
-    const move = (rowDelta: number, columnDelta: number) => {
-      const { column, row } = position();
-      let nextRow = row + rowDelta;
-      let nextColumn = column + columnDelta;
-      if (nextColumn >= columns().length) {
-        nextColumn = 0;
-        nextRow += 1;
-      } else if (nextColumn < 0) {
-        nextColumn = columns().length - 1;
-        nextRow -= 1;
-      }
-      if (nextRow >= rows().length && addRow(rows().length - 1))
-        queueMicrotask(() => focusCell(nextRow, nextColumn));
-      else focusCell(Math.max(nextRow, 0), nextColumn);
-      return false;
-    };
-    bindFirst(quill, { key: "Enter" }, () => move(1, 0));
-    bindFirst(quill, { key: "Tab" }, () => move(0, 1));
-    bindFirst(quill, { key: "Tab", shiftKey: true }, () => move(0, -1));
-  }
+    },
+    quillAt: (row, column) => quills.get(untrack(rows)[row]?.cells[column]?.contentId ?? ""),
+    removeColumn,
+    removeRow,
+    rows: () => untrack(rows).length,
+    widen: step,
+  };
 
   function startResize(event: PointerEvent, index: number) {
     const table = tableRef;
@@ -130,17 +143,9 @@ export default function CanvasTableView(props: EmbedViewProps<TableEmbedValue>) 
     event.preventDefault();
     const start = event.clientX;
     const origin = columns();
-    const total = origin.reduce((sum, column) => sum + column.width, 0);
-    const scale = total / table.getBoundingClientRect().width;
-    const move = (next: PointerEvent) => {
-      const width = Math.max(
-        MIN_WIDTH,
-        (origin[index]?.width ?? DEFAULT_WIDTH) + (next.clientX - start) * scale,
-      );
-      setColumns(
-        origin.map((column, i) => (i === index ? { ...column, width: Math.round(width) } : column)),
-      );
-    };
+    const scale =
+      origin.reduce((sum, column) => sum + column.width, 0) / table.getBoundingClientRect().width;
+    const move = (next: PointerEvent) => widen(origin, index, (next.clientX - start) * scale);
     const stop = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", stop);
@@ -148,6 +153,11 @@ export default function CanvasTableView(props: EmbedViewProps<TableEmbedValue>) 
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", stop);
+  }
+
+  function nudge(event: KeyboardEvent, index: number) {
+    const direction = resizeStep(event);
+    if (direction) step(index, direction);
   }
 
   const totalWidth = () => columns().reduce((sum, column) => sum + column.width, 0) || 1;
@@ -175,17 +185,20 @@ export default function CanvasTableView(props: EmbedViewProps<TableEmbedValue>) 
                               formats={CELL_FORMATS}
                               initialOps={cell.ops}
                               nested
-                              onReady={(quill) => bindCell(quill, cell.contentId)}
+                              onReady={(quill) => {
+                                quills.set(cell.contentId, quill);
+                                bindTableCell(quill, cell.contentId, actions);
+                              }}
                               scope={() => `${parentScope(props.node)}${cell.contentId}/`}
                               services={ready()}
                             />
                           )}
                         </Show>
-                        <Show when={!services()?.readOnly && rowIndex() === 0}>
+                        <Show when={services()?.access === "edit" && rowIndex() === 0}>
                           <button
                             aria-label="Remove column"
                             class="canvas-table-remove canvas-table-remove-column btn-reset"
-                            onClick={() => removeColumn(columnIndex())}
+                            onClick={() => removeColumn(columnIndex(), 0)}
                             type="button"
                           >
                             <Icon name="close" size={11} />
@@ -193,24 +206,30 @@ export default function CanvasTableView(props: EmbedViewProps<TableEmbedValue>) 
                         </Show>
                         <Show
                           when={
-                            !services()?.readOnly &&
+                            services()?.access === "edit" &&
                             rowIndex() === 0 &&
                             columnIndex() < columns().length - 1
                           }
                         >
                           <div
-                            aria-hidden="true"
+                            aria-orientation="vertical"
+                            aria-valuenow={columns()[columnIndex()]?.width}
                             class="canvas-table-handle"
+                            onKeyDown={(event) => nudge(event, columnIndex())}
                             onPointerDown={(event) => startResize(event, columnIndex())}
+                            role="separator"
+                            tabindex={0}
                           />
                         </Show>
                         <Show
-                          when={!services()?.readOnly && columnIndex() === row.cells.length - 1}
+                          when={
+                            services()?.access === "edit" && columnIndex() === row.cells.length - 1
+                          }
                         >
                           <button
                             aria-label="Remove row"
                             class="canvas-table-remove canvas-table-remove-row btn-reset"
-                            onClick={() => removeRow(rowIndex())}
+                            onClick={() => removeRow(rowIndex(), columnIndex())}
                             type="button"
                           >
                             <Icon name="close" size={11} />
@@ -225,7 +244,7 @@ export default function CanvasTableView(props: EmbedViewProps<TableEmbedValue>) 
           </tbody>
         </table>
       </div>
-      <Show when={!services()?.readOnly}>
+      <Show when={services()?.access === "edit"}>
         <div class="canvas-block-actions">
           <button
             class="canvas-block-action btn-reset"

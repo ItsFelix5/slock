@@ -11,7 +11,7 @@ import {
   unresolvedAuthorFallback,
 } from "@slock/plugins/messages/client/api/messageAuthor";
 import { ClickableAuthorName } from "@slock/plugins/profile/client/api/AppBadge";
-import type { Block, ChannelId, SlackFile, Ts } from "@slock/types";
+import type { Attachment, Block, ChannelId, SlackFile, Ts } from "@slock/types";
 import { Avatar, DEFAULT_AVATAR_COLOR, NavRow, Tooltip } from "@slock/ui";
 import { createMemo, Show } from "solid-js";
 
@@ -19,6 +19,7 @@ const env = service("env");
 const usersStore = service("users");
 
 export function ActivityMessageText(props: {
+  attachments?: Attachment[];
   author: MessageAuthorFields;
   blocks?: Block[];
   channelId: ChannelId;
@@ -30,8 +31,10 @@ export function ActivityMessageText(props: {
   const content = createMemo(() => splitReplyLink(props));
   return (
     <MessageReferenceSnippet
+      attachments={props.attachments}
       blocks={content().blocks}
       botId={props.author.botId}
+      botTeamId={props.author.botTeamId}
       botUserId={props.author.userId}
       channelId={props.channelId}
       files={props.files}
@@ -44,6 +47,7 @@ export function ActivityMessageText(props: {
 }
 
 export function ThreadMessageRow(props: {
+  attachments?: Attachment[];
   author: MessageAuthorFields;
   blocks?: Block[];
   channelId: ChannelId;
@@ -120,6 +124,7 @@ export function ThreadMessageRow(props: {
         </span>
         <span class="activity-thread-message-text">
           <ActivityMessageText
+            attachments={props.attachments}
             author={props.author}
             blocks={props.blocks}
             channelId={props.channelId}

@@ -1,5 +1,6 @@
 import { defined, narrowByType } from "@slock/core";
-import { isChannelId, isTs } from "@slock/slack";
+import { isChannelId, isTs, messageMentionUrl } from "@slock/slack";
+import { getCachedWorkspaceDomain } from "@slock/slack/client";
 import type {
   Block,
   ChannelId,
@@ -94,11 +95,8 @@ function parseReplyLink(
 
 function replyTargetFromElement(element: RichTextInlineElement): ReplyTarget | null {
   if (element.type === "message_mention") {
-    const parsed =
-      (element.channel_id && element.message_ts
-        ? messageRef(element.channel_id, element.message_ts)
-        : undefined) ?? permalinkToChannelTs(element.url);
-    return parsed && { ...parsed, url: element.url };
+    const parsed = messageRef(element.channel_id, element.message_ts);
+    return parsed && { ...parsed, url: messageMentionUrl(element, getCachedWorkspaceDomain()) };
   }
   if (element.type === "link" && (isBareLabel(element.text) || element.text === element.url)) {
     const parsed = permalinkToChannelTs(element.url);

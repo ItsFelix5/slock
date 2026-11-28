@@ -8,9 +8,7 @@ export default function ScrollingCell<T>(props: {
   pane: Pane<T>;
   last: boolean;
   alone: boolean;
-  dragging: boolean;
   viewport: number;
-  onDrag: () => void;
   children: JSX.Element;
 }) {
   let seeded: number | undefined;
@@ -25,7 +23,7 @@ export default function ScrollingCell<T>(props: {
   return (
     <>
       <div
-        class={["scrolling-cell", "flex-col", { dragging: props.dragging }]}
+        class="scrolling-cell flex-col"
         data-cell={props.pane.id}
         style={{ width: props.alone ? "100%" : `${width()}px` }}
       >
@@ -34,7 +32,6 @@ export default function ScrollingCell<T>(props: {
       <Show when={!props.last}>
         <PaneDivider
           onDrag={(delta) => {
-            props.onDrag();
             setDragged((current = seedWidth()) =>
               Math.min(props.viewport, Math.max(MIN_PANE_WIDTH, current + delta * props.viewport)),
             );

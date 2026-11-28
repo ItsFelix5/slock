@@ -1,33 +1,29 @@
 import { EmojiText, safeMediaUrl, safeUrl } from "@slock/blockkit";
 import { service } from "@slock/core/solid";
+import FileThumb from "@slock/plugins/files/client/api/FileThumb";
 import {
-  fileIconName,
   fileKindLabel,
+  formatFileDate,
   isCanvasFile,
 } from "@slock/plugins/files/client/api/fileSummary";
 import { SplitNavigation } from "@slock/plugins/shell/client/api/SplitNavigation";
+import { mentionText } from "@slock/plugins/users/client/api";
 import type { ChannelId, SlackFile, SlackLink } from "@slock/types";
-import { formatSize, Icon, imageSrc, Tooltip } from "@slock/ui";
+import { formatSize, Icon, imageSrc } from "@slock/ui";
 import { For, Show } from "solid-js";
 import type { FilesLinksEntry } from "../api";
-import { formatDate, linkDomain } from "../lib/panelView";
+import { linkDomain } from "../lib/panelView";
 
 const filesPanel = service("files-panel");
 const messageLinks = service("message-links");
 
 function JumpButton(props: { onJump: () => void; onSplit: () => void }) {
   return (
-    <Tooltip content="Jump to message">
-      <SplitNavigation onSplit={props.onSplit}>
-        <button
-          class="files-links-card-jump btn-reset hover-hl"
-          onClick={props.onJump}
-          type="button"
-        >
-          <Icon name="message" size={13} />
-        </button>
-      </SplitNavigation>
-    </Tooltip>
+    <SplitNavigation onSplit={props.onSplit}>
+      <button class="files-links-card-jump btn-reset hover-hl" onClick={props.onJump} type="button">
+        <Icon name="message" size={13} />
+      </button>
+    </SplitNavigation>
   );
 }
 
@@ -45,33 +41,21 @@ function FileCard(props: {
         tabindex={-1}
         type="button"
       >
-        <Show
-          fallback={
-            <span class="files-links-card-icon flex-center">
-              <Icon name={fileIconName(props.file)} size={26} />
-            </span>
-          }
-          when={props.file.isImage ? safeMediaUrl(props.file.thumbUrl) : undefined}
-        >
-          {(thumb) => (
-            <img
-              alt=""
-              class="files-links-card-thumb"
-              decoding="async"
-              loading="lazy"
-              src={imageSrc(thumb())}
-            />
-          )}
-        </Show>
+        <FileThumb
+          file={props.file}
+          iconClass="files-links-card-icon"
+          iconSize={26}
+          imageClass="files-links-card-thumb"
+        />
         <span class="files-links-card-body flex-col">
           <span class="files-links-card-title truncate">
-            <EmojiText text={props.file.title || props.file.name} />
+            <EmojiText text={mentionText(props.file.title || props.file.name)} />
           </span>
           <span class="files-links-card-meta text-dim truncate">
             {[
               fileKindLabel(props.file),
               isCanvasFile(props.file) ? "" : formatSize(props.file.size),
-              formatDate(props.file.created),
+              formatFileDate(props.file.created),
             ]
               .filter(Boolean)
               .join(" · ")}

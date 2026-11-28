@@ -1,7 +1,7 @@
 import { longestIncreasing } from "./increasing.ts";
 import { positionBetween } from "./positions.ts";
 
-export interface PositionBounds {
+interface PositionBounds {
   ceiling?: string | null;
   floor: string | null;
 }

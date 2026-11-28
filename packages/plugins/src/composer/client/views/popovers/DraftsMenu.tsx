@@ -1,12 +1,13 @@
 import { EmojiText } from "@slock/blockkit";
-import { assertNever, formatTimeFromMs } from "@slock/core";
+import { assertNever, formatShortWhenFromMs } from "@slock/core";
 import { service, usePoint } from "@slock/core/solid";
-import { blockPreviewText } from "@slock/slack";
+import { blockPreviewText } from "@slock/slack/client";
 import type { DraftEntry } from "@slock/types";
 import {
   Icon,
   type ListDirection,
   listNavigationIndex,
+  type ShortcutSpec,
   SuggestionList,
   useClickOutside,
   useEscapeClose,
@@ -16,6 +17,14 @@ import {
 import { createMemo, createSignal, Show } from "solid-js";
 import type { ComposerDraftAction } from "../../api";
 import "./DraftsMenu.css";
+
+export const DELETE_DRAFT_SHORTCUT = {
+  combo: { key: "Delete" },
+  group: "Message box",
+  id: "composer.drafts.delete",
+  label: "Delete highlighted draft",
+  scope: "composer",
+} satisfies ShortcutSpec;
 
 const env = service("env");
 
@@ -27,11 +36,7 @@ function relativeLabel(ts: string | undefined): string {
   const diff = now - ms;
   if (diff < 60_000) return "just now";
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  const d = new Date(ms);
-  const sameDay = new Date(now).toDateString() === d.toDateString();
-  return sameDay
-    ? formatTimeFromMs(ms)
-    : d.toLocaleDateString([], { day: "numeric", month: "short" });
+  return formatShortWhenFromMs(ms, now);
 }
 
 type Row =
@@ -108,17 +113,13 @@ export default function DraftsMenu(props: {
     else setActive((index) => (index === null ? null : Math.min(index, rows().length - 1)));
   };
   useShortcut({
+    ...DELETE_DRAFT_SHORTCUT,
     allowInInputs: true,
-    combo: { key: "Delete" },
     enabled: () => !naming() && !!activeEntry(),
     handler: () => {
       const entry = activeEntry();
       if (entry) void remove(entry);
     },
-    id: "composer.drafts.delete",
-    label: "Delete highlighted draft",
-    scope: "composer",
-    group: "Message box",
   });
   for (const manual of [false, true]) {
     useListShortcuts({ allowInInputs: true, enabled: () => !naming(), manual, move, submit });

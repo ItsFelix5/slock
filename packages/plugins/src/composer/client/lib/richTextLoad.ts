@@ -1,7 +1,14 @@
 import { EMOJI_TOKEN_RE } from "@slock/blockkit";
 import { narrowByType } from "@slock/core";
 import { service } from "@slock/core/solid";
-import { ifPresent, isChannelId, isRichTextSubBlock, parseUserId } from "@slock/slack";
+import {
+  ifPresent,
+  isChannelId,
+  isRichTextSubBlock,
+  messageMentionUrl,
+  parseUserId,
+} from "@slock/slack";
+import { getCachedWorkspaceDomain } from "@slock/slack/client";
 import type {
   Block,
   ContextBlock,
@@ -11,7 +18,7 @@ import type {
   RichTextStyle,
   RichTextSubBlock,
 } from "@slock/types";
-import { INLINE_MARKS } from "@slock/ui/editor/markdownAutoformat";
+import { INLINE_STYLE_FORMATS } from "@slock/ui/editor/inlineFormats";
 import type Quill from "@slock/ui/editor/quill";
 import { Delta } from "@slock/ui/editor/quill";
 import { linkMentionValue, stripLeadingAt } from "./quillMentions";
@@ -25,7 +32,7 @@ type DeltaOp = { insert: string | Record<string, unknown>; attributes?: Record<s
 
 function styleToFormat(style: RichTextStyle | undefined): Record<string, true> {
   const format: Record<string, true> = {};
-  for (const [, key] of INLINE_MARKS) if (style?.[key]) format[key] = true;
+  for (const key of INLINE_STYLE_FORMATS) if (style?.[key]) format[key] = true;
   return format;
 }
 
@@ -36,9 +43,10 @@ function inlineOps(
   const ops: DeltaOp[] = [];
   for (const el of elements) {
     if (isRichTextSubBlock(el)) continue;
-    if (el.type === "text") {
+    if (el.type === "text" || el.type === "tag") {
       if (!el.text) continue;
-      const attributes = styleToFormat(el.style);
+      const attributes: Record<string, unknown> = styleToFormat(el.style);
+      if (el.type === "tag") attributes.tag = el.color ?? "gray";
       ops.push(
         Object.keys(attributes).length ? { attributes, insert: el.text } : { insert: el.text },
       );
@@ -84,8 +92,9 @@ function inlineOps(
           : { insert: `@${el.range}` },
       );
     } else if (el.type === "message_mention") {
-      const mention = linkMentionValue(el.url, el.url, ifPresent(parseUserId, el.author_id));
-      ops.push({ insert: mention ? { mention } : el.url });
+      const url = messageMentionUrl(el, getCachedWorkspaceDomain());
+      const mention = linkMentionValue(url, url, ifPresent(parseUserId, el.author_id));
+      ops.push({ insert: mention ? { mention } : url });
     } else if (el.type === "link") {
       const mention = linkMentionValue(el.url, el.text || el.url);
       if (mention) {
@@ -135,6 +144,10 @@ function pushLine(
   ops.push(blockAttrs ? { attributes: blockAttrs, insert: "\n" } : { insert: "\n" });
 }
 
+function pushDivider(ops: DeltaOp[]) {
+  ops.push({ insert: { divider: true } }, { insert: "\n" });
+}
+
 export function richTextDeltaOps(
   blocks: readonly Block[],
   onUnresolvedUser?: (id: string) => void,
@@ -155,8 +168,7 @@ export function richTextDeltaOps(
       continue;
     }
     if (block.type === "divider") {
-      ops.push({ insert: { divider: true } });
-      ops.push({ insert: "\n" });
+      pushDivider(ops);
       continue;
     }
     const richText = narrowByType<Block, RichTextBlock>(block, "rich_text");
@@ -168,6 +180,7 @@ export function richTextDeltaOps(
         pushLine(ops, sub.elements, { "code-block": true }, onUnresolvedUser);
       else if (sub.type === "rich_text_quote")
         pushLine(ops, sub.elements, { blockquote: true }, onUnresolvedUser);
+      else if (sub.type === "rich_text_divider") pushDivider(ops);
       else if (sub.type === "rich_text_list") {
         sub.elements.forEach((item, index) => {
           const attributes = {

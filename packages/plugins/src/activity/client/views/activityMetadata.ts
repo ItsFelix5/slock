@@ -8,11 +8,11 @@ function otherActivityLabel(type?: string) {
     case "saved_reminder":
       return "Reminder";
     case "quietly_added_to_channel":
-      return "Added you to";
     case "internal_channel_invite":
+      return "Added you to";
     case "external_channel_invite":
     case "external_dm_invite":
-      return "Invited you";
+      return "Invited you to";
     case "list_approval_request":
       return "Approval requested";
     case "list_approval_reviewed":

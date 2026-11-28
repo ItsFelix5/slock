@@ -1,1 +1,1 @@
-{ "id": "web", "name": "Web client", "requires": ["slack"] }
+{ "id": "web", "category": "Core", "name": "Web client", "requires": ["slack"] }

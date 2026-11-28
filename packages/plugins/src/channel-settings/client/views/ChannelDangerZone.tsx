@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
 import type { ChannelId } from "@slock/types";
 import { Button } from "@slock/ui";
-import { createSignal, Show } from "solid-js";
+import { Show } from "solid-js";
 
 const dialogs = service("shell.dialogs");
 
@@ -13,7 +13,7 @@ export default function ChannelDangerZone(props: {
   onChanged?: () => void;
   private: boolean;
 }) {
-  const [archiving, setArchiving] = createSignal(false);
+  const archiving = () => channelDetails.isArchivePending(props.channelId);
   const toggleArchived = async () => {
     if (archiving()) return;
     const verb = props.archived ? "Unarchive" : "Archive";
@@ -23,15 +23,13 @@ export default function ChannelDangerZone(props: {
       message: `${verb} this channel?`,
     });
     if (!confirmed) return;
-    setArchiving(true);
     const ok = await (props.archived
       ? channelDetails.unarchiveChannelById(props.channelId)
       : channelDetails.archiveChannelById(props.channelId));
-    setArchiving(false);
     if (ok) props.onChanged?.();
   };
 
-  const [convertingPrivate, setConvertingPrivate] = createSignal(false);
+  const convertingPrivate = () => channelDetails.isConvertPending(props.channelId);
   const convertToPrivate = async () => {
     if (convertingPrivate()) return;
 
@@ -41,9 +39,7 @@ export default function ChannelDangerZone(props: {
       message: "Convert this channel to private? This can't be undone.",
     });
     if (!confirmed) return;
-    setConvertingPrivate(true);
-    const ok = await channelDetails.convertChannelToPrivateById(props.channelId);
-    setConvertingPrivate(false);
+    const ok = await channelDetails.convertToPrivateById(props.channelId);
     if (ok) props.onChanged?.();
   };
 

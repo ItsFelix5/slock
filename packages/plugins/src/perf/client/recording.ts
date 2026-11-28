@@ -1,4 +1,4 @@
-export type ScriptRecord = {
+type ScriptRecord = {
   name: string;
   source: string;
   duration: number;
@@ -31,7 +31,7 @@ export type ShiftRecord = {
   target: string;
 };
 
-export type HeapSample = {
+type HeapSample = {
   at: number;
   mb: number;
 };

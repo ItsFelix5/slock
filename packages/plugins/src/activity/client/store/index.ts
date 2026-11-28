@@ -1,20 +1,28 @@
-import type { Env } from "@slock/core";
+import { type Env, logUnknown } from "@slock/core";
 import { createFlags } from "@slock/core/solid";
-import {
-  fetchChannelLastRead,
-  fetchHistoryAround,
-  fetchMessagesByIds,
-} from "@slock/plugins/slack/client/api";
-import type { ActivityItem, ChannelId, Message, Ts, User, UserId } from "@slock/types";
+import { defineMutation } from "@slock/plugins/query/client/api";
+import { fetchHistoryAround, fetchMessagesByIds } from "@slock/plugins/slack/client/api";
+import { fetchChannelInfo } from "@slock/plugins/slack/client/api/channels";
+import type {
+  ActivityItem,
+  ChannelId,
+  Message,
+  RawActivityFeedEntry,
+  Ts,
+  User,
+  UserId,
+} from "@slock/types";
 import { createSignal } from "solid-js";
+import { ACTIVITY_FEED_TYPES } from "../../protocol/feedTypes";
 import {
   archiveActivityItem,
   fetchActivityBadgeCounts,
   fetchActivityFeedEntries,
   markActivityRead,
+  parseFeedEntry,
   resolveActivityEntry,
 } from "../fetch";
-import { PING_KINDS } from "../kinds";
+import { hasChannel, PING_KINDS } from "../kinds";
 import { createActivityFeedLoad } from "./activityFeedLoad";
 import { createActivityItems } from "./activityItems";
 import { createActivityReadState } from "./activityReadState";
@@ -109,6 +117,7 @@ export function createActivityStore(
     activityHasMore,
     activityLoaded,
     activityMore,
+    applyLiveEntry,
     loadMoreActivity,
     requestActivityRefresh,
     retryActivityLoad,
@@ -127,6 +136,25 @@ export function createActivityStore(
     resolveActivityEntry: api.resolveActivityEntry,
   });
 
+  function applyActivityEvent(event: { entry?: RawActivityFeedEntry; subtype?: string }): void {
+    const { entry, subtype } = event;
+    if (subtype === "activity_deleted" && entry?.key) {
+      items.removeWhere((item) => item.id === entry.key);
+      return;
+    }
+    const type = entry?.item?.type;
+    if (subtype === "activity_updated" && entry && type) {
+      if (!ACTIVITY_FEED_TYPES.some((known) => known === type)) return;
+      const parsed = parseFeedEntry(entry);
+      if (parsed && hasChannel(parsed)) {
+        applyLiveEntry(parsed);
+        return;
+      }
+    }
+    if (subtype !== "activity_invalidated") logUnknown("activity event", `${subtype} ${type}`);
+    requestActivityRefresh();
+  }
+
   function isActivityItemArchived(item: ActivityItem): boolean {
     if (archivedIds.has(item.id)) return true;
     const me = deps.currentUser();
@@ -137,24 +165,19 @@ export function createActivityStore(
 
   const unreadThreads = createUnreadThreads({ activityItems, isActivityItemUnread });
 
-  const archivePending = new Set<string>();
-
-  async function archiveActivity(item: ActivityItem): Promise<void> {
-    if (isActivityItemArchived(item) || archivePending.has(item.id)) return;
-    archivePending.add(item.id);
-    try {
-      await api.archiveActivityItem(
-        item.activityType ?? item.kind,
-        item.id,
-        item.ts,
-        item.linkedItemId,
-      );
+  const archive = defineMutation<ActivityItem, unknown>({
+    key: (item) => item.id,
+    mode: "single",
+    onError: (error) => console.error("Failed to archive activity", error),
+    onSuccess: (_result, item) => {
       archivedIds.set(item.id, true);
       markActivityItemsRead([item]);
-    } finally {
-      archivePending.delete(item.id);
-    }
-  }
+    },
+    run: (item) =>
+      api.archiveActivityItem(item.activityType ?? item.kind, item.id, item.ts, item.linkedItemId),
+  });
+  const archiveActivity = (item: ActivityItem) =>
+    isActivityItemArchived(item) ? Promise.resolve(false) : archive.run(item);
 
   return {
     activityFeed,
@@ -165,6 +188,7 @@ export function createActivityStore(
     activityMore,
     activityReadSyncError: activityReadSync.error,
     activityReadSyncPending: activityReadSync.isPending,
+    applyActivityEvent,
     applyThreadMarked,
     archiveActivity,
     currentRowKey,
@@ -185,4 +209,9 @@ export function createActivityStore(
     unreadPingCount,
     unreadThreads,
   };
+}
+
+async function fetchChannelLastRead(channelId: ChannelId): Promise<number> {
+  const { last_read } = await fetchChannelInfo(channelId);
+  return (parseFloat(last_read ?? "") || 0) * 1000;
 }

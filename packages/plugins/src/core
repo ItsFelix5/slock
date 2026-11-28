@@ -46,7 +46,6 @@ settings
 shell
 sidebar
 sidebar-create
-sidebar-typing
 slack
 slash-commands
 templates
@@ -59,5 +58,3 @@ usergroups
 users
 view-modals
 web
-layout-master --off
-layout-scrolling --off

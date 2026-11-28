@@ -4,7 +4,7 @@ import { useEscapeClose } from "../hooks/useEscapeClose";
 import FloatingPanel, { type VerticalPlacement } from "./floating/FloatingPanel";
 import "./Popover.css";
 
-export interface PopoverProps {
+interface PopoverProps {
   align?: "start" | "center" | "end";
   children: JSX.Element;
   class?: string;

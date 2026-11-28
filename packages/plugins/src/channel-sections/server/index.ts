@@ -8,12 +8,7 @@ import {
 import type { Route } from "@slock/plugins/slack/server/api/router";
 import { mutate, prefWrite, route, routes } from "@slock/plugins/slack/server/api/router";
 import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
-import type {
-  ChannelSectionsReply,
-  CreatedSectionReply,
-} from "@slock/plugins/slack/server/api/slackReplies";
-import { trimChannelSection } from "@slock/plugins/slack/server/api/trim/slackChannels";
-import type { BootstrapPayload, BootstrapSection } from "@slock/types";
+import type { BootstrapPayload, BootstrapSection, RawChannelSection } from "@slock/types";
 
 const list: Route[] = [
   route("GET", "sections", async (ctx) => {
@@ -130,3 +125,22 @@ const setup: Setup = (ctx) => {
 };
 
 export default setup;
+
+type ChannelSectionsReply = { channel_sections?: RawChannelSection[] };
+
+type CreatedSectionReply = RawChannelSection & { channel_section?: RawChannelSection };
+
+function trimChannelSection(section: RawChannelSection): RawChannelSection {
+  return {
+    channel_ids: section.channel_ids,
+    channel_ids_page: section.channel_ids_page
+      ? { channel_ids: section.channel_ids_page.channel_ids }
+      : undefined,
+    channel_section_id: section.channel_section_id,
+    channels: section.channels,
+    id: section.id,
+    name: section.name,
+    sidebar: section.sidebar,
+    type: section.type,
+  };
+}

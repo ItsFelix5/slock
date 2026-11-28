@@ -1,29 +1,13 @@
 import { service } from "@slock/core/solid";
-import { openGroupDm } from "@slock/plugins/slack/client/api";
-import type { User, UserId } from "@slock/types";
-import { Combobox, type ComboboxOption } from "@slock/ui";
+import GroupPeoplePicker from "@slock/plugins/dms/client/api/GroupPeoplePicker";
+import type { UserId } from "@slock/types";
+import type { ComboboxOption } from "@slock/ui";
 import { createSignal } from "solid-js";
+import { openGroupDm } from "../requests";
 import CreateDialog from "./CreateDialog";
 
 const dms = service("dms");
 const conversations = service("conversations");
-const users = service("users");
-
-const MAX_PEOPLE = 8;
-
-const toOption = (user: User): ComboboxOption<UserId> => ({
-  avatar: user,
-  id: user.id,
-  label: user.name,
-});
-
-async function searchPeople(query: string): Promise<ComboboxOption<UserId>[]> {
-  const me = users.currentUser()?.id;
-  const found = query
-    ? await users.searchUsers(query, me)
-    : users.knownUsers().filter((user) => user.id !== me);
-  return found.map(toOption);
-}
 
 export default function CreateGroupChatDialog(props: { onClose: () => void }) {
   const [people, setPeople] = createSignal<ComboboxOption<UserId>[]>([]);
@@ -42,15 +26,7 @@ export default function CreateGroupChatDialog(props: { onClose: () => void }) {
     >
       <div class="create-field">
         <span class="create-label">People</span>
-        <Combobox
-          ariaLabel="People"
-          max={MAX_PEOPLE}
-          multiple
-          onChange={setPeople}
-          placeholder="Find people"
-          search={searchPeople}
-          value={people()}
-        />
+        <GroupPeoplePicker onChange={setPeople} value={people()} />
       </div>
     </CreateDialog>
   );

@@ -1,6 +1,6 @@
 import type { Setup } from "@slock/core";
-import { ConnectionStatus } from "@slock/ui";
 import { createRealtime } from "./realtime";
+import ConnectionStatus from "./views/ConnectionStatus";
 
 const setup: Setup = (ctx) => {
   const realtime = createRealtime({

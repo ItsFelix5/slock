@@ -28,7 +28,7 @@ export default function MessageRepliesButton(props: {
           <Tooltip
             content={formatInteractorNames(
               users(),
-              usersStore.currentUser()?.id,
+              usersStore.currentUserId(),
               usersStore.userById,
             )}
           >
@@ -37,6 +37,7 @@ export default function MessageRepliesButton(props: {
                 .map((id) => usersStore.userById(id))
                 .filter((u) => u !== undefined)}
               max={5}
+              total={props.msg.replyUsersCount}
             />
           </Tooltip>
         )}

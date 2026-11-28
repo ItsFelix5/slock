@@ -1,9 +1,9 @@
 import { usePoint } from "@slock/core/solid";
 import { ariaBoolean, Modal, ModalCloseButton, useTabStripShortcuts } from "@slock/ui";
 import { dynamic } from "@solidjs/web";
-import { createMemo, createSignal, For } from "solid-js";
+import { createMemo, createSignal, For, untrack } from "solid-js";
 import type { SettingsTabItem } from "../api";
-import "./SettingsForm.css";
+import "../api/SettingsForm.css";
 import "./SettingsModal.css";
 import "./SettingsModal.responsive.css";
 
@@ -42,7 +42,7 @@ export default function SettingsModal(props: { initialTab?: string; onClose: () 
               class={["settings-nav-btn", "btn-reset", { active: active()?.id === tab.id }]}
               onClick={() => setSelected(tab.id)}
               ref={(el) => {
-                tabButtonRefs[index()] = el;
+                tabButtonRefs[untrack(index)] = el;
               }}
               role="tab"
               tabindex={active()?.id === tab.id ? 0 : -1}

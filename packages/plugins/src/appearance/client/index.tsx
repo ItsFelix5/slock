@@ -1,7 +1,7 @@
 import type { Setup } from "@slock/core";
 import { lazyChunk } from "@slock/core/solid";
-import { createTheme } from "@slock/ui";
 import { createEffect, untrack } from "solid-js";
+import { createTheme } from "./theme/createTheme";
 
 const view = lazyChunk(() => import("./views/AppearanceTab"));
 

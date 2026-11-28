@@ -1,138 +1,193 @@
-import { createOptimisticFlags, service } from "@slock/core/solid";
-import {
-  updateSectionChannels as apiUpdateSectionChannels,
-  toggleStar,
-} from "@slock/plugins/slack/client/api";
+import { service } from "@slock/core/solid";
+import { defineMutation } from "@slock/plugins/query/client/api";
+import type { Overlay, Transaction } from "@slock/resource";
 import type { ChannelId, ChannelSection } from "@slock/types";
-import { action } from "solid-js";
+import { createMemo, createSignal } from "solid-js";
+import type { ChannelPlacement, ChannelPlacementOutcome } from "../api/sectionMutations";
+import { toggleStar } from "../requests/channels";
+import { updateSectionChannels } from "../requests/sections";
 
 const feedback = service("feedback");
 
 const PREVIOUS_SECTION_WARNING =
   "Starred, but couldn't remove the channel from its previous section.";
 
-export function createChannelStarPlacement(deps: {
-  refreshSections: () => Promise<ChannelSection[] | null | undefined>;
-  sections: () => ChannelSection[] | undefined;
-  sectionStructurePending: () => boolean;
-  holdSectionStructure: () => void;
-}) {
-  const starred = createOptimisticFlags<ChannelId>();
-  const placement = createOptimisticFlags<ChannelId>();
+interface PlacementJob {
+  channelId: ChannelId;
+  failure: string;
+  optimistic: (transaction: Transaction) => void;
+  run: () => Promise<ChannelPlacementOutcome>;
+}
 
-  const toggleChannelStar = action(function* (channelId: ChannelId) {
-    if (placement.has(channelId)) return "failed";
-    const currentlyStarred = starred.has(channelId);
-    const changesSectionMembership = !currentlyStarred;
-    if (changesSectionMembership && deps.sectionStructurePending()) return "failed";
-    placement.hold(channelId, true);
-    if (changesSectionMembership) deps.holdSectionStructure();
-    starred.hold(channelId, !currentlyStarred);
+export function createChannelStarPlacement(deps: {
+  changeStructure: <T>(job: () => Promise<T>) => Promise<T | undefined>;
+  holdChannelSection: (
+    transaction: Transaction,
+    channelId: ChannelId,
+    sectionId: string | null,
+  ) => void;
+  overlayStarredIds: (change: (ids: ChannelId[]) => ChannelId[]) => Overlay;
+  refreshSections: () => Promise<unknown>;
+  sections: () => ChannelSection[] | undefined;
+  starredIds: () => ChannelId[] | undefined;
+}) {
+  const starred = createMemo(() => new Set(deps.starredIds()));
+  const isChannelStarred = (channelId: ChannelId) => starred().has(channelId);
+  const [lastPlacedId, setLastPlacedId] = createSignal<ChannelId>();
+
+  const overlayStar = (channelId: ChannelId, value: boolean) =>
+    deps.overlayStarredIds((ids) => {
+      if (ids.includes(channelId) === value) return ids;
+      return value ? [...ids, channelId] : ids.filter((id) => id !== channelId);
+    });
+  const setChannelStarred = (channelId: ChannelId, value: boolean) =>
+    overlayStar(channelId, value).commit();
+
+  const placement = defineMutation<Omit<PlacementJob, "run"> & { run: () => Promise<void> }>({
+    key: ({ channelId }) => channelId,
+    mode: "single",
+    onError: (error, { channelId, failure }) => {
+      console.error(failure, error);
+      feedback.flash(channelId, failure, "error");
+    },
+    optimistic: (job, transaction) => job.optimistic(transaction),
+    run: (job) => job.run(),
+  });
+  const isChannelPlacementPending = (channelId: ChannelId) => placement.pending(channelId);
+
+  async function runPlacement({ run, ...job }: PlacementJob): Promise<ChannelPlacementOutcome> {
+    let outcome: ChannelPlacementOutcome = "failed";
+    await placement.run({
+      ...job,
+      run: async () => {
+        outcome = await run();
+      },
+    });
+    return outcome;
+  }
+
+  const sectionOf = (channelId: ChannelId) =>
+    (deps.sections() ?? []).find(
+      (section) => section.type === "standard" && section.channelIds.includes(channelId),
+    );
+
+  async function leaveSection(channelId: ChannelId): Promise<ChannelPlacementOutcome> {
+    const from = sectionOf(channelId);
+    if (!from) return "applied";
     try {
-      yield toggleStar(channelId, currentlyStarred);
-    } catch (err) {
-      console.error("Failed to toggle star", err);
-      feedback.flash(channelId, "Failed to update star.", "error");
-      return "failed";
-    }
-    starred.set(channelId, !currentlyStarred);
-    if (currentlyStarred) return "applied";
-    try {
-      const from = (deps.sections() ?? []).find(
-        (section) => section.type === "standard" && section.channelIds.includes(channelId),
-      );
-      if (from) {
-        const removed: boolean = yield apiUpdateSectionChannels(from.id, {
-          removeChannelIds: [channelId],
-        });
-        if (!removed) {
-          feedback.flash(channelId, PREVIOUS_SECTION_WARNING, "error");
-          return "applied-with-warning";
-        }
-        yield deps.refreshSections();
-      }
-    } catch (err) {
-      console.error("Failed to remove starred channel from its section", err);
+      await updateSectionChannels(from.id, { removeChannelIds: [channelId] });
+    } catch (error) {
+      console.error("Failed to remove starred channel from its section", error);
       feedback.flash(channelId, PREVIOUS_SECTION_WARNING, "error");
       return "applied-with-warning";
     }
+    await deps.refreshSections();
     return "applied";
-  });
+  }
 
-  const moveChannelToSection = action(function* (
-    channelId: ChannelId,
-    targetSectionId: string | null,
-  ) {
-    if (placement.has(channelId) || deps.sectionStructurePending()) return "failed";
-    placement.hold(channelId, true);
-    deps.holdSectionStructure();
-    const from = (deps.sections() ?? []).find(
-      (s) => s.type === "standard" && s.channelIds.includes(channelId) && s.id !== targetSectionId,
-    );
-    let removedFromSource = false;
-    let insertedIntoTarget = false;
+  async function toggleChannelStar(channelId: ChannelId): Promise<ChannelPlacementOutcome> {
+    const wasStarred = isChannelStarred(channelId);
+    const job = () =>
+      runPlacement({
+        channelId,
+        failure: "Failed to update star.",
+        optimistic: (transaction) => transaction.hold(overlayStar(channelId, !wasStarred)),
+        run: async () => {
+          await toggleStar(channelId, wasStarred);
+          return wasStarred ? "applied" : leaveSection(channelId);
+        },
+      });
+    if (wasStarred) return job();
+    return (await deps.changeStructure(job)) ?? "failed";
+  }
+
+  async function transfer(channelId: ChannelId, from: string | undefined, to: string | null) {
+    if (from) await updateSectionChannels(from, { removeChannelIds: [channelId] });
+    if (!to) return;
     try {
-      if (from) {
-        const removed: boolean = yield apiUpdateSectionChannels(from.id, {
-          removeChannelIds: [channelId],
-        });
-        if (!removed) {
-          feedback.flash(channelId, "Failed to move channel.", "error");
-          return "failed";
-        }
-        removedFromSource = true;
-      }
-      if (targetSectionId) {
-        const inserted: boolean = yield apiUpdateSectionChannels(targetSectionId, {
-          insertChannelIds: [channelId],
-        });
-        if (!inserted) {
-          if (from) yield apiUpdateSectionChannels(from.id, { insertChannelIds: [channelId] });
-          feedback.flash(channelId, "Failed to move channel.", "error");
-          yield deps.refreshSections();
-          return "failed";
-        }
-        insertedIntoTarget = true;
-
-        if (starred.has(channelId)) {
-          starred.hold(channelId, false);
-          try {
-            yield toggleStar(channelId, true);
-          } catch (err) {
-            console.error("Failed to unstar channel", err);
-            feedback.flash(
-              channelId,
-              "Moved, but couldn't remove the channel from Starred.",
-              "error",
-            );
-            yield deps.refreshSections();
-            return "applied-with-warning";
-          }
-          starred.set(channelId, false);
-        }
-      }
-      yield deps.refreshSections();
-      return "applied";
-    } catch (err) {
-      console.error("Failed to move channel", err);
-      if (removedFromSource && !insertedIntoTarget && from) {
-        try {
-          yield apiUpdateSectionChannels(from.id, { insertChannelIds: [channelId] });
-        } catch (rollbackError) {
-          console.error("Failed to restore channel to its previous section", rollbackError);
-        }
-      }
-      feedback.flash(channelId, "Failed to move channel.", "error");
-      yield deps.refreshSections();
-      return "failed";
+      await updateSectionChannels(to, { insertChannelIds: [channelId] });
+    } catch (error) {
+      if (from)
+        await updateSectionChannels(from, { insertChannelIds: [channelId] }).catch((restore) =>
+          console.error("Failed to restore channel to its previous section", restore),
+        );
+      throw error;
     }
-  });
+  }
+
+  async function moveChannelToSection(
+    channelId: ChannelId,
+    to: string | null,
+  ): Promise<ChannelPlacementOutcome> {
+    const current = sectionOf(channelId);
+    const from = current?.id === to ? undefined : current?.id;
+    const unstar = !!to && isChannelStarred(channelId);
+    let star: Overlay | undefined;
+    const job = () =>
+      runPlacement({
+        channelId,
+        failure: "Failed to move channel.",
+        optimistic: (transaction) => {
+          deps.holdChannelSection(transaction, channelId, to);
+          if (!unstar) return;
+          star = overlayStar(channelId, false);
+          transaction.hold(star);
+        },
+        run: async () => {
+          try {
+            await transfer(channelId, from, to);
+          } catch (error) {
+            await deps.refreshSections();
+            throw error;
+          }
+          let outcome: ChannelPlacementOutcome = "applied";
+          if (unstar)
+            await toggleStar(channelId, true).catch((error) => {
+              console.error("Failed to unstar channel", error);
+              feedback.flash(
+                channelId,
+                "Moved, but couldn't remove the channel from Starred.",
+                "error",
+              );
+              star?.discard();
+              outcome = "applied-with-warning";
+            });
+          await deps.refreshSections();
+          return outcome;
+        },
+      });
+    return (await deps.changeStructure(job)) ?? "failed";
+  }
+
+  const isChannelPlacedAt = (channelId: ChannelId, to: ChannelPlacement) => {
+    if (to.kind === "stars") return isChannelStarred(channelId);
+    if (isChannelStarred(channelId)) return false;
+    const current = sectionOf(channelId);
+    return to.kind === "home" ? !current : current?.id === to.id;
+  };
+
+  const isChannelJustPlaced = (channelId: ChannelId) =>
+    isChannelPlacementPending(channelId) || lastPlacedId() === channelId;
+
+  const placeChannel = (
+    channelId: ChannelId,
+    to: ChannelPlacement,
+  ): Promise<ChannelPlacementOutcome> => {
+    if (isChannelPlacedAt(channelId, to)) return Promise.resolve("applied");
+    setLastPlacedId(channelId);
+    if (to.kind === "section") return moveChannelToSection(channelId, to.id);
+    if (to.kind === "home" && !isChannelStarred(channelId))
+      return moveChannelToSection(channelId, null);
+    return toggleChannelStar(channelId);
+  };
 
   return {
-    isChannelPlacementPending: placement.has,
-    isChannelStarred: starred.has,
-    moveChannelToSection,
-    setStarredChannelIds: starred.set,
+    isChannelJustPlaced,
+    isChannelPlacedAt,
+    isChannelPlacementPending,
+    isChannelStarred,
+    placeChannel,
+    setChannelStarred,
     toggleChannelStar,
   };
 }

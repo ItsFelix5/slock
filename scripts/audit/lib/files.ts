@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { extname } from "node:path";
 import type { SourceFile } from "./types";
 
-const ROOT = `${import.meta.dir}/../..`;
+const ROOT = `${import.meta.dir}/../../..`;
 const TEXT_EXTENSIONS = new Set([
   ".ts",
   ".tsx",
@@ -30,7 +30,7 @@ export function areaOf(path: string): string {
   return path.includes("/") ? path.slice(0, path.indexOf("/")) : "root";
 }
 
-export function makeFile(path: string, text: string): SourceFile {
+function makeFile(path: string, text: string): SourceFile {
   return { path, text, ext: extname(path), area: areaOf(path), isTest: TEST_FILE.test(path) };
 }
 

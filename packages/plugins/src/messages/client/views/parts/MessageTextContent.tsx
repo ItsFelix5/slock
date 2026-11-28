@@ -99,8 +99,10 @@ export default function MessageTextContent(props: {
                         blocks={blocks()}
                         context={{
                           botId: props.msg.botId,
+                          botTeamId: props.msg.botTeamId,
                           botUserId: props.msg.userId,
                           channelId: props.channelId,
+                          isEphemeral: props.msg.isEphemeral,
                           messageTs: props.msg.ts,
                           threadTs: props.msg.threadTs,
                         }}

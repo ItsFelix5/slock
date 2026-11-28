@@ -1,4 +1,5 @@
 import type { Setup } from "@slock/core";
+import { fetchAppProfile } from "@slock/plugins/slack/server/api/appProfile";
 import {
   errorResponse,
   jsonResponse,
@@ -16,8 +17,6 @@ type AppHomeReply = {
   home_view?: unknown;
 };
 
-type AppProfileReply = { app_profile: { team_id: string } };
-
 const setup: Setup = (ctx) => {
   ctx.add(
     "http",
@@ -34,15 +33,13 @@ const setup: Setup = (ctx) => {
       route("POST", "conversations/:id/app-home/open", async (request) => {
         const { appId } = await request.body.json<{ appId?: string }>();
         if (!appId) return errorResponse("invalid_app", 400);
-        const profile = await callSlack<AppProfileReply>(
-          "apps.profile.get",
-          { app: appId },
-          request.creds,
-        );
+        const profile = await fetchAppProfile(appId, request.creds);
         if (!profile.ok) return slackErrorResponse(profile, "apps.profile.get");
+        const teamId = profile.app_profile?.team_id;
+        if (!teamId) return errorResponse("invalid_app", 400);
         return mutate(
           "apps.home.dispatchOpenEvent",
-          { id: request.params.id, service_team_id: profile.app_profile.team_id, type: "home" },
+          { id: request.params.id, service_team_id: teamId, type: "home" },
           request,
         );
       }),

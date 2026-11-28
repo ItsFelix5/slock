@@ -1,4 +1,6 @@
-import { ifPresent, mapMessage, parseChannelId, parseTs, parseUserId } from "@slock/slack";
+import { logUnknown } from "@slock/core";
+import { ifPresent, parseChannelId, parseTs, parseUserId } from "@slock/slack";
+import { mapMessage } from "@slock/slack/client";
 import type {
   ActivityItem,
   ChannelId,
@@ -41,7 +43,9 @@ const ACTIVITY_TYPE_KINDS_BY_STRING: Record<string, ActivityItem["kind"] | undef
   ACTIVITY_TYPE_KINDS;
 
 function activityKindFor(type: string): ActivityItem["kind"] {
-  return ACTIVITY_TYPE_KINDS_BY_STRING[type] ?? "other";
+  const kind = ACTIVITY_TYPE_KINDS_BY_STRING[type];
+  if (!kind) logUnknown("activity type", type);
+  return kind ?? "other";
 }
 
 export const ACTIVITY_KIND_FEED_TYPES: Record<ActivityItem["kind"], string[]> = Object.entries(
@@ -71,10 +75,10 @@ function rawMessageUserId(message: RawActivityMessage | undefined): string | und
 function rawMessageAuthor(
   message: RawActivityMessage | undefined,
   userId: string | undefined,
-): Pick<ActivityItem, "botIcon" | "botId" | "botName"> {
+): Pick<ActivityItem, "botIcon" | "botId" | "botName" | "botTeamId"> {
   if (!(message?.ts && userId) || rawMessageUserId(message) !== userId) return {};
-  const { botIcon, botId, botName } = mapMessage({ ...message, ts: message.ts });
-  return { botIcon, botId, botName };
+  const { botIcon, botId, botName, botTeamId } = mapMessage({ ...message, ts: message.ts });
+  return { botIcon, botId, botName, botTeamId };
 }
 
 function rawActivityUserId(item: RawActivityItem): string | undefined {

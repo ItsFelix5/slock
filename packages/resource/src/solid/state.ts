@@ -1,4 +1,4 @@
-import { type Accessor, createEffect, createMemo, createSignal } from "solid-js";
+import { type Accessor, createEffect, createMemo, createSignal, untrack } from "solid-js";
 import type { ResourceCache, SubscribeOptions } from "../cacheTypes";
 import { stableKey } from "../key";
 import { type EntryState, IDLE } from "../state";
@@ -22,7 +22,7 @@ export function createCacheState<K, T>(
 
   createEffect(stable, (current) => {
     if (current === undefined) return;
-    const unsubscribe = cache.subscribe(current, bump, options);
+    const unsubscribe = untrack(() => cache.subscribe(current, bump, options));
     bump();
     return unsubscribe;
   });

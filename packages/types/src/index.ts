@@ -1,3 +1,4 @@
+export type { LayoutBlock } from "./blocks/blockLayout";
 export type {
   ActionsBlock,
   AlertBlock,
@@ -29,12 +30,15 @@ export type {
   OverflowElement,
   PlanBlock,
   RichTextBlock,
+  RichTextHeader,
   RichTextInlineElement,
   RichTextInputElement,
   RichTextList,
+  RichTextMessageMentionElement,
   RichTextSection,
   RichTextStyle,
   RichTextSubBlock,
+  RichTextTagElement,
   SectionBlock,
   SelectElement,
   TableBlock,
@@ -44,19 +48,19 @@ export type {
   VideoBlock,
 } from "./blocks/blocks";
 export type {
+  CanvasAccess,
+  CanvasAtom,
+  CanvasCard,
   CanvasCommentThread,
   CanvasControl,
   CanvasEdit,
   CanvasFile,
   CanvasImage,
-  CanvasImageThumb,
   CanvasLine,
-  CanvasLineKind,
   CanvasNode,
   CanvasTable,
-  CanvasTableCell,
   CanvasTableColumn,
-  CanvasTableRow,
+  CanvasUnknown,
   CanvasUpsert,
   CanvasVersion,
   LayoutFrame,
@@ -67,7 +71,6 @@ export type {
   AttachmentAction,
   PendingFile,
   SlackFile,
-  SlackFileAccess,
   SlackFileDetail,
   SlackFileShare,
   SlackLink,
@@ -109,14 +112,16 @@ export type {
   DraftEntry,
   FeedEntry,
   FileUploadInput,
-  GlobalSearchResults,
   HistoryPage,
   PinnedMessage,
+  SearchHistoryEntry,
+  SearchPage,
   SearchResult,
   SessionInfo,
+  UsergroupMatch,
   UserPrefs,
 } from "./wire/apiTypes";
-export type { BootstrapPayload, BootstrapSection, RawBootIm } from "./wire/bootstrapPayload";
+export type { BootstrapPayload, BootstrapSection } from "./wire/bootstrapPayload";
 export type {
   ChannelUpdates,
   DesktopNotificationEvent,
@@ -131,10 +136,8 @@ export type {
   RawActivityMessage,
 } from "./wire/rawActivity";
 export type {
-  RawCanvasVersion,
   RawDraftEntry,
   RawSavedItem,
-  RawSearchResult,
 } from "./wire/rawApi";
 export type {
   RawAttachment,

@@ -15,9 +15,9 @@ type RawConversation = {
 
 type Page = { channels: RawConversation[]; response_metadata?: { next_cursor?: string } };
 
-export type MembershipKind = "public" | "private" | "mpim" | "im";
+type MembershipKind = "public" | "private" | "mpim" | "im";
 
-export type Membership = {
+type Membership = {
   id: ChannelId;
   kind: MembershipKind;
   name: string;

@@ -2,6 +2,7 @@ import type { Setup } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { createEffect, untrack } from "solid-js";
 import { createConversations } from "./conversations";
+import ConversationDrop from "./views/ConversationDrop";
 
 const setup: Setup = (ctx) => {
   const shell = service("shell.view");
@@ -11,6 +12,7 @@ const setup: Setup = (ctx) => {
     opened: ctx.use("conversations.opened"),
   });
   ctx.provide("conversations", conversations);
+  ctx.add("shell.overlay", ConversationDrop);
 
   createEffect(
     () => {

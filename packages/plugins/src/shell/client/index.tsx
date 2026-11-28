@@ -1,8 +1,9 @@
 import { firstTruthy, type Setup } from "@slock/core";
 import { getHost } from "@slock/core/solid";
-import { createConfirmDialog, createFocusedPane, createWindowWidth, provideUi } from "@slock/ui";
+import { createConfirmDialog, provideUi } from "@slock/ui";
 import { createSignal } from "solid-js";
 import { createFeedback } from "./feedback";
+
 import { createShellStore } from "./store";
 import { createTitles } from "./titles";
 import App from "./views/App";
@@ -40,3 +41,24 @@ const setup: Setup = (ctx) => {
 };
 
 export default setup;
+
+function createFocusedPane() {
+  const [focusedPaneId, setFocusedPaneId] = createSignal<string | null>(null);
+  const onFocusIn = (event: FocusEvent) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const pane = target?.closest<HTMLElement>("[data-pane]");
+    if (pane?.dataset.pane) setFocusedPaneId(pane.dataset.pane);
+  };
+  document.addEventListener("focusin", onFocusIn, true);
+  return {
+    dispose: () => document.removeEventListener("focusin", onFocusIn, true),
+    focusedPaneId,
+  };
+}
+
+function createWindowWidth() {
+  const [width, setWidth] = createSignal(window.innerWidth);
+  const onResize = () => setWidth(window.innerWidth);
+  window.addEventListener("resize", onResize);
+  return { dispose: () => window.removeEventListener("resize", onResize), width };
+}

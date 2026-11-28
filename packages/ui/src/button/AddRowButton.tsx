@@ -1,7 +1,7 @@
 import Icon, { type IconName } from "../media/Icon";
 import "./AddRowButton.css";
 
-export interface AddRowButtonProps {
+interface AddRowButtonProps {
   disabled?: boolean;
   icon: IconName;
   label: string;

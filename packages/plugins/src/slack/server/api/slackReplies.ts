@@ -1,24 +1,20 @@
 import type {
   Block,
-  RawActivityFeedEntry,
-  RawAttachment,
-  RawBot,
   RawChannel,
-  RawChannelSection,
-  RawCounts,
   RawFile,
   RawIcons,
-  RawLink,
   RawMessage,
   RawUser,
-  RawUsergroup,
-  RawUserProfile,
   RichTextBlock,
 } from "@slock/types";
 
-type Paged = { response_metadata?: { next_cursor?: string } };
+export type Paged = { response_metadata?: { next_cursor?: string } };
 
-export type HistoryReply = Paged & { has_more?: boolean; messages?: RawMessage[] };
+export type HistoryReply = Paged & {
+  has_more?: boolean;
+  messages?: RawMessage[];
+  pin_count?: number;
+};
 
 export type ChannelReply = { channel: RawChannel };
 
@@ -33,82 +29,27 @@ export type ChannelInfoReply = {
   };
 };
 
-export type UserReply = { user: RawUser };
-
-export type CanvasVersionsReply = {
-  versions?: { author?: string; created_ms?: number; sequence?: number; version_id?: string }[];
-};
-
-export type AuthTestReply = { user_id: string };
-
-export type PostMessageReply = { ts?: string };
-
-export type UnfurlLinkReply = { attachments?: Record<string, RawAttachment> };
-
-export type MessagesListReply = { messages?: unknown };
-
-export type UploadReservationReply = { file_id?: string; upload_url?: string };
-
-export type FilesCompleteReply = { files?: RawFile[] };
-
-export type AppProfileReply = { app_profile?: { desc?: string } };
-
-export type UsergroupMembersReply = { users?: string[] };
-
-export type UserProfileReply = { profile: RawUserProfile };
-
-export type SetPhotoReply = { profile?: RawUserProfile; user?: { profile?: RawUserProfile } };
-
-export type TeamProfileReply = {
-  profile?: {
-    fields?: {
-      field_name?: string;
-      id?: string;
-      is_hidden?: boolean;
-      label?: string;
-      ordering?: number;
-      type?: string;
-    }[];
-  };
+export type AppProfileReply = {
+  app_profile?: { app_user_id?: string; desc?: string; team_id?: string };
 };
 
 export type FileInfoReply = {
   content?: string;
   file: RawFile & {
-    canvas_creator_id?: string;
+    access?: string;
     dm_mpdm_users_with_file_access?: { access?: string; user_id?: string }[];
     editable?: boolean;
+    is_locked?: boolean;
+    is_restricted_sharing_enabled?: boolean;
     is_starred?: boolean;
     org_or_workspace_access?: string;
     user_team?: string;
     quip_thread_id?: string;
-    user?: string;
   };
   is_truncated?: boolean;
 };
 
-export type FileSharesReply = {
-  conversation_shares?: { shares?: unknown };
-  viewer_count?: number;
-};
-
-export type FilesSearchReply = {
-  items?: RawFile[];
-  pagination?: { total_count?: number };
-};
-
-export type LinksSearchReply = {
-  items?: RawLink[];
-  pagination?: { total_count?: number };
-};
-
-export type ChannelSectionsReply = { channel_sections?: RawChannelSection[] };
-
-export type CreatedSectionReply = RawChannelSection & { channel_section?: RawChannelSection };
-
-export type ActivityFeedReply = Paged & { items?: RawActivityFeedEntry[] };
-
-export type SavedItem = {
+type SavedItem = {
   channel?: string;
   channel_id?: string;
   date_created?: number;
@@ -123,24 +64,12 @@ export type SavedItem = {
 
 export type SavedListReply = { items?: SavedItem[]; saved_items?: SavedItem[] };
 
-export type PinsListReply = {
-  items?: { channel?: string; created?: number; message?: RawMessage; type?: string }[];
-};
-
 export type RawDraft = {
   blocks?: Block[];
   client_msg_id: string;
   date_scheduled?: number | string;
   destinations: { channel_id: string; thread_ts?: string }[];
   id: string;
-  last_updated_ts?: string;
-};
-
-export type DraftsListReply = { drafts?: RawDraft[] };
-
-export type DraftCreateReply = {
-  draft?: { id?: string; last_updated_ts?: string };
-  id?: string;
   last_updated_ts?: string;
 };
 
@@ -162,76 +91,10 @@ export type AppCommandsReply = {
 
 export type RoleAssignmentsReply = { role_assignments?: { users?: string[] }[] };
 
-export type ConversationViewReply = {
-  channel?: RawChannel;
-  history?: { has_more?: boolean; messages?: RawMessage[] };
-  users?: RawUser[];
-};
-
-export type UserBootReply = {
-  channels?: RawChannel[];
-  ims?: { created?: number; id: string; is_open?: boolean; updated?: number; user?: string }[];
-  is_open?: string[];
-  mpims?: RawChannel[];
-  self?: RawUser;
-  starred?: (string | { channel?: string; id?: string })[];
-  subteams?: { self?: string[] };
-};
-
-export type CountsReply = RawCounts;
-
 export type PrefsReply = { prefs?: Record<string, string | undefined> };
 
-export type MemberPermissionsReply = {
-  account_types?: {
-    account_type: string;
-    permissions: { is_allowed: boolean; permission: string }[];
-  }[];
-};
-export type RetentionReply = { retention_duration?: string; retention_type?: string };
-
-export type DndReply = {
-  dnd_enabled?: boolean;
-  next_dnd_end_ts?: number;
-  next_dnd_start_ts?: number;
-  snooze_enabled?: boolean;
-  snooze_endtime?: number;
-};
-
 export type EntityIndex<Entity> = Record<string, Entity> | Entity[];
-
-export type EdgeUsersInfoReply = {
-  results?: EntityIndex<RawUser>;
-  user?: RawUser;
-  users?: EntityIndex<RawUser>;
-};
-
-export type EdgeChannelsInfoReply = {
-  channel?: RawChannel;
-  channels?: EntityIndex<RawChannel>;
-  results?: EntityIndex<RawChannel>;
-};
-
-export type EdgeUsergroupsInfoReply = {
-  results?: EntityIndex<RawUsergroup>;
-  usergroup?: RawUsergroup;
-  usergroups?: EntityIndex<RawUsergroup>;
-};
 
 export type EdgeUsersReply = { next_marker?: string; results?: RawUser[]; truncated?: boolean };
 
 export type EdgeChannelsReply = { results?: RawChannel[] };
-
-export type SearchMessageMatch = RawMessage & {
-  channel?: { id?: string; name?: string };
-  permalink?: string;
-};
-
-export type MessagesSearchReply = {
-  items?: {
-    channel?: { id?: string; is_file?: boolean; name?: string; name_normalized?: string };
-    messages?: SearchMessageMatch[];
-  }[];
-};
-
-export type BotReply = { bot: RawBot };

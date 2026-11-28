@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
 import { ifPresent, isUserId, parseUserId, RELAY_BOT_ID } from "@slock/slack";
-import type { Attachment, Message, UserId } from "@slock/types";
+import type { Attachment, Message, TeamId, UserId } from "@slock/types";
 import { DEFAULT_AVATAR_COLOR } from "@slock/ui";
 
 const usersStore = service("users");
@@ -41,6 +41,7 @@ export interface MessageAuthorFields {
   botIcon?: string;
   botId?: string;
   botName?: string;
+  botTeamId?: TeamId;
   userId: UserId | undefined;
 }
 

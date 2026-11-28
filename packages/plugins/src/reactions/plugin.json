@@ -1,1 +1,7 @@
-{ "id": "reactions", "name": "Reactions", "requires": ["messages", "shell", "users"] }
+{
+  "id": "reactions",
+  "category": "Write",
+  "name": "Reactions",
+  "requires": ["messages", "shell", "users"],
+  "boot": true
+}

@@ -6,13 +6,6 @@
   padding: 3px var(--space-sm);
   color: var(--text-primary);
   cursor: text;
-  background: var(--composer-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-control);
-}
-
-.combobox:focus-within {
-  border-color: var(--accent);
 }
 
 .combobox.disabled {

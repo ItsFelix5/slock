@@ -8,12 +8,12 @@ import {
 import type { Route } from "@slock/plugins/slack/server/api/router";
 import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
 import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
-import type { CountsReply } from "@slock/plugins/slack/server/api/slackReplies";
 import {
   trimActivityCounts,
   trimCountGroup,
   trimCountGroups,
 } from "@slock/plugins/slack/server/api/trim/slackChannels";
+import type { RawCounts } from "@slock/types";
 
 function trimCounts(data: CountsReply) {
   return {
@@ -44,3 +44,5 @@ const setup: Setup = (ctx) => {
 };
 
 export default setup;
+
+type CountsReply = RawCounts;

@@ -1,11 +1,13 @@
 import Quill from "@slock/ui/editor/quill";
-import "./CanvasControlBlot";
-import "./SoftBreakBlot";
+import CodeBlock from "quill/formats/code";
+import AnnotationBlot from "./annotationBlot";
+import CanvasControlBlot from "./canvasControlBlot";
+import "./softBreakBlot";
 import "./embeds";
 import {
-  ANNOTATION_ATTRIBUTE,
   DIFF_ATTRIBUTE,
   DIFF_MARK,
+  HTML_TAGS_ATTRIBUTE,
   LAYOUT_ATTRIBUTE,
   SECTION_ID_ATTRIBUTE,
 } from "./formats";
@@ -25,10 +27,15 @@ Quill.register(
 );
 
 Quill.register(
-  new Parchment.Attributor(ANNOTATION_ATTRIBUTE, "data-annotation", {
+  new Parchment.Attributor(HTML_TAGS_ATTRIBUTE, "data-html-tags", {
     scope: Parchment.Scope.INLINE_ATTRIBUTE,
   }),
 );
+
+Quill.register(AnnotationBlot);
+
+// Quill strips marks and embeds from code blocks, which would orphan comments and drop references.
+CodeBlock.allowedChildren = [...CodeBlock.allowedChildren, AnnotationBlot, CanvasControlBlot];
 
 Quill.register(
   new Parchment.Attributor(DIFF_ATTRIBUTE, "data-diff", {
@@ -46,8 +53,6 @@ Quill.register(
 export {
   ANNOTATION_ATTRIBUTE,
   CANVAS_FORMATS,
-  CELL_FORMATS,
-  COLUMN_FORMATS,
   LAYOUT_ATTRIBUTE,
   SECTION_ID_ATTRIBUTE,
 } from "./formats";

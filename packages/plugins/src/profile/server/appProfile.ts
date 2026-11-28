@@ -1,29 +1,16 @@
-import { teamIdFromRoute } from "@slock/plugins/slack/server/api/auth";
-import {
-  errorResponse,
-  jsonResponse,
-  slackErrorResponse,
-} from "@slock/plugins/slack/server/api/jsonResponse";
+import { fetchAppProfile } from "@slock/plugins/slack/server/api/appProfile";
+import { jsonResponse, slackErrorResponse } from "@slock/plugins/slack/server/api/jsonResponse";
 import { route } from "@slock/plugins/slack/server/api/router";
-import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
-import type { AppProfileReply } from "@slock/plugins/slack/server/api/slackReplies";
 
 export const appProfileRoutes = [
   route("GET", "apps/:id/profile", async (ctx) => {
-    const botId = ctx.searchParams.get("bot");
-    if (!botId) return errorResponse("invalid_bot", 400);
-    const data = await callSlack<AppProfileReply>(
-      "apps.profile.get",
-      {
-        app: ctx.params.id,
-        bot: botId,
-        bot_home_team: teamIdFromRoute(ctx.creds?.route ?? "") ?? "",
-      },
+    const data = await fetchAppProfile(
+      ctx.params.id,
       ctx.creds,
+      ctx.searchParams.get("bot") ?? undefined,
     );
-    if (!data.ok) {
-      return slackErrorResponse(data, "apps.profile.get");
-    }
-    return jsonResponse({ desc: data.app_profile?.desc, ok: true });
+    if (!data.ok) return slackErrorResponse(data, "apps.profile.get");
+    const { app_user_id, desc } = data.app_profile ?? {};
+    return jsonResponse({ desc, ok: true, userId: app_user_id });
   }),
 ];

@@ -1,4 +1,5 @@
 import { narrowByType } from "@slock/core";
+import { Isolated } from "@slock/core/solid";
 import type {
   ActionsBlock,
   AlertBlock,
@@ -14,6 +15,7 @@ import type {
   HeaderBlock,
   ImageBlock,
   InputBlock,
+  LayoutBlock,
   MarkdownBlock,
   PlanBlock,
   RichTextBlock,
@@ -36,6 +38,7 @@ import Context from "./blocks/Context";
 import { DataVisualization } from "./blocks/DataVisualization";
 import Image from "./blocks/Image";
 import Input from "./blocks/Input";
+import Layout from "./blocks/Layout";
 import RichText from "./blocks/RichText";
 import Section from "./blocks/Section";
 import { Table } from "./blocks/Table";
@@ -43,12 +46,15 @@ import { Plan, TaskCard } from "./blocks/TaskCard";
 import Video from "./blocks/Video";
 import ElementRenderer from "./elements/ElementRenderer";
 import EmojiText from "./emoji/EmojiText";
+import Unsupported from "./Unsupported";
 
 export interface BlockActionContext {
-  appId?: string;
+  attachmentId?: number;
   botId?: string;
+  botTeamId?: string;
   botUserId?: string;
   channelId?: ChannelId;
+  isEphemeral?: boolean;
   messageTs?: Ts;
   threadTs?: Ts;
   view?: {
@@ -98,9 +104,20 @@ function Actions(props: { block: ActionsBlock; context?: BlockActionContext }) {
   );
 }
 
-function BlockView(props: { block: Block; context?: BlockActionContext; trailing?: JSX.Element }) {
+type BlockViewProps = { block: Block; context?: BlockActionContext; trailing?: JSX.Element };
+
+function BlockView(props: BlockViewProps) {
   return (
-    <Switch fallback={<div class="bk-unsupported">[unsupported block: {props.block.type}]</div>}>
+    <Isolated fallback={<div class="bk-unsupported">Can't show this block</div>} name="block">
+      <BlockSwitch {...props} />
+    </Isolated>
+  );
+}
+
+function BlockSwitch(props: BlockViewProps) {
+  const renderBlock = (inner: Block) => <BlockView block={inner} context={props.context} />;
+  return (
+    <Switch fallback={<Unsupported kind="block" type={props.block.type} />}>
       <Match when={narrowByType<Block, SectionBlock>(props.block, "section")}>
         {(block) => <Section block={block()} context={props.context} />}
       </Match>
@@ -141,12 +158,10 @@ function BlockView(props: { block: Block; context?: BlockActionContext; trailing
         {(block) => <Carousel block={block()} context={props.context} />}
       </Match>
       <Match when={narrowByType<Block, ContainerBlock>(props.block, "container")}>
-        {(block) => (
-          <Container
-            block={block()}
-            render={(inner) => <BlockView block={inner} context={props.context} />}
-          />
-        )}
+        {(block) => <Container block={block()} render={renderBlock} />}
+      </Match>
+      <Match when={narrowByType<Block, LayoutBlock>(props.block, "layout")}>
+        {(block) => <Layout block={block()} render={renderBlock} />}
       </Match>
       <Match when={narrowByType<Block, ContextActionsBlock>(props.block, "context_actions")}>
         {(block) => <Actions block={{ ...block(), type: "actions" }} context={props.context} />}
@@ -157,7 +172,7 @@ function BlockView(props: { block: Block; context?: BlockActionContext; trailing
           narrowByType<Block, TableBlock>(props.block, "data_table")
         }
       >
-        {(block) => <Table block={block()} />}
+        {(block) => <Table block={block()} context={props.context} />}
       </Match>
       <Match when={narrowByType<Block, DataVisualizationBlock>(props.block, "data_visualization")}>
         {(block) => <DataVisualization block={block()} />}

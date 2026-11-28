@@ -31,3 +31,13 @@ export function tabWrapTarget(
   if (backwards) return position === 0 ? "last" : undefined;
   return position === count - 1 ? "first" : undefined;
 }
+
+export function captureFocus() {
+  const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  return (allowed: () => boolean = () => true) =>
+    queueMicrotask(() => {
+      const active = document.activeElement;
+      if (active !== document.body && active?.isConnected) return;
+      if (previous?.isConnected && allowed()) previous.focus({ preventScroll: true });
+    });
+}

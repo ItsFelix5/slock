@@ -1,9 +1,14 @@
 const CHUNK_LIMIT = 3;
 
+type ChunkPriority = "urgent" | "background";
+
 export function createChunkPool() {
   let inFlight = 0;
-  const waiting: (() => void)[] = [];
-  return function loadChunk<T>(fetchChunk: () => Promise<T>): Promise<T> {
+  const waiting: Record<ChunkPriority, (() => void)[]> = { background: [], urgent: [] };
+  return function loadChunk<T>(
+    fetchChunk: () => Promise<T>,
+    priority: ChunkPriority = "urgent",
+  ): Promise<T> {
     return new Promise((resolve, reject) => {
       const run = () => {
         inFlight++;
@@ -11,11 +16,11 @@ export function createChunkPool() {
           .then(resolve, reject)
           .finally(() => {
             inFlight--;
-            waiting.shift()?.();
+            (waiting.urgent.shift() ?? waiting.background.shift())?.();
           });
       };
       if (inFlight < CHUNK_LIMIT) run();
-      else waiting.push(run);
+      else waiting[priority].push(run);
     });
   };
 }

@@ -1,6 +1,21 @@
-import { Icon, IconButton, inside, useConfirmShortcut, useShortcut } from "@slock/ui";
+import {
+  Icon,
+  IconButton,
+  inside,
+  type ShortcutSpec,
+  useConfirmShortcut,
+  useShortcut,
+} from "@slock/ui";
 import { onSettled, Show } from "solid-js";
 import "./InPaneSearchBar.css";
+
+export const PREVIOUS_MATCH_SHORTCUT = {
+  combo: { key: "Enter", shift: true },
+  group: "Lists",
+  id: "search.prevMatch",
+  label: "Go to the previous match",
+  scope: "lists",
+} satisfies ShortcutSpec;
 
 export default function InPaneSearchBar(props: {
   query: string;
@@ -17,12 +32,8 @@ export default function InPaneSearchBar(props: {
   const target = inside(() => inputRef);
   useConfirmShortcut(props.onNext, { target });
   useShortcut({
-    combo: { key: "Enter", shift: true },
+    ...PREVIOUS_MATCH_SHORTCUT,
     handler: props.onPrev,
-    id: "search.prevMatch",
-    label: "Go to the previous match",
-    scope: "lists",
-    group: "Lists",
     target,
   });
 

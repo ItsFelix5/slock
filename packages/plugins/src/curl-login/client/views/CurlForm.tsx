@@ -1,6 +1,6 @@
 import { errorMessage } from "@slock/core";
 import type { ConnectMethodProps } from "@slock/plugins/account/client/api";
-import { connectWith } from "@slock/slack";
+import { connectWith } from "@slock/slack/client";
 
 export default function CurlForm(props: ConnectMethodProps) {
   return (
@@ -10,7 +10,7 @@ export default function CurlForm(props: ConnectMethodProps) {
       </p>
       <textarea
         autocomplete="off"
-        class="connect-account-input"
+        class="connect-account-input field-surface"
         onPaste={async (event) => {
           const text = event.clipboardData?.getData("text");
           if (!text) return;

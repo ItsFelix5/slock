@@ -1,12 +1,14 @@
 import type { Block } from "./blocks/blocks";
-import type { SlackFile } from "./fileTypes";
-import type { ChannelId, Ts, UserId } from "./ids";
+import type { Attachment, SlackFile } from "./fileTypes";
+import type { ChannelId, TeamId, Ts, UserId } from "./ids";
 
 export interface ActivityItem {
+  attachments?: Attachment[];
   botIcon?: string;
   botId?: string;
 
   botName?: string;
+  botTeamId?: TeamId;
   blocks?: Block[];
   broadcastRange?: "channel" | "here" | "everyone";
   channelId: ChannelId;

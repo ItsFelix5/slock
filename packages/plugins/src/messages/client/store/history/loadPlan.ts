@@ -2,18 +2,21 @@ import type { ChannelId, Ts } from "@slock/types";
 
 export function channelsNeedingRecentHistory(input: {
   atPresent: (channelId: ChannelId) => boolean;
+  previousViewIds: ChannelId[];
   targetChannelIds: ChannelId[];
   viewIds: ChannelId[];
 }): ChannelId[] {
   return input.viewIds.filter(
-    (id) => !(input.targetChannelIds.includes(id) || input.atPresent(id)),
+    (id) =>
+      !(
+        input.previousViewIds.includes(id) ||
+        input.targetChannelIds.includes(id) ||
+        input.atPresent(id)
+      ),
   );
 }
 
-export type ThreadLoadPlan =
-  | { kind: "anchored"; anchor: Ts }
-  | { kind: "initial" }
-  | { kind: "none" };
+type ThreadLoadPlan = { kind: "anchored"; anchor: Ts } | { kind: "initial" } | { kind: "none" };
 
 export function planThreadLoad(input: {
   anchor: Ts | undefined;

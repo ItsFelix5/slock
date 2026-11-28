@@ -10,5 +10,9 @@
     "../packages/plugins/src/*/client/api/*.ts",
     "../types/css.d.ts"
   ],
-  "references": [{ "path": "../packages/core" }, { "path": "../packages/ui" }]
+  "references": [
+    { "path": "../packages/core" },
+    { "path": "../packages/core/src/client" },
+    { "path": "../packages/ui" }
+  ]
 }

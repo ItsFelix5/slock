@@ -1,12 +1,12 @@
+import { createQueue } from "@slock/core";
 import type { Services } from "@slock/core/types";
 import { gatewayHandler } from "@slock/plugins/realtime/client/api";
+import { invalidateMessageLookup, primeMessageLookup } from "@slock/plugins/slack/client/api";
 import { ifPresent, parseChannelId, parseTs, parseUserId } from "@slock/slack";
-import { createConcurrencyQueue } from "@slock/ui";
 import { createIncomingMessageHandler } from "./incomingMessages";
 import type { createMessagesStore } from "./index";
 
 const CATCH_UP_CONCURRENCY = 4;
-const MIN_CATCH_UP_DOWNTIME_MS = 5000;
 
 type Messages = ReturnType<typeof createMessagesStore>;
 
@@ -16,7 +16,7 @@ export function createMessageEvents(
     channels: Pick<Services["channels"], "isChannelMember" | "patchChannel">;
     dms: Pick<Services["dms"], "closedDmIds" | "dmById" | "ensureDm" | "setClosedDmIds">;
     conversations: Pick<Services["conversations"], "mountedViews">;
-    unread: Pick<Services["unread"], "isViewed" | "setUnreadChannelIds">;
+    unread: Pick<Services["unread"], "isViewed" | "setThreadReadTs" | "setUnreadChannelIds">;
     users: Pick<Services["users"], "currentUser">;
   },
 ) {
@@ -39,18 +39,23 @@ export function createMessageEvents(
     setClosedDmIds: dms.setClosedDmIds,
     updateChannelMessages: messages.updateChannelMessages,
     updateThreadMessages: messages.updateThreadMessages,
+    setThreadReadTs: unread.setThreadReadTs,
     setUnreadChannelIds: unread.setUnreadChannelIds,
     threadMessages: messages.threadMessages,
     isViewed: unread.isViewed,
   });
 
   const handlers = [
-    gatewayHandler(["message"], handleIncomingMessage),
+    gatewayHandler(["message"], (event) => {
+      primeMessageLookup(event);
+      handleIncomingMessage(event);
+    }),
     gatewayHandler(["reaction_added", "reaction_removed"], (event) => {
       const channel = ifPresent(parseChannelId, event.item.channel);
       const ts = ifPresent(parseTs, event.item.ts);
       const user = ifPresent(parseUserId, event.user);
       if (!(channel && ts && event.reaction && user)) return;
+      invalidateMessageLookup(channel, ts);
       messages.realtimeHooks.applyReactionEvent(
         channel,
         ts,
@@ -81,18 +86,16 @@ export function createMessageEvents(
     }),
   ];
 
-  const catchUpQueue = createConcurrencyQueue(CATCH_UP_CONCURRENCY);
+  const catchUpQueue = createQueue(CATCH_UP_CONCURRENCY);
 
-  function onReconnect({ downMs }: { downMs: number }) {
-    if (downMs < MIN_CATCH_UP_DOWNTIME_MS) return;
+  function onReconnect() {
     const visibleIds = new Set(conversations.mountedViews().map((view) => view.id));
     for (const channel of messages.loadedChannels) {
       if (visibleIds.has(channel))
         void catchUpQueue.run(async () => messages.loadRecentHistory(channel));
       else messages.loadedChannels.delete(channel);
     }
-    for (const thread of messages.visibleThreads())
-      void catchUpQueue.run(async () => messages.refreshThreadReplies(thread.ts));
+    messages.resyncThreads();
   }
 
   return { handlers, onReconnect };

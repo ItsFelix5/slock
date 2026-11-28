@@ -1,5 +1,5 @@
 import type { Services } from "@slock/core/types";
-import { createLatestValueSync } from "@slock/plugins/query/client/api";
+import { defineMutation } from "@slock/plugins/query/client/api";
 import type { ChannelId, Ts } from "@slock/types";
 
 export type ReadApi = {
@@ -28,47 +28,43 @@ export function createReadSync(api: ReadApi, flash: Services["feedback"]["flash"
     return !!sent && sent.all.has(ts) && sent.latest !== ts;
   }
 
-  const channelSync = createLatestValueSync<{ channelId: ChannelId; ts: Ts }>({
+  const channelSync = defineMutation<{ channelId: ChannelId; ts: Ts }, unknown>({
     key: (cursor) => cursor.channelId,
-    onError: (cursor, error) => {
-      if (isChannelGoneError(error)) return true;
+    mode: "latest",
+    onError: (error, cursor) => {
       console.error("Failed to sync channel read cursor", error);
       flash(cursor.channelId, "Couldn't sync read state.", "error");
-      return false;
     },
+    run: (cursor) => api.markChannelRead(cursor.channelId, cursor.ts),
+    settles: isChannelGoneError,
     version: (cursor) => parseFloat(cursor.ts),
-    write: async (cursor) => {
-      await api.markChannelRead(cursor.channelId, cursor.ts);
-    },
   });
 
-  const threadSync = createLatestValueSync<{ channelId: ChannelId; threadTs: Ts; ts: Ts }>({
+  const threadSync = defineMutation<{ channelId: ChannelId; threadTs: Ts; ts: Ts }, unknown>({
     key: (cursor) => `${cursor.channelId}:${cursor.threadTs}`,
-    onError: (cursor, error) => {
-      if (isThreadGoneError(error)) return true;
+    mode: "latest",
+    onError: (error, cursor) => {
       console.error("Failed to sync thread read cursor", cursor, error);
       flash(cursor.threadTs, "Couldn't sync thread read state.", "error");
-      return false;
     },
+    run: (cursor) => api.markThreadRead(cursor.channelId, cursor.threadTs, cursor.ts),
+    settles: isThreadGoneError,
     version: (cursor) => parseFloat(cursor.ts),
-    write: async (cursor) => {
-      await api.markThreadRead(cursor.channelId, cursor.threadTs, cursor.ts);
-    },
   });
 
   return {
     isStaleReadEcho,
     setChannelRead(channelId: ChannelId, ts: Ts) {
       recordSentRead(channelId, ts);
-      return channelSync.force({ channelId, ts });
+      return channelSync.run({ channelId, ts }, { force: true });
     },
     setThreadRead: (channelId: ChannelId, threadTs: Ts, ts: Ts) =>
-      threadSync.force({ channelId, threadTs, ts }),
+      threadSync.run({ channelId, threadTs, ts }, { force: true }),
     syncChannelRead(channelId: ChannelId, ts: Ts) {
       recordSentRead(channelId, ts);
-      return channelSync.requestLatest({ channelId, ts });
+      return channelSync.run({ channelId, ts });
     },
     syncThreadRead: (channelId: ChannelId, threadTs: Ts, ts: Ts) =>
-      threadSync.requestLatest({ channelId, threadTs, ts }),
+      threadSync.run({ channelId, threadTs, ts }),
   };
 }

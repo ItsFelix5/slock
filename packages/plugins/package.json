@@ -8,7 +8,6 @@
     "@slock/core": "workspace:*",
     "@slock/installer": "workspace:*",
     "@slock/resource": "workspace:*",
-    "@slock/server": "workspace:*",
     "@slock/slack": "workspace:*",
     "@slock/types": "workspace:*",
     "@slock/ui": "workspace:*",

@@ -1,1 +1,7 @@
-{ "id": "typing", "name": "Typing indicator", "requires": ["realtime", "users"] }
+{
+  "id": "typing",
+  "category": "People and channels",
+  "name": "Typing indicator",
+  "requires": ["realtime", "users"],
+  "boot": true
+}

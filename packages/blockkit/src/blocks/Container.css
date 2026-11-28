@@ -55,7 +55,6 @@
   border-right: 2px solid var(--text-secondary);
   border-bottom: 2px solid var(--text-secondary);
   transform: rotate(45deg);
-  transition: transform 0.15s ease;
 }
 
 .bk-container-caret--collapsed {

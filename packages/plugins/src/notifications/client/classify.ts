@@ -1,4 +1,4 @@
-import type { ActivityItem, ChannelId, DesktopNotificationEvent } from "@slock/types";
+import type { ActivityItem, ChannelId } from "@slock/types";
 
 const NOTIFICATION_KINDS = [
   "mention",
@@ -26,11 +26,10 @@ type Context = {
 };
 
 export function classifyNotification(
-  payload: DesktopNotificationEvent,
+  text: string,
   launchParams: URLSearchParams,
   { channelId, isNotifyAll, matchesPingword }: Context,
 ): NotificationKind {
-  const text = payload.msg ?? payload.content ?? "";
   if (channelId.startsWith("D")) return "dm";
   if (launchParams.has("thread_ts")) return "thread_reply";
   if (BROADCAST_MENTION.test(text)) return "channel_mention";

@@ -1,1 +1,7 @@
-{ "id": "app-home", "name": "App home", "requires": ["dms", "users"] }
+{
+  "id": "app-home",
+  "category": "People and channels",
+  "name": "App home",
+  "requires": ["dms", "query", "users"],
+  "boot": true
+}

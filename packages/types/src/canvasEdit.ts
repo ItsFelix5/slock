@@ -1,7 +1,9 @@
-import type { ChannelId, FileId, TeamId, Ts, UserId } from "./ids";
+import type { ChannelId, FileId, Ts, UserId } from "./ids";
 import type { Reaction } from "./types";
 
-export type CanvasLineKind =
+export type CanvasAccess = "comment" | "edit" | "view";
+
+type CanvasLineKind =
   | "bullet"
   | "checklist"
   | "code"
@@ -25,6 +27,17 @@ export interface CanvasLine {
   level: number;
 }
 
+export interface CanvasCard {
+  channelId: ChannelId;
+  frames: LayoutFrame[];
+  id: string;
+  isMessage: boolean;
+  kind: "card";
+  ownerId: string;
+  ts: Ts;
+  url: string;
+}
+
 export interface CanvasFile {
   fileId: FileId;
   frames: LayoutFrame[];
@@ -33,7 +46,7 @@ export interface CanvasFile {
   permalink: string;
 }
 
-export interface CanvasImageThumb {
+interface CanvasImageThumb {
   height: number;
   name: string;
   width: number;
@@ -57,12 +70,12 @@ export interface CanvasTableColumn {
   width: number;
 }
 
-export interface CanvasTableCell {
+interface CanvasTableCell {
   contentId: string;
   html: string;
 }
 
-export interface CanvasTableRow {
+interface CanvasTableRow {
   cells: CanvasTableCell[];
   id: string;
 }
@@ -75,18 +88,28 @@ export interface CanvasTable {
   rows: CanvasTableRow[];
 }
 
-export type CanvasNode = CanvasFile | CanvasImage | CanvasLine | CanvasTable;
+export interface CanvasUnknown {
+  frames: LayoutFrame[];
+  id: string;
+  kind: "unknown";
+  text: string;
+}
+
+export type CanvasAtom = CanvasCard | CanvasFile | CanvasImage | CanvasUnknown;
+
+export type CanvasNode = CanvasAtom | CanvasLine | CanvasTable;
 
 export type CanvasControl = { id: string } & (
   | { kind: "annotation" }
   | { channelId: ChannelId; kind: "channel" }
   | { kind: "date"; label: string; ms: number }
-  | { kind: "emoji"; name: string; teamId: TeamId }
+  | { kind: "emoji"; name: string }
   | { kind: "user"; userId: UserId }
 );
 
 export interface CanvasVersion {
   authorId: UserId;
+  commentOnly: boolean;
   createdMs: number;
   sequence: number;
   versionId: string;
@@ -94,8 +117,6 @@ export interface CanvasVersion {
 
 export interface CanvasCommentThread {
   archived: boolean;
-  authorIds: UserId[];
-  latestReply: Ts | null;
   quote: string;
   reactions: Reaction[];
   replyCount: number;

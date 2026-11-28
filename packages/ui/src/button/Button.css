@@ -8,10 +8,6 @@
   cursor: pointer;
   border: none;
   border-radius: var(--radius-control);
-  transition:
-    background-color 0.15s ease-in-out,
-    color 0.15s ease-in-out,
-    border-color 0.15s ease-in-out;
 }
 
 .btn-sm {

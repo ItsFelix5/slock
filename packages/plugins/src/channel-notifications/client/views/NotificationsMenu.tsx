@@ -15,6 +15,7 @@ export default function NotificationsMenu(props: ChannelMenuProps) {
       : notifyAll()
         ? "notifications-all-new-posts"
         : "notifications-just-mentions";
+  const noun = () => (props.isDm ? "conversation" : "channel");
   const run = (action: () => void) => {
     props.close();
     action();
@@ -40,7 +41,7 @@ export default function NotificationsMenu(props: ChannelMenuProps) {
         icon={muted() ? "notifications" : "notifications-off"}
         onClick={() => run(() => prefs.toggleMuteChannel(props.channelId))}
       >
-        {muted() ? "Unmute channel" : "Mute channel"}
+        {muted() ? "Unmute" : "Mute"} {noun()}
       </MenuItem>
       <MenuItem
         disabled={prefs.isNotifyAllPending(props.channelId)}

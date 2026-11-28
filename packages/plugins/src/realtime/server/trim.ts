@@ -69,7 +69,6 @@ function trimGatewayCounts(payload: RawCounts): RawCounts {
 function trimView(view: ModalView | undefined): ModalView | undefined {
   if (!view) return;
   return {
-    app_id: view.app_id,
     blocks: view.blocks,
     bot_id: view.bot_id,
     clear_on_close: view.clear_on_close,

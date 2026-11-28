@@ -1,5 +1,4 @@
 import { service } from "@slock/core/solid";
-import type { MemberFilter } from "@slock/plugins/channel-details/client/api";
 import type { ChannelId, User } from "@slock/types";
 import {
   Avatar,
@@ -12,12 +11,15 @@ import {
 import type { JSX } from "@solidjs/web";
 import { createSignal, For, Show } from "solid-js";
 import { createChannelMembers } from "../channelMembers";
+import type { MemberFilter } from "../store";
+import GroupAddPeople from "./GroupAddPeople";
 import "@slock/plugins/channel-details/client/api/ChannelDetails.css";
 import "./MembersTab.css";
 
 const feedback = service("feedback");
 
 const usersStore = service("users");
+const dmsStore = service("dms");
 
 const MEMBER_FILTERS: { key: MemberFilter; label: string }[] = [
   { key: "everyone", label: "Everyone" },
@@ -25,7 +27,7 @@ const MEMBER_FILTERS: { key: MemberFilter; label: string }[] = [
   { key: "apps", label: "Apps" },
 ];
 
-function MemberRow(props: { action: JSX.Element; isManager: boolean; user: User }) {
+function MemberRow(props: { action?: JSX.Element; isManager: boolean; user: User }) {
   return (
     <div class="channel-details-member flex-align-center">
       <button
@@ -52,6 +54,7 @@ function MemberRow(props: { action: JSX.Element; isManager: boolean; user: User 
 export default function MembersTab(props: {
   channelId: ChannelId;
   channelName: string;
+  groupChat: boolean;
   memberCount?: number;
   onMembersChanged?: () => void;
 }) {
@@ -59,10 +62,15 @@ export default function MembersTab(props: {
   const members = createChannelMembers({
     channelId: () => props.channelId,
     channelName: () => props.channelName,
+    groupChat: () => props.groupChat,
     list,
     memberCount: () => props.memberCount,
     onMembersChanged: () => props.onMembersChanged?.(),
   });
+  const canManage = () => {
+    const me = usersStore.currentUser();
+    return !!me && members.isManager(me.id);
+  };
   const [copiedKey, copy] = createCopyFeedback(1200, () =>
     feedback.flash(props.channelId, "Couldn't copy the member list.", "error"),
   );
@@ -71,22 +79,24 @@ export default function MembersTab(props: {
   return (
     <>
       <div class="channel-details-members-toolbar flex-align-center">
-        <SegmentedControl class="channel-details-member-filter">
-          <For each={MEMBER_FILTERS}>
-            {(f) => (
-              <button
-                class={["segmented-control-btn", { active: members.filter() === f.key }]}
-                onClick={() => members.setFilter(f.key)}
-                type="button"
-              >
-                {f.label}
-                <Show when={members.filterCount(f.key) !== undefined}>
-                  <span class="channel-details-filter-count">{members.filterCount(f.key)}</span>
-                </Show>
-              </button>
-            )}
-          </For>
-        </SegmentedControl>
+        <Show when={!props.groupChat}>
+          <SegmentedControl class="channel-details-member-filter">
+            <For each={MEMBER_FILTERS}>
+              {(f) => (
+                <button
+                  class={["segmented-control-btn", { active: members.filter() === f.key }]}
+                  onClick={() => members.setFilter(f.key)}
+                  type="button"
+                >
+                  {f.label}
+                  <Show when={members.filterCount(f.key) !== undefined}>
+                    <span class="channel-details-filter-count">{members.filterCount(f.key)}</span>
+                  </Show>
+                </button>
+              )}
+            </For>
+          </SegmentedControl>
+        </Show>
         <IconButton
           class="channel-details-copy-btn"
           disabled={members.filteredMembers().length === 0}
@@ -104,6 +114,12 @@ export default function MembersTab(props: {
           }
         />
       </div>
+      <Show when={props.groupChat}>
+        <GroupAddPeople
+          channelId={props.channelId}
+          memberIds={dmsStore.dmById(props.channelId)?.memberIds ?? []}
+        />
+      </Show>
       <input
         class="text-field"
         onInput={(e) => members.setQuery(e.currentTarget.value)}
@@ -128,15 +144,27 @@ export default function MembersTab(props: {
           {(u) => (
             <MemberRow
               action={
-                <Show when={u.id !== usersStore.currentUser()?.id}>
-                  <IconButton
-                    class="channel-details-member-remove busy"
-                    disabled={members.isRemoving(u.id)}
-                    icon="close-filled"
-                    iconSize={14}
-                    label="Remove from channel"
-                    onClick={() => members.removeMember(u)}
-                  />
+                <Show when={canManage()}>
+                  <Show when={!members.isManager(u.id)}>
+                    <IconButton
+                      class="channel-details-member-promote busy"
+                      disabled={members.isPromoting(u.id)}
+                      icon="key"
+                      iconSize={14}
+                      label="Make channel manager"
+                      onClick={() => members.makeManager(u)}
+                    />
+                  </Show>
+                  <Show when={u.id !== usersStore.currentUserId()}>
+                    <IconButton
+                      class="channel-details-member-remove busy"
+                      disabled={members.isRemoving(u.id)}
+                      icon="close-filled"
+                      iconSize={14}
+                      label="Remove from channel"
+                      onClick={() => members.removeMember(u)}
+                    />
+                  </Show>
                 </Show>
               }
               isManager={members.isManager(u.id)}

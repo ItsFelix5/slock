@@ -1,4 +1,5 @@
 import {
+  distanceFromBottom,
   historyLoadOnScroll,
   historyLoadToFillViewport,
   type ScrollDirection,
@@ -14,7 +15,10 @@ export interface FeedLoadInput {
   sizeAtLayoutLoad: number | undefined;
 }
 
+const BOTTOM_PX = 2;
+
 function layoutLoad({ availability, lastLoad, metrics }: FeedLoadInput) {
+  if (availability.canLoadNewer && distanceFromBottom(metrics) <= BOTTOM_PX) return "newer";
   const edge =
     historyLoadOnScroll({ ...availability, direction: undefined, metrics }) ??
     historyLoadOnScroll({ ...availability, direction: "newer", metrics });

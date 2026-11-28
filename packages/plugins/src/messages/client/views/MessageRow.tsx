@@ -1,7 +1,7 @@
-import { maybeService, Slot, service } from "@slock/core/solid";
+import { Isolated, maybeService, Slot, service } from "@slock/core/solid";
 import type { ChannelId, Message, Ts } from "@slock/types";
 import { ContextMenu, useContextMenu } from "@slock/ui";
-import { createMemo, Show } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
 import { retainsDeleted } from "../api/deletedMessages";
 import type { OpenThreadHandler } from "../api/messageFocus";
 import { isMessageBackgroundContextMenu } from "../messageContextMenuTarget";
@@ -17,6 +17,8 @@ import {
 import { resolveMessageContent, resolveMessageNeighbors } from "../lib/messageRenderState";
 import { createRowEngagement } from "./createRowEngagement";
 import MessageMeta from "./MessageMeta";
+import BrokenMessageRow from "./parts/BrokenMessageRow";
+import DeletedMessageClue from "./parts/DeletedMessageClue";
 import MessageActionsBar from "./parts/MessageActionsBar";
 import MessageRowAvatar from "./parts/MessageRowAvatar";
 import MessageTextContent from "./parts/MessageTextContent";
@@ -31,7 +33,7 @@ const pinned = maybeService("pins");
 
 const later = maybeService("later");
 
-export type MessageRowProps = {
+type MessageRowProps = {
   message: Message;
   messages: Message[];
   prev: () => Message | undefined;
@@ -53,6 +55,14 @@ export type MessageRowProps = {
 };
 
 export default function MessageRow(props: MessageRowProps) {
+  return (
+    <Isolated fallback={<BrokenMessageRow ts={props.message.ts} />} name="message row">
+      <MessageRowContent {...props} />
+    </Isolated>
+  );
+}
+
+function MessageRowContent(props: MessageRowProps) {
   const msg = () => props.message;
   const isPinned = () => !!pinned()?.isMessagePinned(props.channelId, msg().ts);
   const content = createMemo(() =>
@@ -106,6 +116,10 @@ export default function MessageRow(props: MessageRowProps) {
         ?.list.find((m) => m.ts === rootTs)
     );
   });
+  const hasNewerReplies = () => {
+    const latest = threadParent()?.latestReply;
+    return !!latest && latest > msg().ts;
+  };
   const visibleAttachments = () => content().visibleAttachments;
   const sameAuthorAsPrev = () => neighbors().sameAuthorAsPrev;
   const showBroadcastBadge = () => content().showBroadcastBadge;
@@ -123,9 +137,11 @@ export default function MessageRow(props: MessageRowProps) {
 
   const saved = () => !!later()?.isSavedForLater(props.channelId, msg().ts);
   const { engaged, events: rowEvents, keyboardFocus } = createRowEngagement();
+  const [revealed, setRevealed] = createSignal(false);
+  const collapsed = () => !!msg().deleted && !revealed();
   const isSystem = () => msg().kind === "system";
   const showActions = () =>
-    !isSystem() &&
+    !(collapsed() || isSystem()) &&
     (engaged() ||
       focused() ||
       props.reactionPickerTs?.() === msg().ts ||
@@ -138,6 +154,7 @@ export default function MessageRow(props: MessageRowProps) {
         class={[
           "message-row-group",
           {
+            collapsed: collapsed(),
             compact: sameAuthorAsPrev(),
             deleted: msg().deleted,
             ephemeral: msg().isEphemeral,
@@ -151,7 +168,7 @@ export default function MessageRow(props: MessageRowProps) {
           },
         ]}
       >
-        <Show when={replyRef()}>
+        <Show when={!collapsed() && replyRef()}>
           {(ref) => (
             <ReplyReferenceRow
               attachment={replyUnfurl()}
@@ -161,11 +178,12 @@ export default function MessageRow(props: MessageRowProps) {
             />
           )}
         </Show>
-        <Show when={showThreadContext() && msg().threadTs}>
+        <Show when={!collapsed() && showThreadContext() && msg().threadTs}>
           {(threadTs) => (
             <ReplyReferenceRow
               icon="threads"
               message={threadParent()}
+              newerReplies={hasNewerReplies()}
               onJump={() => props.onOpenThread?.(threadTs())}
             />
           )}
@@ -207,61 +225,66 @@ export default function MessageRow(props: MessageRowProps) {
               </ContextMenu>
             </Show>
           </Show>
-          <Show fallback={<SystemMessageContent msg={msg()} />} when={!isSystem()}>
-            <Show fallback={<div class="message-avatar-spacer" />} when={!sameAuthorAsPrev()}>
-              <MessageRowAvatar
-                avatarUrl={avatarUrl()}
-                displayName={displayName()}
-                fallbackUserId={msg().userId}
-                focused={focused()}
-                profileUserId={profileUserId()}
-                user={user()}
-              />
-            </Show>
-            <div class="message-body">
-              <Show when={!sameAuthorAsPrev()}>
-                <MessageMeta
-                  channelId={props.channelId}
-                  displayName={displayName}
-                  threadTs={props.threadTs}
-                  botUserId={botProfileUserId()}
-                  onOpenBot={() => {
-                    const id = botProfileUserId();
-                    if (id) usersStore.openUserProfile(id);
-                  }}
-                  showBroadcastBadge={showBroadcastBadge}
-                  tabbable={focused}
-                  message={msg()}
-                  onOpenUser={() => {
-                    const id = profileUserId();
-                    if (id) usersStore.openUserProfile(id);
-                  }}
-                  user={user}
-                  userId={profileUserId()}
+          <Show
+            fallback={<DeletedMessageClue onReveal={() => setRevealed(true)} />}
+            when={!collapsed()}
+          >
+            <Show fallback={<SystemMessageContent msg={msg()} />} when={!isSystem()}>
+              <Show fallback={<div class="message-avatar-spacer" />} when={!sameAuthorAsPrev()}>
+                <MessageRowAvatar
+                  avatarUrl={avatarUrl()}
+                  displayName={displayName()}
+                  fallbackUserId={msg().userId}
+                  focused={focused()}
+                  profileUserId={profileUserId()}
+                  user={user()}
                 />
               </Show>
-              <MessageTextContent
-                attachments={visibleAttachments()}
-                channelId={props.channelId}
-                hasEnlargedEmojiOnlyText={hasEnlargedEmojiOnlyText()}
-                isEditing={isEditing()}
-                messageText={messageText()}
-                msg={msg()}
-                onStopEdit={props.onStopEdit}
-                renderBlocks={renderBlocks()}
-                replyRef={replyRef()}
-                tz={user()?.tz}
-              />
-              <Slot
-                attachments={visibleAttachments()}
-                channelId={props.channelId}
-                isEditing={isEditing()}
-                msg={msg()}
-                onOpenThread={props.onOpenThread}
-                point="messages.body"
-                threadTs={props.threadTs}
-              />
-            </div>
+              <div class="message-body">
+                <Show when={!sameAuthorAsPrev()}>
+                  <MessageMeta
+                    channelId={props.channelId}
+                    displayName={displayName}
+                    threadTs={props.threadTs}
+                    botUserId={botProfileUserId()}
+                    onOpenBot={() => {
+                      const id = botProfileUserId();
+                      if (id) usersStore.openUserProfile(id);
+                    }}
+                    showBroadcastBadge={showBroadcastBadge}
+                    tabbable={focused}
+                    message={msg()}
+                    onOpenUser={() => {
+                      const id = profileUserId();
+                      if (id) usersStore.openUserProfile(id);
+                    }}
+                    user={user}
+                    userId={profileUserId()}
+                  />
+                </Show>
+                <MessageTextContent
+                  attachments={visibleAttachments()}
+                  channelId={props.channelId}
+                  hasEnlargedEmojiOnlyText={hasEnlargedEmojiOnlyText()}
+                  isEditing={isEditing()}
+                  messageText={messageText()}
+                  msg={msg()}
+                  onStopEdit={props.onStopEdit}
+                  renderBlocks={renderBlocks()}
+                  replyRef={replyRef()}
+                  tz={user()?.tz}
+                />
+                <Slot
+                  attachments={visibleAttachments()}
+                  channelId={props.channelId}
+                  isEditing={isEditing()}
+                  msg={msg()}
+                  onOpenThread={props.onOpenThread}
+                  point="messages.body"
+                  threadTs={props.threadTs}
+                />
+              </div>
+            </Show>
           </Show>
         </div>
       </div>

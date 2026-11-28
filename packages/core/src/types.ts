@@ -1,5 +1,3 @@
-import type { Component } from "solid-js";
-
 export type TimerHandle = { readonly cancel: () => void };
 
 export type Env = {
@@ -22,9 +20,7 @@ export interface Services {
   env: Env;
 }
 
-export interface Points {
-  root: Component;
-}
+export interface Points {}
 
 export type AddOptions = { id?: string; order?: number };
 
@@ -47,6 +43,7 @@ export type Manifest = {
   provides?: readonly string[];
   boot?: boolean;
   hidden?: boolean;
+  category?: string;
 };
 
 export type PluginDef = Manifest & { defaultEnabled?: boolean } & (
@@ -54,7 +51,7 @@ export type PluginDef = Manifest & { defaultEnabled?: boolean } & (
     | { load: () => Promise<{ default: Setup }> }
   );
 
-export type PluginState = "off" | "running" | "failed" | "blocked";
+type PluginState = "off" | "running" | "failed" | "blocked";
 
 export type PluginStatus = { state: PluginState; error?: string };
 

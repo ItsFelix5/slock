@@ -1,4 +1,4 @@
-import { defined } from "@slock/core";
+import { defined, logUnknown } from "@slock/core";
 import { isChannelId, isFileId, isUserId } from "@slock/slack";
 import type { ChannelId, FileId, UserId } from "@slock/types";
 
@@ -82,9 +82,10 @@ function parseToken(token: string): InlineNode {
   }
   if (token.startsWith("!")) {
     const [range] = splitOnce(token.slice(1), "|");
-    return range === "here" || range === "channel" || range === "everyone"
-      ? { range, t: "broadcast" }
-      : literal;
+    if (range === "here" || range === "channel" || range === "everyone")
+      return { range, t: "broadcast" };
+    logUnknown("mrkdwn command", splitOnce(token.slice(1), "^")[0]);
+    return literal;
   }
   const [url, label] = splitOnce(token, "|");
   return url ? { label, t: "link", url } : literal;

@@ -1,4 +1,9 @@
-import { slackAssetResponse, slackAssetUrlsIn } from "@slock/plugins/slack/server/api/assets";
+import { isRecord } from "@slock/core";
+import {
+  CONTENT_ADDRESSED_HOST_RE,
+  isAllowedSlackUrl,
+  slackAssetResponse,
+} from "@slock/plugins/slack/server/api/assets";
 import type { Credentials } from "@slock/plugins/slack/server/api/auth";
 import type { LogStore } from "./store";
 import { ownerOf } from "./workspace";
@@ -19,4 +24,22 @@ async function keepAsset(url: string, creds: Credentials, store: LogStore) {
 export async function keepAssets(message: unknown, creds: Credentials, store: LogStore) {
   const urls = new Set(slackAssetUrlsIn(message));
   await Promise.all([...urls].map((url) => keepAsset(url, creds, store).catch(() => {})));
+}
+
+function slackAssetUrlsIn(value: unknown, key = ""): string[] {
+  if (typeof value === "string") {
+    const asset =
+      isStaticAssetUrl(value) || (SLACK_ASSET_KEY_RE.test(key) && isAllowedSlackUrl(value));
+    return asset ? [value] : [];
+  }
+  if (Array.isArray(value)) return value.flatMap((entry) => slackAssetUrlsIn(entry));
+  if (!isRecord(value)) return [];
+  return Object.entries(value).flatMap(([name, entry]) => slackAssetUrlsIn(entry, name));
+}
+
+const SLACK_ASSET_KEY_RE =
+  /(?:^|_)(?:avatar|icon|image|thumb|video)(?:_|$)|^url_private(?:_download)?$|^original$|^vtt$/i;
+
+function isStaticAssetUrl(value: string): boolean {
+  return isAllowedSlackUrl(value) && CONTENT_ADDRESSED_HOST_RE.test(new URL(value).hostname);
 }

@@ -73,7 +73,7 @@ function tableContent(record: SectionRecord | null, node: CanvasTable): number[]
   const rows = node.rows.map((row, index) =>
     rawMessage(
       new Map([
-        [1, [rawMessage(new Map([[14, [rawString(row.id)]]]))]],
+        [1, [rawString(row.id)]],
         [2, [rawString(rowKeys[index] ?? "")]],
       ]),
     ),
@@ -94,7 +94,7 @@ function tableContent(record: SectionRecord | null, node: CanvasTable): number[]
       return rawMessage(
         new Map([
           [1, [rawString(cellId)]],
-          [2, [rawMessage(new Map([[14, [rawString(row.id)]]]))]],
+          [2, [rawString(row.id)]],
           [3, [rawString(colId)]],
           [4, [rawString(cell.contentId)]],
         ]),

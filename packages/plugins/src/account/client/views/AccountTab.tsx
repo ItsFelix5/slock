@@ -1,6 +1,11 @@
 import { errorMessage } from "@slock/core";
 import { Slot, usePoint } from "@slock/core/solid";
-import { getActiveAccountId, listAccounts, removeAccount, switchAccount } from "@slock/slack";
+import {
+  getActiveAccountId,
+  listAccounts,
+  removeAccount,
+  switchAccount,
+} from "@slock/slack/client";
 import type { AccountSummary } from "@slock/types";
 import { Avatar, Button, DEFAULT_AVATAR_COLOR, Icon, IconButton } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";

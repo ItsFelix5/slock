@@ -1,12 +1,5 @@
-import type {
-  Channel,
-  ChannelDetails,
-  ChannelId,
-  FileId,
-  RawChannel,
-  RawChannelSection,
-} from "@slock/types";
-import { ifPresent, parseChannelId, parseFileId, parseUserId } from "../ids";
+import type { Channel, ChannelDetails, FileId, RawChannel } from "@slock/types";
+import { hostedFileId, ifPresent, parseChannelId, parseUserId } from "../ids";
 
 const FILE_CHANNEL_PREFIX = "FC:";
 const CANVAS_COMMENTS_LABEL = "Canvas comments";
@@ -15,7 +8,24 @@ export function canvasFileIdOf(
   raw: Pick<RawChannel, "id" | "is_file" | "name_normalized">,
 ): FileId | undefined {
   const hosted = raw.is_file || raw.name_normalized?.startsWith(FILE_CHANNEL_PREFIX);
-  return hosted ? parseFileId(`F${raw.id.slice(1)}`) : undefined;
+  return hosted ? hostedFileId(parseChannelId(raw.id)) : undefined;
+}
+
+function textValue(text: RawChannel["topic"]): string {
+  return typeof text === "string" ? text : (text?.value ?? "");
+}
+
+function customGroupName(name: string | undefined): string | undefined {
+  return name?.startsWith("mpdm-") ? undefined : name;
+}
+
+export function mapGroupDm(raw: RawChannel, selfId: string | undefined) {
+  return {
+    id: parseChannelId(raw.id),
+    memberIds: (raw.members ?? []).filter((member) => member !== selfId).map(parseUserId),
+    name: customGroupName(raw.name),
+    topic: textValue(raw.topic),
+  };
 }
 
 export function mapChannel(raw: RawChannel): Channel {
@@ -28,12 +38,13 @@ export function mapChannel(raw: RawChannel): Channel {
     memberCount: raw.num_members ?? raw.member_count,
     name: canvasFileId ? CANVAS_COMMENTS_LABEL : (raw.name ?? raw.id),
     private: !!raw.is_private,
-    topic: typeof raw.topic === "string" ? raw.topic : (raw.topic?.value ?? ""),
+    topic: textValue(raw.topic),
     unread: (raw.unread_count_display ?? raw.unread_count ?? 0) > 0,
   };
 }
 
 export function mapChannelDetails(raw: RawChannel): ChannelDetails {
+  const name = raw.is_mpim ? (customGroupName(raw.name) ?? "") : (raw.name ?? raw.id);
   return {
     archived: !!raw.is_archived,
     created: raw.created ?? 0,
@@ -41,37 +52,9 @@ export function mapChannelDetails(raw: RawChannel): ChannelDetails {
     email: raw.properties?.channel_email_addresses?.[0]?.address || undefined,
     id: parseChannelId(raw.id),
     memberCount: raw.num_members,
-    name: canvasFileIdOf(raw) ? CANVAS_COMMENTS_LABEL : (raw.name ?? raw.id),
+    name: canvasFileIdOf(raw) ? CANVAS_COMMENTS_LABEL : name,
     private: !!raw.is_private,
-    purpose: typeof raw.purpose === "string" ? raw.purpose : (raw.purpose?.value ?? ""),
-    topic: typeof raw.topic === "string" ? raw.topic : (raw.topic?.value ?? ""),
+    purpose: textValue(raw.purpose),
+    topic: textValue(raw.topic),
   };
-}
-
-interface ChannelSectionSummary {
-  channelIds: ChannelId[];
-  id: string;
-  name: string;
-  sidebar: "hid" | "active" | "all";
-  type: string;
-}
-
-export function extractChannelSections(
-  data: { channel_sections?: RawChannelSection[] } | undefined,
-): ChannelSectionSummary[] | null {
-  const raw = data?.channel_sections;
-  if (!Array.isArray(raw)) return null;
-
-  return raw
-    .map((s) => ({
-      channelIds: (s.channel_ids ?? s.channel_ids_page?.channel_ids ?? s.channels ?? []).map(
-        parseChannelId,
-      ),
-      id: s.channel_section_id ?? s.id ?? s.name,
-      name: s.name ?? "Section",
-
-      sidebar: s.sidebar === "all" || s.sidebar === "active" ? s.sidebar : ("hid" as const),
-      type: s.type ?? "standard",
-    }))
-    .filter((s): s is ChannelSectionSummary => !!s.id);
 }

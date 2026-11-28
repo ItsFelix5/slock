@@ -2,17 +2,15 @@ import type { ApiFailure } from "@slock/types";
 
 export type SlackErrorKind = "auth" | "rate_limited" | "transient" | "deterministic" | "network";
 
-export interface SlackErrorInit {
+interface SlackErrorInit {
   code?: string;
   fallback: string;
   retryAfter?: string;
   status?: number;
 }
-
-const MAX_ATTEMPTS = 3;
 const RATE_LIMIT_CODE = /^rate_?limited$/;
 const DETERMINISTIC_CODE =
-  /^(channel_not_found|not_in_channel|is_archived|message_not_found|user_not_found|no_permission|access_denied|not_allowed|restricted_action|file_not_found|not_visible|enterprise_is_restricted|thread_not_found|team_not_found|bot_not_found|cant_.+|invalid_.+|missing_.+)$/;
+  /^(channel_not_found|not_in_channel|is_archived|message_not_found|user_not_found|no_permission|no_perms|access_denied|not_allowed|restricted_action|file_not_found|not_visible|enterprise_is_restricted|team_is_restricted|thread_not_found|team_not_found|bot_not_found|cant_.+|invalid_.+|missing_.+)$/;
 const AUTH_CODES = new Set([
   "not_configured",
   "invalid_auth",
@@ -79,12 +77,4 @@ export function replyError(reply: ApiFailure, fallback: string): SlackError {
 
 export function networkError(cause: unknown): SlackError {
   return new SlackError({ kind: "network", message: "network request failed" }, { cause });
-}
-
-export function retryDecision(error: unknown, attempt: number): "retry" | "stop" {
-  if (attempt >= MAX_ATTEMPTS) return "stop";
-  if (isSlackError(error) && (error.kind === "auth" || error.kind === "deterministic")) {
-    return "stop";
-  }
-  return "retry";
 }

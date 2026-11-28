@@ -3,7 +3,6 @@ import type { Block, SlackFile } from "@slock/types";
 import { InlineFeedback, useEscapeClose } from "@slock/ui";
 import QuillEditor from "@slock/ui/editor/QuillEditor";
 import type Quill from "@slock/ui/editor/quill";
-import { indexAlignedText } from "@slock/ui/editor/quillText";
 import { createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
 import "./Composer.css";
 import { draftCacheKey } from "@slock/plugins/drafts/client/api";
@@ -37,8 +36,7 @@ import { buildRichTextBlocks } from "../lib/richTextBuild";
 import { loadRichTextIntoQuill } from "../lib/richTextLoad";
 import { useComposerShortcuts } from "../lib/useComposerShortcuts";
 import ComposerAttachMenu from "./ComposerAttachMenu";
-import ComposerFileChips from "./ComposerFileChips";
-import ComposerLinkPreviews from "./ComposerLinkPreviews";
+import ComposerChips from "./ComposerChips";
 import ComposerReplyRow from "./ComposerReplyRow";
 import DraftsMenu from "./popovers/DraftsMenu";
 
@@ -105,12 +103,12 @@ export default function Composer(props: ComposerProps) {
   const linkPreviews = createLinkPreviews({
     blocks: editorBlocks,
     channelId: () => props.channelId,
-    enabled: () => !props.editing && pendingFiles.files().length === 0,
+    enabled: () => !props.editing,
   });
 
   const loadIntoEditor = (blocks: Block[]) => {
-    if (!quill) return;
-    loadRichTextIntoQuill(quill, blocks, resolveMention);
+    const editor = quill;
+    if (editor) untrack(() => loadRichTextIntoQuill(editor, blocks, resolveMention));
   };
 
   const draftState = untrack(() => props.editing)
@@ -125,7 +123,10 @@ export default function Composer(props: ComposerProps) {
 
   const handleSubmit = createComposerSubmitHandler<ReturnType<Quill["getContents"]>>({
     channelId: () => props.channelId,
-    clearDraftAfterSend: () => draftState?.clearAfterSend(pendingFiles) ?? Promise.resolve(),
+    clearDraftAfterSend: (postedDraftId) =>
+      draftState?.clearAfterSend(pendingFiles, postedDraftId) ?? Promise.resolve(),
+    discardDraft: (id) => draftState?.discard(id) ?? Promise.resolve(),
+    draft: () => draftState?.current(),
     editing: () => props.editing,
     existingFiles,
     feedbackKey,
@@ -169,7 +170,7 @@ export default function Composer(props: ComposerProps) {
   return (
     <div
       class={[
-        "composer composer-frame surface-popover",
+        "composer composer-frame surface-popover field-surface",
         { "composer-editing": !!props.editing, "drag-over": dragOver() },
       ]}
       onDragLeave={() => setDragOver(false)}
@@ -196,16 +197,14 @@ export default function Composer(props: ComposerProps) {
           </button>
         </div>
       </Show>
-      <ComposerFileChips
+      <ComposerChips
         disabled={sending()}
         existingFiles={existingFiles()}
         onRemoveExisting={(id) => setExistingFiles((files) => files.filter((f) => f.id !== id))}
-        pendingFiles={pendingFiles}
-      />
-      <ComposerLinkPreviews
-        onRemove={(preview) =>
+        onRemovePreview={(preview) =>
           props.editing ? editAttachments.remove(preview) : linkPreviews.dismiss(preview.url)
         }
+        pendingFiles={pendingFiles}
         previews={props.editing ? editAttachments.previews() : linkPreviews.previews()}
       />
       <div class="composer-row">
@@ -234,11 +233,8 @@ export default function Composer(props: ComposerProps) {
               disposers.push(mentionHover.bind(q), ...editorPlugins.bind(q));
               q.on("text-change", () => {
                 setEdits((count) => count + 1);
-                const rawAligned = indexAlignedText(q);
-                const aligned = rawAligned.endsWith("\n") ? rawAligned.slice(0, -1) : rawAligned;
                 syncSuggestionsAfterChange(
                   q,
-                  aligned,
                   suggestions,
                   (index) => {
                     caretIndex = index;

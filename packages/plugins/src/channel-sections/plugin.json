@@ -1,1 +1,7 @@
-{ "id": "channel-sections", "name": "Channel sections", "requires": ["channels", "dms", "shell"] }
+{
+  "id": "channel-sections",
+  "category": "Looks and layout",
+  "name": "Move to section",
+  "requires": ["channels", "dms", "query", "shell"],
+  "boot": true
+}

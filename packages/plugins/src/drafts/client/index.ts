@@ -1,12 +1,11 @@
 import type { Setup } from "@slock/core";
 import { gatewayHandler } from "@slock/plugins/realtime/client/api";
-import { mapDraft } from "@slock/slack";
 import { createDraftStore } from "./draftStore";
 import { createDraftsService } from "./draftsService";
+import { mapDraft } from "./mapDraft";
 
 const setup: Setup = (ctx) => {
   const store = createDraftStore();
-  ctx.onCleanup(store.dispose);
   void store.hydrate();
   ctx.provide("drafts", createDraftsService(store, ctx.get("env")));
   ctx.add(

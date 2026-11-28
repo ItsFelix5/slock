@@ -1,13 +1,12 @@
 import type { Setup } from "@slock/core";
 import { errorResponse, jsonResponse } from "@slock/plugins/slack/server/api/jsonResponse";
 import { route, routes } from "@slock/plugins/slack/server/api/router";
-import type { UserBootReply } from "@slock/plugins/slack/server/api/slackReplies";
 import {
   isHostedChannel,
   trimBootChannel,
 } from "@slock/plugins/slack/server/api/trim/slackChannels";
 import { trimUser } from "@slock/plugins/slack/server/api/trim/slackEntities";
-import type { BootstrapPayload } from "@slock/types";
+import type { BootstrapPayload, RawChannel, RawUser } from "@slock/types";
 import { slackPart } from "./api";
 
 const OPTIONAL_PART_WAIT_MS = 1200;
@@ -29,9 +28,7 @@ function trimUserBoot(data: UserBootReply): BootstrapPayload {
       is_open: group.is_open,
       members: group.members,
       name: group.name,
-      properties: group.properties
-        ? { has_custom_mpdm_name: group.properties.has_custom_mpdm_name }
-        : undefined,
+      topic: group.topic,
       updated: group.updated,
     })),
     self: data.self ? trimUser(data.self) : undefined,
@@ -92,3 +89,13 @@ const setup: Setup = (ctx) => {
 };
 
 export default setup;
+
+type UserBootReply = {
+  channels?: RawChannel[];
+  ims?: { created?: number; id: string; is_open?: boolean; updated?: number; user?: string }[];
+  is_open?: string[];
+  mpims?: RawChannel[];
+  self?: RawUser;
+  starred?: (string | { channel?: string; id?: string })[];
+  subteams?: { self?: string[] };
+};

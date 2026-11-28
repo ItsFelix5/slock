@@ -1,6 +1,6 @@
 import { Slot } from "@slock/core/solid";
 import type { BlockElement, ConfirmationDialog, TextObject } from "@slock/types";
-import { ICON_NAMES, Icon, type IconName, isOneOf, Tooltip } from "@slock/ui";
+import { ICON_NAMES, Icon, type IconName, isOneOf } from "@slock/ui";
 import { Show } from "solid-js";
 import { useBlockActionDispatch } from "../actions/useBlockActionDispatch";
 import BkText from "../BkText";
@@ -8,6 +8,7 @@ import type { BlockActionContext } from "../BlockKit";
 import { safeUrl } from "../safeUrl";
 import ChoiceGroup from "./ChoiceGroup";
 import "./Controls.css";
+import Unsupported from "../Unsupported";
 import {
   isChoiceGroup,
   isFileInput,
@@ -49,8 +50,8 @@ export default function Controls(props: {
     pending,
     record: recordAction,
   } = useBlockActionDispatch(() => props.context);
-  const ready = () =>
-    props.stateOnly ? !!data.action_id : !pending() && canDispatch(data.action_id);
+  const enabled = () => (props.stateOnly ? !!data.action_id : canDispatch(data.action_id));
+  const ready = () => enabled() && !pending();
 
   const action = (payload: Record<string, unknown>) => ({
     action_id: data.action_id,
@@ -61,7 +62,9 @@ export default function Controls(props: {
   const record = (payload: Record<string, unknown>) => recordAction(action(payload));
   const dispatch = (payload: Record<string, unknown>) => {
     record(payload);
-    return props.stateOnly ? undefined : dispatchAction(action(payload), data.confirm);
+    return props.stateOnly
+      ? undefined
+      : dispatchAction(action(payload), data.confirm, isTextInput(element));
   };
   const dispatchOn = () => {
     if (props.stateOnly) return [];
@@ -92,28 +95,24 @@ export default function Controls(props: {
   if (data.type === "feedback_buttons") {
     return (
       <div class="bk-feedback-buttons">
-        <Tooltip content={data.positive_button?.text.text ?? "Good response"}>
-          <button
-            aria-label={data.positive_button?.text.text ?? "Good response"}
-            class="bk-feedback-button bk-feedback-button--positive hover-hl"
-            disabled={!ready()}
-            onClick={() => dispatch({ value: data.positive_button?.value })}
-            type="button"
-          >
-            <Icon name="thumbs-up" size={15} />
-          </button>
-        </Tooltip>
-        <Tooltip content={data.negative_button?.text.text ?? "Bad response"}>
-          <button
-            aria-label={data.negative_button?.text.text ?? "Bad response"}
-            class="bk-feedback-button bk-feedback-button--negative hover-hl"
-            disabled={!ready()}
-            onClick={() => dispatch({ value: data.negative_button?.value })}
-            type="button"
-          >
-            <Icon name="thumbs-down" size={15} />
-          </button>
-        </Tooltip>
+        <button
+          aria-label={data.positive_button?.text.text ?? "Good response"}
+          class="bk-feedback-button bk-feedback-button--positive hover-hl"
+          disabled={!ready()}
+          onClick={() => dispatch({ value: data.positive_button?.value })}
+          type="button"
+        >
+          <Icon name="thumbs-up" size={15} />
+        </button>
+        <button
+          aria-label={data.negative_button?.text.text ?? "Bad response"}
+          class="bk-feedback-button bk-feedback-button--negative hover-hl"
+          disabled={!ready()}
+          onClick={() => dispatch({ value: data.negative_button?.value })}
+          type="button"
+        >
+          <Icon name="thumbs-down" size={15} />
+        </button>
       </div>
     );
   }
@@ -125,7 +124,6 @@ export default function Controls(props: {
         class="bk-icon-button hover-hl"
         disabled={!ready()}
         onClick={() => dispatch({ value: data.value })}
-        title={data.text?.text}
         type="button"
       >
         <Show fallback={data.icon ?? "•"} when={iconName()}>
@@ -190,11 +188,11 @@ export default function Controls(props: {
         dispatch={dispatch}
         dispatchOn={dispatchOn()}
         el={element}
-        ready={ready()}
+        ready={enabled()}
         record={record}
       />
     );
   }
 
-  return null;
+  return <Unsupported kind="element" type={data.type} />;
 }

@@ -1,5 +1,7 @@
 {
   "id": "later",
+  "category": "Read and catch up",
   "name": "Saved items",
-  "requires": ["channels", "dms", "message-links", "messages", "shell", "users"]
+  "requires": ["channels", "dms", "message-links", "messages", "query", "shell", "users"],
+  "boot": true
 }

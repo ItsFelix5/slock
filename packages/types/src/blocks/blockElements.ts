@@ -132,27 +132,27 @@ export interface FileInputElement extends ActionElement {
   type: "file_input";
 }
 
-export interface WorkflowButtonElement extends ActionElement {
+interface WorkflowButtonElement extends ActionElement {
   style?: "primary" | "danger";
   text: TextObject;
   type: "workflow_button";
   workflow?: { trigger?: { url?: string } };
 }
 
-export interface IconButtonElement extends ActionElement {
+interface IconButtonElement extends ActionElement {
   accessibility_label?: string;
   icon: string;
   text: TextObject;
   type: "icon_button";
 }
 
-export interface FeedbackButtonsElement extends ActionElement {
+interface FeedbackButtonsElement extends ActionElement {
   negative_button: { text: TextObject; value?: string };
   positive_button: { text: TextObject; value?: string };
   type: "feedback_buttons";
 }
 
-export interface UnknownElement {
+interface UnknownElement {
   type: string;
   [key: string]: unknown;
 }

@@ -1,3 +1,4 @@
+import { logUnknown } from "@slock/core";
 import { isChannelId, isFileId, isUserId } from "@slock/slack";
 import type { ChannelId, FileId, UserId } from "@slock/types";
 import { asMessage, asString, field, type RawMessage } from "./protobufRaw.ts";
@@ -7,11 +8,14 @@ export type CanvasEmbed =
   | { fileId: FileId; type: "file" }
   | { ms: number; type: "date" }
   | { shortcode: string; type: "emoji" }
+  | { title: string; type: "link"; url: string }
   | { userId: UserId; type: "user" }
   | { type: "unknown" };
 
 const REF_PREFIX_RE = /^s[a-z]:/;
 const EMOJI_REF_RE = /^se:([^/]+)\//;
+// Annotations and editor command markers: controls that text never embeds.
+const NON_EMBED_FIELDS = [7, 10];
 
 function emojiShortcode(emoji: RawMessage): string {
   const name = asString(field(emoji, 2));
@@ -47,5 +51,12 @@ export function parseEmbedRecord(msg: RawMessage): CanvasEmbed {
     const fileId = refId(file, 2);
     return isFileId(fileId) ? { fileId, type: "file" } : { type: "unknown" };
   }
+  const link = content && asMessage(field(content, 56));
+  if (link) {
+    const url = asString(field(link, 3)) ?? "";
+    return { title: asString(field(link, 4)) || url, type: "link", url };
+  }
+  if (!NON_EMBED_FIELDS.some((num) => content?.has(num)))
+    logUnknown("canvas embed", `fields ${[...(content?.keys() ?? [])].join(",")}`);
   return { type: "unknown" };
 }

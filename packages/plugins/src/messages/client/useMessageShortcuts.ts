@@ -1,7 +1,7 @@
 import { service } from "@slock/core/solid";
 import { copyMessageLink } from "@slock/plugins/message-links/client/api/messageLinks";
 import type { Message, Ts } from "@slock/types";
-import { useListShortcuts, useShortcut } from "@slock/ui";
+import { toggleClamps, useListShortcuts, useShortcut } from "@slock/ui";
 import { resolveProfileUserId } from "./api/messageAuthor";
 import { type ActiveMessageFocus, threadRootTs } from "./api/messageFocus";
 import { copyMessageText, deleteOrDismissMessage } from "./messageActions";
@@ -136,6 +136,19 @@ export function useMessageShortcuts() {
     }),
     id: "messages.delete",
     label: "Delete message",
+    scope: "messages",
+    group: "Message actions",
+  });
+
+  useShortcut({
+    combo: { key: "x" },
+    enabled,
+    handler: ({ target }) => {
+      const row = target instanceof Element ? target.closest("[data-message-ts]") : null;
+      if (row) toggleClamps(row);
+    },
+    id: "messages.showMore",
+    label: "Show more or less",
     scope: "messages",
     group: "Message actions",
   });

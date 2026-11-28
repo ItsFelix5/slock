@@ -1,0 +1,12 @@
+.message-placeholder {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  max-width: 100%;
+  vertical-align: bottom;
+  color: var(--text-dim);
+}
+
+.message-placeholder > svg {
+  flex-shrink: 0;
+}

@@ -51,14 +51,12 @@ export default function DebugPane(props: { pane: Pane<DebugPaneContent> }) {
           </For>
           <IconButton
             icon="open-in-main-view"
-            iconSize={15}
             label={`Open ${entity()?.label}`}
             onClick={() => entity()?.open(content().id)}
             size="sm"
           />
           <IconButton
             icon="refresh"
-            iconSize={15}
             label="Reload"
             onClick={() => void debugData.refresh(target()).catch(() => {})}
             size="sm"
@@ -66,7 +64,7 @@ export default function DebugPane(props: { pane: Pane<DebugPaneContent> }) {
           <CopyJsonButton value={data().data} />
         </div>
       </PanelHeader>
-      <div class="debug-pane-body">
+      <div class="debug-pane-body" tabindex="0">
         <Show
           fallback={
             <span class="text-dim">

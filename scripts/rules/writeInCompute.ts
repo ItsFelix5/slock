@@ -5,7 +5,7 @@ const COMPUTE_FACTORIES = new Set(["createEffect", "createMemo", "createRenderEf
 const SETTER_TYPES = new Set(["Setter", "StoreSetter"]);
 const EVENT_OR_REF = /^(on[A-Z]|on:|ref$)/;
 
-export type Finding = { file: string; line: number };
+type Finding = { file: string; line: number };
 
 function isFunction(node: ts.Node): node is ts.FunctionLikeDeclaration {
   return (
@@ -45,10 +45,10 @@ function createWriteDetector(checker: ts.TypeChecker) {
       isFunction(declaration.initializer)
     )
       return declaration.initializer.body;
-    if (ts.isShorthandPropertyAssignment(declaration)) {
-      const target = checker.getShorthandAssignmentValueSymbol(declaration);
-      return target?.declarations?.map(bodyOf).find((body) => body !== undefined);
-    }
+    const target = ts.isShorthandPropertyAssignment(declaration)
+      ? checker.getShorthandAssignmentValueSymbol(declaration)
+      : undefined;
+    return target?.declarations?.map(bodyOf).find((body) => body !== undefined);
   };
 
   const bodyWrites = (body: ts.Node): boolean => {

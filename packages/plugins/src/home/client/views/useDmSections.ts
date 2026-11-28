@@ -31,15 +31,19 @@ export function useDmSections(unreadsOnly: Accessor<boolean>) {
       return isOpenDm || !unreadsOnly() || isDmUnread(dm);
     }),
   );
-  const isAppDm = (dm: { userId?: UserId }) =>
-    !!dm.userId && (dm.userId === SLACK_USER_ID || !!users.userById(dm.userId)?.isBot);
+  const dmKind = (dm: { userId?: UserId }): DmKind =>
+    dm.userId && (dm.userId === SLACK_USER_ID || users.userById(dm.userId)?.isBot)
+      ? "apps"
+      : "people";
 
-  const appDms = createMemo(() => visibleDms().filter((dm) => !isDmUnread(dm) && isAppDm(dm)));
-  const peopleDms = createMemo(() => visibleDms().filter((dm) => !(isDmUnread(dm) || isAppDm(dm))));
+  const readDms = createMemo(() => visibleDms().filter((dm) => !isDmUnread(dm)));
+  const appDms = createMemo(() => readDms().filter((dm) => dmKind(dm) === "apps"));
+  const peopleDms = createMemo(() => readDms().filter((dm) => dmKind(dm) === "people"));
 
   const dmsFor = (kind: DmKind) => (kind === "people" ? peopleDms() : appDms());
 
   return {
+    dmKind,
     dmsFor,
     hasDms: (kind: DmKind) => dmsFor(kind).length > 0 || (kind === "people" && !unreadsOnly()),
     setUnreadDmsOpen,

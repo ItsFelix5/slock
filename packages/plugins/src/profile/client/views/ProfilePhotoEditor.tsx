@@ -21,7 +21,7 @@ type Drag =
 
 const OUTPUT_SIZE = 512;
 
-export interface ProfilePhotoEditorProps {
+interface ProfilePhotoEditorProps {
   file: File;
   onClose: () => void;
   onSave: (file: File) => Promise<boolean>;

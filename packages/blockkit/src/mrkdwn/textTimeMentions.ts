@@ -99,7 +99,7 @@ function msAtOffset(anchorMs: number, hour: number, minute: number, offsetMinute
   );
 }
 
-export interface TimeMention {
+interface TimeMention {
   end: number;
   start: number;
   timestamp: number;
@@ -137,7 +137,7 @@ export function findTimeMentions(
   return mentions;
 }
 
-export interface TextSegment {
+interface TextSegment {
   text: string;
   timestamp?: number;
 }

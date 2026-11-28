@@ -59,9 +59,6 @@
   background: rgb(from var(--composer-bg) r g b / 72%);
   border-radius: var(--radius-circle);
   opacity: 0;
-  transition:
-    opacity 120ms ease,
-    background 120ms ease;
 }
 .composer-file-chip-image:hover .composer-file-chip-remove,
 .composer-file-chip-image:has(:focus-visible) .composer-file-chip-remove {

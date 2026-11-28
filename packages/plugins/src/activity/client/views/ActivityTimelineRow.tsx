@@ -1,11 +1,12 @@
 import MessageActionsMenuItems from "@slock/plugins/messages/client/api/cards/MessageActionsMenuItems";
 import type { MessageAuthorFields } from "@slock/plugins/messages/client/api/messageAuthor";
-import type { Block, ChannelId, Message, SlackFile, Ts } from "@slock/types";
+import type { Attachment, Block, ChannelId, Message, SlackFile, Ts } from "@slock/types";
 import { ContextMenu, useContextMenu } from "@slock/ui";
 import { Show } from "solid-js";
 import { ThreadMessageRow } from "./activityThreadMessage";
 
 export default function ActivityTimelineRow(props: {
+  attachments?: Attachment[];
   author: MessageAuthorFields;
   blocks?: Block[];
   channelId: ChannelId;
@@ -24,6 +25,7 @@ export default function ActivityTimelineRow(props: {
   return (
     <>
       <ThreadMessageRow
+        attachments={props.attachments}
         author={props.author}
         blocks={props.blocks}
         channelId={props.channelId}

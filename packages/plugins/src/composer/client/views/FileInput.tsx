@@ -52,7 +52,7 @@ export default function FileInput(props: FileInputProps) {
       />
       <For each={files()}>
         {(file) => (
-          <div class="file-input-file flex-align-center">
+          <div class="file-input-file field-surface flex-align-center">
             <Icon class="file-input-icon" name="file" size={16} />
             <span class="grow truncate">{file.name}</span>
             <IconButton

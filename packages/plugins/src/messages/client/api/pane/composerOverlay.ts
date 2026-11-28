@@ -26,7 +26,6 @@ export function observeComposerOverlay(scrollEl: HTMLElement, onChange: () => vo
     }
     resizeObserver = new ResizeObserver(update);
     resizeObserver.observe(overlay);
-    update();
   };
 
   sync();

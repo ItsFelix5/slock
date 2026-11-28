@@ -40,7 +40,7 @@ export async function loadCanvasDebug(fileId: string) {
         ? {
             base64: btoa(Array.from(raw.bytes, (b) => String.fromCharCode(b)).join("")),
             bytes: raw.bytes.length,
-            editable: raw.editable,
+            access: raw.access,
             hexHead: toHex(raw.bytes, 256),
           }
         : raw,

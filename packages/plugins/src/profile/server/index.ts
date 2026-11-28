@@ -7,8 +7,8 @@ import {
 import type { Route } from "@slock/plugins/slack/server/api/router";
 import { mutate, route, routes } from "@slock/plugins/slack/server/api/router";
 import { callSlack, callSlackMultipart } from "@slock/plugins/slack/server/api/slackClient";
-import type { SetPhotoReply, UserProfileReply } from "@slock/plugins/slack/server/api/slackReplies";
 import { trimProfile } from "@slock/plugins/slack/server/api/trim/slackEntities";
+import type { RawUserProfile } from "@slock/types";
 import { appProfileRoutes } from "./appProfile";
 import { fieldRoutes } from "./fields";
 
@@ -55,3 +55,7 @@ const setup: Setup = (ctx) => {
 };
 
 export default setup;
+
+type UserProfileReply = { profile: RawUserProfile };
+
+type SetPhotoReply = { profile?: RawUserProfile; user?: { profile?: RawUserProfile } };

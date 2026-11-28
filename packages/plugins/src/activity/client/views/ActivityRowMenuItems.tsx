@@ -9,7 +9,7 @@ const messageLinks = service("message-links");
 const messagesStore = service("messages");
 const activityStore = service("activity");
 
-export interface ActivityRowMenuItemsProps {
+interface ActivityRowMenuItemsProps {
   row: ActivityRow;
   onClose: () => void;
   onSeen: (items: ActivityRow["items"]) => void;

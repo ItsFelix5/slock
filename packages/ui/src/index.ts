@@ -13,9 +13,7 @@ export { default as Button } from "./button/Button";
 export { default as ClickableInline } from "./button/ClickableInline";
 export { default as IconButton } from "./button/IconButton";
 export { default as SegmentedControl } from "./button/SegmentedControl";
-export { createConcurrencyQueue } from "./concurrencyQueue";
-export { createDebouncedSearch } from "./debouncedQuery";
-export { default as ConnectionStatus } from "./feedback/ConnectionStatus";
+
 export { createCopyFeedback } from "./feedback/copyFeedback";
 export { default as InlineFeedback } from "./feedback/InlineFeedback";
 export { createKeyedFeedback } from "./feedback/keyedFeedback";
@@ -24,6 +22,7 @@ export { default as TypingIndicator } from "./feedback/TypingIndicator";
 export type { ComboboxOption } from "./form/Combobox";
 export { default as Combobox } from "./form/Combobox";
 export { default as ColorField } from "./form/color/ColorField";
+export { cssColorToOklch, formatOklch, type OklchColor } from "./form/color/oklchColor";
 export { default as KeybindField } from "./form/keybind/KeybindField";
 export { useKeybindRecorder } from "./form/keybind/keybindRecorder";
 export {
@@ -36,12 +35,13 @@ export {
   scrollActiveListOption,
 } from "./form/listNavigation";
 export { default as OtpInput } from "./form/OtpInput";
+export type { ColorRef } from "./form/RelativeChannelRows";
 export { default as Slider } from "./form/Slider";
 export { default as SuggestionList } from "./form/SuggestionList";
 export { default as Switch } from "./form/Switch";
 export { fuzzySearch } from "./fuzzy";
 export { createClock } from "./hooks/createClock";
-export { SHORTCUT_GROUPS, type ShortcutInfo } from "./hooks/shortcutRegistry";
+export { SHORTCUT_GROUPS, type ShortcutInfo, type ShortcutSpec } from "./hooks/shortcutRegistry";
 export { useClickOutside } from "./hooks/useClickOutside";
 export { useElementVisible } from "./hooks/useElementVisible";
 export {
@@ -60,9 +60,12 @@ export {
   useSeekShortcuts,
   useTabStripShortcuts,
 } from "./hooks/useNavShortcuts";
-export { inside, useShortcut } from "./hooks/useShortcut";
+export { dispatchShortcut, inside, useShortcut } from "./hooks/useShortcut";
+export { createImmediateSignal } from "./immediateSignal";
+export { default as Clamp, toggleClamps } from "./layout/Clamp";
 export { default as PanelHeader } from "./layout/PanelHeader";
-export { createWindowWidth, default as ResizeHandle } from "./layout/ResizeHandle";
+export { default as ResizeHandle } from "./layout/ResizeHandle";
+export { domToMarkdown, wrapDelimited } from "./markdown";
 export { formatSize } from "./media/formatSize";
 export {
   default as Icon,
@@ -74,32 +77,32 @@ export {
 export { default as ConstrainedImage } from "./media/image/ConstrainedImage";
 export { default as HideBrokenImage } from "./media/image/HideBrokenImage";
 export { ImageLightbox } from "./media/image/ImageLightbox";
-export { constrainMediaDimensions } from "./media/image/mediaDimensions";
+export { default as ImageUnavailable } from "./media/image/ImageUnavailable";
+export { constrainMediaDimensions, mediaBoxStyle } from "./media/image/mediaDimensions";
 export type { ZoomableImageItem } from "./media/image/ZoomableImage";
 export { default as ZoomableImage } from "./media/image/ZoomableImage";
 export { default as MediaFrame } from "./media/MediaFrame";
-export { fileSrc, imageSrc } from "./media/mediaSrc";
+export { fileSrc, imageSrc, isGifUrl, isThirdParty } from "./media/mediaSrc";
 export { createMediaVolume } from "./media/video/createMediaVolume";
 export { default as VideoPlayer } from "./media/video/VideoPlayer";
 export { default as VolumeControl } from "./media/video/VolumeControl";
 export { formatDuration } from "./media/video/videoTime";
 export { default as NavRow } from "./nav/NavRow";
-export { focusPaneById, usePaneNavigation } from "./nav/paneNav";
+export { focusPaneById, isTypingInPane, type PaneEntry, usePaneNavigation } from "./nav/paneNav";
 export { initRovingTabIndexDefault } from "./nav/rovingFocus";
 export { isNearScrollEnd } from "./nav/scrollEnd";
 export {
   ConfirmDialog,
-  type ConfirmDialogOptions,
   type ConfirmDialogState,
   createConfirmDialog,
 } from "./overlay/dialog/ConfirmDialog";
+export { captureFocus } from "./overlay/dialog/focusTrap";
 export { CopyJsonButton, default as JsonTree } from "./overlay/dialog/JsonTree";
 export {
   default as Modal,
   ModalCloseButton,
   ModalHeader,
 } from "./overlay/dialog/Modal";
-export type { Placement } from "./overlay/floating/FloatingPanel";
 export { default as FloatingPanel } from "./overlay/floating/FloatingPanel";
 export { default as HoverCard } from "./overlay/HoverCard";
 export { default as ContextMenu } from "./overlay/menu/ContextMenu";
@@ -110,44 +113,20 @@ export { default as Overlay } from "./overlay/Overlay";
 export { default as Popover } from "./overlay/Popover";
 export { default as Tooltip } from "./overlay/Tooltip";
 export { pageIdle } from "./pageIdle";
-export { createFocusedPane } from "./panes/focusedPane";
 export { default as PaneDivider } from "./panes/PaneDivider";
 export {
   default as PaneRow,
   MIN_PANE_WIDTH,
   type PaneLayoutProps,
 } from "./panes/PaneRow";
-export {
-  closePane,
-  createPaneId,
-  findPane,
-  findPaneByContent,
-  insertPane,
-  isPaneRightAfter,
-  narrowPaneContent,
-  type Pane,
-  replacePaneContent,
-  resizePanes,
-} from "./panes/paneList";
-export { distributeResize } from "./panes/resize";
-export { createRecencyEviction } from "./recencyEviction";
+export { narrowPaneContent, type Pane } from "./panes/paneList";
 export { createResetSignal } from "./resetSignal";
 export { comboLabel, type ShortcutCombo } from "./shortcutCombo";
 export {
   findTextRanges,
   indexElementText,
+  paintHighlight,
   type TextIndex,
-  TRAILING_PUNCTUATION_RE,
   WHITESPACE_RE,
 } from "./textHighlight";
-export { createTheme } from "./theme/createTheme";
-export { activeFontPreset, FONT_PRESETS } from "./theme/fontPresets";
-export type { ThemeColorDefinition } from "./theme/themeColors";
-export type { ColorRef } from "./theme/themeDerivations";
-export {
-  THEME_FAMILIES,
-  type ThemeFamily,
-  type ThemePreset,
-} from "./theme/themePresets";
-export { provideUi, type Ui } from "./ui";
-export { createUndoStack, useGlobalUndoShortcut } from "./undoStack";
+export { provideUi } from "./ui";

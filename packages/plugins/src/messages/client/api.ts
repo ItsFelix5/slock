@@ -49,18 +49,15 @@ export type MessageBarProps = {
   onToggleReactionPicker: (ts: Ts) => void;
 };
 
-export type MessageDeletedHook = (channelId: ChannelId, ts: Ts) => void;
+type MessageDeletedHook = (channelId: ChannelId, ts: Ts) => void;
 
-export type MessagePatchHook = (
-  current: Message,
-  patch: Partial<Message>,
-) => Partial<Message> | undefined;
+type MessagePatchHook = (current: Message, patch: Partial<Message>) => Partial<Message> | undefined;
 
 export type MessageEditedProps = { msg: Message };
 
-export type MessageQuote = (msg: Message, channelId: ChannelId) => JSX.Element | undefined;
+type MessageQuote = (msg: Message, channelId: ChannelId) => JSX.Element | undefined;
 
-export type MessageAuthorProps = {
+type MessageAuthorProps = {
   userId: Accessor<UserId | undefined>;
   user: Accessor<User | undefined>;
   visible: Accessor<boolean>;
@@ -70,7 +67,7 @@ export type MessageAuthorClass = (props: MessageAuthorProps) => Accessor<string 
 
 export type MessageHeaderProps = { id: ChannelId; kind: "channel" | "dm" };
 
-export type MessageTakeover = {
+type MessageTakeover = {
   active: (view: MessageHeaderProps) => boolean;
   view: Component<MessageHeaderProps>;
 };
@@ -96,9 +93,9 @@ declare module "@slock/core/types" {
     "messages.deleted": MessageDeletedHook;
     "messages.edited": Component<MessageEditedProps>;
     "messages.patch": MessagePatchHook;
-    "messages.prefetch": (channelId: ChannelId) => void;
     "messages.retain": (msg: Message) => boolean;
     "messages.header": Component<MessageHeaderProps>;
+    "messages.loaded": (channelId: ChannelId, pinCount: number | undefined) => void;
     "messages.takeover": MessageTakeover;
     "messages.headerLead": Component<MessageHeaderProps>;
     "messages.titleIcon": Component<MessageHeaderProps>;

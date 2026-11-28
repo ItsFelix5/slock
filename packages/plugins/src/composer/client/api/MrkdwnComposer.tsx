@@ -1,7 +1,6 @@
 import type { ChannelId } from "@slock/types";
 import QuillEditor from "@slock/ui/editor/QuillEditor";
 import type Quill from "@slock/ui/editor/quill";
-import { indexAlignedText } from "@slock/ui/editor/quillText";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { mrkdwnText } from "../lib/deltaLines";
 import { createEditorPlugins } from "../lib/editorPlugins";
@@ -117,8 +116,7 @@ export default function MrkdwnComposer(props: {
             const next = mrkdwnText(q.getContents().ops);
             lastEmitted = next;
             props.onInput(next);
-            const aligned = indexAlignedText(q);
-            syncSuggestionsAfterChange(q, aligned, suggestions, (index) => {
+            syncSuggestionsAfterChange(q, suggestions, (index) => {
               caretIndex = index;
             });
           });

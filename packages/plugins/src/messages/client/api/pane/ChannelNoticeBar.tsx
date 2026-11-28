@@ -1,6 +1,6 @@
 import { service } from "@slock/core/solid";
 import type { ChannelId } from "@slock/types";
-import { Button, Icon, InlineFeedback } from "@slock/ui";
+import { Button, Icon, type IconName, InlineFeedback } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { Show } from "solid-js";
 import "./ChannelNoticeBar.css";
@@ -8,8 +8,15 @@ import "./ChannelNoticeBar.css";
 const feedback = service("feedback");
 const titles = service("titles");
 
+export interface NoticeAction {
+  disabled: boolean;
+  icon: IconName;
+  label: string;
+  onClick: () => void;
+}
+
 export default function ChannelNoticeBar(props: {
-  action?: { disabled: boolean; icon: "archive" | "plus"; label: string; onClick: () => void };
+  action?: NoticeAction;
   channelId: ChannelId;
   children: JSX.Element;
   subject?: string;
@@ -17,7 +24,7 @@ export default function ChannelNoticeBar(props: {
   return (
     <div class="channel-notice-bar composer-frame surface-popover flex-between">
       <div class="channel-notice-bar-text truncate">
-        <strong>{props.subject ?? titles.label(props.channelId)}</strong> {props.children}
+        {props.subject ?? titles.label(props.channelId)} {props.children}
       </div>
       <InlineFeedback
         class="channel-notice-bar-feedback truncate"

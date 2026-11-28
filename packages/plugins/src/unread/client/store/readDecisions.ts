@@ -2,7 +2,7 @@ import type { ChannelId, Message, Ts } from "@slock/types";
 
 export type LatestMessage = { pending: boolean; ts: Ts };
 
-export type DividerView = {
+type DividerView = {
   hasNewer: boolean;
   id: ChannelId;
   lastRead: number;
@@ -39,8 +39,8 @@ export type ThreadSnapshot = {
   viewed: boolean;
 };
 
-export type ChannelReadPlan = { clear: boolean; mark?: { syncMs?: number; ts: Ts } };
-export type ThreadReadPlan = { markTs: Ts; root: Message };
+type ChannelReadPlan = { clear: boolean; mark?: { syncMs?: number; ts: Ts } };
+type ThreadReadPlan = { markTs: Ts; root: Message };
 
 const toMs = (ts: Ts) => parseFloat(ts) * 1000;
 

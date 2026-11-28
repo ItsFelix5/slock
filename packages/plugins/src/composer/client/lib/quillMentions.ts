@@ -65,12 +65,14 @@ class MentionBlot extends getEmbedBlot() {
   static override create(value: MentionValue) {
     const node = asElement(super.create(value), "mention");
     const isSelf =
-      (value.kind === "user" && value.id === usersStore.currentUser()?.id) ||
+      (value.kind === "user" && value.id === usersStore.currentUserId()) ||
       (value.kind === "usergroup" && usergroups.isSelfMember(value.id));
     node.className = mentionClassName(value, isSelf);
     node.dataset.kind = value.kind;
     node.dataset.id = value.id;
     node.dataset.name = value.name;
+    node.dataset.copy =
+      value.kind === "messagelink" ? value.id : `${MENTION_PREFIX[value.kind]}${value.name}`;
     node.replaceChildren(...mentionLabel(value));
     return node;
   }

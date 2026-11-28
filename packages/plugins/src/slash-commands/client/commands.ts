@@ -1,16 +1,17 @@
 import { defineQuery } from "@slock/plugins/query/client/api";
-import { apiGet } from "@slock/slack";
+import { replyError } from "@slock/slack";
+import { apiGet } from "@slock/slack/client";
 
-export interface SlashCommand {
+interface SlashCommand {
   desc: string;
   icon: string | null;
   name: string;
 }
 
 export const slashCommands = defineQuery<null, SlashCommand[]>({
-  load: async () => {
-    const data = await apiGet<{ commands?: SlashCommand[] }>("/api/commands");
-    if (!data.ok) throw new Error(data.error ?? "fetching commands failed");
+  load: async (_, { signal }) => {
+    const data = await apiGet<{ commands?: SlashCommand[] }>("/api/commands", signal);
+    if (!data.ok) throw replyError(data, "fetching commands failed");
     return data.commands ?? [];
   },
   name: "slashCommands",

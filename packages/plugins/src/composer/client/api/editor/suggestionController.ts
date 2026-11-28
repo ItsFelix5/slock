@@ -1,6 +1,7 @@
 import { getHost, service } from "@slock/core/solid";
 import { listNavigationIndex } from "@slock/ui";
 import type Quill from "@slock/ui/editor/quill";
+import { textBefore } from "@slock/ui/editor/quillText";
 import type { ExtraSuggestion } from "../../api";
 import {
   createStaticSuggestion,
@@ -151,16 +152,16 @@ export function createSuggestionController(opts: SuggestionOptions) {
 
 export function syncSuggestionsAfterChange(
   quill: Quill,
-  text: string,
   controller: ReturnType<typeof createSuggestionController>,
   setCaretIndex: (index: number) => void,
   plainTextHeaders = false,
 ) {
   queueMicrotask(() => {
-    const caretIndex = quill.getSelection()?.index ?? text.length;
+    const caretIndex = quill.getSelection()?.index ?? quill.getLength() - 1;
     setCaretIndex(caretIndex);
     const format = quill.getFormat(caretIndex);
     const plainText = plainTextHeaders && !!(format.header || format.context);
+    const text = format["code-block"] ? "" : textBefore(quill, caretIndex);
     controller.updateSuggestions(text, caretIndex, true, plainText);
   });
 }

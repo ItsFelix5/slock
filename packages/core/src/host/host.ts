@@ -6,6 +6,7 @@ import type {
   PluginDef,
   PluginStatus,
   Reactive,
+  Services,
   Setup,
 } from "../types";
 import { errorMessage } from "../util/errorMessage";
@@ -33,7 +34,7 @@ export class Unavailable extends Error {}
 
 type Running = { cleanups: (() => void)[]; dispose: () => void };
 
-export type HostOptions = {
+type HostOptions = {
   plugins?: PluginDef[];
   reactive?: Reactive;
   env?: Env;
@@ -44,6 +45,7 @@ export type HostOptions = {
 export type PluginInfo = {
   id: string;
   hidden: boolean;
+  category?: string;
   dependents: string[];
   name: string;
   requires: readonly string[];
@@ -68,6 +70,7 @@ export function createHost(options: HostOptions = {}) {
   let defsRevision = 0;
   let queue: Promise<void> = Promise.resolve();
   const loadChunk = createChunkPool();
+  const peek = <K extends keyof Services>(key: K) => reactive.untrack(() => registry.service(key));
 
   function resolveId(id: string): string | undefined {
     if (defs.has(id)) return id;
@@ -107,7 +110,7 @@ export function createHost(options: HostOptions = {}) {
       },
       get: (key) => {
         check(String(key));
-        const service = reactive.untrack(() => registry.service(key));
+        const service = peek(key);
         if (service === undefined) throw new Error(`${def.id}: service ${String(key)} is missing`);
         return service;
       },
@@ -127,7 +130,7 @@ export function createHost(options: HostOptions = {}) {
       loaded =
         "setup" in def
           ? Promise.resolve(def.setup)
-          : loadChunk(def.load).then((mod) => mod.default);
+          : loadChunk(def.load, "background").then((mod) => mod.default);
       setups.set(def.id, loaded);
     }
     return loaded;
@@ -225,11 +228,13 @@ export function createHost(options: HostOptions = {}) {
     idle: (): Promise<void> => enqueue(() => {}),
     items: registry.items,
     loadChunk,
+    peek,
     list(): PluginInfo[] {
       void defsVersion();
       const current = statuses();
       void overrides();
       return [...defs.values()].map((def) => ({
+        category: def.category,
         hidden: def.hidden === true,
         dependents: [...defs.keys()].filter((other) => dependsOn(other, def.id)),
         enabled: isEnabled(def.id),

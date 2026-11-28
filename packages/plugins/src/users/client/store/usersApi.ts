@@ -3,15 +3,13 @@ import {
   setProfileFields as apiSetProfileFields,
   setStatus as apiSetStatus,
   uploadProfilePhoto as apiUploadProfilePhoto,
-  fetchAppDescription,
   fetchUser,
   fetchUserPresence,
   fetchUserProfile,
   searchDirectory,
-} from "@slock/plugins/slack/client/api";
+} from "../requests";
 
 export type UsersApi = {
-  fetchAppDescription: typeof fetchAppDescription;
   fetchUser: typeof fetchUser;
   fetchUserProfile: typeof fetchUserProfile;
   fetchUserPresence: typeof fetchUserPresence;
@@ -23,7 +21,6 @@ export type UsersApi = {
 };
 
 export const DEFAULT_USERS_API: UsersApi = {
-  fetchAppDescription,
   fetchUser,
   fetchUserProfile,
   fetchUserPresence,

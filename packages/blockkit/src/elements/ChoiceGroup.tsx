@@ -1,5 +1,5 @@
 import type { CheckboxRadioElement } from "@slock/types";
-import { For, Show } from "solid-js";
+import { For, Show, untrack } from "solid-js";
 import BkText from "../BkText";
 import { optionKey, optionPayload } from "./options";
 
@@ -39,9 +39,11 @@ export default function ChoiceGroup(props: {
               checked={initial().has(optionKey(option))}
               disabled={!props.ready}
               name={props.name}
-              ref={(node) => {
-                if (props.el.focus_on_load && index() === 0) queueMicrotask(() => node.focus());
-              }}
+              ref={(node) =>
+                untrack(() => {
+                  if (props.el.focus_on_load && index() === 0) queueMicrotask(() => node.focus());
+                })
+              }
               type={multi() ? "checkbox" : "radio"}
               value={String(index())}
             />

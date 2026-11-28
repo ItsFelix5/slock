@@ -1,27 +1,25 @@
 import type { Env, Setup } from "@slock/core";
-import { createConcurrencyQueue } from "./concurrencyQueue";
 import { createShortcutRegistry } from "./hooks/shortcutRegistry";
 import type { EscapeLayer } from "./hooks/useEscapeClose";
 import { createKeybindOverrides } from "./keybindOverrides";
 import { createLayerStack } from "./layerStack";
+import { LENS_SHORTCUTS, VIDEO_SHORTCUTS } from "./media/mediaShortcuts";
 import { createPaneNav } from "./nav/paneNav";
 import { trackPageIdle } from "./pageIdle";
 
-const BACKGROUND_FETCH_LIMIT = 4;
-
 export function createUi(env: Env) {
   const keybinds = createKeybindOverrides(env.storage);
-  const shortcuts = createShortcutRegistry(keybinds.overrides);
+  const focusLayers = createLayerStack<object>();
+  const shortcuts = createShortcutRegistry(keybinds.overrides, () => !focusLayers.isEmpty());
   const idle = trackPageIdle(env, document);
   return {
-    backgroundFetchQueue: createConcurrencyQueue(BACKGROUND_FETCH_LIMIT),
     dispose() {
       keybinds.dispose();
       shortcuts.dispose();
       idle.dispose();
     },
     escapeLayers: createLayerStack<EscapeLayer>(),
-    focusLayers: createLayerStack<object>(),
+    focusLayers,
     keybinds,
     pageIdle: idle.idle,
     paneNav: createPaneNav(env),
@@ -33,6 +31,7 @@ export type Ui = ReturnType<typeof createUi>;
 
 export const provideUi: Setup = (ctx) => {
   const ui = createUi(ctx.get("env"));
+  ui.shortcuts.declare([...Object.values(VIDEO_SHORTCUTS), ...Object.values(LENS_SHORTCUTS)]);
   ctx.provide("ui", ui);
   ctx.onCleanup(ui.dispose);
 };

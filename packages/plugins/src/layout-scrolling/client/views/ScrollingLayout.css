@@ -16,9 +16,4 @@
   min-height: 0;
   max-width: 100%;
   overflow: hidden;
-  transition: width 0.2s ease;
-}
-
-.scrolling-cell.dragging {
-  transition: none;
 }

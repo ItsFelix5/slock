@@ -29,6 +29,10 @@
   font-weight: 700;
 }
 
+.bk-table :is(.bk-rt-section, .bk-quote, .bk-codeblock) {
+  word-break: normal;
+}
+
 .bk-table tr:last-child td {
   border-bottom: 0;
 }

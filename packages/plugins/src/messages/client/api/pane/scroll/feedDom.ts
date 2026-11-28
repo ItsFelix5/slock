@@ -10,7 +10,10 @@ const FLASH_CLASS = "message-flash";
 const FLASH_MS = 1500;
 
 export function feedGroups(scroller: HTMLElement) {
-  return scroller.querySelectorAll<HTMLElement>(`:scope > .${GROUP}`);
+  return [...scroller.children].filter(
+    (child): child is HTMLElement =>
+      child instanceof HTMLElement && child.classList.contains(GROUP),
+  );
 }
 
 export function groupTs(group: HTMLElement): Ts | undefined {

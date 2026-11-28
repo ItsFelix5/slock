@@ -21,7 +21,7 @@ export default function UsergroupMembersTab(props: {
   const [query, setQuery] = createSignal("");
   const [addingPeople, setAddingPeople] = createSignal(false);
 
-  const selfId = () => usersStore.currentUser()?.id;
+  const selfId = () => usersStore.currentUserId();
   const isSelfMember = () => {
     const me = selfId();
     return !!me && props.memberIds.includes(me);

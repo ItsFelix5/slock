@@ -5,6 +5,7 @@ import { createEmojiCache } from "./cache";
 
 const setup: Setup = (ctx) => {
   const cache = createEmojiCache();
+  ctx.provide("emoji.server", cache);
   ctx.add(
     "http",
     routes([

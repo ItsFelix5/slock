@@ -1,0 +1,16 @@
+.canvas-comment-item {
+  gap: var(--space-xs);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.canvas-comment-item-quote {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.canvas-comment-item-actions {
+  gap: var(--space-xs);
+}

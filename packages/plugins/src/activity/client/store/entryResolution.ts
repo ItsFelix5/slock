@@ -1,6 +1,6 @@
 import type { Env } from "@slock/core";
 import type { ActivityItem, ChannelId, FeedEntry, Message, Ts, User, UserId } from "@slock/types";
-import { channelPostKey, isOwnOrUnresolved, NO_CHANNEL, reactionActivityKey } from "../kinds";
+import { channelPostKey, isOwnOrUnresolved, needsMessage, reactionActivityKey } from "../kinds";
 import type { ActivityItems } from "./activityItems";
 
 export function createEntryResolution(deps: {
@@ -26,20 +26,17 @@ export function createEntryResolution(deps: {
     seenChannelPosts: Set<string>,
     push: (entry: FeedEntry, batch?: Map<string, Message>) => void,
   ) {
-    const needsMessage = (entry: FeedEntry) =>
-      entry.channelId !== NO_CHANNEL && entry.activityType !== "quietly_added_to_channel";
     for (const entry of pending) if (!needsMessage(entry)) push(entry);
     const unresolved = pending.filter(needsMessage);
-    const toFetch = unresolved;
 
-    await deps.fetchMessagesByIds(toFetch, (batch) => {
+    await deps.fetchMessagesByIds(unresolved, (batch) => {
       deps.cacheResolvedMessages?.(batch);
-      for (const entry of toFetch)
+      for (const entry of unresolved)
         if (!seen.has(entry.id) && batch.has(channelPostKey(entry.channelId, entry.ts)))
           push(entry, batch);
     });
 
-    const unresolvedChannelEntries = toFetch.filter(
+    const unresolvedChannelEntries = unresolved.filter(
       (entry) =>
         entry.kind === "channel_all" &&
         !seen.has(entry.id) &&

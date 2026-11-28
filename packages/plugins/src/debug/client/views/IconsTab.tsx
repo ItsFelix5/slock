@@ -1,4 +1,4 @@
-import { createCopyFeedback, fuzzySearch, ICON_NAMES, Icon, Tooltip } from "@slock/ui";
+import { createCopyFeedback, fuzzySearch, ICON_NAMES, Icon } from "@slock/ui";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import "./IconsTab.css";
 
@@ -33,17 +33,15 @@ export default function IconsTab() {
         <div class="debug-icon-grid">
           <For each={filtered()}>
             {(name) => (
-              <Tooltip class="debug-icon-tooltip size-full" content={name}>
-                <button
-                  aria-label={name}
-                  class="debug-icon-cell btn-reset flex-col"
-                  onClick={() => copyIconName(name)}
-                  type="button"
-                >
-                  <Icon name={copiedKey() === name ? "check" : name} size={20} />
-                  <span class="debug-icon-cell-name truncate">{name}</span>
-                </button>
-              </Tooltip>
+              <button
+                aria-label={name}
+                class="debug-icon-cell btn-reset flex-col"
+                onClick={() => copyIconName(name)}
+                type="button"
+              >
+                <Icon name={copiedKey() === name ? "check" : name} size={20} />
+                <span class="debug-icon-cell-name truncate">{name}</span>
+              </button>
             )}
           </For>
         </div>

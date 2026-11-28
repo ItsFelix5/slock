@@ -31,6 +31,7 @@ function shown(value: unknown): string {
 }
 
 function toggle(branch: HTMLDetailsElement, event: MouseEvent) {
+  if (event.target instanceof Element && event.target.closest("button")) return;
   event.preventDefault();
   const open = !branch.open;
   branch.open = open;
@@ -64,6 +65,7 @@ function Branch(props: EntryProps & { value: object }) {
             </>
           )}
         </Show>
+        <CopyJsonButton label="Copy" value={props.value} />
       </summary>
       <div class="json-tree-children">
         <For each={Object.entries(props.value).filter(([, child]) => child !== undefined)}>
@@ -111,12 +113,12 @@ function Entry(props: EntryProps) {
   );
 }
 
-export function CopyJsonButton(props: { value: unknown }) {
+export function CopyJsonButton(props: { value: unknown; label?: string }) {
   const [copiedKey, copy] = createCopyFeedback();
   return (
     <IconButton
       icon={copiedKey() === "json" ? "check" : "copy"}
-      label="Copy all"
+      label={props.label ?? "Copy all"}
       onClick={() => void copy(JSON.stringify(props.value, null, 2) ?? "", "json")}
       size="sm"
     />

@@ -19,9 +19,16 @@ function readVarint(buf: Uint8Array, pos: number): [bigint, number] {
   return [result, pos];
 }
 
+function slice(buf: Uint8Array, from: number, length: number, end: number): Uint8Array {
+  if (from + length > end) throw new Error(`canvas collab: truncated field at byte ${from}`);
+  return buf.subarray(from, from + length);
+}
+
 function toHex(bytes: Uint8Array): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
+
+const decoder = new TextDecoder();
 
 export function decodeRaw(buf: Uint8Array, start = 0, end = buf.length): RawMessage {
   const out: RawMessage = new Map();
@@ -37,15 +44,14 @@ export function decodeRaw(buf: Uint8Array, start = 0, end = buf.length): RawMess
       pos = next;
       list.push({ varint: v });
     } else if (wireType === 1) {
-      list.push({ fixed64: buf.slice(pos, pos + 8) });
+      list.push({ fixed64: slice(buf, pos, 8, end) });
       pos += 8;
     } else if (wireType === 2) {
       const [len, next] = readVarint(buf, pos);
-      const dataEnd = next + Number(len);
-      list.push({ bytes: buf.slice(next, dataEnd) });
-      pos = dataEnd;
+      list.push({ bytes: slice(buf, next, Number(len), end) });
+      pos = next + Number(len);
     } else if (wireType === 5) {
-      list.push({ fixed32: buf.slice(pos, pos + 4) });
+      list.push({ fixed32: slice(buf, pos, 4, end) });
       pos += 4;
     } else {
       throw new Error(`canvas collab: unsupported wire type ${wireType} at byte ${pos}`);
@@ -64,7 +70,7 @@ export function asMessage(f: RawField | undefined): RawMessage | null {
 }
 
 export function asString(f: RawField | undefined): string | null {
-  return f?.bytes ? new TextDecoder().decode(f.bytes) : null;
+  return f?.bytes ? decoder.decode(f.bytes) : null;
 }
 
 export function asDouble(f: RawField | undefined): number | null {
@@ -73,24 +79,38 @@ export function asDouble(f: RawField | undefined): number | null {
     : null;
 }
 
+export function maybeMessage(bytes: Uint8Array): RawMessage | null {
+  try {
+    return decodeRaw(bytes);
+  } catch {
+    return null;
+  }
+}
+
+const PRINTABLE_RE = /^[\x20-\x7e]+$/;
+
+function maybeText(bytes: Uint8Array): string | null {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return null;
+  }
+}
+
+function dumpBytes(bytes: Uint8Array): unknown {
+  const text = maybeText(bytes);
+  if (text !== null && PRINTABLE_RE.test(text)) return text;
+  const message = maybeMessage(bytes);
+  return message ? dumpRaw(message) : (text ?? toHex(bytes));
+}
+
 export function dumpRaw(msg: RawMessage): unknown {
   const out: Record<number, unknown[]> = {};
   for (const [num, entries] of msg) {
     out[num] = entries.map((f) => {
       if (f.varint !== undefined)
         return f.varint <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(f.varint) : f.varint.toString();
-      if (f.bytes) {
-        try {
-          return dumpRaw(decodeRaw(f.bytes));
-        } catch {
-          const text = new TextDecoder("utf-8", { fatal: true });
-          try {
-            return text.decode(f.bytes);
-          } catch {
-            return toHex(f.bytes);
-          }
-        }
-      }
+      if (f.bytes) return dumpBytes(f.bytes);
       if (f.fixed64) return toHex(f.fixed64);
       if (f.fixed32) return toHex(f.fixed32);
       return null;

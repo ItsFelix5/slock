@@ -1,7 +1,7 @@
 import type { MemberPermissionsPatch } from "@slock/types";
 
-export type AppliedPermissionChoice = "allow" | "restrict";
-export type AppliedRetentionChoice = "keep" | "delete";
+type AppliedPermissionChoice = "allow" | "restrict";
+export type AppliedRetentionChoice = "default" | "delete";
 export type PermissionChoice = "" | AppliedPermissionChoice;
 
 export type MemberPermissionKey = "invite" | "purpose" | "topic";

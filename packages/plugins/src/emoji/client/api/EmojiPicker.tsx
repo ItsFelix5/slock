@@ -11,19 +11,13 @@ import {
   useShortcut,
 } from "@slock/ui";
 import { createEffect, createMemo, createSignal, For, onSettled, Show } from "solid-js";
+import { PICKER_SHORTCUTS } from "../pickerShortcuts";
 import "./EmojiPicker.css";
 import EmojiPickerButton from "../EmojiPickerButton";
 import { prioritizeEmojiEntries } from "../emojiPickerEntries";
 import { EMOJI_COLUMNS, layoutChunks, scrollTopToReveal, visibleChunks } from "./emojiGridLayout";
 
 const emojiIndex = service("emoji");
-
-const MOD_ARROWS = [
-  { direction: "up", key: "ArrowUp" },
-  { direction: "down", key: "ArrowDown" },
-  { direction: "left", key: "ArrowLeft" },
-  { direction: "right", key: "ArrowRight" },
-] as const;
 
 export default function EmojiPicker(props: {
   onSelect: (name: string) => void;
@@ -143,15 +137,11 @@ export default function EmojiPicker(props: {
     submit: selectActive,
   });
   useGridShortcuts({ move: moveGrid, root: () => bodyRef, submit: selectActive });
-  for (const { direction, key } of MOD_ARROWS) {
+  for (const { direction, spec } of PICKER_SHORTCUTS) {
     useShortcut({
+      ...spec,
       allowRepeat: true,
-      combo: { key, mod: true },
-      group: "Lists",
       handler: () => moveGrid(direction),
-      id: `emojiPicker.${direction}`,
-      label: `Emoji picker: move ${direction}`,
-      scope: "lists",
       target: inside(
         () => searchInputRef,
         () => bodyRef,

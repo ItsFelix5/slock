@@ -1,1 +1,7 @@
-{ "id": "bootstrap", "name": "Startup data", "requires": ["query"], "boot": true }
+{
+  "id": "bootstrap",
+  "category": "Core",
+  "name": "Startup data",
+  "requires": ["query"],
+  "boot": true
+}

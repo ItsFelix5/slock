@@ -51,7 +51,7 @@ function renewTable(node: CanvasTable, ctx: LineContext): CanvasTable {
     columns: node.columns.map((column) => ({ ...column, id: `col:${freshHex(ctx)}` })),
     rows: node.rows.map((row) => ({
       cells: row.cells.map((cell) => ({ ...cell, contentId: ctx.newId() })),
-      id: `w:${freshHex(ctx)}`,
+      id: `row:${freshHex(ctx)}`,
     })),
   };
 }
@@ -79,6 +79,7 @@ export function resolveIds(drafts: Draft[], ctx: LineContext): ParsedLines {
   drafts.forEach((draft, position) => {
     const { members, node, scope, sid } = draft;
     const keep = sid !== null && winners.get(sid) === position;
+    if (!keep && node.kind === "unknown") return;
     const id = keep && sid !== null ? sid : ctx.newId();
     for (const member of members)
       if (member.sid !== id) fixes.push({ id, index: member.at, scope });

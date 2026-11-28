@@ -7,12 +7,9 @@ import {
 import type { Route } from "@slock/plugins/slack/server/api/router";
 import { route, routes } from "@slock/plugins/slack/server/api/router";
 import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
-import type {
-  DraftCreateReply,
-  DraftsListReply,
-} from "@slock/plugins/slack/server/api/slackReplies";
-import { trimDrafts } from "@slock/plugins/slack/server/api/trim/slackDrafts";
-import type { Block } from "@slock/types";
+import type { RawDraft } from "@slock/plugins/slack/server/api/slackReplies";
+import { trimDraft } from "@slock/plugins/slack/server/api/trim/slackDrafts";
+import type { Block, DraftEntry } from "@slock/types";
 
 const draftRoutes = (env: Env): Route[] => [
   route("GET", "drafts", async (ctx) => {
@@ -54,7 +51,7 @@ const draftRoutes = (env: Env): Route[] => [
     if (body.lastUpdatedTs) params.client_last_updated_ts = body.lastUpdatedTs;
     const data = await callSlack<DraftCreateReply>("drafts.create", params, ctx.creds);
     if (!data.ok) {
-      console.error("[drafts.create] failed", { blocks, error: data.error, params });
+      console.error("[drafts.create] failed", data.error);
       return slackErrorResponse(data, "drafts.create");
     }
     const draftId = data.draft?.id ?? data.id;
@@ -84,3 +81,15 @@ const setup: Setup = (ctx) => {
 };
 
 export default setup;
+
+type DraftsListReply = { drafts?: RawDraft[] };
+
+type DraftCreateReply = {
+  draft?: { id?: string; last_updated_ts?: string };
+  id?: string;
+  last_updated_ts?: string;
+};
+
+export function trimDrafts(drafts: readonly RawDraft[]): DraftEntry[] {
+  return drafts.flatMap((draft) => trimDraft(draft) ?? []);
+}

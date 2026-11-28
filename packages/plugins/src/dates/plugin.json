@@ -1,1 +1,1 @@
-{ "id": "dates", "name": "Date picker", "requires": [] }
+{ "id": "dates", "category": "Write", "name": "Date picker", "requires": [], "boot": true }

@@ -1,1 +1,7 @@
-{ "id": "message-shortcuts", "name": "Message shortcuts", "requires": ["query", "shell"] }
+{
+  "id": "message-shortcuts",
+  "category": "Write",
+  "name": "Message shortcuts",
+  "requires": ["query", "shell"],
+  "boot": true
+}

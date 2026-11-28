@@ -1,5 +1,6 @@
 import { isDmId } from "@slock/plugins/dms/client/api";
-import { ifPresent, isHiddenSubtype, mapMessage, parseChannelId, parseTs } from "@slock/slack";
+import { ifPresent, isHiddenSubtype, parseChannelId, parseTs } from "@slock/slack";
+import { mapMessage } from "@slock/slack/client";
 import type {
   Channel,
   ChannelId,
@@ -31,6 +32,7 @@ type IncomingMessageDeps = {
   setClosedDmIds: (id: ChannelId, closed: boolean) => void;
   updateChannelMessages: (channelId: ChannelId, update: (existing: Message[]) => Message[]) => void;
   updateThreadMessages: (threadTs: Ts, update: (existing: Message[]) => Message[]) => void;
+  setThreadReadTs: (threadTs: Ts, ts: Ts) => void;
   setUnreadChannelIds: (id: ChannelId, unread: boolean) => void;
   threadMessages: Record<Ts, Message[]>;
   isViewed: (channelId: ChannelId) => boolean;
@@ -93,7 +95,8 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
       const updated = payload.message;
       const updatedTs = ifPresent(parseTs, updated?.ts);
       if (!(updated && updatedTs)) return;
-      const { lastReplyLabel, latestReply, replyCount, replyUsers } = mapMessage(updated);
+      const { lastReplyLabel, latestReply, replyCount, replyUsers, replyUsersCount } =
+        mapMessage(updated);
       const latestReplyTs = ifPresent(parseTs, updated.latest_reply);
       if (latestReplyTs) latestReplyByThread.set(updatedTs, latestReplyTs);
       deps.patchMessage(channel, updatedTs, {
@@ -101,6 +104,7 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
         latestReply,
         replyCount,
         replyUsers,
+        replyUsersCount,
       });
       return;
     }
@@ -133,6 +137,7 @@ export function createIncomingMessageHandler(deps: IncomingMessageDeps) {
           (reply) => (reply.ts === msg.ts || reply.id === msg.id) && !isPendingMessage(reply),
         );
       if (deps.acceptsLiveReplies(threadTs)) mergeIntoThread(threadTs, msg);
+      if (msg.userId === me?.id) deps.setThreadReadTs(threadTs, msg.ts);
       const parentLocations = deps.findAllMessageLocations(channel, threadTs);
       const parentMsg = parentLocations[0]?.list.find((m) => m.ts === threadTs);
       const latestReplyTs = latestReplyByThread.get(threadTs);

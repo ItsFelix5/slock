@@ -2,7 +2,7 @@ const encoder = new TextEncoder();
 
 export type Bytes = number[];
 
-export function varint(value: number | bigint): Bytes {
+function varint(value: number | bigint): Bytes {
   let rest = BigInt(value);
   const out: Bytes = [];
   while (true) {

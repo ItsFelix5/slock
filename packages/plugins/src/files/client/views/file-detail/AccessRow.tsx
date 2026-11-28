@@ -5,13 +5,20 @@ import { type AccessOption, accessLabel } from "./accessLevels";
 
 export default function AccessRow(props: {
   children: JSX.Element;
+  class?: string;
+  editLockedReason?: string;
   level: string;
   onLevel?: (level: string) => void;
   onRemove?: () => void;
   options: AccessOption[];
 }) {
+  const isLocked = (option: AccessOption) => !!props.editLockedReason && option.value !== "write";
+  const renderOption = (option: AccessOption) => (
+    <option value={option.value}>{option.label}</option>
+  );
+
   return (
-    <div class="file-detail-access-row">
+    <div class={`file-detail-access-row ${props.class ?? ""}`}>
       <div class="file-detail-access-subject">{props.children}</div>
       <Show
         fallback={
@@ -27,9 +34,14 @@ export default function AccessRow(props: {
             onChange={(event) => onLevel()(event.currentTarget.value)}
             value={props.level}
           >
-            <For each={props.options}>
-              {(option) => <option value={option.value}>{option.label}</option>}
-            </For>
+            <For each={props.options.filter((option) => !isLocked(option))}>{renderOption}</For>
+            <Show when={props.editLockedReason}>
+              {(reason) => (
+                <optgroup disabled label={reason()}>
+                  <For each={props.options.filter(isLocked)}>{renderOption}</For>
+                </optgroup>
+              )}
+            </Show>
           </select>
         )}
       </Show>

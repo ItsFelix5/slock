@@ -55,3 +55,14 @@ summary.json-tree-row {
 .json-tree-undefined {
   color: var(--text-dim);
 }
+
+.json-tree-row .icon-btn {
+  vertical-align: middle;
+  margin-block: -4px;
+  opacity: 0;
+}
+
+.json-tree-row:hover .icon-btn,
+.json-tree-row:focus-within .icon-btn {
+  opacity: 1;
+}

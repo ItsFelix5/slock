@@ -1,12 +1,18 @@
 import { errorMessage } from "@slock/core";
+import { service } from "@slock/core/solid";
 import { defineQuery } from "@slock/plugins/query/client/api";
-import { apiGet, apiPost, mapReaction, parseChannelId, parseTs, parseUserId } from "@slock/slack";
+import { fetchPermalinkMessage } from "@slock/plugins/slack/client/api";
+import { parseTs, replyError } from "@slock/slack";
+import { apiGet, apiPost, mapReaction } from "@slock/slack/client";
 import type {
+  CanvasAccess,
+  CanvasCard,
   CanvasCommentThread,
   CanvasEdit,
   CanvasVersion,
   ChannelId,
   FileId,
+  Message,
   RawFile,
   RawMessage,
   Ts,
@@ -15,51 +21,54 @@ import { type CanvasMeta, readCanvas, readCanvasVersion } from "../../protocol/a
 import type { CanvasDocModel } from "./canvasDelta";
 import { CanvasEditError } from "./canvasSync";
 
+const env = service("env");
+
+const MISSING_FILE_MS = 30_000;
+
 const canvasFile = defineQuery<FileId, RawFile | null>({
-  load: async (fileId) => {
-    const info = await apiGet<{ file: RawFile | null }>(`/api/canvases/${fileId}/file-info`);
-    if (!info.ok) throw new Error(info.error ?? "files.info failed");
+  load: async (fileId, { signal }) => {
+    const info = await apiGet<{ file: RawFile | null }>(
+      `/api/canvases/${fileId}/file-info`,
+      signal,
+    );
+    if (!info.ok) throw replyError(info, "files.info failed");
     return info.file;
   },
+  maxAgeMs: (file) => (file ? Number.POSITIVE_INFINITY : MISSING_FILE_MS),
   name: "canvasFile",
   retry: { retries: 0 },
 });
 
-export async function resolveCanvasFile(fileId: FileId): Promise<RawFile> {
-  const file = await canvasFile.ensure(fileId);
+function visible(file: RawFile | null): RawFile {
   if (!file) throw new Error("not_visible");
   return file;
+}
+
+export const findCanvasFile = (fileId: FileId) => canvasFile.ensure(fileId);
+
+export async function resolveCanvasFile(fileId: FileId): Promise<RawFile> {
+  return visible(await canvasFile.ensure(fileId));
+}
+
+export async function refreshCanvasFile(fileId: FileId): Promise<RawFile> {
+  return visible(await canvasFile.refresh(fileId));
 }
 
 export function createCanvasFileQuery(fileId: () => FileId | undefined) {
   return canvasFile.state(fileId);
 }
 
+const cardMessage = defineQuery<{ channelId: ChannelId; ts: Ts }, Message | null>({
+  load: async ({ channelId, ts }) => (await fetchPermalinkMessage(channelId, ts, ts)) ?? null,
+  name: "canvasCardMessage",
+});
+
+export function createCanvasCardQuery(card: () => CanvasCard) {
+  return cardMessage.state(() => ({ channelId: card().channelId, ts: card().ts }));
+}
+
 export function canvasFileTitle(file: RawFile | null | undefined): string | undefined {
   return file?.title?.trim() || file?.name?.trim() || undefined;
-}
-
-export async function fetchCanvasTitleOrVisibility(
-  fileId: FileId,
-): Promise<{ notVisible: boolean; title: string | null }> {
-  try {
-    const file = await resolveCanvasFile(fileId);
-    return { notVisible: false, title: canvasFileTitle(file) ?? null };
-  } catch (err) {
-    return { notVisible: err instanceof Error && err.message === "not_visible", title: null };
-  }
-}
-
-export async function fetchCanvasTitle(fileId: FileId): Promise<string | null> {
-  return (await fetchCanvasTitleOrVisibility(fileId)).title;
-}
-
-export async function fetchCanvasPermalink(fileId: FileId): Promise<string | null> {
-  try {
-    return (await resolveCanvasFile(fileId)).permalink ?? null;
-  } catch {
-    return null;
-  }
 }
 
 function base64ToBytes(b64: string): Uint8Array {
@@ -70,26 +79,40 @@ function base64ToBytes(b64: string): Uint8Array {
 }
 
 export interface LoadedCanvas {
+  access: CanvasAccess;
   doc: CanvasDocModel | null;
-  editable: boolean;
+  fetchedAt: number;
+}
+
+const threadIds = new Map<FileId, string>();
+
+function threadQuery(fileId: FileId): string {
+  const threadId = threadIds.get(fileId);
+  return threadId ? `?${new URLSearchParams({ thread: threadId })}` : "";
 }
 
 export async function fetchCanvasRaw(
   fileId: FileId,
-): Promise<{ bytes: Uint8Array; editable: boolean }> {
-  const data = await apiGet<{ editable?: boolean; raw: string }>(`/api/canvases/${fileId}/raw`);
-  if (!data.ok) throw new Error(data.error ?? "Canvas content failed");
-  return { bytes: base64ToBytes(data.raw), editable: data.editable === true };
+  signal?: AbortSignal,
+): Promise<{ access: CanvasAccess; bytes: Uint8Array }> {
+  const data = await apiGet<{ access: CanvasAccess; raw: string }>(
+    `/api/canvases/${fileId}/raw${threadQuery(fileId)}`,
+    signal,
+  );
+  if (!data.ok) throw replyError(data, "Canvas content failed");
+  return { access: data.access, bytes: base64ToBytes(data.raw) };
 }
 
 export class CanvasReadError extends Error {}
 
-export async function fetchCanvas(fileId: FileId): Promise<LoadedCanvas> {
-  const { bytes, editable } = await fetchCanvasRaw(fileId);
+export async function fetchCanvas(fileId: FileId, signal?: AbortSignal): Promise<LoadedCanvas> {
+  const fetchedAt = env.now();
+  const { access, bytes } = await fetchCanvasRaw(fileId, signal);
   try {
     const document = readCanvas(bytes);
     if (!document) throw new Error("Canvas has no metadata");
-    return { doc: document, editable };
+    threadIds.set(fileId, document.meta.threadId);
+    return { access, doc: document, fetchedAt };
   } catch (error) {
     throw new CanvasReadError(errorMessage(error), {
       cause: error,
@@ -97,9 +120,15 @@ export async function fetchCanvas(fileId: FileId): Promise<LoadedCanvas> {
   }
 }
 
-export async function fetchCanvasVersions(fileId: FileId): Promise<CanvasVersion[]> {
-  const data = await apiGet<{ versions: CanvasVersion[] }>(`/api/canvases/${fileId}/versions`);
-  if (!data.ok) throw new Error(data.error ?? "Canvas history failed");
+export async function fetchCanvasVersions(
+  fileId: FileId,
+  signal?: AbortSignal,
+): Promise<CanvasVersion[]> {
+  const data = await apiGet<{ versions: CanvasVersion[] }>(
+    `/api/canvases/${fileId}/versions`,
+    signal,
+  );
+  if (!data.ok) throw replyError(data, "Canvas history failed");
   return data.versions;
 }
 
@@ -107,6 +136,7 @@ export async function fetchCanvasVersion(
   fileId: FileId,
   version: CanvasVersion,
   meta: CanvasMeta,
+  signal: AbortSignal,
 ): Promise<CanvasDocModel | null> {
   const query = new URLSearchParams({
     document: meta.documentId,
@@ -114,8 +144,9 @@ export async function fetchCanvasVersion(
   });
   const data = await apiGet<{ raw: string }>(
     `/api/canvases/${fileId}/versions/${version.versionId}?${query}`,
+    signal,
   );
-  if (!data.ok) throw new Error(data.error ?? "Canvas version failed");
+  if (!data.ok) throw replyError(data, "Canvas version failed");
   return readCanvasVersion(base64ToBytes(data.raw), meta);
 }
 
@@ -123,27 +154,21 @@ export async function restoreCanvasVersion(fileId: FileId, version: CanvasVersio
   const data = await apiPost(`/api/canvases/${fileId}/versions/${version.versionId}/restore`, {
     sequence: version.sequence,
   });
-  if (!data.ok) throw new Error(data.error ?? "Couldn't restore this version");
+  if (!data.ok) throw replyError(data, "Couldn't restore this version");
 }
 
-export interface CanvasComments {
-  channelId: ChannelId | null;
-  threads: CanvasCommentThread[];
-}
-
-export async function fetchCanvasComments(fileId: FileId): Promise<CanvasComments> {
-  const data = await apiGet<{ channelId?: string; threads: RawMessage[] }>(
-    `/api/canvases/${fileId}/comments`,
-  );
-  if (!data.ok) throw new Error(data.error ?? "Canvas comments failed");
-  const threads = data.threads.flatMap((message) => {
+export async function fetchCanvasComments(
+  fileId: FileId,
+  signal?: AbortSignal,
+): Promise<CanvasCommentThread[]> {
+  const data = await apiGet<{ threads: RawMessage[] }>(`/api/canvases/${fileId}/comments`, signal);
+  if (!data.ok) throw replyError(data, "Canvas comments failed");
+  return data.threads.flatMap((message) => {
     const threadId = message.document_comment?.thread_id;
-    if (!(threadId && (message.reply_count || message.reactions?.length))) return [];
+    if (!threadId) return [];
     return [
       {
         archived: !!message.document_comment?.is_archived,
-        authorIds: (message.reply_users ?? []).map(parseUserId),
-        latestReply: message.latest_reply ? parseTs(message.latest_reply) : null,
         quote: message.text ?? "",
         reactions: (message.reactions ?? []).map(mapReaction),
         replyCount: message.reply_count ?? 0,
@@ -152,22 +177,32 @@ export async function fetchCanvasComments(fileId: FileId): Promise<CanvasComment
       },
     ];
   });
-  return { channelId: data.channelId ? parseChannelId(data.channelId) : null, threads };
 }
 
-export async function openCanvasComment(
-  fileId: FileId,
-  annotationId: string,
-): Promise<{ channelId: ChannelId; ts: Ts }> {
-  const data = await apiPost<{ channelId: string; ts: string }>(
-    `/api/canvases/${fileId}/comments/open`,
+export async function openCanvasComment(fileId: FileId, annotationId: string): Promise<Ts> {
+  const data = await apiPost<{ ts: string }>(
+    `/api/canvases/${fileId}/comments/open${threadQuery(fileId)}`,
     { annotationId },
   );
-  if (!data.ok) throw new Error(data.error ?? "Couldn't open the comment");
-  return { channelId: parseChannelId(data.channelId), ts: parseTs(data.ts) };
+  if (!data.ok) throw replyError(data, "Couldn't open the comment");
+  return parseTs(data.ts);
+}
+
+export async function syncCanvasComment(fileId: FileId, ts: Ts): Promise<void> {
+  const data = await apiPost(`/api/canvases/${fileId}/comments/sync`, { ts });
+  if (!data.ok) throw replyError(data, "Couldn't sync the comment");
+}
+
+export async function resolveCanvasComment(
+  fileId: FileId,
+  ts: Ts,
+  resolved: boolean,
+): Promise<void> {
+  const data = await apiPost(`/api/canvases/${fileId}/comments/resolve`, { resolved, ts });
+  if (!data.ok) throw replyError(data, "Couldn't update the comment");
 }
 
 export async function postCanvasEdit(fileId: FileId, edit: CanvasEdit): Promise<void> {
-  const data = await apiPost(`/api/canvases/${fileId}/edit`, edit);
+  const data = await apiPost(`/api/canvases/${fileId}/edit${threadQuery(fileId)}`, edit);
   if (!data.ok) throw new CanvasEditError(data.error ?? "edit_failed");
 }

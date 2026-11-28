@@ -3,6 +3,7 @@ import { join, relative } from "node:path";
 import ts from "typescript";
 
 const ROOT = join(import.meta.dir, "..");
+const INNER_PATH = /\/.*/;
 const SOURCE = /\.(ts|tsx|css)$/;
 const SKIPPED_DIRS = new Set(["node_modules", "dist", "public"]);
 const TOOLING = new Set(["@biomejs/biome", "@types/node", "bun-types", "happy-dom", "typescript"]);
@@ -113,7 +114,9 @@ for (const ws of workspaces.filter((item) => item.dir.startsWith("packages/"))) 
   const tsconfig = ts.parseConfigFileTextToJson(tsconfigPath, readFileSync(tsconfigPath, "utf8"));
   if (!tsconfig.config?.compilerOptions?.composite) continue;
   const referenced = new Set<string>(
-    (tsconfig.config.references ?? []).map((ref: { path: string }) => ref.path.replace("../", "")),
+    (tsconfig.config.references ?? []).map((ref: { path: string }) =>
+      ref.path.replace("../", "").replace(INNER_PATH, ""),
+    ),
   );
   const wanted = new Set([...ws.deps].filter((name) => names.has(name)));
   for (const name of wanted) {

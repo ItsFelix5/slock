@@ -1,7 +1,7 @@
 import { For } from "solid-js";
 import "./Slider.css";
 
-export interface SliderProps {
+interface SliderProps {
   ariaLabel: string;
   labels?: string[];
   max: number;

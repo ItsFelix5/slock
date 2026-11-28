@@ -1,5 +1,6 @@
 {
   "id": "user-memberships",
+  "category": "People and channels",
   "name": "User memberships",
   "requires": ["conversations", "profile", "query", "users"]
 }

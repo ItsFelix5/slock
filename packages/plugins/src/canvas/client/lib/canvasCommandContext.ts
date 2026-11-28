@@ -1,22 +1,12 @@
-import { service } from "@slock/core/solid";
 import type Quill from "@slock/ui/editor/quill";
 import { createSignal } from "solid-js";
 import type { CanvasCommandContext } from "./canvasCommands";
 import { CANVAS_DATE_FORMAT, dateLabel, dateMs } from "./canvasEmbeds";
-import { commentAnchorAt, insertBlock } from "./canvasFormatting";
-import { uploadCanvasBlocks } from "./canvasUpload";
 
-const feedback = service("feedback");
-
-const FEEDBACK_KEY = "canvas-insert";
-
-export interface CanvasPicker {
-  anchor: HTMLElement;
-  annotationId?: string;
-  fresh?: boolean;
-  kind: "date" | "react";
-  quill: Quill;
-}
+export type CanvasPicker = { anchor: HTMLElement; quill: Quill } & (
+  | { kind: "date" }
+  | { kind: "react"; pick: (name: string) => void }
+);
 
 function pickFiles(): Promise<File[]> {
   return new Promise((resolve) => {
@@ -50,21 +40,10 @@ export function createCanvasCommandContext(options: {
   annotate: (quill: Quill) => Promise<string | null>;
   newId: () => string;
   onComment: (annotationId: string) => void;
+  onReact: (annotationId: string, name: string) => void;
+  upload: (quill: Quill, files: File[]) => void;
 }) {
   const [picker, setPicker] = createSignal<CanvasPicker | null>(null);
-
-  async function uploadFiles(quill: Quill, files: File[]) {
-    if (files.length === 0) return;
-    const range = quill.getSelection();
-    try {
-      const blocks = await uploadCanvasBlocks(files, options.newId);
-      if (range) quill.setSelection(range.index, 0);
-      for (const block of blocks)
-        insertBlock(quill, { name: block.name, value: block.value }, block.id);
-    } catch (error) {
-      feedback.caught(FEEDBACK_KEY, error, "Couldn't upload the file");
-    }
-  }
 
   function contextFor(quill: Quill): CanvasCommandContext {
     const anchor = lineElement(quill);
@@ -72,12 +51,15 @@ export function createCanvasCommandContext(options: {
       comment: () => void options.annotate(quill).then((id) => id && options.onComment(id)),
       newId: options.newId,
       pickDate: () => setPicker({ anchor, kind: "date", quill }),
-      pickFiles: () => void pickFiles().then((files) => uploadFiles(quill, files)),
-      react: () => {
-        const fresh = !commentAnchorAt(quill);
-        void options
-          .annotate(quill)
-          .then((id) => id && setPicker({ anchor, annotationId: id, fresh, kind: "react", quill }));
+      pickFiles: () => void pickFiles().then((files) => options.upload(quill, files)),
+      react() {
+        const { index, length } = quill.getSelection(true);
+        async function pick(name: string) {
+          quill.setSelection(index, length, "silent");
+          const id = await options.annotate(quill);
+          if (id) options.onReact(id, name);
+        }
+        setPicker({ anchor, kind: "react", pick, quill });
       },
     };
   }

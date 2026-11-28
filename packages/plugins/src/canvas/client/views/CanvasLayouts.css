@@ -45,7 +45,7 @@
 
 .canvas-editor .ql-editor [data-f0="quote"][data-f1="callout"] {
   --inset: 30px;
-  padding-inline: 30px 16px;
+  padding-inline: 30px var(--space-lg);
 }
 
 .canvas-editor .ql-editor [data-f0][data-e0~="first"] {
@@ -88,7 +88,7 @@
 }
 
 .canvas-editor .ql-editor li[data-f0="callout"] {
-  padding-right: 16px;
+  padding-right: var(--space-lg);
 }
 
 .canvas-editor .ql-editor [data-layout^="callout:0"] {

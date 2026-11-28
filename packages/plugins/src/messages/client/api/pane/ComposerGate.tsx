@@ -1,28 +1,30 @@
 import { service } from "@slock/core/solid";
 import type { ChannelId } from "@slock/types";
 import type { JSX } from "@solidjs/web";
-import { createSignal, Match, Switch } from "solid-js";
-import ChannelNoticeBar from "./ChannelNoticeBar";
+import { Match, Switch } from "solid-js";
+import ChannelNoticeBar, { type NoticeAction } from "./ChannelNoticeBar";
 
 const channelsStore = service("channels");
 const channelDetails = service("channel-details");
 const dmsStore = service("dms");
 
+export interface ComposerNotice {
+  action?: NoticeAction;
+  subject: string;
+  text: string;
+}
+
 export default function ComposerGate(props: {
   channelId: ChannelId;
   children: JSX.Element;
   locked?: boolean;
+  notice?: ComposerNotice;
 }) {
-  const [unarchiving, setUnarchiving] = createSignal(false);
+  const unarchiving = () => channelDetails.isArchivePending(props.channelId);
   const archived = () => !!channelsStore.channelById(props.channelId)?.archived;
   const isMember = () =>
     !!dmsStore.dmById(props.channelId) || channelsStore.isChannelMember(props.channelId);
   const joining = () => channelsStore.isJoinPending(props.channelId);
-  const unarchive = async () => {
-    setUnarchiving(true);
-    await channelDetails.unarchiveChannelById(props.channelId);
-    setUnarchiving(false);
-  };
 
   return (
     <Switch>
@@ -30,6 +32,17 @@ export default function ComposerGate(props: {
         <ChannelNoticeBar channelId={props.channelId} subject="This thread">
           is locked.
         </ChannelNoticeBar>
+      </Match>
+      <Match when={props.notice}>
+        {(notice) => (
+          <ChannelNoticeBar
+            action={notice().action}
+            channelId={props.channelId}
+            subject={notice().subject}
+          >
+            {notice().text}
+          </ChannelNoticeBar>
+        )}
       </Match>
       <Match when={archived()}>
         <ChannelNoticeBar
@@ -39,7 +52,7 @@ export default function ComposerGate(props: {
                   disabled: unarchiving(),
                   icon: "archive",
                   label: unarchiving() ? "Unarchiving…" : "Unarchive",
-                  onClick: unarchive,
+                  onClick: () => channelDetails.unarchiveChannelById(props.channelId),
                 }
               : undefined
           }

@@ -1,1 +1,7 @@
-{ "id": "layout-tabs-split", "name": "Tabs and splits", "requires": ["shell"] }
+{
+  "id": "layout-tabs-split",
+  "category": "Looks and layout",
+  "name": "Tabs and splits",
+  "requires": ["shell"],
+  "boot": true
+}

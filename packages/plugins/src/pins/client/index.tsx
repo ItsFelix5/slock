@@ -4,7 +4,7 @@ import { liveOnly } from "@slock/plugins/messages/client/api/deletedMessages";
 import type { PaneContent } from "@slock/plugins/shell/client/api/types";
 import { ifPresent, isChannelId, parseChannelId, parseTs } from "@slock/slack";
 import { narrowPaneContent, type Pane, useShortcut } from "@slock/ui";
-import { createEffect, Show } from "solid-js";
+import { Show } from "solid-js";
 import type { PinnedPaneContent } from "./api";
 import { createPinnedSlice } from "./store";
 import PinItem from "./views/PinItem";
@@ -46,12 +46,7 @@ const setup: Setup = (ctx) => {
   );
   const store = createPinnedSlice({ panes: service("shell.panes") });
   ctx.provide("pins", store);
-  createEffect(
-    () => service("conversations").activeView(),
-    (view) => {
-      if (view) store.ensurePinsLoaded(view.id);
-    },
-  );
+  ctx.add("messages.loaded", store.seedPinCount);
   ctx.add("realtime.handler", {
     run: (event) => {
       if (event.type !== "pin_added" && event.type !== "pin_removed") return;

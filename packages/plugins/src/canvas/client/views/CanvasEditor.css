@@ -12,6 +12,18 @@
   color: var(--text-primary);
 }
 
+.canvas-upload {
+  position: sticky;
+  bottom: var(--space-sm);
+  display: block;
+  width: fit-content;
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--text-secondary);
+  background: var(--composer-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
 .canvas-editor-title {
   display: block;
   box-sizing: border-box;

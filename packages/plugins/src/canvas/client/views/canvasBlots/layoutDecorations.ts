@@ -1,4 +1,5 @@
 import type Quill from "@slock/ui/editor/quill";
+import type { Delta } from "@slock/ui/editor/quill";
 
 const DEPTHS = 2;
 
@@ -15,6 +16,7 @@ function edges(paths: string[][], index: number, depth: number): string {
 }
 
 function decorateLayouts(quill: Quill) {
+  if (!quill.root.querySelector("[data-layout], [data-f0]")) return;
   const lines = quill.getLines();
   const paths = lines.map((line) => pathOf(line.domNode));
   lines.forEach((line, index) => {
@@ -35,16 +37,27 @@ function decorateLayouts(quill: Quill) {
   });
 }
 
+function onlyTypesText({ ops }: Delta): boolean {
+  return ops.every((op) =>
+    typeof op.insert === "string"
+      ? !op.insert.includes("\n")
+      : op.retain !== undefined && !op.attributes,
+  );
+}
+
 export function scheduleDecorations(quill: Quill): () => void {
   let frame = 0;
   const run = () => {
     cancelAnimationFrame(frame);
     frame = requestAnimationFrame(() => decorateLayouts(quill));
   };
-  quill.on("text-change", run);
+  const changed = (delta: Delta) => {
+    if (!onlyTypesText(delta)) run();
+  };
+  quill.on("text-change", changed);
   run();
   return () => {
     cancelAnimationFrame(frame);
-    quill.off("text-change", run);
+    quill.off("text-change", changed);
   };
 }

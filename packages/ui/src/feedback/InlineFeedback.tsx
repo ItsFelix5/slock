@@ -5,7 +5,7 @@ import { claimFeedback } from "./feedbackClaims";
 import type { Feedback } from "./keyedFeedback";
 import "./InlineFeedback.css";
 
-export interface InlineFeedbackProps {
+interface InlineFeedbackProps {
   class?: string;
   feedback: Feedback | undefined;
   priority?: number;

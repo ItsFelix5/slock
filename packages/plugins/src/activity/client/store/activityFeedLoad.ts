@@ -1,7 +1,7 @@
-import type { Env } from "@slock/core";
+import { createQueue, type Env } from "@slock/core";
 import type { ActivityItem, ChannelId, FeedEntry, Message, Ts, User, UserId } from "@slock/types";
 import { createEffect, createMemo, createSignal, onCleanup, refresh, untrack } from "solid-js";
-import { NO_CHANNEL } from "../kinds";
+import { needsMessage } from "../kinds";
 import { createActivityFeedRefreshScheduler } from "./activityFeedRefresh";
 import type { ActivityItems } from "./activityItems";
 import { createEntryResolution } from "./entryResolution";
@@ -13,7 +13,7 @@ const PAGE_SIZE = 50;
 
 type MoreRequest = { id: number; types?: string; unreadOnly?: boolean };
 
-export type ActivityFeedLoadDeps = {
+type ActivityFeedLoadDeps = {
   items: ActivityItems;
   cacheResolvedMessages?: (messages: Map<string, Message>) => void;
   currentUser: () => User | undefined;
@@ -42,15 +42,15 @@ export type ActivityFeedLoadDeps = {
 export function createActivityFeedLoad(deps: ActivityFeedLoadDeps) {
   const { createEntryPusher, resolvePendingEntries } = createEntryResolution(deps);
   const scopes = createFeedScopes();
-  let busy = false;
+  const queue = createQueue(1);
+  let jobs = 0;
 
-  async function exclusive(job: () => Promise<void>): Promise<void> {
-    if (busy) return;
-    busy = true;
+  async function enqueue(job: () => Promise<void>): Promise<void> {
+    jobs++;
     try {
-      await job();
+      await queue.run(() => untrack(job));
     } finally {
-      busy = false;
+      jobs--;
     }
   }
 
@@ -71,21 +71,23 @@ export function createActivityFeedLoad(deps: ActivityFeedLoadDeps) {
   async function reloadStale(me: User, entries: FeedEntry[]) {
     const stale = untrack(() => staleEntries(entries, deps.items.list));
     if (!stale.length) return;
-    const batch = await deps.fetchMessagesByIds(
-      stale.filter((entry) => entry.channelId !== NO_CHANNEL),
-    );
+    const batch = await deps.fetchMessagesByIds(stale.filter(needsMessage));
     if (batch.size) deps.cacheResolvedMessages?.(batch);
     deps.items.update((list) =>
       applyStaleEntries(list, stale, deps.resolveActivityEntry, batch, me),
     );
   }
 
+  async function mergeNewest(me: User, entries: FeedEntry[]) {
+    const pushed = await mergePage(me, entries);
+    await reloadStale(me, entries);
+    backfill(pushed);
+  }
+
   async function loadNewest(me: User) {
     const page = await deps.fetchActivityFeedEntries();
     scopes.record(MAIN_SCOPE, page, true);
-    const pushed = await mergePage(me, page.entries);
-    await reloadStale(me, page.entries);
-    backfill(pushed);
+    await mergeNewest(me, page.entries);
   }
 
   async function loadOlder(me: User, { types, unreadOnly }: MoreRequest) {
@@ -104,7 +106,7 @@ export function createActivityFeedLoad(deps: ActivityFeedLoadDeps) {
   const feed = createMemo(async () => {
     const me = deps.currentUser();
     if (!(deps.ready() && me)) return false;
-    await exclusive(() => loadNewest(me));
+    await enqueue(() => loadNewest(me));
     return true;
   });
 
@@ -115,7 +117,7 @@ export function createActivityFeedLoad(deps: ActivityFeedLoadDeps) {
     const request = moreRequest();
     const me = deps.currentUser();
     if (!(request && me)) return request;
-    await exclusive(() => loadOlder(me, request));
+    await enqueue(() => loadOlder(me, request));
     return request;
   });
 
@@ -129,14 +131,14 @@ export function createActivityFeedLoad(deps: ActivityFeedLoadDeps) {
   });
 
   function loadMoreActivity(types?: string, unreadOnly?: boolean): void {
-    if (!scopes.loaded() || busy || !scopes.hasMore(scopeKey(types, unreadOnly))) return;
+    if (!scopes.loaded() || jobs || !scopes.hasMore(scopeKey(types, unreadOnly))) return;
     setMoreRequest({ id: ++requestId, types, unreadOnly });
   }
 
   const liveRefresh = createActivityFeedRefreshScheduler({
     delayMs: LIVE_ACTIVITY_REFRESH_DELAY_MS,
     env: deps.env,
-    isLoading: () => busy,
+    isLoading: () => jobs > 0,
     refresh: () =>
       refresh(feed).then(
         () => {},
@@ -146,12 +148,21 @@ export function createActivityFeedLoad(deps: ActivityFeedLoadDeps) {
 
   onCleanup(liveRefresh.cancel);
 
+  function applyLiveEntry(entry: FeedEntry): void {
+    const me = untrack(deps.currentUser);
+    if (!me) return;
+    enqueue(async () => {
+      if (scopes.loaded()) await mergeNewest(me, [entry]);
+    }).catch((err) => console.error("Failed to apply activity", err));
+  }
+
   return {
     activityFeed: feed,
     activityLoaded: scopes.loaded,
     activityHasMore: (types?: string, unreadOnly?: boolean) =>
       scopes.hasMore(scopeKey(types, unreadOnly)),
     activityMore: more,
+    applyLiveEntry,
     loadMoreActivity,
     requestActivityRefresh: liveRefresh.request,
     retryActivityLoad: () => refresh(feed),

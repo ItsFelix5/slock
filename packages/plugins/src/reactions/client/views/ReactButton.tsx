@@ -14,7 +14,7 @@ export default function ReactButton(props: MessageBarProps) {
   const open = () => props.reactionPickerTs() === props.msg.ts;
   const toggle = () => props.onToggleReactionPicker(props.msg.ts);
   const existing = () => {
-    const me = users.currentUser()?.id;
+    const me = users.currentUserId();
     return (props.msg.reactions ?? []).map((r) => ({
       mine: !!me && r.users.includes(me),
       name: r.name,

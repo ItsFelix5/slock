@@ -1,9 +1,6 @@
-import type { TimerHandle } from "@slock/core";
-import { Slot, service } from "@slock/core/solid";
+import { Slot, useDebouncer } from "@slock/core/solid";
 import { IconButton, Menu } from "@slock/ui";
 import type { ComposerEditor } from "../api";
-
-const env = service("env");
 
 export default function ComposerAttachMenu(props: {
   onFilesSelected: (files: FileList | File[]) => void;
@@ -12,24 +9,14 @@ export default function ComposerAttachMenu(props: {
   open: boolean;
 }) {
   let fileInputRef: HTMLInputElement | undefined;
-  let plusClickTimer: TimerHandle | undefined;
+  const openMenu = useDebouncer(() => props.onOpenChange(true), 220);
 
   const handlePlusClick = () => {
-    if (plusClickTimer) {
-      env.clearTimeout(plusClickTimer);
-      plusClickTimer = undefined;
-      return;
-    }
-    plusClickTimer = env.setTimeout(() => {
-      plusClickTimer = undefined;
-      props.onOpenChange(true);
-    }, 220);
+    if (openMenu.pending()) openMenu.cancel();
+    else openMenu.schedule();
   };
   const handlePlusDblClick = () => {
-    if (plusClickTimer) {
-      env.clearTimeout(plusClickTimer);
-      plusClickTimer = undefined;
-    }
+    openMenu.cancel();
     fileInputRef?.click();
   };
 

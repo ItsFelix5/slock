@@ -19,7 +19,3 @@ export function trimDraft(draft: RawDraft): DraftEntry | undefined {
 function isScheduled(draft: RawDraft): boolean {
   return Number(draft.date_scheduled ?? 0) > 0;
 }
-
-export function trimDrafts(drafts: readonly RawDraft[]): DraftEntry[] {
-  return drafts.flatMap((draft) => trimDraft(draft) ?? []);
-}

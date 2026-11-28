@@ -1,6 +1,6 @@
 import type { Attachment, Block, ChannelId, FileId, Message, SlackFile, Ts } from "@slock/types";
 
-export interface ComposerEditingProps {
+interface ComposerEditingProps {
   initialAttachments?: Attachment[];
   initialBlocks?: Block[];
   initialFiles?: SlackFile[];

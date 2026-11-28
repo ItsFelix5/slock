@@ -49,13 +49,12 @@
   padding: 10px 0 calc(var(--composer-overlay-h, 48px) + 12px);
   overflow: hidden auto;
   overflow-anchor: none;
-  transition: opacity 0.12s ease;
+  outline: none;
 }
 
 .thread-panel-messages-pending {
   pointer-events: none;
   opacity: 0;
-  transition: none;
 }
 
 .thread-panel-error,

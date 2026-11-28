@@ -3,7 +3,7 @@ import { createLocalPref } from "@slock/plugins/slack/client/api/localPref";
 import { Switch } from "@slock/ui";
 import { For } from "solid-js";
 
-export type SwitchSetting = { default: boolean; label: string };
+type SwitchSetting = { default: boolean; label: string };
 
 export function definePluginSettings<Fields extends Record<string, SwitchSetting>>(
   ctx: Context,

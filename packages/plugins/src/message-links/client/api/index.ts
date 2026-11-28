@@ -4,7 +4,7 @@ import type { createIncomingShare } from "./incomingLinks";
 
 declare module "@slock/core/types" {
   interface Points {
-    "message-links.loaded": (channelId: ChannelId, ts: Ts) => boolean;
+    "message-links.load": (channelId: ChannelId, ts: Ts, threadTs: Ts) => Promise<boolean>;
   }
   interface Services {
     "message-links": ReturnType<typeof createMessageNavigation>;

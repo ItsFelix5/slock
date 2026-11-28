@@ -79,10 +79,6 @@ export function readLayout(record: SectionRecord): LayoutRead | null {
   return { color: 0, columns, kind };
 }
 
-export function layoutMemberIds(record: SectionRecord): string[] {
-  return readLayout(record)?.columns.flatMap((column) => column.memberIds) ?? [];
-}
-
 function quoteContent(memberIds: string[]): RawMessage {
   const quote = new Map([[1, memberIds.map(rawString)]]);
   return new Map([[FIELD_QUOTE, [rawMessage(quote)]]]);

@@ -1,6 +1,6 @@
 import { onSettled } from "solid-js";
 
-export interface FormatBubbleLinkProps {
+interface FormatBubbleLinkProps {
   onBlur: () => void;
   onCancel: () => void;
   onSubmit: (url: string) => void;

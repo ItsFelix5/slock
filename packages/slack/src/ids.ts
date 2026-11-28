@@ -38,6 +38,10 @@ export function ifPresent<T>(
   return raw ? parse(raw) : undefined;
 }
 
+// Slack stores a file's comments in a hidden channel that shares the file id's suffix.
+export const hostedChannelId = (fileId: FileId): ChannelId => parseChannelId(`C${fileId.slice(1)}`);
+export const hostedFileId = (channelId: ChannelId): FileId => parseFileId(`F${channelId.slice(1)}`);
+
 function micros(ts: Ts): bigint {
   const [seconds = "0", fraction = ""] = ts.split(".");
   return (

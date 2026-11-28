@@ -1,7 +1,7 @@
 import { Slot } from "@slock/core/solid";
 import type { ChannelId, Message, Ts } from "@slock/types";
 
-export interface MessageActionsMenuItemsProps {
+interface MessageActionsMenuItemsProps {
   channelId: ChannelId;
   msg: Message;
   onClose: () => void;

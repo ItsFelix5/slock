@@ -1,3 +1,4 @@
+import { logUnknown } from "@slock/core";
 import type { RawDraft } from "@slock/plugins/slack/server/api/slackReplies";
 import { trimDraft } from "@slock/plugins/slack/server/api/trim/slackDrafts";
 import type { ChannelUpdates, GatewayEvent } from "@slock/types";
@@ -72,8 +73,6 @@ export function trimSyncEvent(payload: SyncPayload): GatewayEvent | null {
       };
     case "pref_change":
       return { name: payload.name, type: payload.type, value: payload.value };
-    case "document_change":
-      return { file_id: channelId(payload.channel), type: payload.type };
     case "document_update":
       return { file_id: payload.file_id, type: payload.type };
     case "draft_create":
@@ -85,8 +84,6 @@ export function trimSyncEvent(payload: SyncPayload): GatewayEvent | null {
     case "dnd_updated_user":
     case "dnd_invalidated":
       return { type: payload.type, user: userId(payload.user) };
-    case "activity":
-      return { subtype: payload.subtype, type: payload.type };
     case "subteam_self_added":
     case "subteam_self_removed":
       return { subteam_id: payload.subteam_id, type: payload.type };
@@ -103,7 +100,16 @@ export function trimSyncEvent(payload: SyncPayload): GatewayEvent | null {
     case "saved_due":
     case "saved_updated":
       return { type: payload.type };
+    case "activity":
+    case "document_change":
+    case "hello":
+    case "pong":
+    case "reconnect_url":
+    case "subscription_update":
+    case "update_global_thread_state":
+      return null;
     default:
+      logUnknown("gateway event", payload.type);
       return null;
   }
 }

@@ -15,7 +15,7 @@ const DAY_FORMAT = new Intl.DateTimeFormat(undefined, {
   weekday: "short",
 });
 
-export interface VersionDay {
+interface VersionDay {
   label: string;
   versions: CanvasVersion[];
 }

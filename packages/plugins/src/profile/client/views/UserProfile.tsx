@@ -1,8 +1,11 @@
 import { service } from "@slock/core/solid";
-import { fetchProfileFieldDefs } from "@slock/plugins/slack/client/api";
+import { replyError } from "@slock/slack";
+import { apiGet } from "@slock/slack/client";
+import type { ProfileFieldDef } from "@slock/types";
 import { Button, createClock, InlineFeedback, type Pane, PanelHeader } from "@slock/ui";
 import { createMemo, createSignal, Show } from "solid-js";
 import type { ProfilePaneContent } from "../api";
+
 import ProfilePhotoEditor from "./ProfilePhotoEditor";
 import "./UserProfile.css";
 import { defineQuery } from "@slock/plugins/query/client/api";
@@ -12,8 +15,8 @@ import UserProfileInfo from "./UserProfileInfo";
 import { isCustomFieldDef } from "./userProfileFieldValues";
 import { createLocalTime, createTzDiff, createTzSuffix } from "./userProfileTime";
 
-const profileFieldDefsQuery = defineQuery<null, Awaited<ReturnType<typeof fetchProfileFieldDefs>>>({
-  load: fetchProfileFieldDefs,
+const profileFieldDefsQuery = defineQuery<null, ProfileFieldDef[]>({
+  load: (_arg, { signal }) => fetchProfileFieldDefs(signal),
   name: "profileFieldDefs",
 });
 
@@ -32,7 +35,7 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
     const presence = base.isBot ? undefined : usersStore.presenceFor(base.id);
     return presence ? { ...base, presence } : base;
   });
-  const isSelf = () => user()?.id === usersStore.currentUser()?.id;
+  const isSelf = () => user()?.id === usersStore.currentUserId();
   const botBio = () =>
     user()?.isBot ? usersStore.botBio(user()?.appId, user()?.botId) : undefined;
   const form = createProfileForm({
@@ -80,7 +83,7 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
         <Show
           fallback={
             <div class="user-profile-body text-muted">
-              {usersStore.isUnresolvableUser(profileUserId())
+              {usersStore.isUserUnavailable(profileUserId())
                 ? "Profile unavailable"
                 : "Loading profile…"}
             </div>
@@ -132,10 +135,16 @@ export default function UserProfile(props: { pane: Pane<ProfilePaneContent> }) {
           <ProfilePhotoEditor
             file={file()}
             onClose={() => setPhotoToEdit(undefined)}
-            onSave={form.updatePhoto}
+            onSave={usersStore.updateMyProfilePhoto}
           />
         )}
       </Show>
     </>
   );
+}
+
+async function fetchProfileFieldDefs(signal: AbortSignal): Promise<ProfileFieldDef[]> {
+  const data = await apiGet<{ fields?: ProfileFieldDef[] }>("/api/profile-fields", signal);
+  if (!data.ok) throw replyError(data, "team.profile.get failed");
+  return data.fields ?? [];
 }

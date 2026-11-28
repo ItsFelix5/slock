@@ -3,7 +3,7 @@ import { Show } from "solid-js";
 import "./PanelHeader.css";
 import Icon from "../media/Icon";
 
-export interface PanelHeaderProps {
+interface PanelHeaderProps {
   bottom?: JSX.Element;
   canClose?: boolean;
   children?: JSX.Element;

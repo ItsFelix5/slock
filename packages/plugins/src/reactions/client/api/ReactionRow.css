@@ -1,0 +1,27 @@
+.reaction-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.reaction-pill {
+  gap: 5px;
+  padding: 2px var(--space-sm);
+  font-size: var(--font-size-meta);
+  color: var(--text-secondary);
+  background: var(--hover-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+}
+.reaction-pill:hover:not(:disabled) {
+  cursor: pointer;
+  border-color: var(--text-dim);
+}
+.reaction-pill.mine {
+  color: var(--text-primary);
+  background: var(--accent-emphasis);
+  border-color: var(--accent);
+}
+.reaction-count {
+  font-weight: 700;
+}

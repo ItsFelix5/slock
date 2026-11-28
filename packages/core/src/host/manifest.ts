@@ -3,12 +3,7 @@ import { isRecord } from "../util/guards";
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
-export type ManifestResult = { ok: true; manifest: Manifest } | { ok: false; errors: string[] };
-
-const REMOVED_FIELDS: Record<string, string> = {
-  core: "core was removed",
-  defaultEnabled: "defaultEnabled is set by the instance (bun plugin install --off)",
-};
+type ManifestResult = { ok: true; manifest: Manifest } | { ok: false; errors: string[] };
 
 const isStringList = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
@@ -19,15 +14,14 @@ function listErrors(value: Record<string, unknown>): string[] {
     if (value[key] !== undefined && !isStringList(value[key]))
       errors.push(`${key} must be a list of strings`);
   }
-  for (const [key, message] of Object.entries(REMOVED_FIELDS)) {
-    if (key in value) errors.push(message);
-  }
   for (const key of ["boot", "hidden"]) {
     if (value[key] !== undefined && typeof value[key] !== "boolean")
       errors.push(`${key} must be true or false`);
   }
-  if (value.name !== undefined && typeof value.name !== "string")
-    errors.push("name must be a string");
+  for (const key of ["name", "category"]) {
+    if (value[key] !== undefined && typeof value[key] !== "string")
+      errors.push(`${key} must be a string`);
+  }
   return errors;
 }
 
@@ -40,6 +34,7 @@ export function parseManifest(value: unknown): ManifestResult {
   return {
     manifest: {
       boot: value.boot === true ? true : undefined,
+      category: typeof value.category === "string" ? value.category : undefined,
       hidden: value.hidden === true ? true : undefined,
       id: value.id,
       name: typeof value.name === "string" ? value.name : undefined,

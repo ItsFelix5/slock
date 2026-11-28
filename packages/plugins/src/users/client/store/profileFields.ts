@@ -1,120 +1,29 @@
-import { errorMessage } from "@slock/core";
-import { service } from "@slock/core/solid";
-import type { User, UserCustomField, UserId } from "@slock/types";
-import { createConcurrencyQueue } from "@slock/ui";
-import { createStore } from "solid-js";
+import { defineQuery } from "@slock/plugins/query/client/api";
+import type { UserCustomField, UserId, UserProfile } from "@slock/types";
+import type { UsersApi } from "./usersApi";
 
-const feedback = service("feedback");
+export function createUserProfiles(fetchUserProfile: UsersApi["fetchUserProfile"]) {
+  const profiles = defineQuery<UserId, UserProfile>({
+    load: (id, { signal }) => fetchUserProfile(id, signal),
+    name: "userProfiles",
+  });
 
-export function createUserProfileFields(
-  deps: { currentUserBase: () => User | undefined },
-  api: {
-    fetchUserProfile: (
-      id: UserId,
-    ) => Promise<{ customFields?: UserCustomField[]; startDate?: string }>;
-    setProfileFields: (fields: {
-      displayName?: string;
-      fullName?: string;
-      title?: string;
-      pronouns?: string;
-      customFields?: Record<string, string>;
-    }) => Promise<void>;
-    uploadProfilePhoto: (file: File) => Promise<string | undefined>;
-  },
-  setSelfStatusOverride: (updater: (prev: Partial<User> | null) => Partial<User> | null) => void,
-) {
-  const [customFieldsById, setCustomFieldsById] = createStore<
-    Record<UserId, UserCustomField[] | undefined>
-  >({});
-  const [profileStartDatesById, setProfileStartDatesById] = createStore<
-    Record<UserId, string | undefined>
-  >({});
-  const loadedCustomFields = new Set<UserId>();
-  const pendingCustomFields = new Set<UserId>();
-  const customFieldsVersion = new Map<UserId, number>();
-
-  function customFieldsFor(id: UserId): UserCustomField[] | undefined {
-    const known = customFieldsById[id];
-    if (loadedCustomFields.has(id) || pendingCustomFields.has(id)) return known;
-    pendingCustomFields.add(id);
-
-    const startVersion = customFieldsVersion.get(id) ?? 0;
-    api
-      .fetchUserProfile(id)
-      .then((profile) => {
-        setCustomFieldsById((draft) => {
-          if ((customFieldsVersion.get(id) ?? 0) === startVersion)
-            draft[id] = profile.customFields ?? [];
-        });
-        setProfileStartDatesById((draft) => {
-          draft[id] = profile.startDate;
-        });
-      })
-      .catch(() => {})
-      .finally(() => {
-        pendingCustomFields.delete(id);
-        loadedCustomFields.add(id);
-      });
-    return known;
-  }
-
-  function profileStartDateFor(id: UserId): string | undefined {
-    customFieldsFor(id);
-    return profileStartDatesById[id];
-  }
-
-  async function updateMyProfilePhoto(file: File): Promise<boolean> {
-    try {
-      const avatarUrl = await api.uploadProfilePhoto(file);
-      if (avatarUrl) setSelfStatusOverride((prev) => ({ ...prev, avatarUrl }));
-      return true;
-    } catch (err) {
-      console.error("Failed to update profile photo", err);
-      feedback.flash("me", errorMessage(err, "Failed to update profile photo."), "error");
-      return false;
-    }
-  }
-
-  const runProfileMutation = createConcurrencyQueue(1).run;
-  function updateMyProfile(fields: {
-    displayName?: string;
-    fullName?: string;
-    title?: string;
-    pronouns?: string;
-    customFields?: Record<string, string>;
-  }): Promise<boolean> {
-    return runProfileMutation(async (): Promise<boolean> => {
-      try {
-        await api.setProfileFields(fields);
-        setSelfStatusOverride((prev) => {
-          const next: Partial<User> = { ...prev };
-          if (fields.displayName !== undefined) next.name = fields.displayName;
-          if (fields.fullName !== undefined) next.realName = fields.fullName;
-          if (fields.title !== undefined) next.title = fields.title || undefined;
-          if (fields.pronouns !== undefined) next.pronouns = fields.pronouns || undefined;
-          return next;
-        });
-        const selfId = deps.currentUserBase()?.id;
-        if (fields.customFields && selfId) {
-          const merged = new Map((customFieldsById[selfId] ?? []).map((f) => [f.id, f]));
-          for (const [id, value] of Object.entries(fields.customFields)) {
-            if (value) merged.set(id, { id, value });
-            else merged.delete(id);
-          }
-          setCustomFieldsById((draft) => {
-            draft[selfId] = [...merged.values()];
-          });
-          loadedCustomFields.add(selfId);
-          customFieldsVersion.set(selfId, (customFieldsVersion.get(selfId) ?? 0) + 1);
-        }
-        return true;
-      } catch (err) {
-        console.error("Failed to update profile", err);
-        feedback.flash("me", errorMessage(err, "Failed to update profile."), "error");
-        return false;
+  function mergeCustomFields(id: UserId, changes: Record<string, string>): void {
+    profiles.modify(id, (profile) => {
+      const merged = new Map<string, UserCustomField>(
+        (profile.customFields ?? []).map((field) => [field.id, field]),
+      );
+      for (const [fieldId, value] of Object.entries(changes)) {
+        if (value) merged.set(fieldId, { id: fieldId, value });
+        else merged.delete(fieldId);
       }
+      return { ...profile, customFields: [...merged.values()] };
     });
   }
 
-  return { customFieldsFor, profileStartDateFor, updateMyProfile, updateMyProfilePhoto };
+  return {
+    customFieldsFor: (id: UserId) => profiles.peek(id)?.customFields,
+    mergeCustomFields,
+    profileStartDateFor: (id: UserId) => profiles.peek(id)?.startDate,
+  };
 }

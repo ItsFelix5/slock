@@ -1,6 +1,7 @@
+import { defineMutation, defineQuery } from "@slock/plugins/query/client/api";
 import { compareTs, isSlackError } from "@slock/slack";
 import type { Block, ChannelId, DraftEntry, Ts } from "@slock/types";
-import { createSignal, createStore } from "solid-js";
+import { createStore } from "solid-js";
 import { deleteDraft, fetchDrafts, saveDraft } from "./draftApi";
 
 export function draftCacheKey(channelId: ChannelId, threadTs?: Ts): string {
@@ -16,13 +17,31 @@ export type DraftStore = ReturnType<typeof createDraftStore>;
 
 export function createDraftStore() {
   const [drafts, setDrafts] = createStore<Record<string, DraftEntry[]>>({});
-  const [ready, setReady] = createSignal(false);
   const touchedKeys = new Set<string>();
   const lastKnownTs = new Map<string, Ts>();
   const removedIds = new Set<string>();
-  let hydrated = false;
-  let hydration: Promise<boolean> | null = null;
-  let disposed = false;
+  const unsaved = new Map<string, Block[]>();
+
+  const serverList = defineQuery<null, DraftEntry[]>({
+    gcMs: Number.POSITIVE_INFINITY,
+    load: async (_, { signal }) => {
+      const entries = await fetchDrafts(signal);
+      for (const draft of entries) {
+        if (!touchedKeys.has(draftCacheKey(draft.channelId, draft.threadTs))) upsert(draft);
+      }
+      return entries;
+    },
+    name: "drafts",
+    retry: { retries: 0 },
+    revalidates: false,
+  });
+
+  const writes = defineMutation<{ key: string; task: () => Promise<void> }>({
+    key: ({ key }) => key,
+    mode: "queue",
+    onError: (error) => console.error("Failed to write draft", error),
+    run: ({ task }) => task(),
+  });
 
   function write(entry: DraftEntry, onlyIfNewer: boolean): boolean {
     const key = draftCacheKey(entry.channelId, entry.threadTs);
@@ -53,7 +72,7 @@ export function createDraftStore() {
   }
 
   function applyRemote(draft: DraftEntry) {
-    if (hydrated && !removedIds.has(draft.id)) write(draft, true);
+    if (serverList.read(null) && !removedIds.has(draft.id)) write(draft, true);
   }
 
   function removeRemote(id: string) {
@@ -68,11 +87,15 @@ export function createDraftStore() {
     });
   }
 
+  async function enqueue(key: string, task: () => Promise<void>): Promise<void> {
+    await writes.run({ key, task });
+  }
+
   function deleteOnServer(id: string): Promise<void> {
     return deleteDraft(id, lastKnownTs.get(id));
   }
 
-  async function deleteEntry(key: string, id: string) {
+  async function deleteNow(key: string, id: string) {
     touchedKeys.add(key);
     await deleteOnServer(id);
     remove(key, id);
@@ -89,34 +112,24 @@ export function createDraftStore() {
   }
 
   function hydrate(): Promise<boolean> {
-    if (hydrated) return Promise.resolve(true);
-    if (hydration) return hydration;
-    const request = fetchDrafts()
-      .then((entries) => {
-        if (disposed) return false;
-        for (const draft of entries) {
-          if (!touchedKeys.has(draftCacheKey(draft.channelId, draft.threadTs))) upsert(draft);
-        }
-        hydrated = true;
-        return true;
-      })
-      .catch((error: unknown) => {
-        if (!isSlackError(error)) throw error;
+    return serverList.ensure(null).then(
+      () => true,
+      (error: unknown) => {
+        if (!isSlackError(error)) console.error("Failed to load drafts", error);
         return false;
-      })
-      .finally(() => {
-        if (disposed) return;
-        setReady(true);
-        if (hydration === request) hydration = null;
-      });
-    hydration = request;
-    return request;
+      },
+    );
+  }
+
+  function ready(): boolean {
+    const { failures, status } = serverList.entry(null);
+    return status === "ready" || failures > 0;
   }
 
   async function seed(channelId: ChannelId, threadTs: Ts | undefined, text: string) {
-    if (!text.trim()) return;
+    if (!text.trim()) return false;
     touchedKeys.add(draftCacheKey(channelId, threadTs));
-    if (!(await hydrate())) return;
+    if (!(await hydrate())) return false;
     const clientMsgId = crypto.randomUUID();
     const blocks: Block[] = [
       {
@@ -133,24 +146,26 @@ export function createDraftStore() {
       lastUpdatedTs: result.lastUpdatedTs,
       threadTs,
     });
+    return true;
   }
 
   return {
     applyRemote,
     channelHasDraft,
-    deleteEntry,
+    deleteEntry: (key: string, id: string) => enqueue(key, () => deleteNow(key, id)),
+    deleteNow,
     deleteOnServer,
-    dispose() {
-      disposed = true;
-    },
     drafts,
     draftsForChannel,
+    enqueue,
     hydrate,
     ready,
     remove,
     removeRemote,
     seed,
+    settled: (key: string) => (writes.pending(key) ? enqueue(key, async () => {}) : undefined),
     touch: (key: string) => touchedKeys.add(key),
+    unsaved,
     upsert,
   };
 }

@@ -9,7 +9,7 @@ const typingStore = service("typing");
 
 const setup: Setup = (ctx) => {
   const setting = definePluginSettings(ctx, {
-    showAvatars: { default: false, label: "Show avatars" },
+    showAvatars: { default: true, label: "Show avatars" },
   });
   const showAvatars = setting("showAvatars");
 

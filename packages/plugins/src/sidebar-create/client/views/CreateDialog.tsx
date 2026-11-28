@@ -1,7 +1,17 @@
+import { defineMutation } from "@slock/plugins/query/client/api";
 import { Button, Modal, ModalHeader } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { createSignal, Show } from "solid-js";
 import "./CreateDialog.css";
+
+const creating = defineMutation<{
+  create: () => Promise<void>;
+  fail: (error: unknown) => void;
+}>({
+  mode: "single",
+  onError: (error, { fail }) => fail(error),
+  run: ({ create }) => create(),
+});
 
 export default function CreateDialog(props: {
   canSubmit: boolean;
@@ -12,23 +22,21 @@ export default function CreateDialog(props: {
   onSubmit: () => Promise<void>;
   title: string;
 }) {
-  const [pending, setPending] = createSignal(false);
   const [error, setError] = createSignal<string>();
+  const pending = () => creating.pending();
   const close = () => !pending() && props.onClose();
 
   async function submit() {
     if (pending() || !props.canSubmit) return;
-    setPending(true);
     setError(undefined);
-    try {
-      await props.onSubmit();
-      props.onClose();
-    } catch (err) {
-      const code = err instanceof Error ? err.message : "";
-      setError(props.errors?.[code] ?? props.fallbackError);
-    } finally {
-      setPending(false);
-    }
+    const created = await creating.run({
+      create: props.onSubmit,
+      fail: (failure) => {
+        const code = failure instanceof Error ? failure.message : "";
+        setError(props.errors?.[code] ?? props.fallbackError);
+      },
+    });
+    if (created) props.onClose();
   }
 
   return (

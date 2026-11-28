@@ -58,7 +58,11 @@ export function newLayoutWrite(
   return write;
 }
 
-export function layoutChanged(existing: ExistingContainer, layout: LayoutSpec): boolean {
+export function layoutChanged(
+  existing: ExistingContainer,
+  layout: LayoutSpec,
+  records: ReadonlyMap<string, unknown>,
+): boolean {
   const current = readLayout(existing.record);
   if (!current) return true;
   if (layout.kind === "callout" && current.color !== layout.color) return true;
@@ -68,7 +72,8 @@ export function layoutChanged(existing: ExistingContainer, layout: LayoutSpec): 
     if (!other) return true;
     const weightChanged =
       layout.kind === "columns" && other.weight !== (column.weight || DEFAULT_COLUMN_WEIGHT);
-    return weightChanged || other.memberIds.join(",") !== column.memberIds.join(",");
+    const present = other.memberIds.filter((id) => records.has(id));
+    return weightChanged || present.join(",") !== column.memberIds.join(",");
   });
 }
 

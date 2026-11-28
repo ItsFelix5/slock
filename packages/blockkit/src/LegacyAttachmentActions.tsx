@@ -1,5 +1,4 @@
-import { service } from "@slock/core/solid";
-import type { TimerHandle } from "@slock/core/types";
+import { useDebouncer } from "@slock/core/solid";
 import type { AttachmentAction } from "@slock/types";
 import { createSignal, For, onCleanup, Show } from "solid-js";
 import { runAttachmentAction } from "./actions/blockActions";
@@ -8,18 +7,15 @@ import LinkButton from "./elements/LinkButton";
 import { safeUrl } from "./safeUrl";
 import "./elements/Controls.css";
 
-const env = service("env");
-
 export default function LegacyAttachmentActions(props: {
   actions: AttachmentAction[];
   attachmentId?: number;
   callbackId?: string;
   context?: BlockActionContext;
-  isEphemeral: boolean;
 }) {
   const [pendingName, setPendingName] = createSignal<string>();
   const [unsupported, setUnsupported] = createSignal<string>();
-  let timer: TimerHandle | undefined;
+  const unflash = useDebouncer(() => setUnsupported(), 2000);
   let active = true;
   const actionContext = () => {
     const ctx = props.context;
@@ -39,14 +35,14 @@ export default function LegacyAttachmentActions(props: {
       botUserId: ctx.botUserId,
       callbackId: props.callbackId,
       channelId: ctx.channelId,
+      isEphemeral: ctx.isEphemeral ?? false,
       messageTs: ctx.messageTs,
     };
   };
   const canDispatch = () => !!actionContext();
   const flashUnsupported = (name: string) => {
-    env.clearTimeout(timer);
     setUnsupported(name);
-    timer = env.setTimeout(() => setUnsupported(), 2000);
+    unflash.schedule();
   };
   const click = (action: AttachmentAction) => {
     if (safeUrl(action.url) || pendingName()) return;
@@ -63,7 +59,7 @@ export default function LegacyAttachmentActions(props: {
       botUserId: ctx.botUserId,
       callbackId: ctx.callbackId,
       channelId: ctx.channelId,
-      isEphemeral: props.isEphemeral,
+      isEphemeral: ctx.isEphemeral,
       messageTs: ctx.messageTs,
     })
       .catch(() => {
@@ -76,7 +72,6 @@ export default function LegacyAttachmentActions(props: {
 
   onCleanup(() => {
     active = false;
-    env.clearTimeout(timer);
   });
 
   return (

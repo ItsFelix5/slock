@@ -1,5 +1,16 @@
 {
   "id": "channel-members",
+  "category": "People and channels",
   "name": "Channel members",
-  "requires": ["channel-details", "channels", "shell", "users"]
+  "requires": [
+    "channel-details",
+    "channels",
+    "conversations",
+    "dms",
+    "query",
+    "realtime",
+    "shell",
+    "users"
+  ],
+  "boot": true
 }

@@ -61,7 +61,6 @@ export interface RawChannelText {
 export interface RawChannelProperties {
   canvas?: { file_id?: string; quip_thread_id?: string };
   channel_email_addresses?: { address?: string }[];
-  has_custom_mpdm_name?: boolean;
   tabs?: { data?: { file_id?: string }; label?: string; type?: string }[];
 }
 
@@ -153,6 +152,7 @@ export interface RawFile {
   };
   url_private?: string;
   url_private_download?: string;
+  user?: string;
   vtt?: string;
 }
 
@@ -188,9 +188,12 @@ export interface RawAttachment {
   }[];
   author_icon?: string;
   author_id?: string;
+  author_link?: string;
   author_name?: string;
   author_subname?: string;
   blocks?: Block[];
+  bot_id?: string;
+  bot_team_id?: string;
   callback_id?: string;
   channel_id?: string;
   color?: string;
@@ -211,9 +214,13 @@ export interface RawAttachment {
   service_name?: string;
   text?: string;
   title?: string;
+  thumb_height?: number;
+  thumb_url?: string;
+  thumb_width?: number;
   title_link?: string;
   ts?: string;
   video_height?: number;
+  video_html?: string;
   video_url?: string;
   video_width?: number;
 }
@@ -232,6 +239,7 @@ export interface RawMessage {
   bot_profile?: {
     icons?: RawIcons;
     name?: string;
+    team_id?: string;
   };
   document_comment?: { is_archived?: boolean; is_visible?: boolean; thread_id?: string };
   edited?: unknown;
@@ -247,6 +255,7 @@ export interface RawMessage {
   reactions?: RawReaction[];
   reply_count?: number;
   reply_users?: string[];
+  reply_users_count?: number;
   root?: RawMessage;
   is_locked?: boolean;
   subscribed?: boolean;

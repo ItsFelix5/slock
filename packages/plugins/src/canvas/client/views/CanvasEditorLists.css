@@ -42,9 +42,6 @@
   background: transparent;
   border: 1.5px solid var(--text-dim);
   border-radius: 4px;
-  transition:
-    background 0.1s,
-    border-color 0.1s;
 }
 
 .canvas-editor .ql-editor li[data-list="unchecked"] > .ql-ui:hover::before {

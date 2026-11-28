@@ -8,7 +8,7 @@ import { isBareLinkUnfurl } from "../api/messageAuthor";
 import { emojiOnlyBlockMessage, emojiShortcodeCount, MAX_ENLARGED_EMOJI } from "./emojiOnlyMessage";
 import { isUnreadDividerBoundary } from "./unreadDivider";
 
-export interface MessageContentContext {
+interface MessageContentContext {
   channelId: ChannelId;
   hasOpenThread: boolean;
   messages: () => Message[];
@@ -25,7 +25,7 @@ export interface MessageContent {
   visibleAttachments: Attachment[] | undefined;
 }
 
-export interface MessageNeighborContext {
+interface MessageNeighborContext {
   channelId: ChannelId;
   isPinned: boolean;
   messages: () => Message[];
@@ -34,7 +34,7 @@ export interface MessageNeighborContext {
   unreadDividerTs?: number;
 }
 
-export interface MessageNeighborState {
+interface MessageNeighborState {
   dayChanged: boolean;
   repliesCount: number;
   repliesDividerDay: string | undefined;

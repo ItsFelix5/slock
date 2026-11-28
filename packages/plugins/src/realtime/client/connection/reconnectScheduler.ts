@@ -1,4 +1,5 @@
-import { backoff, type Env, type TimerHandle } from "@slock/core";
+import type { Env, TimerHandle } from "@slock/core";
+import { backoff } from "../../protocol/backoff";
 
 const JITTER = 0.3;
 

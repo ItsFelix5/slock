@@ -24,10 +24,12 @@ export default function ConversationPane(props: { pane: Pane<View> }) {
   const TakeoverView = dynamic(() => takeover()?.view);
 
   const kept = createMemo<View[]>((previous = []) => {
-    const { id } = props.pane.content;
+    const { id, kind } = props.pane.content;
     if (takeover()) return previous;
-    const current = previous.find((view) => view.id === id) ?? { ...props.pane.content };
-    return [current, ...previous.filter((view) => view !== current)].slice(0, KEPT_LISTS);
+    const current = previous.find((view) => view.id === id && view.kind === kind) ?? {
+      ...props.pane.content,
+    };
+    return [current, ...previous.filter((view) => view.id !== id)].slice(0, KEPT_LISTS);
   });
 
   return (
@@ -60,11 +62,11 @@ export default function ConversationPane(props: { pane: Pane<View> }) {
           <div class="typing-indicator-anchor composer-overlay">
             <Slot channelId={props.pane.content.id} point="messages.footer" />
             <ComposerGate channelId={props.pane.content.id}>
-              <Show keyed when={props.pane.content}>
-                {(content) => (
-                  <Slot channelId={content.id} paneId={props.pane.id} point="composer.input" />
-                )}
-              </Show>
+              <Slot
+                channelId={props.pane.content.id}
+                paneId={props.pane.id}
+                point="composer.input"
+              />
             </ComposerGate>
           </div>
         </Show>

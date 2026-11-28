@@ -1,1 +1,6 @@
-{ "id": "layout-master", "name": "Master+side layout", "requires": ["shell"] }
+{
+  "id": "layout-master",
+  "category": "Looks and layout",
+  "name": "Master+side layout (beta)",
+  "requires": ["shell"]
+}

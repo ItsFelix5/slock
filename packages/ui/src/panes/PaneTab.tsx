@@ -6,7 +6,7 @@ import ContextMenu from "../overlay/menu/ContextMenu";
 import MenuItem from "../overlay/menu/MenuItem";
 import { useContextMenu } from "../overlay/menu/useContextMenu";
 
-export interface PaneTabProps {
+interface PaneTabProps {
   active: boolean;
   children: JSX.Element;
   hasOthers: boolean;

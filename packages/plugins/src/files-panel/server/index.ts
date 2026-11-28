@@ -2,11 +2,10 @@ import type { Setup } from "@slock/core";
 import { jsonResponse, slackErrorResponse } from "@slock/plugins/slack/server/api/jsonResponse";
 import type { Route } from "@slock/plugins/slack/server/api/router";
 import { route, routes } from "@slock/plugins/slack/server/api/router";
+import { searchModule } from "@slock/plugins/slack/server/api/searchModules";
 import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
-import type {
-  FilesSearchReply,
-  LinksSearchReply,
-} from "@slock/plugins/slack/server/api/slackReplies";
+import { trimFile } from "@slock/plugins/slack/server/api/trim/slackMessages";
+import type { RawFile, RawLink } from "@slock/types";
 
 const list: Route[] = [
   route("GET", "channels/:id/files-links", async (ctx) => {
@@ -16,27 +15,15 @@ const list: Route[] = [
     const page = Math.max(1, Number.parseInt(ctx.searchParams.get("page") ?? "1", 10) || 1);
     const filesQuery = `in:<#${channelId}${channelName ? `|${channelName}` : ""}> ${query}`.trim();
     const [filesData, linksData] = await Promise.all([
-      callSlack<FilesSearchReply>(
-        "search.modules.files",
+      searchModule<RawFile>(
+        "files",
         {
-          count: "50",
-          extra_message_data: "1",
-          extracts: "1",
-          file_title_only: "false",
-          highlight: "1",
-          include_files_shares: "1",
-          max_extract_len: "200",
-          max_filter_suggestions: "10",
-          module: "files",
-          no_user_profile: "1",
-          page: String(page),
+          context: "desktop_files_channel_tab",
+          count: 50,
+          page,
           query: filesQuery,
-          query_rewrite_disabled: "false",
-          search_context: "desktop_files_channel_tab",
-          search_exclude_bots: "false",
-          search_only_my_channels: "false",
           sort: "timestamp",
-          sort_dir: "desc",
+          sortDir: "desc",
         },
         ctx.creds,
       ),
@@ -59,7 +46,7 @@ const list: Route[] = [
       return slackErrorResponse(linksData, "conversations.searchLinks");
     }
     return jsonResponse({
-      files: filesData.items ?? [],
+      files: (filesData.items ?? []).map(trimFile),
       filesTotal: filesData.pagination?.total_count ?? 0,
       hasMore:
         page * 50 < (filesData.pagination?.total_count ?? 0) ||
@@ -76,3 +63,8 @@ const setup: Setup = (ctx) => {
 };
 
 export default setup;
+
+type LinksSearchReply = {
+  items?: RawLink[];
+  pagination?: { total_count?: number };
+};

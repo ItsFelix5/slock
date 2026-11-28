@@ -1,10 +1,10 @@
+import { createDebouncer, type Debouncer } from "@slock/core";
 import { service } from "@slock/core/solid";
-import type { TimerHandle } from "@slock/core/types";
 import { createSignal } from "solid-js";
 
 const env = service("env");
 
-export type FeedbackKind = "success" | "error";
+type FeedbackKind = "success" | "error";
 
 export interface Feedback {
   kind: FeedbackKind;
@@ -13,34 +13,34 @@ export interface Feedback {
 
 export function createKeyedFeedback(ttlMs = 3000) {
   const [state, setState] = createSignal<Record<string, Feedback>>({});
-  const timers = new Map<string, TimerHandle>();
+  const expiries = new Map<string, Debouncer<[]>>();
 
-  function flash(key: string, text: string, kind: FeedbackKind = "success") {
-    env.clearTimeout(timers.get(key));
-    setState((s) => ({ ...s, [key]: { kind, text } }));
-    timers.set(
-      key,
-      env.setTimeout(() => {
-        timers.delete(key);
-        setState((s) => {
-          if (!(key in s)) return s;
-          const next = { ...s };
-          delete next[key];
-          return next;
-        });
-      }, ttlMs),
-    );
-  }
-
-  function clear(key: string) {
-    env.clearTimeout(timers.get(key));
-    timers.delete(key);
-    setState((state) => {
-      if (!(key in state)) return state;
-      const next = { ...state };
+  function drop(key: string) {
+    setState((s) => {
+      if (!(key in s)) return s;
+      const next = { ...s };
       delete next[key];
       return next;
     });
+  }
+
+  function expiry(key: string) {
+    let timer = expiries.get(key);
+    if (!timer) {
+      timer = createDebouncer(env, () => drop(key), ttlMs);
+      expiries.set(key, timer);
+    }
+    return timer;
+  }
+
+  function flash(key: string, text: string, kind: FeedbackKind = "success") {
+    setState((s) => ({ ...s, [key]: { kind, text } }));
+    expiry(key).schedule();
+  }
+
+  function clear(key: string) {
+    expiries.get(key)?.cancel();
+    drop(key);
   }
 
   function get(key: string): Feedback | undefined {

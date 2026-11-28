@@ -1,21 +1,29 @@
 import { defineQuery } from "@slock/plugins/query/client/api";
-import { fetchUsergroup, fetchUsergroupDetails } from "@slock/plugins/slack/client/api";
 import type { Usergroup, UsergroupDetails } from "@slock/types";
 import { createStore } from "solid-js";
+import { fetchUsergroup, fetchUsergroupDetails } from "./requests";
+
+const MISSING_TTL_MS = 30_000;
+
+const maxAgeMs = (data: object | null) =>
+  data === null ? MISSING_TTL_MS : Number.POSITIVE_INFINITY;
 
 const usergroups = defineQuery<string, Usergroup | null>({
+  gcMs: Number.POSITIVE_INFINITY,
   load: fetchUsergroup,
+  maxAgeMs,
   name: "usergroups",
 });
 
 const usergroupDetails = defineQuery<string, UsergroupDetails | null>({
-  load: async (id) => {
-    const details = await fetchUsergroupDetails(id);
+  load: async (id, context) => {
+    const details = await fetchUsergroupDetails(id, context);
     if (details) {
       usergroups.set(id, { id: details.id, name: `@${details.handle || details.title}` });
     }
     return details;
   },
+  maxAgeMs,
   name: "usergroupDetails",
 });
 
@@ -55,7 +63,7 @@ export function createUsergroupsSlice(deps: {
   }
 
   function refreshUsergroupDetails(id: string) {
-    return usergroupDetails.ensure(id, { maxAgeMs: 0 });
+    return usergroupDetails.refresh(id);
   }
 
   function invalidateUsergroup(id: string): void {
@@ -72,5 +80,6 @@ export function createUsergroupsSlice(deps: {
     setSelfMembership,
     usergroupById,
     usergroupDetailsById,
+    usergroupDetailsState: usergroupDetails.entry,
   };
 }

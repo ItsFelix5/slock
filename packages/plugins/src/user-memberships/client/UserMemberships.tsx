@@ -22,7 +22,7 @@ const FILTERS: { label: string; kinds: MembershipKind[] }[] = [
 ];
 
 const membershipsQuery = defineQuery<UserId, Membership[]>({
-  load: fetchMemberships,
+  load: (userId, { signal }) => fetchMemberships(userId, signal),
   maxAgeMs: MEMBERSHIPS_STALE_MS,
   name: "memberships",
 });

@@ -6,13 +6,13 @@ import {
 import type { Route, RouteCtx } from "@slock/plugins/slack/server/api/router";
 import { route } from "@slock/plugins/slack/server/api/router";
 import { callSlack } from "@slock/plugins/slack/server/api/slackClient";
-import type { CanvasVersionsReply } from "@slock/plugins/slack/server/api/slackReplies";
+
 import { lookupThread, notConfigured } from "./api";
 import type { CanvasWire } from "./wire";
 
 const HISTORY_REASON = "quip-history";
 
-const VERSION_LIMIT = "100";
+const VERSION_LIMIT = "300";
 
 function versionQuery(ctx: RouteCtx): { documentId: string; sequence: number } | null {
   const documentId = ctx.searchParams.get("document");
@@ -34,6 +34,7 @@ export const historyRoutes = (wire: CanvasWire): Route[] => [
         ? [
             {
               authorId: version.author ?? "",
+              commentOnly: !!version.is_comment_only,
               createdMs: version.created_ms ?? 0,
               sequence: version.sequence,
               versionId: version.version_id,
@@ -65,7 +66,7 @@ export const historyRoutes = (wire: CanvasWire): Route[] => [
     if (!Number.isInteger(sequence)) return errorResponse("invalid_version", 400);
     const lookup = await lookupThread(ctx.params.id, ctx.creds);
     if ("response" in lookup) return lookup.response;
-    if (!lookup.editable) return errorResponse("not_editable", 403);
+    if (lookup.access !== "edit") return errorResponse("not_editable", 403);
     const data = await callSlack<{ created_version_id?: string }>(
       "quip.history.restoreVersion",
       {
@@ -80,3 +81,13 @@ export const historyRoutes = (wire: CanvasWire): Route[] => [
     return jsonResponse({ ok: true });
   }),
 ];
+
+type CanvasVersionsReply = {
+  versions?: {
+    author?: string;
+    created_ms?: number;
+    is_comment_only?: boolean;
+    sequence?: number;
+    version_id?: string;
+  }[];
+};

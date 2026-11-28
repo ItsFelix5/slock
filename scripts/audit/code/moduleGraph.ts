@@ -24,7 +24,8 @@ function packageEntries(files: SourceFile[]): Map<string, PackageEntry> {
     if (!PACKAGE_JSON.test(file.path) || file.path.split("/").length > 3) continue;
     const manifest: { name?: string; exports?: Record<string, string> } = JSON.parse(file.text);
     if (manifest.name) {
-      entries.set(manifest.name, { dir: dirname(file.path), exports: manifest.exports ?? {} });
+      const exports = manifest.exports ?? { "./*": "./src/*" };
+      entries.set(manifest.name, { dir: dirname(file.path), exports });
     }
   }
   return entries;
@@ -83,6 +84,11 @@ function exportedNames(statement: ts.Statement): string[] {
   return declarationName(statement);
 }
 
+function augmented(declaration: ts.ModuleDeclaration): string[] {
+  const { body } = declaration;
+  return body && ts.isModuleBlock(body) ? body.statements.flatMap(declarationName) : [];
+}
+
 function readModule(
   file: SourceFile,
   resolve: (from: string, specifier: string) => string | undefined,
@@ -95,6 +101,10 @@ function readModule(
     const line = lineOf(tree, statement);
     for (const name of exportedNames(statement)) info.declared.push({ name, line });
     if (ts.isExportAssignment(statement)) info.declared.push({ name: "default", line });
+    if (ts.isModuleDeclaration(statement) && ts.isStringLiteral(statement.name)) {
+      const path = target(statement.name);
+      if (path) info.uses.push(...augmented(statement).map((name) => ({ path, name })));
+    }
     if (ts.isImportDeclaration(statement)) {
       const path = target(statement.moduleSpecifier);
       const bindings = statement.importClause?.namedBindings;

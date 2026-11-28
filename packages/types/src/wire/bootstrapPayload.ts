@@ -1,6 +1,6 @@
 import type { RawChannel, RawCountGroup, RawUser } from "./rawTypes";
 
-export interface RawBootIm {
+interface RawBootIm {
   created?: number;
   id: string;
   is_open?: boolean;
@@ -21,8 +21,6 @@ export interface BootstrapPayload {
   emoji_use?: string;
   error?: Record<string, string>;
   frecency?: string;
-  frecency_ent_jumper?: string;
-  frecency_jumper?: string;
   ims?: RawBootIm[];
   is_open?: string[];
   mpims?: RawChannel[];

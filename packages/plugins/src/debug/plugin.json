@@ -1,5 +1,6 @@
 {
   "id": "debug",
+  "category": "Developer",
   "name": "Debug tools",
   "requires": [
     "activity",

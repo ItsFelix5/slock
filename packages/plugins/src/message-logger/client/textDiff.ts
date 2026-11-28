@@ -1,7 +1,7 @@
 import { EMOJI_TOKEN_RE } from "@slock/blockkit";
 import { defined } from "@slock/core";
 
-export interface DiffSegment {
+interface DiffSegment {
   kind: "same" | "added" | "removed";
   text: string;
 }

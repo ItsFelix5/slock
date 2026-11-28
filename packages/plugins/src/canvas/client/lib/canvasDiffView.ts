@@ -1,9 +1,9 @@
 import { defined } from "@slock/core";
-import type { CanvasLine, CanvasNode } from "@slock/types";
+import type { CanvasLine, CanvasNode, CanvasTable } from "@slock/types";
 import type { Op } from "@slock/ui/editor/quill";
 import type { DiffEntry } from "../../protocol/api";
-import { type CanvasDocModel, nodesToOps, type OpsView } from "./canvasDelta";
-import type { CanvasNames } from "./canvasEmbeds";
+import { type CanvasDocModel, lineOps, nodesToOps, type OpsView } from "./canvasDelta";
+import { type CanvasNames, embedToValue } from "./canvasEmbeds";
 import { htmlToOps } from "./canvasHtml";
 
 interface Token {
@@ -92,6 +92,24 @@ function inlineDiff(previous: Op[], next: Op[]): Op[] {
   return merge(out);
 }
 
+const marked = (ops: Op[], status: "added" | "removed"): Op[] =>
+  ops.map((op) => ({ ...op, attributes: { ...op.attributes, diffmark: status } }));
+
+// Removed rows stay in the diff, after the row they used to follow.
+function withRemovedRows(previous: CanvasTable, next: CanvasTable): CanvasTable {
+  const kept = new Set(next.rows.map((row) => row.id));
+  const rows = [...next.rows];
+  previous.rows.forEach((row, index) => {
+    if (kept.has(row.id)) return;
+    const before = previous.rows[index - 1]?.id;
+    rows.splice(rows.findIndex((candidate) => candidate.id === before) + 1, 0, row);
+  });
+  return { ...next, rows };
+}
+
+const cellsOf = (table: CanvasNode | null | undefined) =>
+  table?.kind === "table" ? table.rows.flatMap((row) => row.cells) : [];
+
 export function diffToOps(
   entries: DiffEntry[],
   doc: Pick<CanvasDocModel, "embeds">,
@@ -104,19 +122,26 @@ export function diffToOps(
       const status = resolve(node)?.status;
       return status && status !== "same" ? { diff: status } : {};
     },
+    cell: (table, contentId, ops) => {
+      const entry = resolve(table);
+      if (entry?.status !== "changed") return ops;
+      const before = cellsOf(entry.previous).find((cell) => cell.contentId === contentId);
+      if (!before) return marked(ops, "added");
+      if (!cellsOf(current.get(table.id)).some((cell) => cell.contentId === contentId))
+        return marked(ops, "removed");
+      const resolveEmbed = (id: string) => embedToValue(doc.embeds.get(id), id, names);
+      return inlineDiff(htmlToOps(before.html, resolveEmbed, false), ops);
+    },
     inline: (node: CanvasLine, ops) => {
       const entry = resolve(node);
       const previous = entry?.previous;
       if (entry?.status !== "changed" || !previous || !("html" in previous)) return ops;
-      const resolveEmbed = () => ({});
-      return inlineDiff(htmlToOps(previous.html, resolveEmbed, previous.kind === "code"), ops);
+      return inlineDiff(lineOps(previous, doc, names), ops);
     },
   };
-  return nodesToOps(
-    entries.map((entry) => entry.node),
-    0,
-    doc,
-    names,
-    view,
+  const current = new Map(entries.map(({ node }) => [node.id, node]));
+  const nodes = entries.map(({ node, previous }) =>
+    node.kind === "table" && previous?.kind === "table" ? withRemovedRows(previous, node) : node,
   );
+  return nodesToOps(nodes, 0, doc, names, view);
 }

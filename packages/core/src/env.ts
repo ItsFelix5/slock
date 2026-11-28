@@ -15,16 +15,9 @@ export const systemEnv: Env = {
     return { cancel: () => globalThis.clearTimeout(id) };
   },
   storage: {
-    get: (key) => localStorage.getItem(key),
-    remove: (key) => localStorage.removeItem(key),
-    set: (key, value) => localStorage.setItem(key, value),
-    subscribe: (listener) => {
-      if (typeof window === "undefined") return () => {};
-      const onStorage = (event: StorageEvent) => {
-        if (event.storageArea === null || event.storageArea === localStorage) listener(event.key);
-      };
-      window.addEventListener("storage", onStorage);
-      return () => window.removeEventListener("storage", onStorage);
-    },
+    get: () => null,
+    remove: () => {},
+    set: () => {},
+    subscribe: () => () => {},
   },
 };

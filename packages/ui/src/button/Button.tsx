@@ -2,7 +2,7 @@ import type { JSX } from "@solidjs/web";
 import { omit } from "solid-js";
 import "./Button.css";
 
-export interface ButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
   disabled?: boolean;
   icon?: boolean;
   size?: "sm" | "md" | "lg";

@@ -1,5 +1,5 @@
 import type { LayoutFrame } from "@slock/types";
-import Quill from "@slock/ui/editor/quill";
+import Quill, { type Op } from "@slock/ui/editor/quill";
 import { BlockEmbed } from "quill/blots/block";
 import { framesFromAttribute, layoutAttribute, withCallout, withQuote } from "../../protocol/api";
 import { ANNOTATION_ATTRIBUTE, LAYOUT_ATTRIBUTE } from "../views/canvasBlots";
@@ -68,57 +68,67 @@ export function setCallout(quill: Quill, color: number | null) {
   updateFrames(quill, (frames) => withCallout(frames, same ? null : color));
 }
 
-export function commentAnchorAt(quill: Quill): string | null {
-  const range = quill.getSelection();
-  if (!range) return null;
-  const { annotation } = quill.getFormat(range.index, range.length);
-  return typeof annotation === "string" ? annotation : null;
-}
-
-export function annotateSelection(quill: Quill, id: string): boolean {
+function commentRange(quill: Quill): { index: number; length: number } | null {
   const range = quill.getSelection(true);
-  const [line, offset] = quill.getLine(range.index);
-  if (!line) return false;
+  const [line] = quill.getLine(range.index);
+  if (!line) return null;
   const start = quill.getIndex(line);
   const lineEnd = start + line.length() - 1;
   const from = range.length > 0 ? range.index : start;
   const to = range.length > 0 ? Math.min(range.index + range.length, lineEnd) : lineEnd;
-  if (to <= from || offset < 0) return false;
-  quill.formatText(from, to - from, ANNOTATION_ATTRIBUTE, id, "user");
+  return to > from ? { index: from, length: to - from } : null;
+}
+
+// Annotating over an anchor would replace it and strand its thread, so any overlap reuses it.
+export function commentAnchorAt(quill: Quill): string | null {
+  const range = commentRange(quill);
+  if (!range) return null;
+  for (const op of quill.getContents(range.index, range.length).ops) {
+    const id = op.attributes?.[ANNOTATION_ATTRIBUTE];
+    if (typeof id === "string") return id;
+  }
+  return null;
+}
+
+// Comment access disables the editor, which rejects "user" changes.
+function annotationSource(quill: Quill) {
+  return quill.isEnabled() ? "user" : "api";
+}
+
+export function annotateSelection(quill: Quill, id: string): boolean {
+  const range = commentRange(quill);
+  if (!range) return false;
+  quill.formatText(range.index, range.length, ANNOTATION_ATTRIBUTE, id, annotationSource(quill));
   return true;
 }
 
-export function removeAnnotation(quill: Quill, id: string) {
-  let index = 0;
-  for (const op of quill.getContents().ops) {
-    const length = typeof op.insert === "string" ? op.insert.length : 1;
-    if (op.attributes?.[ANNOTATION_ATTRIBUTE] === id)
-      quill.formatText(index, length, ANNOTATION_ATTRIBUTE, false, "user");
-    index += length;
-  }
-}
-
-function blockInsertIndex(quill: Quill): number {
-  const range = quill.getSelection(true);
-  const [line] = quill.getLine(range.index);
-  if (!line) return range.index;
+function blockInsertIndex(quill: Quill, index: number): number {
+  const [line] = quill.getLine(index);
+  if (!line) return index;
   const start = quill.getIndex(line);
   return line.length() === 1 ? start : start + line.length();
 }
 
-export function insertBlock(
-  quill: Quill,
-  embed: { name: string; value: unknown },
-  id: string,
-): number {
-  const at = blockInsertIndex(quill);
-  quill.updateContents(
-    new Delta().retain(at).insert({ [embed.name]: embed.value }, { sid: id }),
-    "user",
-  );
-  const [after] = quill.getLine(at + 1);
-  if (!after || after instanceof BlockEmbed) quill.insertText(at + 1, "\n", "user");
-  quill.setSelection(at + 1, 0, "user");
+interface NewBlock {
+  id: string;
+  name: string;
+  value: unknown;
+}
+
+export function insertBlocks(quill: Quill, index: number, blocks: NewBlock[]) {
+  const at = blockInsertIndex(quill, index);
+  const delta = new Delta().retain(at);
+  for (const { id, name, value } of blocks) delta.insert({ [name]: value }, { sid: id });
+  quill.updateContents(delta, "user");
+  const end = at + blocks.length;
+  const [after] = quill.getLine(end);
+  if (!after || after instanceof BlockEmbed) quill.insertText(end, "\n", "user");
+  return { at, end };
+}
+
+function insertBlock(quill: Quill, embed: { name: string; value: unknown }, id: string): number {
+  const { at, end } = insertBlocks(quill, quill.getSelection(true).index, [{ ...embed, id }]);
+  quill.setSelection(end, 0, "user");
   return at;
 }
 
@@ -143,26 +153,30 @@ function hex(newId: () => string): string {
   return newId().slice(-HEX_LENGTH);
 }
 
-function newTableValue(newId: () => string): TableEmbedValue {
+export function tableValue(
+  newId: () => string,
+  size: { columns: number; rows: number },
+  cellOps: (row: number, column: number) => Op[] = () => [],
+): TableEmbedValue {
   const id = newId();
   return {
-    columns: Array.from({ length: TABLE_COLUMNS }, () => ({
+    columns: Array.from({ length: size.columns }, () => ({
       id: `col:${hex(newId)}`,
       width: TABLE_COLUMN_WIDTH,
     })),
     id,
-    rows: Array.from({ length: TABLE_ROWS }, () => ({
-      cells: Array.from({ length: TABLE_COLUMNS }, () => ({
+    rows: Array.from({ length: size.rows }, (_, row) => ({
+      cells: Array.from({ length: size.columns }, (_, column) => ({
         contentId: newId(),
-        ops: [{ insert: "\n" }],
+        ops: [...cellOps(row, column), { insert: "\n" }],
       })),
-      id: `w:${hex(newId)}`,
+      id: `row:${hex(newId)}`,
     })),
   };
 }
 
 export function insertTable(quill: Quill, newId: () => string) {
-  const value = newTableValue(newId);
+  const value = tableValue(newId, { columns: TABLE_COLUMNS, rows: TABLE_ROWS });
   focusFirstNested(quill, insertBlock(quill, { name: TABLE_EMBED, value }, value.id));
 }
 

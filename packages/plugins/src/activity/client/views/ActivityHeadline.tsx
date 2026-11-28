@@ -26,6 +26,11 @@ export default function ActivityHeadline(props: {
 }) {
   const profileUserId = () => resolveProfileUserId(props.latest);
   const isReminder = () => props.latest.activityType === "saved_reminder";
+  const headlineVerb = () => {
+    const verb = activityVerb(props.latest);
+    if (props.display.isStandaloneActivity()) return verb;
+    return verb.charAt(0).toLowerCase() + verb.slice(1);
+  };
   return (
     <span class="activity-headline truncate">
       <Tooltip content={activityVerb(props.latest)}>
@@ -74,7 +79,7 @@ export default function ActivityHeadline(props: {
         </Show>
       </Show>
       <Show when={props.display.showsActivityVerb() && !isReminder()}>
-        <span class="activity-channel">{activityVerb(props.latest)}</span>
+        <span class="activity-channel">{headlineVerb()}</span>
       </Show>
       <Show when={props.latest.kind !== "dm" && !props.display.isStandaloneActivity()}>
         <Show when={isReminder()}>

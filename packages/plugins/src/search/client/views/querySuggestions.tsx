@@ -1,7 +1,8 @@
-import { defined, startOfDay, toLocalInputValue } from "@slock/core";
+import { startOfDay, toLocalInputValue } from "@slock/core";
 import { service } from "@slock/core/solid";
 import type { User } from "@slock/types";
 import { Avatar, fuzzySearch, Icon } from "@slock/ui";
+import { partialToken } from "./lib/queryToken";
 
 const viewStore = service("conversations");
 const dmsStore = service("dms");
@@ -10,45 +11,51 @@ const usersStore = service("users");
 const prefsStore = service("prefs");
 const env = service("env");
 
-export type QuerySuggestion = {
+export interface QuerySuggestion {
   id: string;
   label: string;
-  replaceToken?: boolean;
-  value: string;
   user?: User;
-};
-
-export type QuerySuggestionContext = {
-  currentChannel?: { id: string; name: string };
-  currentDmUser?: { id: string; name: string };
-  currentUserId?: string;
-  modifiers?: readonly string[];
-};
-
-const HAS_VALUES = ["link", "image", "file", "star", "pin", "reaction"];
-const HASMY_VALUES = ["+1", "eyes", "heart", "white_check_mark"];
-const IS_VALUES = ["thread", "saved"];
-const TYPE_VALUES = ["image", "pdf", "doc", "spreadsheet", "video", "zip"];
-
-const TOKEN_OR_PILL_BOUNDARY_RE = /[ ￼\n]/;
-
-function tokenAt(value: string, cursor: number) {
-  let start = 0;
-  for (let i = Math.min(cursor - 1, value.length - 1); i >= 0; i--) {
-    if (TOKEN_OR_PILL_BOUNDARY_RE.test(defined(value[i]))) {
-      start = i + 1;
-      break;
-    }
-  }
-  let end = value.length;
-  for (let i = cursor; i < value.length; i++) {
-    if (TOKEN_OR_PILL_BOUNDARY_RE.test(defined(value[i]))) {
-      end = i;
-      break;
-    }
-  }
-  return { end, start, value: value.slice(start, cursor) };
+  value: string;
 }
+
+interface Named {
+  id: string;
+  name: string;
+}
+
+interface QuerySuggestionContext {
+  currentChannel?: Named;
+  currentDmUser?: User;
+  currentUser?: User;
+  modifiers?: readonly string[];
+}
+
+const EMOJI_VALUES = [":+1:", ":eyes:", ":heart:", ":white_check_mark:"];
+
+const STATIC_VALUES: Record<string, readonly string[]> = {
+  has: ["link", "file", "reaction", "pin", "action", "star", ...EMOJI_VALUES],
+  hasmy: EMOJI_VALUES,
+  is: ["thread", "dm", "saved", "todos"],
+  type: [
+    "images",
+    "pdfs",
+    "documents",
+    "spreadsheets",
+    "presentations",
+    "snippets",
+    "emails",
+    "audio",
+    "videos",
+    "canvases",
+    "lists",
+    "huddle_notes",
+    "zips",
+    "gdocs",
+  ],
+};
+
+const ENTITY_LIMIT = 6;
+const LEADING_COLON_RE = /^:/;
 
 function dateOffset(days: number) {
   return toLocalInputValue(startOfDay(env.now(), -days), "date");
@@ -61,187 +68,107 @@ function monthName(monthsAgo: number) {
     .toLowerCase();
 }
 
-export function queryToken(value: string, cursor: number) {
-  return tokenAt(value, cursor);
+function dateValues(modifier: string): readonly string[] | undefined {
+  if (modifier === "during") {
+    const year = String(new Date(env.now()).getFullYear());
+    return ["today", "yesterday", "week", monthName(0), monthName(1), year];
+  }
+  const dated = ["after", "before", "on"].includes(modifier);
+  return dated ? [0, 1, 7].map(dateOffset) : undefined;
 }
 
-function withPrefix(prefix: string, suggestion: QuerySuggestion): QuerySuggestion {
-  if (!prefix) return suggestion;
-  return {
-    ...suggestion,
-    id: `${prefix}${suggestion.id}`,
-    label: `${prefix}${suggestion.label}`,
-    value: `${prefix}${suggestion.value}`,
-  };
-}
-
-function staticValueSuggestions(
-  modifier: string,
-  term: string,
-  values: string[],
-  prefix: string,
-  format: (value: string) => string = (v) => v,
-): QuerySuggestion[] {
-  return values
-    .filter((value) => value.startsWith(term))
-    .map((value) =>
-      withPrefix(prefix, {
-        id: `${modifier}-${value}`,
-        label: `${modifier}:${format(value)}`,
-        replaceToken: true,
-        value: `${modifier}:${format(value)}`,
-      }),
-    );
-}
-
-function dateSuggestions(modifier: string, term: string, prefix: string): QuerySuggestion[] {
-  return [dateOffset(0), dateOffset(1), dateOffset(7)]
-    .filter((value) => !term || value.startsWith(term))
-    .map((value) =>
-      withPrefix(prefix, {
-        id: `${modifier}-${value}`,
-        label: `${modifier}:${value}`,
-        replaceToken: true,
-        value: `${modifier}:${value}`,
-      }),
-    );
-}
-
-function duringSuggestions(term: string, prefix: string): QuerySuggestion[] {
-  return [monthName(0), monthName(1), String(new Date(env.now()).getFullYear())]
-    .filter((value) => !term || value.startsWith(term))
-    .map((value) =>
-      withPrefix(prefix, {
-        id: `during-${value}`,
-        label: `during:${value}`,
-        replaceToken: true,
-        value: `during:${value}`,
-      }),
-    );
-}
-
-function entitySuggestions<T extends { id: string; name: string }>(
-  modifier: string,
+function entitySuggestions<T extends Named>(
   sigil: "@" | "#",
   term: string,
   items: T[],
-  prefix: string,
-  featured?: { id: string; name: string },
+  build: (shown: string, value: string, user?: User) => QuerySuggestion,
+  featured?: T,
   avatarOf?: (item: T) => User,
 ): QuerySuggestion[] {
-  const wrap = (id: string) => (sigil === "@" ? `<@${id}>` : `<#${id}>`);
-  const build = (id: string, name: string, user?: User): QuerySuggestion => ({
-    id: `${modifier}-${id}`,
-    label: `${modifier}:${sigil}${name}`,
-    replaceToken: true,
-    user,
-    value: `${modifier}:${wrap(id)}`,
-  });
+  const pinned = featured?.name.toLowerCase().startsWith(term) ? featured : undefined;
   const matches = fuzzySearch(items, {
     frequency: (item) => prefsStore.frecencyScore(item.id),
     query: term,
     text: (item) => item.name,
   })
-    .filter((item) => item.id !== featured?.id)
-    .slice(0, 6)
-    .map((item) => withPrefix(prefix, build(item.id, item.name, avatarOf?.(item))));
-  if (featured?.name.toLowerCase().startsWith(term)) {
-    matches.unshift(withPrefix(prefix, build(featured.id, featured.name)));
-  }
-  return matches.slice(0, 7);
+    .filter((item) => item.id !== pinned?.id)
+    .slice(0, ENTITY_LIMIT);
+  return (pinned ? [pinned, ...matches] : matches).map((item) =>
+    build(`${sigil}${item.name}`, `<${sigil}${item.id}>`, avatarOf?.(item)),
+  );
 }
 
 export function activeViewSuggestionContext(): QuerySuggestionContext {
   const view = viewStore.activeView();
-  const currentUserId = usersStore.currentUser()?.id;
+  const currentUser = usersStore.currentUser();
   if (view?.kind === "channel") {
-    const channel = channelsStore.channelById(view.id);
-    return {
-      currentChannel: channel ? { id: channel.id, name: channel.name } : undefined,
-      currentUserId,
-    };
+    return { currentChannel: channelsStore.channelById(view.id), currentUser };
   }
   if (view?.kind === "dm") {
     const userId = dmsStore.dmById(view.id)?.userId;
-    const user = userId ? usersStore.userById(userId) : undefined;
-    return { currentDmUser: user ? { id: user.id, name: user.name } : undefined, currentUserId };
+    return {
+      currentDmUser: userId ? usersStore.userById(userId) : undefined,
+      currentUser,
+    };
   }
-  return { currentUserId };
+  return { currentUser };
 }
 
 export function querySuggestions(
-  query: string,
+  text: string,
   cursor: number,
   users: User[],
-  channels: { id: string; name: string }[],
+  channels: Named[],
   context: QuerySuggestionContext = {},
 ): QuerySuggestion[] {
-  const rawToken = tokenAt(query, cursor).value;
-  const negated = rawToken.startsWith("-");
-  const prefix = negated ? "-" : "";
-  const token = (negated ? rawToken.slice(1) : rawToken).toLowerCase();
-
-  if (!token.includes(":")) return [];
-
-  const [modifier = "", term = ""] = token.split(":", 2);
+  const token = partialToken(text, cursor);
+  if (!token) return [];
+  const { modifier, prefix, raw, sigil, term } = token;
   if (context.modifiers && !context.modifiers.includes(modifier)) return [];
-  switch (modifier) {
-    case "from":
-      return entitySuggestions(
-        "from",
-        "@",
-        term,
-        users,
-        prefix,
-        context.currentUserId ? { id: context.currentUserId, name: "me" } : undefined,
-        (user) => user,
-      );
-    case "with":
-      return entitySuggestions(
-        "with",
-        "@",
-        term,
-        users,
-        prefix,
-        context.currentDmUser,
-        (user) => user,
-      );
-    case "in":
-      return entitySuggestions("in", "#", term, channels, prefix, context.currentChannel);
-    case "has":
-      return staticValueSuggestions("has", term, HAS_VALUES, prefix);
-    case "hasmy":
-      return staticValueSuggestions("hasmy", term, HASMY_VALUES, prefix, (v) => `:${v}:`);
-    case "is":
-      return staticValueSuggestions("is", term, IS_VALUES, prefix);
-    case "type":
-      return staticValueSuggestions("type", term, TYPE_VALUES, prefix);
-    case "during":
-      return duringSuggestions(term, prefix);
-    case "after":
-    case "before":
-      return dateSuggestions(modifier, term, prefix);
-    default:
-      return [];
+
+  const build = (shown: string, value = shown, user?: User): QuerySuggestion => ({
+    id: `${prefix}${modifier}-${value}`,
+    label: `${prefix}${modifier}:${shown}`,
+    user,
+    value: `${prefix}${modifier}:${value}`,
+  });
+  const people = (featured?: User) =>
+    entitySuggestions("@", term, users, build, featured, (user) => user);
+
+  function matches(): QuerySuggestion[] {
+    switch (modifier) {
+      case "from":
+      case "creator": {
+        const me = context.currentUser;
+        return people(me && { ...me, name: "me" });
+      }
+      case "with":
+        return people(context.currentDmUser);
+      case "in":
+        if (sigil === "@") return people(context.currentDmUser);
+        return entitySuggestions("#", term, channels, build, context.currentChannel);
+      default: {
+        const values = dateValues(modifier) ?? STATIC_VALUES[modifier] ?? [];
+        return values
+          .filter((value) => value.replace(LEADING_COLON_RE, "").startsWith(term))
+          .map((value) => build(value));
+      }
+    }
   }
+
+  const found = matches();
+  const complete = found.some(({ value }) => value.toLowerCase() === raw.toLowerCase());
+  return complete ? [] : found;
 }
 
 export function renderQuerySuggestion(suggestion: QuerySuggestion) {
-  if (suggestion.user) {
-    return (
-      <>
-        <Avatar size="small" user={suggestion.user} />
-        <span class="suggestion-label">{suggestion.label}</span>
-      </>
-    );
-  }
   return (
     <>
-      <Icon
-        class="suggestion-icon flex-center"
-        name={suggestion.replaceToken ? "filters" : "search"}
-        size={13}
-      />
+      {suggestion.user ? (
+        <Avatar size="small" user={suggestion.user} />
+      ) : (
+        <Icon class="suggestion-icon flex-center" name="filters" size={13} />
+      )}
       <span class="suggestion-label">{suggestion.label}</span>
     </>
   );

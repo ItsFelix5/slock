@@ -15,7 +15,7 @@ const setup: Setup = (ctx) => {
     isChannelNotifyAll: prefs.isChannelNotifyAll,
     isDndActive: prefs.isDndActive,
     matchingHighlightWord: prefs.matchingHighlightWord,
-    openChannelPeek: service("message-links").openChannelPeek,
+    openChannelMessage: service("message-links").openChannelMessage,
     resolveChannel: channels.resolveChannel,
     userPrefs: () => service("bootstrap").userPrefs().data,
   });

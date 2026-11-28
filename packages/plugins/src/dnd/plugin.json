@@ -1,1 +1,7 @@
-{ "id": "dnd", "name": "Do not disturb", "requires": ["prefs", "query", "shell"] }
+{
+  "id": "dnd",
+  "category": "Notifications",
+  "name": "Do not disturb",
+  "requires": ["prefs", "query", "shell"],
+  "boot": true
+}

@@ -2,7 +2,7 @@ import { service } from "@slock/core/solid";
 import { splitReplyLink } from "@slock/plugins/message-links/client/api/replyLink";
 import { fetchPermalinkMessage } from "@slock/plugins/slack/client/api";
 import { isWaiting } from "@slock/resource";
-import type { Attachment, Block, ChannelId, Ts } from "@slock/types";
+import type { Attachment, ChannelId, TeamId, Ts } from "@slock/types";
 import { Avatar, DEFAULT_AVATAR_COLOR, HoverCard, type useHoverIntent } from "@slock/ui";
 import type { JSX } from "@solidjs/web";
 import { createSignal, Show } from "solid-js";
@@ -12,46 +12,44 @@ import {
   resolveAttachmentAuthorName,
   resolveMessageAuthorAvatar,
 } from "../../api/messageAuthor";
+import { attachmentContent, type PreviewContent } from "../../api/preview/previewContent";
 import "./MessageLinkHoverCard.css";
 import { defineQuery } from "@slock/plugins/query/client/api";
 
 const usersStore = service("users");
 
-export interface HoverPreview {
+export interface HoverPreview extends PreviewContent {
   author: MessageAuthorAvatarView;
-  blocks?: Block[];
   botId?: string;
-  text: string;
+  botTeamId?: TeamId;
 }
 
 export function attachmentToHoverPreview(attachment: Attachment): HoverPreview {
   return {
+    ...attachmentContent(attachment),
     author: {
       avatarColor: DEFAULT_AVATAR_COLOR,
       avatarUrl: attachment.authorIcon,
       id: "",
       name: resolveAttachmentAuthorName(attachment, usersStore.userById) ?? "Forwarded message",
     },
-    blocks: attachment.blocks,
-    text: attachment.text ?? attachment.title ?? "Original message",
   };
 }
 
 export function messageToHoverPreview(
-  msg: Parameters<typeof resolveMessageAuthorAvatar>[0] & {
-    blocks?: Block[];
-    text: string;
-    attachments?: Attachment[];
-  },
+  msg: Parameters<typeof resolveMessageAuthorAvatar>[0] & PreviewContent,
 ): HoverPreview {
   const { blocks, text } = splitReplyLink(msg);
   const forward =
     blocks || text.trim() ? undefined : msg.attachments?.find((a) => a.isMessageUnfurl);
   if (forward) return attachmentToHoverPreview(forward);
   return {
+    attachments: msg.attachments,
     author: resolveMessageAuthorAvatar(msg, usersStore.userById),
     blocks,
     botId: msg.botId,
+    botTeamId: msg.botTeamId,
+    files: msg.files,
     text,
   };
 }
@@ -109,14 +107,19 @@ export default function MessageLinkHoverCard(props: {
                 <Avatar size="small" user={p().author} />
                 <span class="message-link-hovercard-name">{p().author.name}</span>
               </div>
-              <div class="message-link-hovercard-text text-sm truncate-lines">
+              <div class="message-link-hovercard-text text-sm">
                 <MessageReferenceSnippet
+                  attachments={p().attachments}
                   blocks={p().blocks}
                   botId={p().botId}
+                  botTeamId={p().botTeamId}
                   botUserId={p().author.id}
                   channelId={props.channelId}
+                  files={p().files}
                   text={p().text}
+                  textClass="truncate-lines"
                   threadTs={props.threadTs}
+                  thumbnails
                   ts={props.messageTs}
                 />
               </div>

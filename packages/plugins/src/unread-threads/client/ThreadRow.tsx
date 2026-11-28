@@ -1,31 +1,23 @@
-import { service } from "@slock/core/solid";
-import TextOrFiles from "@slock/plugins/files/client/api/TextOrFiles";
 import { splitReplyLink } from "@slock/plugins/message-links/client/api/replyLink";
+import MessagePreviewText from "@slock/plugins/messages/client/api/preview/MessagePreviewText";
 import { SplitNavigation } from "@slock/plugins/shell/client/api/SplitNavigation";
 import type { ActivityItem } from "@slock/types";
+import { openUnreadThread } from "./threadTarget";
 import "./ThreadRow.css";
 
-const messageLinks = service("message-links");
-
 export default function ThreadRow(props: { item: ActivityItem }) {
-  const threadTs = () => props.item.threadTs ?? props.item.ts;
   return (
-    <SplitNavigation
-      onSplit={() =>
-        messageLinks.openThread(props.item.channelId, threadTs(), props.item.ts, { pinned: true })
-      }
-    >
+    <SplitNavigation onSplit={() => openUnreadThread(props.item, true)}>
       <button
         class="sidebar-row sidebar-row-thread unread btn-reset flex-align-center"
         data-nav-row
-        onClick={() =>
-          messageLinks.openChannelPeek(props.item.channelId, threadTs(), props.item.ts)
-        }
+        onClick={() => openUnreadThread(props.item, false)}
         tabindex={-1}
         type="button"
       >
         <span class="sidebar-row-name truncate">
-          <TextOrFiles
+          <MessagePreviewText
+            attachments={props.item.attachments}
             blocks={splitReplyLink(props.item).blocks}
             files={props.item.files}
             inline

@@ -47,6 +47,11 @@
   display: flex;
 }
 
+::highlight(canvas-comment) {
+  text-decoration: underline 2px color-mix(in srgb, var(--warning) 70%, transparent);
+  background-color: color-mix(in srgb, var(--warning) 22%, transparent);
+}
+
 ::highlight(canvas-thread) {
   background-color: color-mix(in srgb, var(--warning) 45%, transparent);
 }

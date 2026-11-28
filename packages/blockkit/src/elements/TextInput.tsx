@@ -1,5 +1,5 @@
 import type { TextInputElement } from "@slock/types";
-import { Show } from "solid-js";
+import { Show, untrack } from "solid-js";
 
 function inputType(type: string) {
   if (type === "email_text_input") return "email";
@@ -48,14 +48,14 @@ export default function TextInput(props: {
   };
 
   const focusOnLoad = (node: HTMLElement) => {
-    if (props.el.focus_on_load) queueMicrotask(() => node.focus());
+    if (untrack(() => props.el.focus_on_load)) queueMicrotask(() => node.focus());
   };
 
   return (
     <Show
       fallback={
         <input
-          class="bk-control"
+          class="bk-control field-surface"
           disabled={!props.ready}
           max={numeric() ? props.el.max_value : undefined}
           maxlength={props.el.max_length}
@@ -73,7 +73,7 @@ export default function TextInput(props: {
       when={props.el.multiline}
     >
       <textarea
-        class="bk-control bk-control--textarea"
+        class="bk-control field-surface bk-control--textarea"
         disabled={!props.ready}
         maxlength={props.el.max_length}
         onInput={onInput}

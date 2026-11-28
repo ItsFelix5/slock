@@ -1,161 +1,176 @@
 import { service } from "@slock/core/solid";
 import ComposeChannelPicker from "@slock/plugins/composer/client/api/pickers/ComposeChannelPicker";
 import ComposeUserPicker from "@slock/plugins/composer/client/api/pickers/ComposeUserPicker";
-import { SplitNavigation } from "@slock/plugins/shell/client/api/SplitNavigation";
-import {
-  type FileAccessTarget,
-  removeFileAccess,
-  setFileAccess,
-  setFileOrgAccess,
-} from "@slock/plugins/slack/client/api";
-import type { SlackFile, SlackFileDetail, SlackFileShare } from "@slock/types";
+import type { SlackFile, SlackFileDetail, UserId } from "@slock/types";
 import { AddRowButton, FloatingPanel, Icon } from "@slock/ui";
 import { createSignal, For, Show } from "solid-js";
+import { type AccessChange, fileAccess } from "../../fileMutations";
+import type { FileAccessTarget } from "../../requests";
 import AccessRow from "./AccessRow";
-import { ACCESS_OPTIONS, ORG_ACCESS_OPTIONS } from "./accessLevels";
+import { ACCESS_OPTIONS, ORG_ACCESS_ICONS, orgAccessOptions } from "./accessLevels";
+import ChannelChip from "./ChannelChip";
 import UserChip from "./UserChip";
 
-const feedback = service("feedback");
-const messageLinks = service("message-links");
+const usersStore = service("users");
 
-function uniqueChannelShares(shares: SlackFileShare[]): SlackFileShare[] {
-  return [...new Map(shares.map((share) => [share.channelId, share])).values()];
-}
+const EDIT_HELD_REASONS = {
+  channel: "This person has edit access through a certain channel.",
+  org: "Everyone in your organization has the ability to edit.",
+};
+
+type Access = NonNullable<SlackFileDetail["access"]>;
 
 export default function FileDetailAccess(props: {
   detail: SlackFileDetail;
   file: SlackFile;
-  onChanged: () => void;
-  onOpenShare: (share: SlackFileShare) => void;
+  onNavigate: () => void;
+}) {
+  const isEmpty = (access: Access) =>
+    !(
+      access.canManage ||
+      access.users.length ||
+      access.channels.length ||
+      access.hiddenChannelCount
+    ) && access.orgLevel === "none";
+
+  return (
+    <Show
+      fallback={
+        <section class="file-detail-section">
+          <h3 class="file-detail-section-title">Access</h3>
+          <span class="text-dim">Couldn't load access.</span>
+        </section>
+      }
+      when={props.detail.access}
+    >
+      {(access) => (
+        <Show when={!isEmpty(access())}>
+          <AccessList
+            access={access()}
+            file={props.file}
+            onNavigate={props.onNavigate}
+            shares={props.detail.shares}
+          />
+        </Show>
+      )}
+    </Show>
+  );
+}
+
+function AccessList(props: {
+  access: Access;
+  file: SlackFile;
+  onNavigate: () => void;
+  shares: SlackFileDetail["shares"];
 }) {
   const [addRow, setAddRow] = createSignal<HTMLDivElement>();
   const [picking, setPicking] = createSignal<"channel" | "user" | null>(null);
-  const access = () => props.detail.access;
-  const channels = () => uniqueChannelShares(props.detail.shares);
-  const orgId = () => access().orgId;
-  const canManage = () =>
-    props.detail.editable && props.file.filetype === "quip" && orgId() !== null;
-  const hasRows = () => access().users.length > 0 || channels().length > 0;
+  const canManage = () => props.access.canManage;
+  const orgId = () => props.access.orgId;
 
-  async function apply(task: Promise<void>) {
+  function apply(change: AccessChange) {
     setPicking(null);
-    try {
-      await task;
-    } catch (error) {
-      feedback.caught(props.file.id, error, "Couldn't update access");
-    }
-    props.onChanged();
+    void fileAccess.run({ change, fileId: props.file.id });
   }
 
-  const grant = (target: FileAccessTarget, level: string) =>
-    apply(setFileAccess(props.file.id, orgId() ?? "", target, level));
+  const add = (target: FileAccessTarget) =>
+    apply({ kind: "add", level: "read", orgId: orgId(), target });
 
-  const remove = (target: FileAccessTarget) => apply(removeFileAccess(props.file.id, target));
+  const rowActions = (target: FileAccessTarget) => ({
+    onLevel: (level: string) => apply({ kind: "update", level, orgId: orgId(), target }),
+    onRemove: () => apply({ kind: "revoke", orgId: orgId(), target }),
+  });
+
+  const isFixed = (userId: UserId, level: string) =>
+    level === "owner" || userId === usersStore.currentUserId() || userId === props.file.userId;
 
   const ownerFirst = () =>
-    access().users.toSorted(
-      (a, b) =>
-        Number(b.userId === props.detail.ownerId) - Number(a.userId === props.detail.ownerId),
+    props.access.users.toSorted(
+      (a, b) => Number(b.access === "owner") - Number(a.access === "owner"),
     );
 
   return (
-    <Show when={canManage() || hasRows()}>
-      <section class="file-detail-section">
-        <h3 class="file-detail-section-title">Access</h3>
-        <Show when={orgId() && (canManage() || access().orgLevel !== "none")}>
+    <section class="file-detail-section">
+      <h3 class="file-detail-section-title">Access</h3>
+      <For each={ownerFirst()}>
+        {(entry) => (
           <AccessRow
-            level={access().orgLevel}
-            onLevel={
-              canManage()
-                ? (level) => void apply(setFileOrgAccess(props.file.id, orgId() ?? "", level))
-                : undefined
-            }
-            options={ORG_ACCESS_OPTIONS}
+            {...(canManage() && !isFixed(entry.userId, entry.access)
+              ? rowActions({ userId: entry.userId })
+              : {})}
+            editLockedReason={entry.editHeldBy && EDIT_HELD_REASONS[entry.editHeldBy]}
+            level={entry.access}
+            options={ACCESS_OPTIONS}
           >
-            <Icon name="workspace" size={16} />
-            <span class="truncate">Everyone in workspace</span>
+            <UserChip userId={entry.userId} />
           </AccessRow>
-        </Show>
-        <For each={ownerFirst()}>
-          {(entry) => {
-            const isOwner = () => entry.userId === props.detail.ownerId;
-            return (
-              <AccessRow
-                level={isOwner() ? "owner" : entry.access}
-                onLevel={
-                  canManage() && !isOwner()
-                    ? (level) => void grant({ userId: entry.userId }, level)
-                    : undefined
-                }
-                onRemove={
-                  canManage() && !isOwner()
-                    ? () => void remove({ userId: entry.userId })
-                    : undefined
-                }
-                options={isOwner() ? [{ label: "Owner", value: "owner" }] : ACCESS_OPTIONS}
-              >
-                <UserChip userId={entry.userId} />
-              </AccessRow>
-            );
-          }}
-        </For>
-        <For each={channels()}>
-          {(share) => (
-            <AccessRow
-              level={share.access ?? "read"}
-              onLevel={
-                canManage()
-                  ? (level) => void grant({ channelId: share.channelId }, level)
-                  : undefined
-              }
-              onRemove={canManage() ? () => void remove({ channelId: share.channelId }) : undefined}
-              options={ACCESS_OPTIONS}
-            >
-              <SplitNavigation
-                onSplit={() =>
-                  messageLinks.openMessageInSplit(share.channelId, share.ts, share.threadTs)
-                }
-              >
-                <button
-                  class="file-detail-channel btn-reset flex-align-center"
-                  onClick={() => props.onOpenShare(share)}
-                  type="button"
-                >
-                  <Icon name="channel" size={16} />
-                  <span class="truncate">{share.channelName}</span>
-                </button>
-              </SplitNavigation>
-            </AccessRow>
-          )}
-        </For>
-        <Show when={canManage()}>
-          <div class="file-detail-add flex-align-center" ref={setAddRow}>
-            <AddRowButton icon="user-add" label="Add people" onClick={() => setPicking("user")} />
-            <AddRowButton
-              icon="channel"
-              label="Add channel"
-              onClick={() => setPicking("channel")}
+        )}
+      </For>
+      <For each={props.access.channels}>
+        {(entry) => (
+          <AccessRow
+            {...(canManage() && entry.access !== "owner"
+              ? rowActions({ channelId: entry.channelId })
+              : {})}
+            editLockedReason={props.access.orgLevel === "write" ? EDIT_HELD_REASONS.org : undefined}
+            level={entry.access}
+            options={ACCESS_OPTIONS}
+          >
+            <ChannelChip
+              channelId={entry.channelId}
+              name={entry.name}
+              onOpen={props.onNavigate}
+              private={entry.private}
+              share={props.shares.find((share) => share.channelId === entry.channelId)}
             />
+          </AccessRow>
+        )}
+      </For>
+      <Show when={props.access.hiddenChannelCount}>
+        {(count) => (
+          <div class="file-detail-access-row">
+            <div class="file-detail-access-subject text-dim">
+              <Icon name="lock" size={16} />
+              {count() === 1 ? "1 other channel" : `${count()} other channels`}
+            </div>
           </div>
-          <FloatingPanel anchor={addRow} class="file-detail-picker" open={picking() !== null}>
-            <Show when={picking() === "user"}>
-              <ComposeUserPicker
-                excludeUserIds={access().users.map((entry) => entry.userId)}
-                includeCurrentUser
-                onClose={() => setPicking(null)}
-                onSelect={(userId) => void grant({ userId }, "read")}
-              />
-            </Show>
-            <Show when={picking() === "channel"}>
-              <ComposeChannelPicker
-                excludeChannelIds={channels().map((share) => share.channelId)}
-                onClose={() => setPicking(null)}
-                onSelect={(channelId) => void grant({ channelId }, "read")}
-              />
-            </Show>
-          </FloatingPanel>
-        </Show>
-      </section>
-    </Show>
+        )}
+      </Show>
+      <Show when={canManage() || props.access.orgLevel !== "none"}>
+        <AccessRow
+          class="file-detail-access-general"
+          level={props.access.orgLevel}
+          onLevel={
+            canManage() ? (level) => apply({ kind: "org", level, orgId: orgId() }) : undefined
+          }
+          options={orgAccessOptions(props.access.orgName)}
+        >
+          <Icon name={ORG_ACCESS_ICONS[props.access.orgLevel] ?? "globe"} size={16} />
+        </AccessRow>
+      </Show>
+      <Show when={canManage()}>
+        <div class="file-detail-add flex-align-center" ref={setAddRow}>
+          <AddRowButton icon="user-add" label="Add people" onClick={() => setPicking("user")} />
+          <AddRowButton icon="channel" label="Add channel" onClick={() => setPicking("channel")} />
+        </div>
+        <FloatingPanel anchor={addRow} class="file-detail-picker" open={picking() !== null}>
+          <Show when={picking() === "user"}>
+            <ComposeUserPicker
+              excludeUserIds={props.access.users.map((entry) => entry.userId)}
+              includeCurrentUser
+              onClose={() => setPicking(null)}
+              onSelect={(userId) => add({ userId })}
+            />
+          </Show>
+          <Show when={picking() === "channel"}>
+            <ComposeChannelPicker
+              excludeChannelIds={props.access.channels.map((entry) => entry.channelId)}
+              onClose={() => setPicking(null)}
+              onSelect={(channelId) => add({ channelId })}
+            />
+          </Show>
+        </FloatingPanel>
+      </Show>
+    </section>
   );
 }

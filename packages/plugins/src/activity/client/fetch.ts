@@ -1,5 +1,6 @@
 import { fetchCounts } from "@slock/plugins/slack/client/api";
-import { apiGet, apiPost, broadcastRangeOf, replyError } from "@slock/slack";
+import { broadcastRangeOf, replyError } from "@slock/slack";
+import { apiGet, apiPost } from "@slock/slack/client";
 import type {
   ActivityFeedPage,
   ActivityItem,
@@ -33,6 +34,10 @@ export async function archiveActivityItem(
   if (!data.ok) throw replyError(data, "activity.archive failed");
 }
 
+export function parseFeedEntry(raw: RawActivityFeedEntry): FeedEntry | undefined {
+  return mapFeedEntry(raw, parseFloat(raw.feed_ts ?? "") * 1000);
+}
+
 export async function fetchActivityFeedEntries(
   limit = 50,
   cursor?: string,
@@ -48,7 +53,7 @@ export async function fetchActivityFeedEntries(
   }>(`/api/activity?${query}`);
   if (!data.ok) throw replyError(data, "activity.feed failed");
   const entries = (data.items ?? [])
-    .map((raw) => mapFeedEntry(raw, parseFloat(raw.feed_ts ?? "") * 1000))
+    .map(parseFeedEntry)
     .filter((entry): entry is FeedEntry => !!entry);
   return {
     entries,
@@ -69,11 +74,13 @@ export function resolveActivityEntry(
     : (msg?.userId ?? entry.userId);
   return {
     ...entry,
+    attachments: msg?.attachments,
     broadcastRange,
     blocks: msg?.blocks ?? entry.blocks,
     botIcon: !isReaction && msg ? msg.botIcon : entry.botIcon,
     botId: !isReaction && msg ? msg.botId : entry.botId,
     botName: !isReaction && msg ? msg.botName : entry.botName,
+    botTeamId: !isReaction && msg ? msg.botTeamId : entry.botTeamId,
     files: msg?.files ?? entry.files,
     kind: entry.kind === "channel_all" && broadcastRange ? "channel_mention" : entry.kind,
     text: msg?.text || entry.text || "",

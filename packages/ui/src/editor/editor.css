@@ -135,6 +135,12 @@
   border-top: 1px solid var(--border-strong);
 }
 
+.ql-editor mark {
+  color: inherit;
+  background: var(--highlight-bg);
+  border-radius: 3px;
+}
+
 .ql-editor code {
   padding: 1px 5px;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
@@ -166,6 +172,19 @@
 .format-bubble-anchor {
   position: absolute;
   pointer-events: none;
+}
+
+.format-bubble-swatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+}
+
+.format-bubble-highlight {
+  background: var(--highlight-bg);
+  border-radius: var(--radius-sm);
 }
 
 .format-bubble-link {
