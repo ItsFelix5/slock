@@ -1,7 +1,9 @@
 import type { Setup } from "@slock/core";
 import { lazyChunk } from "@slock/core/solid";
 
+import { draftCacheKey } from "@slock/plugins/drafts/client/api";
 import { definePluginSettings } from "@slock/plugins/plugins/client/api";
+import { startUpload } from "./lib/attachUpload";
 import { createPendingFilesStore } from "./lib/pendingFiles";
 import FileInput from "./views/FileInput";
 import { DELETE_DRAFT_SHORTCUT } from "./views/popovers/DraftsMenu";
@@ -14,9 +16,16 @@ const setup: Setup = (ctx) => {
   const setting = definePluginSettings(ctx, {
     uploadOnAttach: { default: false, label: "Start uploading when a file is attached" },
   });
+  const pendingFiles = createPendingFilesStore();
+  const uploadOnAttach = setting("uploadOnAttach");
   ctx.provide("composer", {
-    pendingFiles: createPendingFilesStore(),
-    uploadOnAttach: setting("uploadOnAttach"),
+    attachFiles(target, files) {
+      const key = draftCacheKey(target.channelId, target.threadTs);
+      if (uploadOnAttach()) for (const file of files) startUpload(file);
+      pendingFiles.set(key, [...pendingFiles.get(key), ...files]);
+    },
+    pendingFiles,
+    uploadOnAttach,
   });
   ctx.onCleanup(ctx.get("ui").shortcuts.declare([DELETE_DRAFT_SHORTCUT]));
   ctx.add("composer.input", Composer);

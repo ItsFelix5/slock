@@ -38,6 +38,7 @@ beforeAll(async () => {
       id: "composer",
       setup: (ctx) =>
         ctx.provide("composer", {
+          attachFiles: () => undefined,
           pendingFiles: createPendingFilesStore(),
           uploadOnAttach: () => false,
         }),

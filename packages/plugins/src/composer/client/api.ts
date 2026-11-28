@@ -72,6 +72,7 @@ export type ComposerDraftAction = {
 declare module "@slock/core/types" {
   interface Services {
     composer: {
+      attachFiles(target: { channelId: ChannelId; threadTs?: Ts }, files: File[]): void;
       pendingFiles: ReturnType<typeof createPendingFilesStore>;
       uploadOnAttach: () => boolean;
     };

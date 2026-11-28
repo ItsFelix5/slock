@@ -12,6 +12,7 @@
     "@slock/types": "workspace:*",
     "@slock/ui": "workspace:*",
     "@solidjs/web": "2.0.3",
+    "gifenc": "^1.0.3",
     "quill": "^2",
     "solid-js": "2.0.3"
   },
