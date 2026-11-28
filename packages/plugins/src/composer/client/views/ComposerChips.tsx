@@ -40,6 +40,7 @@ export default function ComposerChips(props: {
               file={file}
               onRemove={() => props.pendingFiles.remove(index())}
               onRename={(name) => props.pendingFiles.rename(index(), name)}
+              onReplace={(next) => props.pendingFiles.replace(file, next)}
             />
           )}
         </For>

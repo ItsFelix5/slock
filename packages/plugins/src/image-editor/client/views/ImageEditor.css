@@ -1,8 +1,8 @@
-.meme-editor {
+.image-editor {
   width: min(520px, calc(100vw - 32px));
 }
 
-.meme-editor-content {
+.image-editor-content {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
@@ -11,40 +11,40 @@
   overflow-y: auto;
 }
 
-.meme-editor-stage {
+.image-editor-stage {
   display: flex;
   justify-content: center;
   background: repeating-conic-gradient(var(--hover-bg) 0 25%, var(--main-bg) 0 50%) 50% / 20px 20px;
   border-radius: var(--radius-md);
 }
 
-.meme-editor-canvas {
+.image-editor-canvas {
   display: block;
   max-width: 100%;
   max-height: 320px;
   object-fit: contain;
 }
 
-.meme-controls {
+.editor-controls {
   gap: var(--space-sm);
 }
 
-.meme-row {
+.editor-row {
   display: flex;
   gap: var(--space-md);
   align-items: center;
   justify-content: space-between;
 }
 
-.meme-row .slider {
+.editor-row .slider {
   width: 60%;
 }
 
-.meme-editor-error {
+.image-editor-error {
   margin: 0;
   color: var(--danger);
 }
 
-.meme-editor-actions {
+.image-editor-actions {
   padding: var(--space-md) 22px 18px;
 }

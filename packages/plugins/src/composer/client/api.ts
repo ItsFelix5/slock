@@ -62,6 +62,13 @@ type DraftContent = {
   files: SlackFile[];
 };
 
+export type ComposerFileAction = {
+  accepts(file: File): boolean;
+  icon: IconName;
+  label: string;
+  run(file: File): Promise<File | undefined>;
+};
+
 export type ComposerDraftAction = {
   icon: IconName;
   label: string;
@@ -72,7 +79,6 @@ export type ComposerDraftAction = {
 declare module "@slock/core/types" {
   interface Services {
     composer: {
-      attachFiles(target: { channelId: ChannelId; threadTs?: Ts }, files: File[]): void;
       pendingFiles: ReturnType<typeof createPendingFilesStore>;
       uploadOnAttach: () => boolean;
     };
@@ -82,6 +88,7 @@ declare module "@slock/core/types" {
     "composer.beforeSend": BeforeSend;
     "composer.draftAction": ComposerDraftAction;
     "composer.editor": BindEditor;
+    "composer.fileAction": ComposerFileAction;
     "composer.input": Component<ComposerProps>;
     "composer.notice": Component<ComposerProps>;
     "composer.mentionCard": Component<MentionCardProps>;

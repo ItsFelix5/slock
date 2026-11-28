@@ -1,5 +1,6 @@
-import { IconButton, useEditShortcuts } from "@slock/ui";
-import { createSignal, Show } from "solid-js";
+import { usePoint } from "@slock/core/solid";
+import { ContextMenu, IconButton, MenuItem, useContextMenu, useEditShortcuts } from "@slock/ui";
+import { createSignal, For, Show } from "solid-js";
 import { uploadProgress } from "../lib/attachUpload";
 import FileChipThumbnail from "./FileChipThumbnail";
 
@@ -8,12 +9,19 @@ export default function FileChip(props: {
   disabled: boolean;
   onRemove: () => void;
   onRename?: (name: string) => void;
+  onReplace?: (file: File) => void;
   thumbSrc?: string;
   fullSrc?: string;
 }) {
   const [renaming, setRenaming] = createSignal(false);
   const [draft, setDraft] = createSignal("");
   let chipRef: HTMLSpanElement | undefined;
+  const ctxMenu = useContextMenu();
+  const fileActions = usePoint("composer.fileAction");
+  const available = () =>
+    props.onReplace && !props.disabled
+      ? fileActions().filter((action) => action.accepts(props.file))
+      : [];
   const isImage = () => !!props.thumbSrc || props.file.type.startsWith("image/");
 
   const startRename = () => {
@@ -37,6 +45,7 @@ export default function FileChip(props: {
   return (
     <span
       class={["composer-file-chip flex-align-center", { "composer-file-chip-image": isImage() }]}
+      onContextMenu={(e) => available().length > 0 && ctxMenu.open(e)}
       ref={chipRef}
     >
       <FileChipThumbnail file={props.file} fullSrc={props.fullSrc} thumbSrc={props.thumbSrc} />
@@ -78,6 +87,21 @@ export default function FileChip(props: {
         onClick={props.onRemove}
         size="sm"
       />
+      <ContextMenu onClose={ctxMenu.close} open={ctxMenu.isOpen()} x={ctxMenu.x()} y={ctxMenu.y()}>
+        <For each={available()}>
+          {(action) => (
+            <MenuItem
+              icon={action.icon}
+              onClick={() => {
+                ctxMenu.close();
+                void action.run(props.file).then((next) => next && props.onReplace?.(next));
+              }}
+            >
+              {action.label}
+            </MenuItem>
+          )}
+        </For>
+      </ContextMenu>
     </span>
   );
 }

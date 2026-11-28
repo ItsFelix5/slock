@@ -2,36 +2,36 @@ import { errorMessage } from "@slock/core";
 import { service } from "@slock/core/solid";
 import { Button, Modal, ModalHeader } from "@slock/ui";
 import { createSignal, onSettled, Show } from "solid-js";
-import type { MemeTarget } from "../api";
 import { type Decoded, decodeImage } from "../lib/decode";
-import { encodeMeme } from "../lib/encode";
-import { fetchSource } from "../lib/fetchSource";
-import { cropRect, defaultMeme, type Meme, selectedFrames } from "../lib/meme";
-import { drawMeme } from "../lib/render";
-import MemeControls from "./MemeControls";
-import "./MemeEditor.css";
+import { cropRect, defaultEdits, type Edits, selectedFrames } from "../lib/edits";
+import { encodeImage } from "../lib/encode";
+import { drawEdits } from "../lib/render";
+import EditorControls from "./EditorControls";
+import "./ImageEditor.css";
 
 const env = service("env");
-const composer = service("composer");
 
 const IDLE_TICK_MS = 100;
 
-export default function MemeEditor(props: { onClose: () => void; target: MemeTarget }) {
+export default function ImageEditor(props: {
+  file: File;
+  onCancel: () => void;
+  onSave: (file: File) => void;
+}) {
   const [decoded, setDecoded] = createSignal<Decoded>();
-  const [meme, setMeme] = createSignal<Meme>(defaultMeme(1));
+  const [edits, setEdits] = createSignal<Edits>(defaultEdits(1));
   const [error, setError] = createSignal<string>();
   const [progress, setProgress] = createSignal<number>();
   let canvas: HTMLCanvasElement | undefined;
 
   const saving = () => progress() !== undefined;
-  const close = () => !saving() && props.onClose();
+  const cancel = () => !saving() && props.onCancel();
 
   onSettled(() => {
     const abort = new AbortController();
-    fetchSource(props.target.source, abort.signal)
-      .then((blob) => decodeImage(blob, abort.signal))
+    decodeImage(props.file, abort.signal)
       .then((next) => {
-        setMeme(defaultMeme(next.frames.length));
+        setEdits(defaultEdits(next.frames.length));
         setDecoded(next);
       })
       .catch((e) => !abort.signal.aborted && setError(errorMessage(e)));
@@ -43,14 +43,18 @@ export default function MemeEditor(props: { onClose: () => void; target: MemeTar
     let timer: ReturnType<typeof env.setTimeout> | undefined;
     const tick = () => {
       const current = decoded();
-      const frames = current ? selectedFrames(current.frames, meme()) : [];
+      const frames = current ? selectedFrames(current.frames, edits()) : [];
       const shown = frames[index % Math.max(1, frames.length)];
       if (!(current && canvas && shown)) {
         timer = env.setTimeout(tick, IDLE_TICK_MS);
         return;
       }
-      const rect = cropRect(meme().crop, current.width, current.height);
-      drawMeme(canvas, shown.frame.image, rect, meme());
+      drawEdits(
+        canvas,
+        shown.frame.image,
+        cropRect(edits().crop, current.width, current.height),
+        edits(),
+      );
       index++;
       timer = env.setTimeout(tick, shown.delay);
     };
@@ -64,9 +68,7 @@ export default function MemeEditor(props: { onClose: () => void; target: MemeTar
     setError(undefined);
     setProgress(0);
     try {
-      const file = await encodeMeme(current, meme(), props.target.source.name, setProgress);
-      composer.attachFiles(props.target, [file]);
-      props.onClose();
+      props.onSave(await encodeImage(current, edits(), props.file.name, setProgress));
     } catch (e) {
       setError(errorMessage(e));
       setProgress(undefined);
@@ -74,25 +76,29 @@ export default function MemeEditor(props: { onClose: () => void; target: MemeTar
   }
 
   return (
-    <Modal ariaLabel="Make a meme" class="meme-editor" onClose={close}>
-      <ModalHeader onClose={close} title="Make a meme" />
-      <div class="meme-editor-content">
-        <div class="meme-editor-stage">
-          <canvas class="meme-editor-canvas" ref={canvas} />
+    <Modal ariaLabel="Edit image" class="image-editor" onClose={cancel}>
+      <ModalHeader onClose={cancel} title="Edit image" />
+      <div class="image-editor-content">
+        <div class="image-editor-stage">
+          <canvas class="image-editor-canvas" ref={canvas} />
         </div>
         <Show when={decoded()}>
           {(current) => (
-            <MemeControls frameCount={current().frames.length} meme={meme()} onChange={setMeme} />
+            <EditorControls
+              edits={edits()}
+              frameCount={current().frames.length}
+              onChange={setEdits}
+            />
           )}
         </Show>
-        <Show when={error()}>{(message) => <p class="meme-editor-error">{message()}</p>}</Show>
+        <Show when={error()}>{(message) => <p class="image-editor-error">{message()}</p>}</Show>
       </div>
-      <div class="meme-editor-actions flex-between">
-        <Button disabled={saving()} onClick={props.onClose} variant="secondary">
+      <div class="image-editor-actions flex-between">
+        <Button disabled={saving()} onClick={props.onCancel} variant="secondary">
           Cancel
         </Button>
         <Button disabled={saving() || !decoded()} onClick={() => void save()} variant="primary">
-          {saving() ? `Encoding ${Math.round((progress() ?? 0) * 100)}%` : "Add to message"}
+          {saving() ? `Saving ${Math.round((progress() ?? 0) * 100)}%` : "Save"}
         </Button>
       </div>
     </Modal>

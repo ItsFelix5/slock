@@ -5,26 +5,49 @@ import {
   createPendingFilesStore,
 } from "../../../../../packages/plugins/src/composer/client/lib/pendingFiles";
 
-describe("pending files store", () => {
-  test("files added through the store reach a mounted composer", () => {
-    const store = createPendingFilesStore();
-    let dispose = () => {};
-    const state = createRoot((done) => {
-      dispose = done;
-      return createPendingFileState({
-        disabled: () => false,
-        draftKey: () => "C1",
-        store,
-        uploadOnAttach: () => false,
-      });
-    });
-    const file = new File(["x"], "meme.gif", { type: "image/gif" });
-    store.set("C1", [file]);
+function setup(disabled = false) {
+  return createRoot(() =>
+    createPendingFileState({
+      disabled: () => disabled,
+      draftKey: () => "C1",
+      store: createPendingFilesStore(),
+      uploadOnAttach: () => false,
+    }),
+  );
+}
+
+describe("pending files replace", () => {
+  test("swaps the matching file in place", () => {
+    const state = setup();
+    const [a, b, edited] = [
+      new File(["a"], "a.png"),
+      new File(["b"], "b.png"),
+      new File(["c"], "c.png"),
+    ];
+    state.add([a, b]);
     flush();
-    expect(state.files()).toEqual([file]);
-    store.set("C2", [new File(["y"], "other.gif")]);
+    state.replace(a, edited);
     flush();
-    expect(state.files()).toEqual([file]);
-    dispose();
+    expect(state.files()).toEqual([edited, b]);
+  });
+
+  test("ignores a file that was removed meanwhile", () => {
+    const state = setup();
+    const a = new File(["a"], "a.png");
+    state.add([a]);
+    flush();
+    state.remove(0);
+    flush();
+    state.replace(a, new File(["c"], "c.png"));
+    flush();
+    expect(state.files()).toEqual([]);
+  });
+
+  test("does nothing while disabled", () => {
+    const state = setup(true);
+    const a = new File(["a"], "a.png");
+    state.replace(a, new File(["c"], "c.png"));
+    flush();
+    expect(state.files()).toEqual([]);
   });
 });

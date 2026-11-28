@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
   cropRect,
-  defaultMeme,
+  defaultEdits,
+  editedFileName,
   MAX_KEPT,
-  memeFileName,
   selectedFrames,
   setCrop,
   setTrim,
   wrapLines,
-} from "../../../../packages/plugins/src/meme/client/lib/meme";
+} from "../../../../packages/plugins/src/image-editor/client/lib/edits";
 
 const measure = (line: string) => line.length * 10;
 
@@ -53,7 +53,7 @@ describe("crop", () => {
   });
 
   test("setCrop clamps below zero", () => {
-    expect(setCrop(defaultMeme(1).crop, "top", -1).top).toBe(0);
+    expect(setCrop(defaultEdits(1).crop, "top", -1).top).toBe(0);
   });
 });
 
@@ -61,30 +61,30 @@ describe("trim and speed", () => {
   const frames = [{ delay: 100 }, { delay: 100 }, { delay: 40 }, { delay: 100 }];
 
   test("selects the trimmed range", () => {
-    const meme = { ...defaultMeme(4), end: 2, start: 1 };
-    expect(selectedFrames(frames, meme)).toHaveLength(2);
+    const edits = { ...defaultEdits(4), end: 2, start: 1 };
+    expect(selectedFrames(frames, edits)).toHaveLength(2);
   });
 
   test("speed scales delays and floors them", () => {
-    const meme = { ...defaultMeme(4), speed: 3 };
-    expect(selectedFrames(frames, meme).map((f) => f.delay)).toEqual([33, 33, 20, 33]);
+    const edits = { ...defaultEdits(4), speed: 3 };
+    expect(selectedFrames(frames, edits).map((f) => f.delay)).toEqual([33, 33, 20, 33]);
   });
 
   test("setTrim drags the other edge along", () => {
-    const meme = { ...defaultMeme(4), end: 1, start: 0 };
-    expect(setTrim(meme, "start", 3, 3)).toMatchObject({ end: 3, start: 3 });
-    expect(setTrim({ ...meme, start: 1 }, "end", 0, 3)).toMatchObject({ end: 0, start: 0 });
+    const edits = { ...defaultEdits(4), end: 1, start: 0 };
+    expect(setTrim(edits, "start", 3, 3)).toMatchObject({ end: 3, start: 3 });
+    expect(setTrim({ ...edits, start: 1 }, "end", 0, 3)).toMatchObject({ end: 0, start: 0 });
   });
 
   test("setTrim stays inside the frame range", () => {
-    expect(setTrim(defaultMeme(4), "end", 99, 3).end).toBe(3);
+    expect(setTrim(defaultEdits(4), "end", 99, 3).end).toBe(3);
   });
 });
 
-describe("memeFileName", () => {
-  test("swaps the extension and marks it", () => {
-    expect(memeFileName("cat.jpeg", false)).toBe("cat-meme.png");
-    expect(memeFileName("tenor.gif", true)).toBe("tenor-meme.gif");
-    expect(memeFileName("", true)).toBe("image-meme.gif");
+describe("editedFileName", () => {
+  test("keeps the base name and swaps the extension", () => {
+    expect(editedFileName("cat.jpeg", "jpg")).toBe("cat.jpg");
+    expect(editedFileName("tenor.gif", "gif")).toBe("tenor.gif");
+    expect(editedFileName("", "png")).toBe("image.png");
   });
 });

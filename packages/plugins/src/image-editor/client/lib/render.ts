@@ -1,4 +1,4 @@
-import { type Meme, type Rect, wrapLines } from "./meme";
+import { type Edits, type Rect, wrapLines } from "./edits";
 
 const MAX_LINES = 3;
 const MIN_FONT_PX = 10;
@@ -40,11 +40,11 @@ function caption(
   });
 }
 
-export function drawMeme(
+export function drawEdits(
   canvas: HTMLCanvasElement,
   image: CanvasImageSource,
   rect: Rect,
-  meme: Meme,
+  edits: Edits,
   background?: string,
 ) {
   if (canvas.width !== rect.width) canvas.width = rect.width;
@@ -57,7 +57,7 @@ export function drawMeme(
     ctx.fillRect(0, 0, rect.width, rect.height);
   }
   ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
-  caption(ctx, meme.top, rect, "top", meme.size);
-  caption(ctx, meme.bottom, rect, "bottom", meme.size);
+  caption(ctx, edits.top, rect, "top", edits.size);
+  caption(ctx, edits.bottom, rect, "bottom", edits.size);
   return ctx;
 }

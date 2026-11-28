@@ -3,21 +3,10 @@ import { startUpload } from "./attachUpload";
 
 export function createPendingFilesStore() {
   const byDraft = new Map<string, File[]>();
-  const [version, setVersion] = createSignal(0);
-  const changed = () => setVersion((current) => current + 1);
   return {
-    delete(key: string) {
-      byDraft.delete(key);
-      changed();
-    },
-    get(key: string) {
-      version();
-      return byDraft.get(key) ?? [];
-    },
-    set(key: string, files: File[]) {
-      byDraft.set(key, files);
-      changed();
-    },
+    delete: (key: string) => byDraft.delete(key),
+    get: (key: string) => byDraft.get(key) ?? [],
+    set: (key: string, files: File[]) => byDraft.set(key, files),
   };
 }
 
@@ -45,6 +34,10 @@ export function createPendingFileState(opts: {
     add(fileList: FileList | File[]) {
       if (opts.disabled()) return;
       store([...files(), ...Array.from(fileList)]);
+    },
+    replace(file: File, next: File) {
+      if (opts.disabled()) return;
+      store(files().map((current) => (current === file ? next : current)));
     },
     clear(submittedKey: string) {
       opts.store.delete(submittedKey);

@@ -1,6 +1,6 @@
 export type Crop = { bottom: number; left: number; right: number; top: number };
 export type Rect = { height: number; width: number; x: number; y: number };
-export type Meme = {
+export type Edits = {
   bottom: string;
   crop: Crop;
   end: number;
@@ -16,7 +16,7 @@ export const MAX_KEPT = 0.9;
 const WHITESPACE = /\s+/;
 export const SPEEDS = [0.5, 1, 1.5, 2, 3];
 
-export function defaultMeme(frameCount: number): Meme {
+export function defaultEdits(frameCount: number): Edits {
   return {
     bottom: "",
     crop: { bottom: 0, left: 0, right: 0, top: 0 },
@@ -47,19 +47,19 @@ export function cropRect(crop: Crop, width: number, height: number): Rect {
   };
 }
 
-export function setTrim(meme: Meme, edge: "end" | "start", value: number, last: number): Meme {
+export function setTrim(edits: Edits, edge: "end" | "start", value: number, last: number): Edits {
   const index = Math.max(0, Math.min(Math.round(value), last));
   return edge === "start"
-    ? { ...meme, end: Math.max(meme.end, index), start: index }
-    : { ...meme, end: index, start: Math.min(meme.start, index) };
+    ? { ...edits, end: Math.max(edits.end, index), start: index }
+    : { ...edits, end: index, start: Math.min(edits.start, index) };
 }
 
 export function selectedFrames<T extends Timed>(
   frames: T[],
-  meme: Meme,
+  edits: Edits,
 ): { delay: number; frame: T }[] {
-  return frames.slice(meme.start, meme.end + 1).map((frame) => ({
-    delay: Math.max(MIN_DELAY_MS, Math.round(frame.delay / meme.speed)),
+  return frames.slice(edits.start, edits.end + 1).map((frame) => ({
+    delay: Math.max(MIN_DELAY_MS, Math.round(frame.delay / edits.speed)),
     frame,
   }));
 }
@@ -82,8 +82,8 @@ export function wrapLines(
   return lines;
 }
 
-export function memeFileName(sourceName: string, animated: boolean): string {
+export function editedFileName(sourceName: string, extension: string): string {
   const dot = sourceName.lastIndexOf(".");
   const base = (dot > 0 ? sourceName.slice(0, dot) : sourceName).trim() || "image";
-  return `${base}-meme.${animated ? "gif" : "png"}`;
+  return `${base}.${extension}`;
 }

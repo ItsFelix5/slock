@@ -138,7 +138,6 @@ export function composerServices(outbox: Outbox): PluginDef[] {
     },
     provide("templates", partialService<Services["templates"]>({ templates: sourceOf([]) })),
     provide("composer", {
-      attachFiles: () => undefined,
       pendingFiles: createPendingFilesStore(),
       uploadOnAttach: () => false,
     }),

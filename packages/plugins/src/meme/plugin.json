@@ -1,7 +1,0 @@
-{
-  "id": "meme",
-  "category": "Write",
-  "name": "Meme maker",
-  "requires": ["composer", "messages", "shell"],
-  "boot": true
-}
